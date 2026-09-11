@@ -90,7 +90,7 @@ let orders=[]; let urgent=false; let photoFile=null;
   $('#orderDate').value = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Taipei'});
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function fmt(t){if(!t)return'';return new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}
+function fmt(t){if(!t)return'';return new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Taipei'})}
 function translitLine(line){let out=line;Object.keys(MAP).sort((a,b)=>b.length-a.length).forEach(k=>{if(out.includes(k))out=out.replaceAll(k,MAP[k])});return out===line?'（尚未建立音譯）':out}
 function statusBadge(s){return s==='waiting'?'<span class="badge yellow">待接單</span>':s==='packing'?'<span class="badge green">包裝中</span>':'<span class="badge gray">已完成</span>'}
 function makeOrderNo(){const d=new Date();const y=String(d.getFullYear()).slice(2),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'),h=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0'),s=String(d.getSeconds()).padStart(2,'0'),r=Math.floor(Math.random()*90+10);return `${y}${m}${day}-${h}${mi}${s}${r}`}
