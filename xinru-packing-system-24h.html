@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#f7f8fa" />
+<title>欣儒農產行｜包裝即時系統</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--text:#16181d;--muted:#7b818b;--line:#e5e8ec;--blue:#dbeeff;--blueText:#1e5f94;--green:#1f9d55;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed;--shadow:0 8px 28px rgba(0,0,0,.06)}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",Arial,sans-serif;color:var(--text)}
+.app{max-width:1180px;margin:auto;min-height:100vh;background:#f7f8fa;padding-bottom:90px}.top{position:sticky;top:0;z-index:10;background:rgba(247,248,250,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.title{padding:18px 20px 10px;text-align:center;font-weight:800;font-size:22px}.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 14px 14px}.tab{border:0;background:#fff;border-radius:16px;padding:14px 8px;font-weight:800;font-size:15px;box-shadow:0 1px 0 #e7e9ec;cursor:pointer}.tab.active{background:var(--blue);color:var(--blueText)}
+.wrap{padding:16px}.panel{display:none}.panel.active{display:block}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.card h2{margin:0 0 6px;font-size:24px}.helper{color:var(--muted);font-size:14px;margin-bottom:16px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin:12px 0}.label{display:block;font-size:14px;font-weight:800;margin-bottom:7px}.input,.textarea{width:100%;border:1px solid #dfe3e8;border-radius:14px;background:#fafbfc;padding:13px 14px;font-size:16px;outline:none}.textarea{min-height:150px;resize:vertical;line-height:1.6}.input:focus,.textarea:focus{border-color:#7ab8f5;background:white}
+.btn{border:0;border-radius:14px;padding:13px 16px;font-weight:800;font-size:16px;cursor:pointer}.btn.primary{background:#1f9d55;color:#fff}.btn.blue{background:#2563eb;color:#fff}.btn.gray{background:#eef1f4}.btn.red{background:#ffe8e9;color:#b4232c}.actions{display:flex;gap:10px;flex-wrap:wrap}.urgentRow{display:flex;align-items:center;justify-content:space-between;background:#fff7f7;border:1px solid #ffd6d8;padding:12px 14px;border-radius:14px}.switch{width:52px;height:30px;background:#d8dce1;border-radius:999px;position:relative;cursor:pointer;transition:.2s}.switch:after{content:"";position:absolute;width:24px;height:24px;background:white;border-radius:50%;top:3px;left:3px;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:.2s}.switch.on{background:var(--red)}.switch.on:after{left:25px}
+.photoBox{border:2px dashed #cfd5dc;border-radius:18px;padding:14px;text-align:center;background:#fafbfc}.photoBox img{max-width:100%;max-height:280px;border-radius:14px;display:none;margin:0 auto 12px}.file{display:none}
+.order{border:1px solid var(--line);border-radius:18px;background:#fff;padding:15px;margin-bottom:12px}.order.urgent{border:2px solid #ffb1b5}.orderHead{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}.orderTitle{font-weight:900;font-size:18px}.badge{display:inline-block;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900}.badge.red{background:#ffe7e9;color:#bf2630}.badge.yellow{background:#fff0c9;color:#925f00}.badge.green{background:#dcfce7;color:#18703c}.badge.gray{background:#eef1f4;color:#59606a}.item{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #f0f1f3}.check{width:28px;height:28px;border-radius:8px;border:2px solid #bcc3cb;display:grid;place-items:center;cursor:pointer;font-weight:900}.check.done{background:#22a447;color:white;border-color:#22a447}.cn{font-weight:800}.th{color:#607086;font-size:13px;margin-top:3px}.qty{font-weight:800}.progress{height:10px;background:#e7ebef;border-radius:999px;overflow:hidden}.bar{height:100%;background:#2aa75b}.meta{font-size:13px;color:#7b818b}.table{width:100%;border-collapse:collapse;background:#fff;border-radius:18px;overflow:hidden}.table th,.table td{padding:12px 10px;border-bottom:1px solid #edf0f2;text-align:left;font-size:14px}.table th{background:#f6f8fa}.empty{text-align:center;color:#9198a1;padding:30px 10px}.photoMini{max-width:140px;max-height:100px;border-radius:8px}.sync{font-size:12px;color:#68707a;text-align:center;padding-bottom:8px}.wallTable td{font-size:17px}.wallTable th{font-size:15px}.wallItems{line-height:1.6;min-width:260px}.wallCustomer{font-size:20px;font-weight:900}.wallPickup{font-size:20px;font-weight:900}.wallStatus{font-size:16px}.wallProgress{min-width:120px}
+@media(max-width:760px){.app{max-width:none}.title{font-size:18px}.tabs{grid-template-columns:repeat(4,1fr);gap:5px;padding-inline:8px}.tab{font-size:13px;padding:12px 4px;border-radius:13px}.wrap{padding:10px}.grid2{grid-template-columns:1fr}.card{padding:15px;border-radius:18px}.card h2{font-size:21px}.table{display:block;overflow:auto;white-space:nowrap}.wallTable td{font-size:15px}.wallCustomer,.wallPickup{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="title">欣儒農產行｜包裝即時系統</div>
+    <div class="sync" id="syncState">正在連線 Supabase…</div>
+    <div class="tabs">
+      <button class="tab active" data-tab="stall">攤位下單</button>
+      <button class="tab" data-tab="packing">包裝部</button>
+      <button class="tab" data-tab="wall">電視牆</button>
+      <button class="tab" data-tab="today">今日訂單</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section id="stall" class="panel active">
+      <div class="card">
+        <h2>攤位下單</h2>
+        <div class="helper">文字輸入或拍照下單，確認後即時送到包裝部與電視牆。</div>
+        <div class="grid2">
+          <div class="field"><label class="label">客戶／店家名稱</label><input id="customer" class="input" placeholder="例如：家家寶"></div>
+          <div class="field"><label class="label">取貨時間</label><input id="pickupTime" class="input" type="time"></div>
+       <div class="field"><label class="label">訂單日期</label><input id="orderDate" class="input" type="date"></div> </div>
+        <div class="field">
+          <label class="label">📷 拍照下單</label>
+          <div class="photoBox">
+            <img id="photoPreview" alt="訂單照片">
+            <input id="photoInput" class="file" type="file" accept="image/*" capture="environment">
+            <div class="actions" style="justify-content:center"><button id="takePhoto" class="btn gray">拍照／選照片</button><button id="clearPhoto" class="btn gray">移除照片</button></div>
+            <div class="helper" style="margin:10px 0 0">目前先保留照片功能；下一步建立 Storage 後，包裝部即可跨裝置查看原始照片。</div>
+          </div>
+        </div>
+        <div class="field"><label class="label">需求內容（每行一項）</label><textarea id="items" class="textarea" placeholder="高麗菜3K\n白蘿蔔5K\n青花3顆\n紅蘿蔔1K"></textarea></div>
+        <div class="field"><label class="label">備註</label><input id="note" class="input" placeholder="例如：客人晚點到，請先備好"></div>
+        <div class="urgentRow"><div><b>🚨 急單</b><div class="meta">送出後自動排到包裝部與電視牆最上面</div></div><div id="urgentSwitch" class="switch"></div></div>
+        <div class="actions" style="margin-top:14px"><button id="submitOrder" class="btn primary" style="flex:1">送出訂單</button></div>
+      </div>
+      <div class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
+      <div class="card"><h2 style="font-size:19px">目前訂單</h2><div id="stallOrders"></div></div>
+    </section>
+
+    <section id="packing" class="panel">
+      <div class="card"><h2>包裝部</h2><div class="helper">急單置頂。單個品項完成就 ☑️，全部完成後才能整單完成。</div><div id="packingOrders"></div></div>
+    </section>
+
+    <section id="wall" class="panel">
+      <div class="card"><h2>欣儒農產行｜包裝即時看板</h2><div class="helper">電視牆欄位：客戶／取貨時間／品項／進度／狀態。完成訂單會自動離開電視牆。</div>
+        <div style="overflow:auto"><table class="table wallTable"><thead><tr><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody id="wallBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="today" class="panel">
+<h2>訂單查詢</h2>
+<div class="helper">可查詢今天、未來預定單與歷史訂單。</div>
+<div class="actions" style="margin:12px 0">
+  <input id="queryDate" class="input" type="date" style="max-width:220px">
+  <button id="queryDateBtn" class="btn primary">查詢訂單</button>
+</div><div id="todayBody"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://vzohexennzwhodovknfi.supabase.co';
+const SUPABASE_KEY='sb_publishable_JjHWTnCuEYgQ5__ZFh5UIw_UO5E5IP2';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const MAP={
+'高麗菜':'เกา ลี่ ไช่','紅蘿蔔':'หง หลัว ปัว','白蘿蔔':'ไป๋ หลัว ปัว','青花菜':'ชิง ฮวา ไช่','青花':'ชิง ฮวา','小黃瓜':'เสี่ยว หวง กวา','大黃瓜':'ต้า หวง กวา','青椒':'ชิง เจียว','彩椒':'ไฉ่ เจียว','水果椒':'สุ่ย กั่ว เจียว','茄子':'เฉีย จื่อ','絲瓜':'ซือ กวา','苦瓜':'ขู่ กวา','冬瓜':'ตง กวา','大陸妹':'ต้า ลู่ เม่ย','地瓜葉':'ตี้ กวา เย่','小白菜':'เสี่ยว ไป๋ ไช่','青江菜':'ชิง เจียง ไช่','空心菜':'คง ซิน ไช่','菠菜':'ปัว ไช่','芥蘭':'เจี้ย หลาน','水蓮':'สุ่ย เหลียน','皇宮菜':'หวง กง ไช่','蘿美':'หลัว เหม่ย','美生':'เหม่ย เซิง','芝麻葉':'จือ หม่า เย่','四季豆':'ซื่อ จี้ โต้ว','秋葵':'ชิว ขุย','九層塔':'จิ่ว เฉิง ถ่า','蔥':'ชง','北蒜':'เป่ย ซ่วน','蒜頭':'ซ่วน โถว','紅地瓜':'หง ตี้ กวา','黃地瓜':'หวง ตี้ กวา','南瓜':'หนาน กวา','芋頭':'อวี่ โถว','牛蒡':'หนิว ปั้ง','筊白筍':'เจี่ยว ไป๋ สุ่ย','蘆筍':'หลู สุ่ย','日本山藥':'รื่อ เปิ่น ซาน เย่า','羽衣甘藍':'อวี่ อี กาน หลาน','日本茄子':'รื่อ เปิ่น เฉีย จื่อ','花瓜':'ฮวา กวา'
+};
+let orders=[]; let urgent=false; let photoFile=null;
+  $('#orderDate').value = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Taipei'});
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function fmt(t){if(!t)return'';return new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Taipei'})}
+function translitLine(line){let out=line;Object.keys(MAP).sort((a,b)=>b.length-a.length).forEach(k=>{if(out.includes(k))out=out.replaceAll(k,MAP[k])});return out===line?'（尚未建立音譯）':out}
+function statusBadge(s){return s==='waiting'?'<span class="badge yellow">待接單</span>':s==='packing'?'<span class="badge green">包裝中</span>':'<span class="badge gray">已完成</span>'}
+function makeOrderNo(){const d=new Date();const y=String(d.getFullYear()).slice(2),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'),h=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0'),s=String(d.getSeconds()).padStart(2,'0'),r=Math.floor(Math.random()*90+10);return `${y}${m}${day}-${h}${mi}${s}${r}`}
+function normalized(row){return {...row,items:(row.order_items||[]).sort((a,b)=>a.id-b.id)}}
+async function loadOrders(){
+  const {data,error}=await sb.from('orders').select('*, order_items(*)').order('is_urgent',{ascending:false}).order('created_at',{ascending:true});
+  if(error){console.error(error);$('#syncState').textContent='連線失敗：'+error.message;return}
+  orders=(data||[]).map(normalized);$('#syncState').textContent='● 已連線｜即時同步中';renderAll();
+}
+function renderAll(){renderStall();renderPacking();renderWall();renderToday()}
+function renderStall(){const box=$('#stallOrders');const arr=[...orders].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="">${esc(o.order_no)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.customer)}｜取貨 ${esc(o.pickup_time||'未填')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}</div>`).join(''):'<div class="empty">目前沒有訂單</div>'}
+function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>(Number(b.is_urgent)-Number(a.is_urgent))||(new Date(a.created_at)-new Date(b.created_at)));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle">${esc(o.order_no)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="meta">${esc(o.customer)}｜取貨 ${esc(o.pickup_time||'未填')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''}" onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})">${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${o.photo_url?`<div style="margin-top:10px"><a href="${esc(o.photo_url)}" target="_blank"><img class="photoMini" src="${esc(o.photo_url)}"></a></div>`:''}<div class="actions" style="margin-top:12px">${o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}<button class="btn primary" ${done!==total?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button></div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
+function renderWall(){const active=[...orders].filter(o=>o.status!=='done').sort((a,b)=>(Number(b.is_urgent)-Number(a.is_urgent))||(String(a.pickup_time||'99:99').localeCompare(String(b.pickup_time||'99:99')))||(new Date(a.created_at)-new Date(b.created_at)));const body=$('#wallBody');body.innerHTML=active.length?active.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<tr><td><div class="wallCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)}</div></td><td><div class="wallPickup">${esc(o.pickup_time||'未填')}</div></td><td class="wallItems">${o.items.map(x=>`${x.is_completed?'✅':'☐'} ${esc(x.item_name)}<div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div>`).join('<br>')}</td><td class="wallProgress"><b>${done}/${total}</b><div class="progress" style="margin-top:7px"><div class="bar" style="width:${pct}%"></div></div></td><td class="wallStatus">${statusBadge(o.status)}</td></tr>`}).join(''):'<tr><td colspan="5" class="empty">目前沒有待處理訂單</td></tr>'}
+function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmt(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'未填')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div>`).join('')}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmt(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
+window.toggleItem=async(itemId,newVal,orderId)=>{await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);if(o&&o.status==='waiting')await sb.from('orders').update({status:'packing'}).eq('id',orderId);await loadOrders()};
+window.startPacking=async id=>{await sb.from('orders').update({status:'packing'}).eq('id',id);await loadOrders()};
+window.finishOrder=async id=>{const o=orders.find(x=>x.id===id);if(!o||!o.items.every(x=>x.is_completed))return;await sb.from('orders').update({status:'done',completed_at:new Date().toISOString()}).eq('id',id);await loadOrders()};
+$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active');renderAll()});
+$('#urgentSwitch').onclick=()=>{urgent=!urgent;$('#urgentSwitch').classList.toggle('on',urgent)};
+$('#takePhoto').onclick=()=>$('#photoInput').click();
+$('#clearPhoto').onclick=()=>{photoFile=null;$('#photoInput').value='';$('#photoPreview').style.display='none';$('#photoPreview').src=''};
+$('#photoInput').onchange=e=>{const f=e.target.files[0];if(!f)return;photoFile=f;const r=new FileReader();r.onload=()=>{$('#photoPreview').src=r.result;$('#photoPreview').style.display='block'};r.readAsDataURL(f)};
+async function uploadPhoto(orderNo){if(!photoFile)return null;try{const ext=(photoFile.name.split('.').pop()||'jpg').toLowerCase();const path=`${orderNo}-${Date.now()}.${ext}`;const {error}=await sb.storage.from('order-photos').upload(path,photoFile,{upsert:false});if(error)throw error;const {data}=sb.storage.from('order-photos').getPublicUrl(path);return data.publicUrl}catch(e){console.warn('照片尚未上傳：',e.message);return null}}
+$('#submitOrder').onclick=async()=>{const customer=$('#customer').value.trim(),pickup=$('#pickupTime').value,lines=$('#items').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請先輸入客戶／店家名稱');return}if(!lines.length){alert('請先輸入需求內容');return}const btn=$('#submitOrder');btn.disabled=true;btn.textContent='送出中…';try{const orderNo=makeOrderNo();const photoUrl=await uploadPhoto(orderNo);const {data:order,error}=await sb.from('orders').insert({order_no:orderNo,customer,pickup_time:pickup||null,note:$('#note').value.trim()||null,photo_url:photoUrl,is_urgent:urgent,order_date:$('#orderDate').value,status:'waiting'}).select().single();if(error)throw error;const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#items').value='';$('#note').value='';urgent=false;$('#urgentSwitch').classList.remove('on');$('#clearPhoto').click();await loadOrders();alert('訂單已送出');}catch(e){console.error(e);alert('送出失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='送出訂單'}};
+$('#transBtn').onclick=()=>{const v=$('#transInput').value.trim();$('#transResult').textContent=v?`${v} → ${translitLine(v)}`:''};
+const channel=sb.channel('xinru-live').on('postgres_changes',{event:'*',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>loadOrders()).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
+$('#queryDateBtn').onclick=()=>renderToday();
+$('#queryDate').onchange=()=>renderToday();
+  loadOrders();
+</script>
+</body></html>
