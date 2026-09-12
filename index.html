@@ -364,7 +364,7 @@ async function unlockAudio(){
   try{
     if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
     if(audioCtx.state==='suspended')await audioCtx.resume();
-    updateSoundReadyUI(audioCtx.state==='running');
+    updateSoundReadyUI(soundEnabled && audioCtx.state==='running');
     return audioCtx.state==='running';
   }catch(e){console.warn('無法啟用提醒聲',e);updateSoundReadyUI(false);return false}
 }
@@ -373,7 +373,11 @@ function updateSoundReadyUI(ok){
   if(!el){
     el=document.createElement('div');el.id='soundReadyBox';
     el.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:14px;font-weight:900;box-shadow:0 4px 18px rgba(0,0,0,.18);cursor:pointer;user-select:none;font-size:15px';
-    el.onclick=async()=>{const good=await unlockAudio();if(good)playSoundTest()};
+    el.onclick=async()=>{
+      if(soundEnabled){soundEnabled=false;updateSoundReadyUI(false);return;}
+      const good=await unlockAudio();
+      if(good){soundEnabled=true;updateSoundReadyUI(true);playSoundTest();}
+    };
     document.body.appendChild(el);
   }
   if(ok){el.textContent='🔊 提醒聲已啟用';el.style.background='#dcfce7';el.style.color='#166534';el.style.border='2px solid #86efac';}
@@ -383,6 +387,7 @@ function playSoundTest(){
   try{const t=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.5,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.22);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.24)}catch(e){}
 }
 function playOrderSound(isUrgent=false){
+ if(!soundEnabled)return;
  try{
   unlockAudio();
   const now=audioCtx.currentTime;
