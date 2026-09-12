@@ -7,6 +7,7 @@
 <title>欣儒農產行｜包裝即時系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://unpkg.com/pinyin-pro"></script>
 <style>
 :root{--bg:#f3f5f7;--card:#fff;--text:#16181d;--muted:#7b818b;--line:#e5e8ec;--blue:#dbeeff;--blueText:#1e5f94;--green:#1f9d55;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed;--shadow:0 8px 28px rgba(0,0,0,.06)}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",Arial,sans-serif;color:var(--text)}
@@ -23,6 +24,18 @@
 .wallDateBar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .wallDateBtn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-weight:800;cursor:pointer}
 .wallDateBtn.active{background:#dbeeff;border-color:#9cccf5}
+
+
+.wallCards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.wallOrderCard{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.wallOrderCard.urgent{border:2px solid #ef5350}
+.wallCardHead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px}
+.wallCardCustomer{font-size:28px;font-weight:900;line-height:1.2}.wallCardThai{font-size:15px;color:#68798e;margin-top:4px}
+.wallCardDate{font-size:18px;font-weight:800;margin-top:7px}.wallCardItems{font-size:20px;line-height:1.55}
+.wallCardItem{padding:8px 0;border-bottom:1px dashed #e8edf2}.wallCardItem:last-child{border-bottom:0}
+.wallCardFoot{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-top:14px}
+.wallCardTime{font-size:14px;color:var(--muted);white-space:nowrap}
+@media(max-width:900px){.wallCards{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -90,7 +103,7 @@
 
     <section id="wall" class="panel">
       <div class="card"><h2>欣儒農產行｜包裝即時看板</h2><div class="helper">完成訂單會自動離開電視牆</div>
-        <div id="wallDateBar" class="wallDateBar"></div><div style="overflow:auto"><table class="table wallTable"><thead><tr><th>客戶</th><th>取貨日期</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th><th>下單時間</th><th>完成時間</th></tr></thead><tbody id="wallBody"></tbody></table></div>
+        <div id="wallDateBar" class="wallDateBar"></div><div id="wallCards" class="wallCards"></div>
       </div>
     </section>
 
@@ -127,7 +140,7 @@ const SUPABASE_KEY='sb_publishable_JjHWTnCuEYgQ5__ZFh5UIw_UO5E5IP2';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const MAP={
 '高麗菜':'เกา ลี่ ไช่','紅蘿蔔':'หง หลัว ปัว','白蘿蔔':'ไป๋ หลัว ปัว','青花菜':'ชิง ฮวา ไช่','青花':'ชิง ฮวา','小黃瓜':'เสี่ยว หวง กวา','大黃瓜':'ต้า หวง กวา','青椒':'ชิง เจียว','彩椒':'ไฉ่ เจียว','水果椒':'สุ่ย กั่ว เจียว','茄子':'เฉีย จื่อ','絲瓜':'ซือ กวา','苦瓜':'ขู่ กวา','冬瓜':'ตง กวา','大陸妹':'ต้า ลู่ เม่ย','地瓜葉':'ตี้ กวา เย่','小白菜':'เสี่ยว ไป๋ ไช่','青江菜':'ชิง เจียง ไช่','空心菜':'คง ซิน ไช่','菠菜':'ปัว ไช่','芥蘭':'เจี้ย หลาน','水蓮':'สุ่ย เหลียน','皇宮菜':'หวง กง ไช่','蘿美':'หลัว เหม่ย','美生':'เหม่ย เซิง','芝麻葉':'จือ หม่า เย่','四季豆':'ซื่อ จี้ โต้ว','秋葵':'ชิว ขุย','九層塔':'จิ่ว เฉิง ถ่า','蔥':'ชง','北蒜':'เป่ย ซ่วน','蒜頭':'ซ่วน โถว','紅地瓜':'หง ตี้ กวา','黃地瓜':'หวง ตี้ กวา','南瓜':'หนาน กวา','芋頭':'อวี่ โถว','牛蒡':'หนิว ปั้ง','筊白筍':'เจี่ยว ไป๋ สุ่ย','蘆筍':'หลู สุ่ย','日本山藥':'รื่อ เปิ่น ซาน เย่า','羽衣甘藍':'อวี่ อี กาน หลาน','日本茄子':'รื่อ เปิ่น เฉีย จื่อ','花瓜':'ฮวา กวา','佛手瓜':'ฝอ โส่ว กวา','西芹':'ซี ฉิน','山東':'ซาน ตง','蘿蔓':'หลัว ม่าน','清江':'ชิง เจียง','蚵白':'เขอ ไป๋','油菜':'โหยว ไช่','半軟':'ป้าน หร่วน','初秋':'ชู ชิว','全軟':'เฉวียน หร่วน','小刈菜':'เสี่ยว อี้ ไช่','皇宮':'หวง กง','紫高':'จื่อ เกา','雪翠':'เสวี่ย ชุ่ย','印高':'อิ้น เกา','白花':'ไป๋ ฮวา','紐洋大':'หนิว หยาง ต้า','紐洋中':'หนิว หยาง จง','紫洋':'จื่อ หยาง','馬大':'หม่า ต้า','馬中':'หม่า จง','馬裂':'หม่า เลี่ย','櫛瓜特':'จื้อ กวา เท่อ','櫛瓜中':'จื้อ กวา จง','大瓜':'ต้า กวา','花蒲':'ฮวา ผู','貝貝':'เป้ย เป้ย','東昇':'ตง เซิง','貴族':'กุ้ย จู๋','密本':'มี่ เปิ่น','甜豆':'เถียน โต้ว','荷豆':'เหอ โต้ว','菜豆':'ไช่ โต้ว','敏豆':'หมิ่น โต้ว','蒜包':'ซ่วน เปา','青花去絲小花':'ชิง ฮวา ชวี่ ซือ เสี่ยว ฮวา','小辣':'เสี่ยว ล่า','大辣':'ต้า ล่า','綠骨':'ลวี่ กู่','紅骨':'หง กู่','韭菜':'จิ่ว ไช่','豆芽菜':'โต้ว หยา ไช่','蒜碎':'ซ่วน ซุ่ย'
-,'仙草':'เซียน เฉ่า','愛玉':'อ้าย อวี่','中華豆腐':'จง ฮวา โต้ว ฝู่','雞蛋豆腐':'จี ตั้น โต้ว ฝู่','板豆腐':'ป่าน โต้ว ฝู่','生豆包':'เซิง โต้ว เปา','豆干':'โต้ว กาน'};
+,'仙草':'เซียน เฉ่า','愛玉':'อ้าย อวี่','中華豆腐':'จง ฮวา โต้ว ฝู่','雞蛋豆腐':'จี ตั้น โต้ว ฝู่','板豆腐':'ป่าน โต้ว ฝู่','生豆包':'เซิง โต้ว เปา','豆干':'โต้ว กาน','佛恩寺':'ฝอ เอิน ซื่อ','果果龍':'กั่ว กั่ว หลง','六禾':'ลิ่ว เหอ','古早味':'กู่ เจ่า เว่ย','洋晨時光':'หยาง เฉิน สือ กวง','史堤克':'สื่อ ตี เค่อ','安中':'อัน จง','仁和':'เหริน เหอ','水牛':'สุ่ย หนิว','坤霖':'คุน หลิน','善化':'ซ่าน ฮว่า','鹹水雞':'เสียน สุ่ย จี','開宣':'ไค เซวียน','民雄':'หมิน สยง','元泰':'หยวน ไท่','偉嘉':'เหว่ย เจีย'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let knownOrderIds=new Set();
 const taipeiDate=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});
@@ -136,7 +149,77 @@ $('#queryDate').value=taipeiDate();
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function fmt(t){if(!t)return'';return new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Taipei'})}
 function fmtDateTime(t){if(!t)return'';const d=new Date(t);const date=d.toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'});const time=d.toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false});return `${date} ${time}`}
-function translitLine(line){let out=line;Object.keys(MAP).sort((a,b)=>b.length-a.length).forEach(k=>{if(out.includes(k))out=out.replaceAll(k,MAP[k])});return out===line?'（尚未建立音譯）':out}
+
+const PY_INITIALS=[
+ ['zh','จ'],['ch','ช'],['sh','ซ'],
+ ['b','ป'],['p','พ'],['m','ม'],['f','ฟ'],
+ ['d','ต'],['t','ท'],['n','น'],['l','ล'],
+ ['g','ก'],['k','ค'],['h','ฮ'],
+ ['j','จ'],['q','ช'],['x','ซ'],
+ ['r','ร'],['z','จ'],['c','ช'],['s','ซ'],
+ ['y','ย'],['w','ว']
+];
+const PY_FINALS={
+ 'a':'า','o':'โอ','e':'เออ','ai':'ไอ','ei':'เอย','ao':'เอา','ou':'โอว',
+ 'an':'อัน','en':'เอิน','ang':'อัง','eng':'เอิง','ong':'ง',
+ 'i':'ี','ia':'ยา','ie':'เย','iao':'เยา','iu':'โยว','ian':'เยียน','in':'อิน',
+ 'iang':'ยัง','ing':'อิง','iong':'ยง',
+ 'u':'ู','ua':'วา','uo':'วอ','uai':'วาย','ui':'เวย','uan':'วาน','un':'เวิน',
+ 'uang':'วัง','ueng':'เวิง',
+ 'v':'วี','ve':'เว','van':'เวียน','vn':'วิน',
+ 'ü':'วี','üe':'เว','üan':'เวียน','ün':'วิน',
+ 'er':'เอ่อ'
+};
+const PY_SPECIAL={
+ 'zhi':'จือ','chi':'ชือ','shi':'ซือ','ri':'รือ','zi':'จือ','ci':'ชือ','si':'ซือ',
+ 'yi':'อี','ya':'ยา','ye':'เย','yao':'เยา','you':'โยว','yan':'เยียน','yin':'อิน','yang':'ยัง','ying':'อิง','yong':'ยง',
+ 'wu':'อู','wa':'วา','wo':'วอ','wai':'วาย','wei':'เวย','wan':'วาน','wen':'เวิน','wang':'วัง','weng':'เวิง',
+ 'yu':'อวี','yue':'อเว','yuan':'อเวียน','yun':'อวิน'
+};
+function pinyinToThaiSyllable(py){
+  py=String(py||'').toLowerCase().replace(/[1-5]$/,'').replace(/u:/g,'v');
+  if(PY_SPECIAL[py])return PY_SPECIAL[py];
+  let ini='',thaiIni='';
+  for(const [p,t] of PY_INITIALS){if(py.startsWith(p)){ini=p;thaiIni=t;break}}
+  let fin=py.slice(ini.length);
+  if(!ini && PY_FINALS[fin])return PY_FINALS[fin];
+  const thaiFin=PY_FINALS[fin];
+  if(thaiFin)return thaiIni+thaiFin;
+  // 未涵蓋的拼音，保留拼音，避免整段空白
+  return py;
+}
+function autoChineseToThai(s){
+  if(!s)return '';
+  if(!window.pinyinPro?.pinyin)return s;
+  return String(s).replace(/[\u3400-\u9FFF]+/g,segment=>{
+    try{
+      const pys=window.pinyinPro.pinyin(segment,{toneType:'none',type:'array'});
+      return pys.map(pinyinToThaiSyllable).join(' ');
+    }catch(e){return segment}
+  });
+}
+function translitLine(line){
+  let out=String(line??'');
+  // 先套用人工修正字典，之後有錯只要補 MAP 即可永久修正
+  const placeholders=[];
+  Object.keys(MAP).sort((a,b)=>b.length-a.length).forEach((k,idx)=>{
+    if(out.includes(k)){
+      const token=`__TH${idx}__`;
+      placeholders.push([token,MAP[k]]);
+      out=out.replaceAll(k,token);
+    }
+  });
+  // 剩下沒有建過的中文，自動產生泰文字音譯
+  out=autoChineseToThai(out);
+  placeholders.forEach(([token,val])=>{out=out.replaceAll(token,val)});
+  return out;
+}
+function thaiForItem(x){
+  const saved=String(x?.thai_phonetic||'').trim();
+  if(saved && saved!=='（尚未建立音譯）')return saved;
+  return translitLine(x?.item_name||'');
+}
+
 function statusBadge(s){return s==='waiting'?'<span class="badge yellow">待接單</span>':s==='packing'?'<span class="badge green">包裝中</span>':'<span class="badge gray">已完成</span>'}
 function makeOrderNo(){const d=new Date();const y=String(d.getFullYear()).slice(2),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'),h=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0'),s=String(d.getSeconds()).padStart(2,'0'),r=Math.floor(Math.random()*90+10);return `${y}${m}${day}-${h}${mi}${s}${r}`}
 function normalized(row){return {...row,items:(row.order_items||[]).sort((a,b)=>a.id-b.id)}}
@@ -146,8 +229,8 @@ async function loadOrders(){
   orders=(data||[]).map(normalized);$('#syncState').textContent='● 已連線｜即時同步中';renderAll();
 }
 function renderAll(){renderStall();renderPacking();renderWall();renderToday()}
-function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'}<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button></div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
-function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>(Number(b.is_urgent)-Number(a.is_urgent))||(String(a.order_date||'').localeCompare(String(b.order_date||'')))||(new Date(a.created_at)-new Date(b.created_at)));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''}" onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})">${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${o.photo_url?`<div style="margin-top:10px"><a href="${esc(o.photo_url)}" target="_blank"><img class="photoMini" src="${esc(o.photo_url)}"></a></div>`:''}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder=""><button class="btn gray" onclick="savePackingReply(${o.id})">儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}<button class="btn primary" ${done!==total?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button></div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
+function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'}<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button></div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
+function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>(Number(b.is_urgent)-Number(a.is_urgent))||(String(a.order_date||'').localeCompare(String(b.order_date||'')))||(new Date(a.created_at)-new Date(b.created_at)));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="th">${esc(translitLine(o.customer))}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''}" onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})">${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${o.photo_url?`<div style="margin-top:10px"><a href="${esc(o.photo_url)}" target="_blank"><img class="photoMini" src="${esc(o.photo_url)}"></a></div>`:''}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder=""><button class="btn gray" onclick="savePackingReply(${o.id})">儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}<button class="btn primary" ${done!==total?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button></div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
 
 let wallDateFilter='all';
 function wallDateLabel(d){
@@ -163,30 +246,29 @@ function renderWallDateBar(activeOrders){
   bar.querySelectorAll('[data-wall-date]').forEach(btn=>btn.onclick=()=>{wallDateFilter=btn.dataset.wallDate;renderWall()});
 }
 function renderWall(){
-  const allActive=[...orders].filter(o=>o.status!=='done').sort((a,b)=>{
-    if(Number(b.is_urgent)!==Number(a.is_urgent)) return Number(b.is_urgent)-Number(a.is_urgent);
-    const da=String(a.order_date||''), db=String(b.order_date||'');
-    if(da!==db) return da.localeCompare(db);
-    return new Date(a.created_at)-new Date(b.created_at);
-  });
-  renderWallDateBar(allActive);
-  const active=wallDateFilter==='all'?allActive:allActive.filter(o=>String(o.order_date||'')===wallDateFilter);
-  const body=$('#wallBody');
-  body.innerHTML=active.length?active.map(o=>{
-    const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;
-    return `<tr>
-      <td><div class="wallCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)}</div></td>
-      <td><b>${esc(o.order_date||'')}</b></td>
-      <td><div class="wallPickup">${esc(o.pickup_time||'')}</div></td>
-      <td class="wallItems">${o.items.map(x=>`${x.is_completed?'✅':'☐'} ${esc(x.item_name)}<div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div>`).join('<br>')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td>
-      <td class="wallProgress"><b>${done}/${total}</b><div class="progress" style="margin-top:7px"><div class="bar" style="width:${pct}%"></div></div></td>
-      <td class="wallStatus">${statusBadge(o.status)}</td>
-      <td>${fmtDateTime(o.created_at)}</td>
-      <td>${o.completed_at?fmtDateTime(o.completed_at):'—'}</td>
-    </tr>`;
-  }).join(''):'<tr><td colspan="8" class="empty">目前沒有待處理訂單</td></tr>';
+ const allActive=[...orders].filter(o=>o.status!=='done').sort((a,b)=>{
+  if(Number(b.is_urgent)!==Number(a.is_urgent))return Number(b.is_urgent)-Number(a.is_urgent);
+  const da=String(a.order_date||''),db=String(b.order_date||'');if(da!==db)return da.localeCompare(db);
+  return new Date(a.created_at)-new Date(b.created_at);
+ });
+ renderWallDateBar(allActive);
+ const active=wallDateFilter==='all'?allActive:allActive.filter(o=>String(o.order_date||'')===wallDateFilter);
+ const box=$('#wallCards');if(!box)return;
+ box.innerHTML=active.length?active.map(o=>{
+  const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;
+  const cth=translitLine(o.customer);
+  return `<article class="wallOrderCard ${o.is_urgent?'urgent':''}">
+   <div class="wallCardHead"><div><div class="wallCardCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)}</div>
+   <div class="wallCardThai">${esc(cth)}</div>
+   <div class="wallCardDate">取貨日期 ${esc(o.order_date||'')}${o.pickup_time?`｜取貨時間 ${esc(o.pickup_time)}`:''}</div></div>${statusBadge(o.status)}</div>
+   <div class="wallCardItems">${o.items.map(x=>`<div class="wallCardItem">${x.is_completed?'✅':'☐'} ${esc(x.item_name)}<div class="th">${esc(thaiForItem(x))}</div></div>`).join('')}</div>
+   ${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}
+   <div class="wallCardFoot"><div style="flex:1"><b>進度 ${done}/${total}</b><div class="progress" style="margin-top:7px"><div class="bar" style="width:${pct}%"></div></div></div>
+   <div class="wallCardTime">下單 ${fmtDateTime(o.created_at)}</div></div>
+  </article>`;
+ }).join(''):'<div class="empty">目前沒有待處理訂單</div>';
 }
-function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(x.thai_phonetic||translitLine(x.item_name))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
+function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
 window.toggleItem=async(itemId,newVal,orderId)=>{await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);if(o&&o.status==='waiting')await sb.from('orders').update({status:'packing'}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}await loadOrders();};
 window.startPacking=async id=>{await sb.from('orders').update({status:'packing'}).eq('id',id);await loadOrders()};
@@ -207,11 +289,27 @@ async function uploadPhoto(orderNo){if(!photoFile)return null;try{const ext=(pho
 $('#submitOrder').onclick=async()=>{const customer=$('#customer').value.trim(),pickup=$('#pickupTime').value.trim();if(pickup&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(pickup)){alert('取貨時間請輸入24小時制，例如 08:30、18:45');return}const lines=$('#items').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請先輸入客戶／店家名稱');return}if(!lines.length){alert('請先輸入需求內容');return}const btn=$('#submitOrder');btn.disabled=true;btn.textContent='送出中…';try{const orderNo=makeOrderNo();const photoUrl=await uploadPhoto(orderNo);const {data:order,error}=await sb.from('orders').insert({order_no:orderNo,customer,pickup_time:pickup||null,note:$('#note').value.trim()||null,photo_url:photoUrl,is_urgent:urgent,order_date:$('#orderDate').value,status:'waiting'}).select().single();if(error)throw error;const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();urgent=false;$('#urgentSwitch').classList.remove('on');$('#clearPhoto').click();await loadOrders();alert('訂單已送出');}catch(e){console.error(e);alert('送出失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='送出訂單'}};
 $('#transBtn').onclick=()=>{const v=$('#transInput').value.trim();$('#transResult').textContent=v?`${v} → ${translitLine(v)}`:''};
 function unlockAudio(){if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}
-function playOrderSound(isUrgent=false){try{unlockAudio();const now=audioCtx.currentTime;const freqs=isUrgent?[1040,740,1040,740]:[660,880];const gap=isUrgent?0.16:0.22;freqs.forEach((f,i)=>{const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type=isUrgent?'square':'sine';osc.frequency.value=f;gain.gain.setValueAtTime(0.0001,now+i*gap);gain.gain.exponentialRampToValueAtTime(isUrgent?0.24:0.16,now+i*gap+0.02);gain.gain.exponentialRampToValueAtTime(0.0001,now+i*gap+(isUrgent?0.12:0.16));osc.connect(gain);gain.connect(audioCtx.destination);osc.start(now+i*gap);osc.stop(now+i*gap+(isUrgent?0.14:0.18))})}catch(e){console.warn('提示音無法播放',e)}}
-document.addEventListener('pointerdown',unlockAudio,{once:true});
-const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{const activePanel=document.querySelector('.panel.active')?.id;if(activePanel==='packing'||activePanel==='wall')playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>loadOrders()).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
+function playOrderSound(isUrgent=false){
+ try{
+  unlockAudio();const now=audioCtx.currentTime,total=3.0,step=.25,count=Math.floor(total/step);
+  for(let i=0;i<count;i++){const t=now+i*step,osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+   osc.type='square';osc.frequency.value=isUrgent?(i%2?1050:760):(i%2?920:680);
+   gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(isUrgent?.24:.18,t+.02);gain.gain.exponentialRampToValueAtTime(.0001,t+.20);
+   osc.connect(gain);gain.connect(audioCtx.destination);osc.start(t);osc.stop(t+.22);}
+  if(document.hidden&&'Notification'in window&&Notification.permission==='granted'){
+   try{new Notification(isUrgent?'🚨 欣儒急單':'🔔 欣儒新訂單',{body:'有新的訂單進來，請查看包裝系統。'});}catch(e){}
+  }
+ }catch(e){console.warn('提示音無法播放',e)}
+}
+document.addEventListener('pointerdown',()=>{unlockAudio();if('Notification'in window&&Notification.permission==='default'){Notification.requestPermission().catch(()=>{});}},{once:true});
+const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>loadOrders()).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
   loadOrders();
+const AUTO_REFRESH_MS=10000;
+setInterval(()=>{if(document.visibilityState==='visible')loadOrders();},AUTO_REFRESH_MS);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')loadOrders();});
+window.addEventListener('focus',()=>loadOrders());
+
 </script>
 </body></html>
