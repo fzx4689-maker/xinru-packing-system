@@ -279,10 +279,25 @@ function thaiForItem(x){
 function statusBadge(s){return s==='waiting'?'<span class="badge yellow">待接單</span>':s==='packing'?'<span class="badge green">包裝中</span>':'<span class="badge gray">已完成</span>'}
 function makeOrderNo(){const d=new Date();const y=String(d.getFullYear()).slice(2),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'),h=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0'),s=String(d.getSeconds()).padStart(2,'0'),r=Math.floor(Math.random()*90+10);return `${y}${m}${day}-${h}${mi}${s}${r}`}
 function normalized(row){return {...row,items:(row.order_items||[]).sort((a,b)=>a.id-b.id)}}
+let orderBaselineReady=false;
 async function loadOrders(){
   const {data,error}=await sb.from('orders').select('*, order_items(*)').order('is_urgent',{ascending:false}).order('created_at',{ascending:true});
   if(error){console.error(error);$('#syncState').textContent='連線失敗：'+error.message;return}
-  orders=(data||[]).map(normalized);$('#syncState').textContent='● 已連線｜即時同步中';renderAll();
+  const fresh=(data||[]).map(normalized);
+  // 第一次載入只建立基準，不要把舊訂單當成新訂單狂響。
+  if(!orderBaselineReady){
+    fresh.forEach(o=>knownOrderIds.add(o.id));
+    orderBaselineReady=true;
+  }else{
+    // Realtime 若偶爾漏掉，10秒輪詢仍會補抓新訂單並發聲。
+    const newlySeen=fresh.filter(o=>!knownOrderIds.has(o.id));
+    newlySeen.forEach(o=>knownOrderIds.add(o.id));
+    if(newlySeen.length){
+      const hasUrgent=newlySeen.some(o=>o.is_urgent);
+      playOrderSound(hasUrgent);
+    }
+  }
+  orders=fresh;$('#syncState').textContent='● 已連線｜即時同步中';renderAll();
 }
 function renderAll(){renderStall();renderPacking();renderWall();renderToday()}
 function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'}<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button></div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
@@ -345,7 +360,28 @@ $('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片'
 async function uploadPhoto(orderNo){if(!photoFile)return null;try{const ext=(photoFile.name.split('.').pop()||'jpg').toLowerCase();const path=`${orderNo}-${Date.now()}.${ext}`;const {error}=await sb.storage.from('order-photos').upload(path,photoFile,{upsert:false});if(error)throw error;const {data}=sb.storage.from('order-photos').getPublicUrl(path);return data.publicUrl}catch(e){console.warn('照片尚未上傳：',e.message);return null}}
 $('#submitOrder').onclick=async()=>{const customer=$('#customer').value.trim(),pickup=$('#pickupTime').value.trim();if(pickup&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(pickup)){alert('取貨時間請輸入24小時制，例如 08:30、18:45');return}const lines=$('#items').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請先輸入客戶／店家名稱');return}if(!lines.length){alert('請先輸入需求內容');return}const btn=$('#submitOrder');btn.disabled=true;btn.textContent='送出中…';try{const orderNo=makeOrderNo();const photoUrl=await uploadPhoto(orderNo);const {data:order,error}=await sb.from('orders').insert({order_no:orderNo,customer,pickup_time:pickup||null,note:$('#note').value.trim()||null,photo_url:photoUrl,is_urgent:urgent,order_date:$('#orderDate').value,status:'waiting'}).select().single();if(error)throw error;const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();urgent=false;$('#urgentSwitch').classList.remove('on');$('#clearPhoto').click();await loadOrders();alert('訂單已送出');}catch(e){console.error(e);alert('送出失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='送出訂單'}};
 $('#transBtn').onclick=()=>{const v=$('#transInput').value.trim();$('#transResult').textContent=v?`${v} → ${translitLine(v)}`:''};
-function unlockAudio(){if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}
+async function unlockAudio(){
+  try{
+    if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended')await audioCtx.resume();
+    updateSoundReadyUI(audioCtx.state==='running');
+    return audioCtx.state==='running';
+  }catch(e){console.warn('無法啟用提醒聲',e);updateSoundReadyUI(false);return false}
+}
+function updateSoundReadyUI(ok){
+  let el=document.querySelector('#soundReadyBox');
+  if(!el){
+    el=document.createElement('div');el.id='soundReadyBox';
+    el.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:14px;font-weight:900;box-shadow:0 4px 18px rgba(0,0,0,.18);cursor:pointer;user-select:none;font-size:15px';
+    el.onclick=async()=>{const good=await unlockAudio();if(good)playSoundTest()};
+    document.body.appendChild(el);
+  }
+  if(ok){el.textContent='🔊 提醒聲已啟用';el.style.background='#dcfce7';el.style.color='#166534';el.style.border='2px solid #86efac';}
+  else{el.textContent='🔇 點一下開啟提醒聲';el.style.background='#fff1f2';el.style.color='#9f1239';el.style.border='2px solid #fda4af';}
+}
+function playSoundTest(){
+  try{const t=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.5,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.22);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.24)}catch(e){}
+}
 function playOrderSound(isUrgent=false){
  try{
   unlockAudio();
@@ -381,8 +417,11 @@ function playOrderSound(isUrgent=false){
   }
  }catch(e){console.warn('提示音無法播放',e)}
 }
-document.addEventListener('pointerdown',()=>{unlockAudio();if('Notification'in window&&Notification.permission==='default'){Notification.requestPermission().catch(()=>{});}},{once:true});
-const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>loadOrders()).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
+// 手機/平板瀏覽器基於安全規則，聲音必須先由使用者互動解鎖一次。
+// 任何點擊、觸控或按鍵都會自動解鎖；右下角也會顯示目前狀態。
+['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>unlockAudio(),{passive:true}));
+updateSoundReadyUI(false);
+const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>loadOrders()).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
 $('#enablePush').onclick=enableLockscreenPush;
 refreshPushState();
 $('#queryDateBtn').onclick=()=>renderToday();
