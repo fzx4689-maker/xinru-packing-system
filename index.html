@@ -155,14 +155,17 @@ function fmtDateTime(t){if(!t)return'';const d=new Date(t);const date=d.toLocale
 function translitLine(line){
   let out=String(line??'');
   let matched=false;
+  // 只要品名中包含已建立的關鍵字，就顯示該關鍵字的固定泰文音譯。
+  // 先比對較長詞，避免「豆干」搶先吃掉「黑豆干／五香豆干」等完整詞。
   Object.keys(MAP).sort((a,b)=>b.length-a.length).forEach(k=>{
     if(out.includes(k)){
       matched=true;
       out=out.replaceAll(k,MAP[k]);
     }
   });
-  // 只顯示人工建立過的固定音譯；若還有未建立的中文字，就先不顯示泰文。
-  if(!matched || /[\u3400-\u9FFF]/.test(out)) return '';
+  if(!matched) return '';
+  // 未建檔的中文字不再阻擋整行泰文顯示；移除它們，保留數字、K、符號等數量資訊。
+  out=out.replace(/[\u3400-\u9FFF]+/g,'').replace(/\s+/g,' ').trim();
   return out;
 }
 function thaiForItem(x){
