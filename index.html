@@ -412,6 +412,21 @@ function playOrderSound(isUrgent=false){
 // 任何點擊、觸控或按鍵都會自動解鎖；右下角也會顯示目前狀態。
 ['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>unlockAudio(),{passive:true}));
 updateSoundReadyUI(false);
+function employeeErrorText(err,fallback='員工管理操作失敗'){
+  if(!err)return fallback;
+  if(typeof err==='string')return err;
+  if(err instanceof Error)return err.message||fallback;
+  if(typeof err==='object'){
+    const parts=[];
+    if(err.message)parts.push(err.message);
+    if(err.details)parts.push(err.details);
+    if(err.hint)parts.push('提示：'+err.hint);
+    if(err.code)parts.push('代碼：'+err.code);
+    if(parts.length)return parts.join('｜');
+    try{return JSON.stringify(err);}catch(e){return fallback;}
+  }
+  return String(err);
+}
 async function callEmployeeManager(action,payload={}){
   const {data:{session}}=await sb.auth.getSession();
   if(!session)throw new Error('登入狀態已失效，請重新登入');
@@ -421,8 +436,14 @@ async function callEmployeeManager(action,payload={}){
     body:JSON.stringify({action,...payload})
   });
   let data={};
-  try{data=await res.json();}catch(e){}
-  if(!res.ok||data.ok===false)throw new Error(data.error||`員工管理操作失敗 (${res.status})`);
+  try{data=await res.json();}catch(e){
+    const raw=await res.text().catch(()=> '');
+    data={error:raw||`HTTP ${res.status}`};
+  }
+  if(!res.ok||data.ok===false){
+    const detail=employeeErrorText(data.error||data.message||data,`員工管理操作失敗 (${res.status})`);
+    throw new Error(detail);
+  }
   return data;
 }
 function setEmployeeMsg(msg='',ok=false){const el=$('#employeeMsg');el.textContent=msg;el.className='employeeMsg '+(msg?(ok?'ok':'err'):'');}
