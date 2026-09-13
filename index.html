@@ -12,14 +12,14 @@
 :root{--bg:#f3f5f7;--card:#fff;--text:#16181d;--muted:#7b818b;--line:#e5e8ec;--blue:#dbeeff;--blueText:#1e5f94;--green:#1f9d55;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed;--shadow:0 8px 28px rgba(0,0,0,.06)}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",Arial,sans-serif;color:var(--text)}
 .app{max-width:1180px;margin:auto;min-height:100vh;background:#f7f8fa;padding-bottom:90px}.top{position:sticky;top:0;z-index:10;background:rgba(247,248,250,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.title{padding:18px 20px 10px;text-align:center;font-weight:800;font-size:22px}.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:8px 14px 14px}.tab{border:0;background:#fff;border-radius:16px;padding:14px 8px;font-weight:800;font-size:15px;box-shadow:0 1px 0 #e7e9ec;cursor:pointer}.tab.active{background:var(--blue);color:var(--blueText)}
+.title{padding:18px 20px 10px;text-align:center;font-weight:800;font-size:22px}.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px 14px 14px}.tab{border:0;background:#fff;border-radius:16px;padding:14px 8px;font-weight:800;font-size:15px;box-shadow:0 1px 0 #e7e9ec;cursor:pointer}.tab.active{background:var(--blue);color:var(--blueText)}
 .wrap{padding:16px}.panel{display:none}.panel.active{display:block}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.card h2{margin:0 0 6px;font-size:24px}.helper{color:var(--muted);font-size:14px;margin-bottom:16px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin:12px 0}.label{display:block;font-size:14px;font-weight:800;margin-bottom:7px}.input,.textarea{width:100%;border:1px solid #dfe3e8;border-radius:14px;background:#fafbfc;padding:13px 14px;font-size:16px;outline:none}.textarea{min-height:150px;resize:vertical;line-height:1.6}.input:focus,.textarea:focus{border-color:#7ab8f5;background:white}
 .btn{border:0;border-radius:14px;padding:13px 16px;font-weight:800;font-size:16px;cursor:pointer}.btn.primary{background:#1f9d55;color:#fff}.btn.blue{background:#2563eb;color:#fff}.btn.gray{background:#eef1f4}.btn.red{background:#ffe8e9;color:#b4232c}.actions{display:flex;gap:10px;flex-wrap:wrap}.urgentRow{display:flex;align-items:center;justify-content:space-between;background:#fff7f7;border:1px solid #ffd6d8;padding:12px 14px;border-radius:14px}.switch{width:52px;height:30px;background:#d8dce1;border-radius:999px;position:relative;cursor:pointer;transition:.2s}.switch:after{content:"";position:absolute;width:24px;height:24px;background:white;border-radius:50%;top:3px;left:3px;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:.2s}.switch.on{background:var(--red)}.switch.on:after{left:25px}
 .photoBox{border:2px dashed #cfd5dc;border-radius:18px;padding:14px;text-align:center;background:#fafbfc}.photoBox img{max-width:100%;max-height:280px;border-radius:14px;display:none;margin:0 auto 12px}.file{display:none}
 .order{border:1px solid var(--line);border-radius:18px;background:#fff;padding:15px;margin-bottom:12px}.order.urgent{border:2px solid #ffb1b5}.orderHead{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}.orderTitle{font-weight:900;font-size:18px}.badge{display:inline-block;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900}.badge.red{background:#ffe7e9;color:#bf2630}.badge.yellow{background:#fff0c9;color:#925f00}.badge.green{background:#dcfce7;color:#18703c}.badge.gray{background:#eef1f4;color:#59606a}.item{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #f0f1f3}.check{width:28px;height:28px;border-radius:8px;border:2px solid #bcc3cb;display:grid;place-items:center;cursor:pointer;font-weight:900}.check.done{background:#22a447;color:white;border-color:#22a447}.cn{font-weight:800}.th{color:#607086;font-size:13px;margin-top:3px}.qty{font-weight:800}.progress{height:10px;background:#e7ebef;border-radius:999px;overflow:hidden}.bar{height:100%;background:#2aa75b}.meta{font-size:13px;color:#7b818b}.table{width:100%;border-collapse:collapse;background:#fff;border-radius:18px;overflow:hidden}.table th,.table td{padding:12px 10px;border-bottom:1px solid #edf0f2;text-align:left;font-size:14px}.table th{background:#f6f8fa}.empty{text-align:center;color:#9198a1;padding:30px 10px}.photoMini{max-width:140px;max-height:100px;border-radius:8px}.sync{font-size:12px;color:#68707a;text-align:center;padding-bottom:8px}.wallTable td{font-size:17px}.wallTable th{font-size:15px}.wallItems{line-height:1.6;min-width:260px}.wallCustomer{font-size:20px;font-weight:900}.wallPickup{font-size:20px;font-weight:900}.wallStatus{font-size:16px}.wallProgress{min-width:120px}
 
 .editModal{position:fixed;inset:0;background:rgba(0,0,0,.38);display:none;align-items:center;justify-content:center;padding:18px;z-index:9999}.editModal.show{display:flex}.editBox{background:#fff;border-radius:20px;padding:20px;width:min(620px,100%);max-height:90vh;overflow:auto;box-shadow:0 18px 60px rgba(0,0,0,.2)}.editBox h2{margin:0 0 14px}.editBox .actions{position:sticky;bottom:-20px;background:#fff;padding:14px 0 0}
-@media(max-width:760px){.app{max-width:none}.title{font-size:18px}.tabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding-inline:6px}.tab{font-size:12px;padding:11px 2px;border-radius:12px}.wrap{padding:10px}.grid2{grid-template-columns:1fr}.card{padding:15px;border-radius:18px}.card h2{font-size:21px}.table{display:block;overflow:auto;white-space:nowrap}.wallTable td{font-size:15px}.wallCustomer,.wallPickup{font-size:16px}}
+@media(max-width:760px){.app{max-width:none}.title{font-size:18px}.tabs{grid-template-columns:repeat(4,1fr);gap:5px;padding-inline:8px}.tab{font-size:13px;padding:12px 4px;border-radius:13px}.wrap{padding:10px}.grid2{grid-template-columns:1fr}.card{padding:15px;border-radius:18px}.card h2{font-size:21px}.table{display:block;overflow:auto;white-space:nowrap}.wallTable td{font-size:15px}.wallCustomer,.wallPickup{font-size:16px}}
 
 .wallDateBar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .wallDateBtn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-weight:800;cursor:pointer}
@@ -43,6 +43,18 @@
 .employeeModal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;padding:16px;z-index:100001}.employeeModal.show{display:flex}.employeeBox{width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.25)}.employeeHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.employeeHead h2{margin:0}.employeeGrid{display:grid;grid-template-columns:1.1fr 1.4fr 1fr auto;gap:8px;align-items:end}.employeeList{margin-top:18px;border-top:1px solid var(--line)}.employeeRow{display:grid;grid-template-columns:1.2fr 1.35fr .9fr auto auto auto;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.employeeStatus{font-weight:900}.employeeStatus.on{color:#18703c}.employeeStatus.off{color:#b4232c}.employeeMsg{font-weight:800;margin-top:10px}.workRoles{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.workRoleChip{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:#f8fafb;font-size:13px;font-weight:800}.workRoleChip input{width:17px;height:17px}.empAccount{font-size:12px;color:#58616b;margin-top:3px}.employeeWorkBox{grid-column:1/-1;background:#f8fafb;border:1px solid var(--line);border-radius:12px;padding:10px}.employeeRow{grid-template-columns:1.15fr 1.1fr 1.1fr .8fr auto auto auto}.employeeRow .rolesCell{display:flex;flex-wrap:wrap;gap:5px}.miniRole{font-size:11px;padding:4px 7px;border-radius:999px;background:#edf3f8;font-weight:800}.accountEdit{display:flex;gap:5px;align-items:center}.accountEdit .input{min-width:100px}.employeeMsg.err{color:#b4232c}.employeeMsg.ok{color:#18703c}@media(max-width:760px){.employeeGrid,.employeeRow{grid-template-columns:1fr}.employeeRow{padding:14px 0}.employeeRow .btn{width:100%}}
 
 .workPickOverlay{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:200005;display:none;align-items:center;justify-content:center;padding:18px}.workPickOverlay.show{display:flex}.workPickBox{background:#fff;border-radius:22px;padding:24px;width:min(520px,100%);box-shadow:0 20px 60px rgba(0,0,0,.25)}.workPickBox h2{margin:0 0 8px}.workPickName{color:#667085;margin-bottom:16px}.workPickChoices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 20px}.workPickChoice{display:flex;align-items:center;gap:10px;border:1px solid #d9e1ea;border-radius:16px;padding:15px;font-weight:800;cursor:pointer}.workPickChoice input{width:22px;height:22px}.workPickActions{display:flex;gap:10px}.workPickActions button{flex:1}@media(max-width:520px){.workPickChoices{grid-template-columns:1fr}}
+
+.deliveryHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.driverFilters{display:flex;gap:8px;overflow-x:auto;padding:8px 0 14px;white-space:nowrap}
+.driverChip{border:1px solid #dfe3e8;background:#fff;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer}
+.driverChip.active{background:#dbeeff;color:#1e5f94;border-color:#a8d5ff}
+.deliveryCard{border:1px solid #e3e6ea;border-radius:18px;padding:15px;margin:10px 0;background:#fff}
+.deliveryCard.completed{opacity:.72}
+.deliveryPhoto{display:block;width:100%;max-height:430px;object-fit:contain;background:#f4f5f6;border-radius:14px;margin:10px 0}
+.deliveryStatus{display:inline-block;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900}
+.ds-waiting{background:#fff3cd;color:#805d00}.ds-assigned{background:#e8e5ff;color:#5842a8}.ds-accepted{background:#dbeeff;color:#1e5f94}.ds-delivering{background:#ffe5cc;color:#9a4d00}.ds-completed{background:#dff5e8;color:#177a43}
+@media(max-width:720px){.tabs{gap:4px;padding-left:6px;padding-right:6px}.tab{font-size:12px;padding:11px 3px}.tab .th{font-size:9px}.deliveryHead{align-items:flex-start}.grid2{grid-template-columns:1fr}}
+
 </style>
 
 
@@ -79,7 +91,7 @@
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
       <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
       <button class="tab" data-tab="wall">電視牆<div class="th">เตี้ยน ซื่อ เฉียง</div></button>
-      <button class="tab" data-tab="delivery">🚚 配送中心<div class="th">配送／取貨</div></button>
+      <button class="tab" data-tab="delivery">🚚 配送中心<div class="th">小白單配送</div></button>
       <button class="tab" data-tab="today">訂單查詢<div class="th">ติ้ง ตาน ฉา สวิน</div></button>
     </div>
   </div>
@@ -139,14 +151,39 @@
       </div>
     </section>
 
+
     <section id="delivery" class="panel">
       <div class="card">
         <h2>🚚 配送中心</h2>
-        <div class="helper">每個品項可設定取貨位置：大庫／小庫／包裝／攤位／其他商家。其他商家可直接輸入名稱。</div>
-        <div class="actions" style="margin:12px 0">
-          <button id="deliveryByCustomer" class="btn primary">依客戶看</button>
-          <button id="deliveryBySource" class="btn gray">依取貨位置看</button>
+        <div class="helper">小白單獨立配送｜攤位可指定司機，也可留給司機自己接單。</div>
+        <div class="grid2">
+          <div class="field"><label class="label">客戶／店家名稱</label><input id="deliveryCustomer" class="input" autocomplete="off"></div>
+          <div class="field"><label class="label">配送日期</label><input id="deliveryDate" class="input" type="date"></div>
         </div>
+        <div class="field">
+          <label class="label">📷 小白單照片</label>
+          <div class="photoBox">
+            <img id="deliveryPhotoPreview" alt="小白單照片">
+            <input id="deliveryPhotoInput" class="file" type="file" accept="image/*" capture="environment">
+            <div class="actions" style="justify-content:center">
+              <button id="deliveryTakePhoto" type="button" class="btn gray">拍照／選照片</button>
+              <button id="deliveryClearPhoto" type="button" class="btn gray">清除</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label class="label">指定司機（可不選）</label><select id="deliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
+          <div class="field"><label class="label">備註</label><input id="deliveryNote" class="input" autocomplete="off"></div>
+        </div>
+        <button id="createDeliveryBtn" type="button" class="btn primary" style="width:100%">建立配送單</button>
+      </div>
+
+      <div class="card">
+        <div class="deliveryHead">
+          <div><h2 style="margin-bottom:4px">司機配送單</h2><div class="helper" style="margin:0">點司機名字，只看該司機的配送單。</div></div>
+          <button id="refreshDeliveryBtn" type="button" class="btn gray">重新整理</button>
+        </div>
+        <div id="driverFilters" class="driverFilters"></div>
         <div id="deliveryBody"></div>
       </div>
     </section>
@@ -182,7 +219,7 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：核准職能修正版 09/13-H1</div>
+    <div class="helper" style="margin-top:-4px">版本：內部作業系統｜配送中心 H3</div>
     <div class="helper">員工可用簡單帳號登入，不需要自己的 Email。工作職能可複選。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
@@ -216,6 +253,7 @@ const MAP={
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
 let currentUser=null; let currentProfile=null; let appStarted=false;
+let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter='all';
 const ROLE_LABEL={admin:'系統管理員',operator:'作業人員',viewer:'瀏覽人員'};
 const canWrite=()=>currentProfile&&['admin','operator'].includes(currentProfile.role);
 const actorFields=(kind='updated')=>{if(!currentUser||!currentProfile)return {}; if(kind==='created')return {created_by:currentUser.id,created_by_name:currentProfile.display_name}; if(kind==='completed')return {completed_by:currentUser.id,completed_by_name:currentProfile.display_name,updated_by:currentUser.id,updated_by_name:currentProfile.display_name}; return {updated_by:currentUser.id,updated_by_name:currentProfile.display_name};};
@@ -334,24 +372,95 @@ function renderWall(){
   </article>`;
  }).join(''):'<div class="empty">目前沒有待處理訂單</div>';
 }
-let deliveryView='customer';
-function pickupSourceLabel(x){
-  const m={warehouse_big:'大庫',warehouse_small:'小庫',packing:'包裝',stall:'攤位',vendor:'其他商家'};
-  return x?.pickup_source==='vendor'?(x.pickup_vendor||'其他商家'):(m[x?.pickup_source]||'包裝');
+
+const DELIVERY_STATUS_LABEL={waiting:'待接單',assigned:'已指派',accepted:'已接單',delivering:'配送中',completed:'配送完成'};
+function deliveryStatusBadge(st){return `<span class="deliveryStatus ds-${esc(st)}">${esc(DELIVERY_STATUS_LABEL[st]||st)}</span>`}
+function currentIsDriver(){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes('driver')}
+function deliveryNo(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `D${p(d.getMonth()+1)}${p(d.getDate())}-${Date.now().toString().slice(-6)}`}
+async function loadDeliveryDrivers(){
+  try{
+    const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,work_roles,is_active').eq('is_active',true);
+    if(error)throw error;
+    deliveryDrivers=(data||[]).filter(x=>Array.isArray(x.work_roles)&&x.work_roles.includes('driver')).sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name),'zh-Hant'));
+  }catch(e){
+    console.warn('司機名單讀取失敗',e);
+    deliveryDrivers=currentIsDriver()?[{user_id:currentUser.id,display_name:currentProfile.display_name,work_roles:['driver'],is_active:true}]:[];
+  }
+  const sel=$('#deliveryDriver');
+  if(sel){
+    const keep=sel.value;
+    sel.innerHTML='<option value="">尚未指派｜讓司機自己接</option>'+deliveryDrivers.map(x=>`<option value="${esc(x.user_id)}">${esc(x.display_name)}</option>`).join('');
+    if([...sel.options].some(o=>o.value===keep))sel.value=keep;
+  }
 }
-function deliveryStatusLabel(s){return ({not_assigned:'待派送',assigned:'已指派',accepted:'已接配送',delivering:'配送中',delivered:'配送完成'})[s]||'待派送'}
-function sourceSelect(x){return `<select class="input" style="max-width:145px;padding:8px" onchange="changePickupSource(${x.id},this.value)">
-<option value="warehouse_big" ${x.pickup_source==='warehouse_big'?'selected':''}>大庫</option><option value="warehouse_small" ${x.pickup_source==='warehouse_small'?'selected':''}>小庫</option><option value="packing" ${(!x.pickup_source||x.pickup_source==='packing')?'selected':''}>包裝</option><option value="stall" ${x.pickup_source==='stall'?'selected':''}>攤位</option><option value="vendor" ${x.pickup_source==='vendor'?'selected':''}>其他商家</option></select>${x.pickup_source==='vendor'?`<input class="input" style="max-width:170px;padding:8px" value="${esc(x.pickup_vendor||'')}" placeholder="商家名稱" onchange="saveVendor(${x.id},this.value)">`:''}`}
-function deliveryItemRow(x,o){return `<div class="item" style="grid-template-columns:auto 1fr auto;gap:10px"><div class="check ${x.driver_picked?'done':''}" onclick="toggleDriverPicked(${x.id},${x.driver_picked?'false':'true'})">${x.driver_picked?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="meta">📍 ${esc(pickupSourceLabel(x))}｜${x.pickup_ready?'🟢 已備妥':'🟠 待備貨'}｜${x.driver_picked?'🚚 已取貨':'待取貨'}</div><div class="actions" style="margin-top:7px">${sourceSelect(x)}${x.pickup_source!=='packing'?`<button class="btn ${x.pickup_ready?'gray':'blue'}" style="padding:8px 10px" onclick="togglePickupReady(${x.id},${x.pickup_ready?'false':'true'})">${x.pickup_ready?'取消備妥':'備妥'}</button>`:''}</div></div><div></div></div>`}
-function deliveryOrderCard(o){const total=o.items.length,picked=o.items.filter(x=>x.driver_picked).length,ready=o.items.filter(x=>x.pickup_ready).length,all=total>0&&picked===total;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)}</div><div class="meta">${esc(o.order_no)}｜備妥 ${ready}/${total}｜已取 ${picked}/${total}</div></div><span class="badge ${o.delivery_status==='delivered'?'green':'yellow'}">${deliveryStatusLabel(o.delivery_status)}</span></div>${o.items.map(x=>deliveryItemRow(x,o)).join('')}<div style="margin-top:12px;font-weight:900;color:${all?'#11823b':'#9a6700'}">${all?'🟢 貨物已全部取齊，可以出車':'🟠 尚有貨物未取齊'}</div><div class="actions" style="margin-top:12px">${o.delivery_status==='not_assigned'?`<button class="btn blue" onclick="setDeliveryStatus(${o.id},'accepted')">接配送</button>`:''}${o.delivery_status==='accepted'?`<button class="btn primary" ${all?'':'disabled style="opacity:.45"'} onclick="setDeliveryStatus(${o.id},'delivering')">🚚 開始配送</button>`:''}${o.delivery_status==='delivering'?`<button class="btn primary" onclick="setDeliveryStatus(${o.id},'delivered')">✅ 配送完成</button>`:''}</div></div>`}
-function renderDelivery(){const b=$('#deliveryBody');if(!b)return;const arr=[...orders].filter(o=>o.delivery_status!=='delivered').sort((a,b)=>new Date(a.order_date||a.created_at)-new Date(b.order_date||b.created_at));if(deliveryView==='customer'){b.innerHTML=arr.length?arr.map(deliveryOrderCard).join(''):'<div class="empty">目前沒有待配送訂單</div>';return}const groups={};arr.forEach(o=>o.items.forEach(x=>{const k=pickupSourceLabel(x);(groups[k]??=[]).push({x,o})}));const preferred=['大庫','小庫','包裝','攤位'];const keys=Object.keys(groups).sort((a,b)=>{let ia=preferred.indexOf(a),ib=preferred.indexOf(b);ia=ia<0?99:ia;ib=ib<0?99:ib;return ia-ib||a.localeCompare(b,'zh-Hant')});b.innerHTML=keys.length?keys.map(k=>`<div class="order"><h2 style="font-size:20px">📍 ${esc(k)}</h2>${groups[k].map(({x,o})=>`<div class="item" style="grid-template-columns:auto 1fr auto"><div class="check ${x.driver_picked?'done':''}" onclick="toggleDriverPicked(${x.id},${x.driver_picked?'false':'true'})">${x.driver_picked?'✓':''}</div><div><b>${esc(o.customer)}</b>｜${esc(x.item_name)}<div class="meta">${x.pickup_ready?'🟢 已備妥':'🟠 待備貨'}｜${x.driver_picked?'已取貨':'待取貨'}</div></div><div></div></div>`).join('')}</div>`).join(''):'<div class="empty">目前沒有待取貨品項</div>'}
-window.changePickupSource=async(id,v)=>{if(!requireWrite())return;let vendor=null;if(v==='vendor'){vendor=prompt('請輸入商家名稱，例如：青苑、隆記、新和盛')||'';if(!vendor.trim()){alert('請輸入商家名稱');await loadOrders();return}}const {error}=await sb.from('order_items').update({pickup_source:v,pickup_vendor:v==='vendor'?vendor.trim():null,pickup_ready:false,pickup_ready_at:null,driver_picked:false,driver_picked_at:null}).eq('id',id);if(error)alert(error.message);await loadOrders()};
-window.saveVendor=async(id,v)=>{if(!requireWrite())return;const name=v.trim();if(!name){alert('商家名稱不能空白');return}const {error}=await sb.from('order_items').update({pickup_vendor:name}).eq('id',id);if(error)alert(error.message);await loadOrders()};
-window.togglePickupReady=async(id,val)=>{if(!requireWrite())return;const {error}=await sb.from('order_items').update({pickup_ready:val,pickup_ready_at:val?new Date().toISOString():null}).eq('id',id);if(error)alert(error.message);await loadOrders()};
-window.toggleDriverPicked=async(id,val)=>{if(!requireWrite())return;const {error}=await sb.from('order_items').update({driver_picked:val,driver_picked_at:val?new Date().toISOString():null}).eq('id',id);if(error)alert(error.message);await loadOrders()};
-window.setDeliveryStatus=async(id,status)=>{if(!requireWrite())return;const patch={delivery_status:status,...actorFields('updated')};if(status==='accepted'){patch.assigned_driver_id=currentUser?.id||null;patch.assigned_driver_name=currentProfile?.display_name||currentUser?.email||null}if(status==='delivering')patch.delivery_started_at=new Date().toISOString();if(status==='delivered')patch.delivered_at=new Date().toISOString();const {error}=await sb.from('orders').update(patch).eq('id',id);if(error)alert(error.message);await loadOrders()};
+async function loadDelivery(){
+  if(!currentUser)return;
+  const {data,error}=await sb.from('delivery_jobs').select('*').order('delivery_date',{ascending:false}).order('created_at',{ascending:false});
+  if(error){console.error(error);const b=$('#deliveryBody');if(b)b.innerHTML=`<div class="empty" style="color:#b4232c">配送資料讀取失敗：${esc(error.message)}</div>`;return}
+  deliveryJobs=data||[];
+  await loadDeliveryDrivers();
+  renderDelivery();
+}
+function renderDelivery(){
+  const filters=$('#driverFilters'),body=$('#deliveryBody');
+  if(!filters||!body)return;
+  let chips=[{id:'all',name:'全部'},{id:'unassigned',name:'⏳ 待接單'}];
+  deliveryDrivers.forEach(d=>chips.push({id:d.user_id,name:'🚚 '+d.display_name}));
+  if(currentIsDriver()&&!chips.some(x=>x.id===currentUser.id))chips.push({id:currentUser.id,name:'🚚 '+currentProfile.display_name});
+  filters.innerHTML=chips.map(x=>`<button class="driverChip ${deliveryDriverFilter===x.id?'active':''}" onclick="setDeliveryDriverFilter('${esc(x.id)}')">${esc(x.name)}</button>`).join('');
+  let arr=[...deliveryJobs];
+  if(deliveryDriverFilter==='unassigned')arr=arr.filter(x=>!x.assigned_driver_id&&x.status==='waiting');
+  else if(deliveryDriverFilter!=='all')arr=arr.filter(x=>x.assigned_driver_id===deliveryDriverFilter);
+  arr.sort((a,b)=>(a.status==='completed')-(b.status==='completed') || String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
+  body.innerHTML=arr.length?arr.map(renderDeliveryCard).join(''):'<div class="empty">目前沒有配送單</div>';
+}
+window.setDeliveryDriverFilter=id=>{deliveryDriverFilter=id;renderDelivery()};
+function renderDeliveryCard(j){
+  const mine=j.assigned_driver_id===currentUser?.id;
+  const unassigned=!j.assigned_driver_id&&j.status==='waiting';
+  const canClaim=currentIsDriver()&&unassigned;
+  const canOperate=mine&&currentIsDriver();
+  const canAssign=canWrite()&&!['accepted','delivering','completed'].includes(j.status);
+  const opts='<option value="">尚未指派</option>'+deliveryDrivers.map(d=>`<option value="${esc(d.user_id)}" ${j.assigned_driver_id===d.user_id?'selected':''}>${esc(d.display_name)}</option>`).join('');
+  let actions='';
+  if(canClaim)actions+=`<button class="btn primary" onclick="claimDelivery(${j.id})">🙋 我要配送</button>`;
+  if(canOperate&&j.status==='assigned')actions+=`<button class="btn primary" onclick="acceptDelivery(${j.id})">接單</button>`;
+  if(canOperate&&j.status==='accepted')actions+=`<button class="btn primary" onclick="startDelivery(${j.id})">🚚 開始配送</button>`;
+  if(canOperate&&j.status==='delivering')actions+=`<button class="btn green" onclick="completeDelivery(${j.id})">✅ 配送完成</button>`;
+  return `<div class="deliveryCard ${j.status==='completed'?'completed':''}">
+    <div class="orderHead"><div><div style="font-size:21px;font-weight:900">${esc(j.customer||'未填客戶')}</div><div class="meta">${esc(j.delivery_no)}｜配送 ${esc(j.delivery_date||'')}</div></div>${deliveryStatusBadge(j.status)}</div>
+    <div style="margin-top:8px"><b>🚚 司機：</b>${esc(j.assigned_driver_name||'尚未指派')}</div>
+    ${j.slip_photo_url?`<a href="${esc(j.slip_photo_url)}" target="_blank" rel="noopener"><img class="deliveryPhoto" src="${esc(j.slip_photo_url)}" alt="小白單"></a>`:''}
+    ${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}
+    ${j.completed_at?`<div class="meta" style="margin-top:7px">✅ ${esc(j.assigned_driver_name||'')} 完成配送｜${fmtDateTime(j.completed_at)}</div>`:''}
+    ${canAssign?`<div class="actions" style="margin-top:10px"><select class="input" id="assignDriver_${j.id}" style="max-width:230px">${opts}</select><button class="btn gray" onclick="assignDelivery(${j.id})">指派司機</button></div>`:''}
+    ${actions?`<div class="actions" style="margin-top:10px">${actions}</div>`:''}
+  </div>`;
+}
+async function updateDelivery(id,patch){
+  if(!requireWrite())return;
+  const {error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){alert('更新失敗：'+error.message);return}
+  await loadDelivery();
+}
+window.assignDelivery=async id=>{
+  const sel=$(`#assignDriver_${id}`);if(!sel)return;
+  const uid=sel.value,driver=deliveryDrivers.find(x=>x.user_id===uid);
+  await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:driver?.display_name||'',status:'assigned',accepted_at:null}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null});
+};
+window.claimDelivery=async id=>{
+  if(!currentIsDriver()){alert('你的工作職能不是司機');return}
+  const {data,error}=await sb.from('delivery_jobs').update({assigned_driver_id:currentUser.id,assigned_driver_name:currentProfile.display_name,status:'accepted',accepted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).is('assigned_driver_id',null).eq('status','waiting').select();
+  if(error){alert('接單失敗：'+error.message);return}
+  if(!data?.length){alert('這張單已經被其他司機接走了');}
+  deliveryDriverFilter=currentUser.id;await loadDelivery();
+};
+window.acceptDelivery=id=>updateDelivery(id,{status:'accepted',accepted_at:new Date().toISOString()});
+window.startDelivery=id=>updateDelivery(id,{status:'delivering',delivering_at:new Date().toISOString()});
+window.completeDelivery=id=>{if(confirm('確定這張小白單已經配送完成？'))updateDelivery(id,{status:'completed',completed_at:new Date().toISOString()})};
+
 function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
-window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null,pickup_ready:newVal,pickup_ready_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
+window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{if(!requireWrite())return;const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null,...actorFields('updated')}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
 window.startPacking=async id=>{if(!requireWrite())return;await sb.from('orders').update({status:'packing',...actorFields('updated')}).eq('id',id);await loadOrders()};
 window.finishOrder=async id=>{if(!requireWrite())return;const o=orders.find(x=>x.id===id);if(!o||!o.items.every(x=>x.is_completed))return;await sb.from('orders').update({status:'done',completed_at:new Date().toISOString(),...actorFields('completed')}).eq('id',id);await loadOrders()};
@@ -381,17 +490,8 @@ function getRememberedTab(){
   if(VALID_TABS.includes(queryTab)) return queryTab;
   return 'stall';
 }
-function getRoleDefaultTab(){
-  if(!currentProfile) return getRememberedTab();
-  // 管理員與多職能員工：保留上次停留頁面。
-  if(currentProfile.role==='admin') return getRememberedTab();
-  const roles=Array.isArray(currentProfile.work_roles)?currentProfile.work_roles.filter(Boolean):[];
-  if(roles.length!==1) return getRememberedTab();
-  const map={stall:'stall',packing:'packing',driver:'delivery',accounting:'today'};
-  return map[roles[0]]||getRememberedTab();
-}
 activateTab(getRememberedTab(),{save:true});
-window.addEventListener('pageshow',()=>activateTab(currentProfile?getRoleDefaultTab():getRememberedTab(),{save:false}));
+window.addEventListener('pageshow',()=>activateTab(getRememberedTab(),{save:false}));
 window.addEventListener('hashchange',()=>{
   const t=(location.hash||'').replace(/^#/,'');
   if(VALID_TABS.includes(t))activateTab(t,{save:true});
@@ -637,6 +737,42 @@ async function enforceActiveSession(){
   }
 }
 
+
+$('#deliveryDate').value=taipeiDate();
+$('#deliveryTakePhoto').onclick=()=>$('#deliveryPhotoInput').click();
+$('#deliveryClearPhoto').onclick=()=>{deliveryPhotoFile=null;$('#deliveryPhotoInput').value='';$('#deliveryPhotoPreview').style.display='none';$('#deliveryPhotoPreview').src=''};
+$('#deliveryPhotoInput').onchange=e=>{const f=e.target.files?.[0];if(!f)return;deliveryPhotoFile=f;$('#deliveryPhotoPreview').src=URL.createObjectURL(f);$('#deliveryPhotoPreview').style.display='block'};
+async function uploadDeliverySlip(no){
+  if(!deliveryPhotoFile)throw new Error('請先拍攝或選擇小白單照片');
+  const ext=(deliveryPhotoFile.name.split('.').pop()||'jpg').toLowerCase();
+  const path=`delivery-slips/${no}-${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from('order-photos').upload(path,deliveryPhotoFile,{upsert:false});
+  if(error)throw error;
+  return sb.storage.from('order-photos').getPublicUrl(path).data.publicUrl;
+}
+$('#createDeliveryBtn').onclick=async()=>{
+  if(!requireWrite())return;
+  const customer=$('#deliveryCustomer').value.trim();
+  if(!customer){alert('請輸入客戶／店家名稱');return}
+  if(!deliveryPhotoFile){alert('請先拍攝小白單');return}
+  const btn=$('#createDeliveryBtn');btn.disabled=true;btn.textContent='建立中…';
+  try{
+    const no=deliveryNo(),photo=await uploadDeliverySlip(no),uid=$('#deliveryDriver').value;
+    const driver=deliveryDrivers.find(x=>x.user_id===uid);
+    const {error}=await sb.from('delivery_jobs').insert({
+      delivery_no:no,customer,delivery_date:$('#deliveryDate').value||taipeiDate(),
+      slip_photo_url:photo,note:$('#deliveryNote').value.trim()||null,
+      status:uid?'assigned':'waiting',assigned_driver_id:uid||null,assigned_driver_name:driver?.display_name||null,
+      created_by:currentUser.id,created_by_name:currentProfile.display_name
+    });
+    if(error)throw error;
+    $('#deliveryCustomer').value='';$('#deliveryNote').value='';$('#deliveryDriver').value='';
+    $('#deliveryClearPhoto').click();await loadDelivery();alert('配送單已建立');
+  }catch(e){alert('建立配送單失敗：'+e.message)}
+  finally{btn.disabled=false;btn.textContent='建立配送單'}
+};
+$('#refreshDeliveryBtn').onclick=()=>loadDelivery();
+
 async function loadMyProfile(user){
   const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,role,is_active,login_name,work_roles').eq('user_id',user.id).maybeSingle();
   if(error)throw error;
@@ -651,7 +787,7 @@ function showApp(){
   applyRoleUI();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();activateTab(getRoleDefaultTab(),{save:true});if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}}
+  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}if(Array.isArray(currentProfile.work_roles)&&currentProfile.work_roles.length===1&&currentProfile.work_roles[0]==='driver'){deliveryDriverFilter=currentUser.id;activateTab('delivery',{save:true});}}
   catch(e){console.error(e);await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin(e.message||'無法登入');}
 }
 async function resolveLoginEmail(account){
@@ -705,11 +841,8 @@ $('#loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')$('#loginB
 $('#logoutBtn').onclick=async()=>{await sb.auth.signOut();location.reload();};
 (async()=>{const {data}=await sb.auth.getSession();if(data.session?.user)await startApp(data.session.user);else showLogin();})();
 
-
-$('#deliveryByCustomer').onclick=()=>{deliveryView='customer';$('#deliveryByCustomer').className='btn primary';$('#deliveryBySource').className='btn gray';renderDelivery()};
-$('#deliveryBySource').onclick=()=>{deliveryView='source';$('#deliveryBySource').className='btn primary';$('#deliveryByCustomer').className='btn gray';renderDelivery()};
-
 const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{if(!currentUser)return;const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>{if(currentUser)loadOrders()}).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
+const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},()=>{if(currentUser)loadDelivery()}).subscribe();
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
   // loadOrders 會在登入驗證成功後啟動。
