@@ -39,6 +39,8 @@
 
 
 .authGate{position:fixed;inset:0;background:#f4f6f8;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px}.authGate.hidden{display:none}.loginBox{width:min(430px,100%);background:#fff;border:1px solid #e3e7eb;border-radius:22px;padding:26px;box-shadow:0 12px 40px rgba(0,0,0,.12)}.loginBox h1{font-size:24px;margin:0 0 8px}.loginError{color:#b4232c;font-weight:700;margin-top:10px}.userBar{display:none;align-items:center;justify-content:center;gap:10px;padding:0 14px 8px;font-size:13px;color:#59606a}.userBar.show{display:flex}.readonlyNote{background:#fff7d6;border:1px solid #f3d978;padding:10px 12px;border-radius:12px;margin:0 14px 10px;font-weight:800;color:#765400}.viewer-disabled{pointer-events:none;opacity:.45}
+
+.employeeModal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;padding:16px;z-index:100001}.employeeModal.show{display:flex}.employeeBox{width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.25)}.employeeHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.employeeHead h2{margin:0}.employeeGrid{display:grid;grid-template-columns:1.1fr 1.4fr 1fr auto;gap:8px;align-items:end}.employeeList{margin-top:18px;border-top:1px solid var(--line)}.employeeRow{display:grid;grid-template-columns:1.2fr 1.5fr 1fr auto auto;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.employeeStatus{font-weight:900}.employeeStatus.on{color:#18703c}.employeeStatus.off{color:#b4232c}.employeeMsg{font-weight:800;margin-top:10px}.employeeMsg.err{color:#b4232c}.employeeMsg.ok{color:#18703c}@media(max-width:760px){.employeeGrid,.employeeRow{grid-template-columns:1fr}.employeeRow{padding:14px 0}.employeeRow .btn{width:100%}}
 </style>
 
 
@@ -57,7 +59,7 @@
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
     <div class="title">欣儒農產行｜包裝即時系統</div>
-    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none">👁️ 瀏覽人員：目前為唯讀模式，四個頁面都可以查看，但不能修改內容。</div>
+    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理</button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none">👁️ 瀏覽人員：目前為唯讀模式，四個頁面都可以查看，但不能修改內容。</div>
     <div class="tabs">
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
       <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
@@ -148,6 +150,27 @@
     <div class="actions"><button id="cancelEdit" class="btn gray">取消</button><button id="saveEdit" class="btn primary" style="flex:1">儲存修改</button></div>
   </div>
 </div>
+
+<div id="employeeModal" class="employeeModal">
+  <div class="employeeBox">
+    <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
+    <div class="helper">只有系統管理員可以新增、變更權限、停用或刪除員工帳號。</div>
+    <div class="card" style="box-shadow:none;margin-bottom:12px">
+      <h2 style="font-size:19px">新增員工</h2>
+      <div class="employeeGrid">
+        <div class="field"><label class="label">員工姓名</label><input id="empName" class="input" autocomplete="off"></div>
+        <div class="field"><label class="label">登入 Email</label><input id="empEmail" class="input" type="email" autocomplete="off"></div>
+        <div class="field"><label class="label">初始密碼</label><input id="empPassword" class="input" type="password" autocomplete="new-password"></div>
+        <div class="field"><label class="label">權限</label><select id="empRole" class="input"><option value="operator">作業人員</option><option value="viewer">瀏覽人員</option><option value="admin">系統管理員</option></select></div>
+      </div>
+      <button id="createEmployeeBtn" class="btn primary">＋ 建立員工帳號</button>
+      <div id="employeeMsg" class="employeeMsg"></div>
+    </div>
+    <div class="employeeHead"><h2 style="font-size:19px">員工帳號</h2><button id="refreshEmployeesBtn" class="btn gray">重新整理</button></div>
+    <div id="employeeList" class="employeeList"><div class="empty">讀取中…</div></div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL='https://vzohexennzwhodovknfi.supabase.co';
 const SUPABASE_KEY='sb_publishable_JjHWTnCuEYgQ5__ZFh5UIw_UO5E5IP2';
@@ -228,9 +251,9 @@ function renderAll(){
   renderToday();
   applyRoleUI();
 }
-function applyRoleUI(){const viewer=currentProfile?.role==='viewer';$('#readonlyNote').style.display=viewer?'block':'none';['#submitOrder','#urgentSwitch','#takePhoto','#ocrPhoto','#clearPhoto','#customer','#orderDate','#pickupTime','#items','#note'].forEach(sel=>{const el=$(sel);if(el){if('disabled'in el)el.disabled=viewer;el.classList.toggle('viewer-disabled',viewer);}});}
+function applyRoleUI(){const viewer=currentProfile?.role==='viewer';const admin=currentProfile?.role==='admin';$('#readonlyNote').style.display=viewer?'block':'none';const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';['#submitOrder','#urgentSwitch','#takePhoto','#ocrPhoto','#clearPhoto','#customer','#orderDate','#pickupTime','#items','#note'].forEach(sel=>{const el=$(sel);if(el){if('disabled'in el)el.disabled=viewer;el.classList.toggle('viewer-disabled',viewer);}});}
 function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${canWrite()?(o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'):''}${canWrite()?`<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
-function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="th">${esc(translitLine(o.customer))}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''}" onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})">${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${o.photo_url?`<div style="margin-top:10px"><a href="${esc(o.photo_url)}" target="_blank"><img class="photoMini" src="${esc(o.photo_url)}"></a></div>`:''}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder=""><button class="btn gray" onclick="savePackingReply(${o.id})">儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}<button class="btn primary" ${done!==total?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button></div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
+function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="th">${esc(translitLine(o.customer))}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''} ${canWrite()?'':'viewer-disabled'}" ${canWrite()?`onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})"`:''}>${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${o.photo_url?`<div style="margin-top:10px"><a href="${esc(o.photo_url)}" target="_blank"><img class="photoMini" src="${esc(o.photo_url)}"></a></div>`:''}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder="" ${canWrite()?'':'disabled'}><button class="btn gray" ${canWrite()?`onclick="savePackingReply(${o.id})"`:'disabled style="opacity:.45"'}>儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${canWrite()&&o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}${canWrite()?`<button class="btn primary" ${done!==total?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button>`:''}</div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
 
 // 使用者一開始打包裝回覆，就標記為草稿；10秒輪詢/Realtime 都不會重建輸入框。
 $('#packingOrders').addEventListener('input',e=>{
@@ -276,7 +299,7 @@ function renderWall(){
  }).join(''):'<div class="empty">目前沒有待處理訂單</div>';
 }
 function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
-window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);if(o&&o.status==='waiting')await sb.from('orders').update({status:'packing'}).eq('id',orderId);await loadOrders()};
+window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{if(!requireWrite())return;const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null,...actorFields('updated')}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
 window.startPacking=async id=>{if(!requireWrite())return;await sb.from('orders').update({status:'packing',...actorFields('updated')}).eq('id',id);await loadOrders()};
 window.finishOrder=async id=>{if(!requireWrite())return;const o=orders.find(x=>x.id===id);if(!o||!o.items.every(x=>x.is_completed))return;await sb.from('orders').update({status:'done',completed_at:new Date().toISOString(),...actorFields('completed')}).eq('id',id);await loadOrders()};
@@ -389,6 +412,52 @@ function playOrderSound(isUrgent=false){
 // 任何點擊、觸控或按鍵都會自動解鎖；右下角也會顯示目前狀態。
 ['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>unlockAudio(),{passive:true}));
 updateSoundReadyUI(false);
+async function callEmployeeManager(action,payload={}){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)throw new Error('登入狀態已失效，請重新登入');
+  const res=await fetch(`${SUPABASE_URL}/functions/v1/manage-employees`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`,'apikey':SUPABASE_KEY},
+    body:JSON.stringify({action,...payload})
+  });
+  let data={};
+  try{data=await res.json();}catch(e){}
+  if(!res.ok||data.ok===false)throw new Error(data.error||`員工管理操作失敗 (${res.status})`);
+  return data;
+}
+function setEmployeeMsg(msg='',ok=false){const el=$('#employeeMsg');el.textContent=msg;el.className='employeeMsg '+(msg?(ok?'ok':'err'):'');}
+function roleOptions(current){return ['admin','operator','viewer'].map(r=>`<option value="${r}" ${current===r?'selected':''}>${ROLE_LABEL[r]}</option>`).join('');}
+function renderEmployeeList(list=[]){
+  const box=$('#employeeList');
+  if(!list.length){box.innerHTML='<div class="empty">目前沒有員工帳號</div>';return;}
+  box.innerHTML=list.map(e=>`<div class="employeeRow">
+    <div><b>${esc(e.display_name)}</b>${e.email?`<div class="meta">${esc(e.email)}</div>`:''}</div>
+    <div><select class="input emp-role" data-id="${esc(e.user_id)}" ${e.user_id===currentUser?.id?'disabled':''}>${roleOptions(e.role)}</select></div>
+    <div class="employeeStatus ${e.is_active?'on':'off'}">${e.is_active?'● 使用中':'● 已停用'}</div>
+    <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'停用':'啟用'}</button>
+    <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>刪除</button>
+  </div>`).join('');
+  box.querySelectorAll('.emp-role').forEach(el=>el.onchange=async()=>{try{await callEmployeeManager('set_role',{user_id:el.dataset.id,role:el.value});setEmployeeMsg('權限已更新',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);await loadEmployees();}});
+  box.querySelectorAll('.emp-active').forEach(el=>el.onclick=async()=>{const active=el.dataset.active==='1';try{await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});setEmployeeMsg(active?'員工已停用':'員工已啟用',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
+  box.querySelectorAll('.emp-delete').forEach(el=>el.onclick=async()=>{if(!confirm(`確定要刪除員工「${el.dataset.name}」的登入帳號嗎？\n刪除後該員工將無法再登入。`))return;try{await callEmployeeManager('delete',{user_id:el.dataset.id});setEmployeeMsg('員工帳號已刪除',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
+}
+async function loadEmployees(){if(currentProfile?.role!=='admin')return;$('#employeeList').innerHTML='<div class="empty">讀取中…</div>';try{const data=await callEmployeeManager('list');renderEmployeeList(data.employees||[]);}catch(e){$('#employeeList').innerHTML=`<div class="empty" style="color:#b4232c">${esc(e.message)}</div>`;}}
+$('#employeeManageBtn').onclick=async()=>{if(currentProfile?.role!=='admin')return;setEmployeeMsg('');$('#employeeModal').classList.add('show');await loadEmployees();};
+$('#closeEmployeeModal').onclick=()=>$('#employeeModal').classList.remove('show');
+$('#employeeModal').addEventListener('click',e=>{if(e.target===$('#employeeModal'))$('#employeeModal').classList.remove('show');});
+$('#refreshEmployeesBtn').onclick=()=>loadEmployees();
+$('#createEmployeeBtn').onclick=async()=>{const display_name=$('#empName').value.trim(),email=$('#empEmail').value.trim(),password=$('#empPassword').value,role=$('#empRole').value;if(!display_name||!email||!password){setEmployeeMsg('姓名、Email、密碼都要填寫');return;}const btn=$('#createEmployeeBtn');btn.disabled=true;btn.textContent='建立中…';try{await callEmployeeManager('create',{display_name,email,password,role});$('#empName').value='';$('#empEmail').value='';$('#empPassword').value='';$('#empRole').value='operator';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='＋ 建立員工帳號';}};
+
+async function enforceActiveSession(){
+  if(!currentUser)return;
+  try{
+    const p=await loadMyProfile(currentUser);
+    currentProfile=p;applyRoleUI();
+  }catch(e){
+    await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用或權限已失效');
+  }
+}
+
 async function loadMyProfile(user){
   const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,role,is_active').eq('user_id',user.id).maybeSingle();
   if(error)throw error;
@@ -423,9 +492,9 @@ $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
   // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
-setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadOrders();},AUTO_REFRESH_MS);
-document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible')loadOrders();});
-window.addEventListener('focus',()=>{if(currentUser)loadOrders();});
+setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();enforceActiveSession();}},AUTO_REFRESH_MS);
+document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();enforceActiveSession();}});
+window.addEventListener('focus',()=>{if(currentUser){loadOrders();enforceActiveSession();}});
 
 </script>
 </body></html>
