@@ -154,7 +154,7 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：員工帳號＋工作職能 09/13-E</div>
+    <div class="helper" style="margin-top:-4px">版本：員工帳號＋工作職能 09/13-E1</div>
     <div class="helper">員工可用簡單帳號登入，不需要自己的 Email。工作職能可複選。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
@@ -444,7 +444,16 @@ function employeeErrorText(err,fallback='員工管理操作失敗'){
   return safe(err)||fallback;
 }
 async function callEmployeeManager(action,payload={}){
-  const {data:{session}}=await sb.auth.getSession();
+  // 員工管理屬於高權限操作：先主動更新一次 access token，避免手機／電腦長時間開著後拿舊 token 呼叫 Edge Function。
+  let session=null;
+  try{
+    const {data,error}=await sb.auth.refreshSession();
+    if(!error&&data?.session)session=data.session;
+  }catch(e){}
+  if(!session){
+    const {data}=await sb.auth.getSession();
+    session=data?.session||null;
+  }
   if(!session)throw new Error('登入狀態已失效，請重新登入');
   const res=await fetch(`${SUPABASE_URL}/functions/v1/manage-employees`,{
     method:'POST',
