@@ -1075,7 +1075,13 @@ async function enforceActiveSession(){
     const p=await loadMyProfile(currentUser);
     currentProfile=p;applyRoleUI();
   }catch(e){
-    await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用或權限已失效');
+    // 網路、Supabase、Safari/PWA 暫時連線失敗時，不清除登入 session。
+    // 只有資料庫明確回覆「帳號已停用」時才真正登出。
+    const msg=String(e?.message||e||'');
+    console.warn('登入狀態檢查暫時失敗',e);
+    if(msg.includes('員工帳號已停用')){
+      await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
+    }
   }
 }
 
@@ -1108,7 +1114,16 @@ async function startApp(user){
     if(!savedQ||savedQ==='all'){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}
   }
   await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}if(Array.isArray(currentProfile.work_roles)&&currentProfile.work_roles.length===1&&currentProfile.work_roles[0]==='driver'){activateTab('delivery',{save:true});}}
-  catch(e){console.error(e);await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin(e.message||'無法登入');}
+  catch(e){
+    console.error(e);
+    const msg=String(e?.message||e||'');
+    // 啟動時遇到暫時性網路/API錯誤，不再自動 signOut，避免手機/PWA 被誤登出。
+    if(msg.includes('員工帳號已停用')){
+      await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
+    }else{
+      showLogin('連線暫時不穩定，登入資料已保留，請重新整理');
+    }
+  }
 }
 async function resolveLoginEmail(account){
   if(account.includes('@'))return account;
