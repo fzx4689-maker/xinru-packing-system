@@ -86,7 +86,7 @@
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
     <div class="title">欣儒農產行｜內部作業系統</div>
-    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none">👁️ 瀏覽人員：目前為唯讀模式，四個頁面都可以查看，但不能修改內容。</div>
+    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs">
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
       <button class="tab" data-tab="delivery">🚚 貨運部<div class="th">配送作業</div></button>
@@ -110,6 +110,10 @@
         <div class="grid2">
           <div class="field"><label class="label">下單給</label><select id="orderTarget" class="input"><option value="packing">📦 包裝部</option><option value="delivery">🚚 貨運部</option></select></div>
           <div id="stallDriverWrap" class="field" style="display:none"><label class="label">指定司機（可不選）</label><select id="stallDeliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
+        </div>
+        <div id="deliveryRequirements" class="actions" style="display:none;margin:2px 0 12px;gap:14px;flex-wrap:wrap">
+          <label style="font-weight:800"><input id="deliveryPhotoRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 📷 送達需拍照</label>
+          <label style="font-weight:800"><input id="deliveryPaymentRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 💰 需要收款</label>
         </div>
 
         <div class="grid2">
@@ -159,13 +163,8 @@
 
     <section id="delivery" class="panel">
       <div class="card">
-        <h2>🚚 貨運部</h2>
-        <div class="helper">貨運單統一由「攤位下單」建立。司機可查看自己的配送單與尚未分配的訂單。</div>
-      </div>
-
-      <div class="card">
         <div class="deliveryHead">
-          <div><h2 style="margin-bottom:4px">目前貨運單</h2><div class="helper" style="margin:0">和攤位下單一樣，建立後的貨運單會顯示在下方。點司機名字可只看該司機的單。</div></div>
+          <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
           <button id="refreshDeliveryBtn" type="button" class="btn gray">重新整理</button>
         </div>
         <div id="driverFilters" class="driverFilters"></div>
@@ -186,9 +185,6 @@
         <button id="queryDateBtn" class="btn primary">查詢日期</button>
       </div>
       <div id="deliveryQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap;display:none">
-        <button id="deliveryTodayBtn" type="button" class="btn gray">今天</button>
-        <button id="deliveryFutureBtn" type="button" class="btn gray">未來</button>
-        <button id="deliveryHistoryBtn" type="button" class="btn gray">歷史</button>
         <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
         <button id="deliveryQueryDateBtn" type="button" class="btn primary">查詢日期</button>
       </div>
@@ -217,7 +213,7 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：內部作業系統｜統一下單分流 H6</div>
+    <div class="helper" style="margin-top:-4px">版本：內部作業系統｜貨運精簡 H7</div>
     <div class="helper">員工可用簡單帳號登入，不需要自己的 Email。工作職能可複選。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
@@ -241,6 +237,7 @@
   </div>
 </div>
 
+<input id="deliveryProofInput" type="file" accept="image/*" capture="environment" style="display:none">
 <script>
 const SUPABASE_URL='https://vzohexennzwhodovknfi.supabase.co';
 const SUPABASE_KEY='sb_publishable_JjHWTnCuEYgQ5__ZFh5UIw_UO5E5IP2';
@@ -255,7 +252,7 @@ let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let del
 const ROLE_LABEL={admin:'系統管理員',operator:'作業人員',viewer:'瀏覽人員'};
 const canWrite=()=>currentProfile&&['admin','operator'].includes(currentProfile.role);
 const actorFields=(kind='updated')=>{if(!currentUser||!currentProfile)return {}; if(kind==='created')return {created_by:currentUser.id,created_by_name:currentProfile.display_name}; if(kind==='completed')return {completed_by:currentUser.id,completed_by_name:currentProfile.display_name,updated_by:currentUser.id,updated_by_name:currentProfile.display_name}; return {updated_by:currentUser.id,updated_by_name:currentProfile.display_name};};
-function requireWrite(){if(canWrite())return true;alert('你的帳號是「瀏覽人員」，只能觀看，不能修改內容。');return false;}
+function requireWrite(){if(canWrite())return true;alert('此帳號目前無法修改內容，請洽管理者。');return false;}
 
 const taipeiDate=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});
 $('#orderDate').value=taipeiDate();
@@ -324,7 +321,7 @@ function renderAll(){
   renderToday();
   applyRoleUI();
 }
-function applyRoleUI(){const viewer=currentProfile?.role==='viewer';const admin=currentProfile?.role==='admin';$('#readonlyNote').style.display=viewer?'block':'none';const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';['#submitOrder','#urgentSwitch','#takePhoto','#ocrPhoto','#clearPhoto','#customer','#orderDate','#pickupTime','#items','#note','#orderTarget','#stallDeliveryDriver'].forEach(sel=>{const el=$(sel);if(el){if('disabled'in el)el.disabled=viewer;el.classList.toggle('viewer-disabled',viewer);}});}
+function applyRoleUI(){const viewer=currentProfile?.role==='viewer';const admin=currentProfile?.role==='admin';$('#readonlyNote').style.display='none';const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';['#submitOrder','#urgentSwitch','#takePhoto','#ocrPhoto','#clearPhoto','#customer','#orderDate','#pickupTime','#items','#note','#orderTarget','#stallDeliveryDriver'].forEach(sel=>{const el=$(sel);if(el){if('disabled'in el)el.disabled=viewer;el.classList.toggle('viewer-disabled',viewer);}});}
 function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${canWrite()?(o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'):''}${canWrite()?`<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
 function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="th">${esc(translitLine(o.customer))}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''} ${canWrite()?'':'viewer-disabled'}" ${canWrite()?`onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})"`:''}>${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${o.photo_url?`<div style="margin-top:10px"><a href="${esc(o.photo_url)}" target="_blank"><img class="photoMini" src="${esc(o.photo_url)}"></a></div>`:''}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder="" ${canWrite()?'':'disabled'}><button class="btn gray" ${canWrite()?`onclick="savePackingReply(${o.id})"`:'disabled style="opacity:.45"'}>儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${canWrite()&&o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}${canWrite()?`<button class="btn primary" ${done!==total?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button>`:''}</div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
 
@@ -480,6 +477,9 @@ function renderDeliveryCard(j){
     ${j.is_urgent?`<div style="margin-top:7px"><span class="badge red">🚨 急單</span></div>`:''}
     ${j.request_text?`<div class="urgentRow" style="margin-top:10px;background:#f8fafc;border-color:#e2e8f0"><div><b>品項：</b><br>${esc(j.request_text).replace(/\n/g,'<br>')}</div></div>`:''}
     ${j.slip_photo_url?`<a href="${esc(j.slip_photo_url)}" target="_blank" rel="noopener"><img class="deliveryPhoto" src="${esc(j.slip_photo_url)}" alt="訂單照片"></a>`:''}
+    ${(j.proof_required||j.payment_required)?`<div class="meta" style="margin-top:8px;font-weight:800">${j.proof_required?'📷 需送達照片　':''}${j.payment_required?'💰 需收款':''}</div>`:''}
+    ${j.delivery_photo_url?`<a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener"><img class="deliveryPhoto" src="${esc(j.delivery_photo_url)}" alt="送達照片"></a>`:''}
+    ${j.collected_amount!=null?`<div class="meta" style="font-weight:800">💰 實收 $${esc(j.collected_amount)}</div>`:''}
     ${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}
     ${j.completed_at?`<div class="meta" style="margin-top:7px">✅ ${esc(deliveryDisplayName(j.assigned_driver_name||''))} 完成配送｜${fmtDateTime(j.completed_at)}</div>`:''}
     ${canAssign?`<div class="actions" style="margin-top:10px"><select class="input" id="assignDriver_${j.id}" style="max-width:230px">${opts}</select><button class="btn gray" onclick="assignDelivery(${j.id})">指派司機</button></div>`:''}
@@ -487,7 +487,7 @@ function renderDeliveryCard(j){
   </div>`;
 }
 async function updateDelivery(id,patch){
-  if(!requireWrite())return;
+  if(!(canWrite()||currentIsDriver())){alert('此帳號無法操作貨運單');return;}
   const {error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
   if(error){alert('更新失敗：'+error.message);return}
   await loadDelivery();
@@ -506,7 +506,20 @@ window.claimDelivery=async id=>{
 };
 window.acceptDelivery=id=>updateDelivery(id,{status:'accepted',accepted_at:new Date().toISOString()});
 window.startDelivery=id=>updateDelivery(id,{status:'delivering',delivering_at:new Date().toISOString()});
-window.completeDelivery=id=>{if(confirm('確定這張小白單已經配送完成？'))updateDelivery(id,{status:'completed',completed_at:new Date().toISOString()})};
+async function uploadDeliveryProof(file,id){const ext=(file.name.split('.').pop()||'jpg').toLowerCase();const path=`delivery-proof/${id}-${Date.now()}.${ext}`;const {error}=await sb.storage.from('order-photos').upload(path,file,{upsert:false});if(error)throw error;return sb.storage.from('order-photos').getPublicUrl(path).data.publicUrl;}
+window.completeDelivery=async id=>{
+  const j=deliveryJobs.find(x=>x.id===id);if(!j)return;
+  let amount=null,proofUrl=null;
+  if(j.payment_required){const v=prompt('請輸入實收金額');if(v===null)return;const n=Number(String(v).replace(/,/g,''));if(!Number.isFinite(n)||n<0){alert('收款金額格式不正確');return}amount=n;}
+  if(j.proof_required){
+    const input=$('#deliveryProofInput');input.value='';
+    const file=await new Promise(resolve=>{input.onchange=()=>resolve(input.files?.[0]||null);input.click();});
+    if(!file){alert('這張單設定為送達需拍照，請先拍照回傳');return;}
+    try{proofUrl=await uploadDeliveryProof(file,id)}catch(e){alert('送達照片上傳失敗：'+e.message);return;}
+  }
+  if(!confirm('確定配送完成？'))return;
+  await updateDelivery(id,{status:'completed',completed_at:new Date().toISOString(),...(proofUrl?{delivery_photo_url:proofUrl}:{}),...(amount!==null?{collected_amount:amount,collected_at:new Date().toISOString()}: {})});
+};
 
 function renderToday(){
   const b=$('#todayBody');if(!b)return;
@@ -518,16 +531,9 @@ function renderToday(){
   if(pc)pc.style.display=orderQueryMode==='packing'?'flex':'none';
   if(dc)dc.style.display=orderQueryMode==='delivery'?'flex':'none';
   if(orderQueryMode==='delivery'){
-    const t=taipeiDate();
-    const tq=$('#deliveryQueryDate')?.value||t;
-    const ids={today:'#deliveryTodayBtn',future:'#deliveryFutureBtn',history:'#deliveryHistoryBtn'};
-    Object.entries(ids).forEach(([m,id])=>{const el=$(id);if(el)el.className='btn '+(deliveryRecordMode===m?'primary':'gray')});
-    let arr=[],label='';
-    if(deliveryRecordMode==='future'){arr=deliveryJobs.filter(j=>String(j.delivery_date||'')>t);label='🔮 未來貨運紀錄';}
-    else if(deliveryRecordMode==='history'){arr=deliveryJobs.filter(j=>String(j.delivery_date||'')<t);label='🕘 歷史貨運紀錄';}
-    else if(deliveryRecordMode==='date'){arr=deliveryJobs.filter(j=>j.delivery_date===tq);label=`📅 ${tq}`;}
-    else {arr=deliveryJobs.filter(j=>j.delivery_date===t);label=`📅 今天 ${t}`;}
-    deliveryRecordTable(arr,label);
+    const tq=$('#deliveryQueryDate')?.value||taipeiDate();
+    const arr=deliveryJobs.filter(j=>j.delivery_date===tq);
+    deliveryRecordTable(arr,`🚚 ${tq}`);
     return;
   }
   const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});
@@ -578,7 +584,7 @@ $('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片'
 async function uploadPhoto(orderNo){if(!photoFile)return null;try{const ext=(photoFile.name.split('.').pop()||'jpg').toLowerCase();const path=`${orderNo}-${Date.now()}.${ext}`;const {error}=await sb.storage.from('order-photos').upload(path,photoFile,{upsert:false});if(error)throw error;const {data}=sb.storage.from('order-photos').getPublicUrl(path);return data.publicUrl}catch(e){console.warn('照片尚未上傳：',e.message);return null}}
 function updateOrderTargetUI(){
   const freight=$('#orderTarget')?.value==='delivery';
-  const wrap=$('#stallDriverWrap');if(wrap)wrap.style.display=freight?'block':'none';
+  const wrap=$('#stallDriverWrap');if(wrap)wrap.style.display=freight?'block':'none'; const req=$('#deliveryRequirements');if(req)req.style.display=freight?'flex':'none';
   const hint=$('#urgentTargetHint');if(hint)hint.textContent=freight?'送出後會排到貨運部待接單／指定司機':'送出後自動排到包裝部與電視牆最上面';
   const btn=$('#submitOrder');if(btn)btn.textContent=freight?'送出貨運單':'送出訂單';
 }
@@ -608,6 +614,7 @@ $('#submitOrder').onclick=async()=>{
       const {error}=await sb.from('delivery_jobs').insert({
         delivery_no:deliveryNo(),customer,delivery_date:$('#orderDate').value||taipeiDate(),
         slip_photo_url:photoUrl||null,request_text:lines.join('\n'),pickup_time:pickup||null,is_urgent:urgent,
+        proof_required:!!$('#deliveryPhotoRequired')?.checked,payment_required:!!$('#deliveryPaymentRequired')?.checked,
         note:$('#note').value.trim()||null,status:uid?'assigned':'waiting',assigned_driver_id:uid||null,
         assigned_driver_name:driver?deliveryDisplayName(driver.display_name):null,created_by:currentUser.id,
         created_by_name:currentProfile.display_name,source:'stall'
@@ -617,7 +624,7 @@ $('#submitOrder').onclick=async()=>{
       alert(uid?'已送到貨運部並指定司機':'已送到貨運部，等待司機接單');
     }
     $('#customer').value='';$('#pickupTime').value='';$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();
-    if($('#stallDeliveryDriver'))$('#stallDeliveryDriver').value='';
+    if($('#stallDeliveryDriver'))$('#stallDeliveryDriver').value=''; if($('#deliveryPhotoRequired'))$('#deliveryPhotoRequired').checked=false; if($('#deliveryPaymentRequired'))$('#deliveryPaymentRequired').checked=false;
     urgent=false;$('#urgentSwitch').classList.remove('on');$('#clearPhoto').click();
   }catch(e){console.error(e);alert('送出失敗：'+e.message)}
   finally{btn.disabled=false;updateOrderTargetUI()}
@@ -885,7 +892,7 @@ function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
   const shownName=currentProfile.role==='admin'?'懿':currentProfile.display_name;
-  const workText=currentProfile.role==='admin'?'系統管理員':((currentProfile.work_roles||[]).map(r=>WORK_LABEL[r]||r).join('／')||ROLE_LABEL[currentProfile.role]||currentProfile.role);
+  const workText=(currentProfile.work_roles||[]).map(r=>WORK_LABEL[r]||r).join('／')||'未設定';
   $('#currentUserName').textContent=`👤 ${shownName}`;
   $('#currentUserRole').textContent=`｜職務：${workText}`;
   applyRoleUI();
