@@ -629,7 +629,7 @@ window.chooseDeliveryDriver=async(id,uid)=>{
   const preservedReply=preserveLegacyDriverReplies(j);
   closeDriverPicker();
   await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})});
-  try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
+  try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,old_driver_id:oldUid||null,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
   if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${j.customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
 };
 window.claimDelivery=async id=>{
@@ -684,7 +684,7 @@ $('#saveDeliveryEdit').onclick=async()=>{
   const oldUid=j.assigned_driver_id||'';
   const {error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('修改失敗：'+error.message);return;}
   if(oldUid!==(uid||'')){
-    try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
+    try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,old_driver_id:oldUid||null,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
     if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
   }
   $('#deliveryEditModal').classList.remove('show');await loadDelivery();
@@ -1230,12 +1230,23 @@ const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',sch
 const deliveryChannel=sb.channel('xinru-delivery-live')
 .on('broadcast',{event:'assignment'},msg=>{
   if(!currentUser)return;
-  const p=msg?.payload||{};const id=String(p.id||'');const newUid=String(p.new_driver_id||'');
+  const p=msg?.payload||{};const id=String(p.id||'');const oldUid=String(p.old_driver_id||'');const newUid=String(p.new_driver_id||'');
+  // 指派變更先直接更新本機資料，讓目前司機分頁立即消失/出現，不等下一次查詢。
+  if(id){
+    const idx=deliveryJobs.findIndex(j=>String(j.id)===id);
+    if(idx>=0){
+      deliveryJobs[idx]={...deliveryJobs[idx],assigned_driver_id:newUid||null,status:p.status||(newUid?'assigned':'waiting')};
+      if(newUid){const d=deliveryDrivers.find(x=>String(x.user_id)===newUid);if(d)deliveryJobs[idx].assigned_driver_name=deliveryDisplayName(d.display_name||'');}
+      else deliveryJobs[idx].assigned_driver_name=null;
+    }
+    // 任何角色（包含同時是管理員+司機）都立即重畫目前篩選頁。
+    renderDelivery();if(orderQueryMode==='delivery')renderToday();
+  }
   if(currentIsDriver()){
     if(newUid===String(currentUser.id)){
       if(id&&!knownMyAssignedJobIds.has(id)){knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSound()}
-    }else if(!canManageFreight()&&id){
-      deliveryJobs=deliveryJobs.filter(j=>String(j.id)!==id);renderDelivery();if(orderQueryMode==='delivery')renderToday();
+    }else if(oldUid===String(currentUser.id)&&id){
+      knownMyAssignedJobIds.delete(id);
     }
   }
   loadDelivery();
@@ -1244,12 +1255,19 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
   if(!currentUser)return;
   const n=payload.new||{};const id=String(n.id||'');
   if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSound();
-  if(payload.eventType==='UPDATE'&&currentIsDriver()){
-    const assigned=String(n.assigned_driver_id||'');
-    if(assigned===String(currentUser.id)&&n.status==='assigned'&&id&&!knownMyAssignedJobIds.has(id)){
-      knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSound();
-    }else if(assigned&&assigned!==String(currentUser.id)&&!canManageFreight()&&id){
-      deliveryJobs=deliveryJobs.filter(j=>String(j.id)!==id);renderDelivery();if(orderQueryMode==='delivery')renderToday();
+  if(payload.eventType==='UPDATE'){
+    // Realtime UPDATE 到達時，先把該列直接合併進本機，再依目前篩選立即重畫。
+    const idx=deliveryJobs.findIndex(j=>String(j.id)===id);
+    if(idx>=0)deliveryJobs[idx]={...deliveryJobs[idx],...n};
+    else if(n&&n.id!=null)deliveryJobs.push(n);
+    renderDelivery();if(orderQueryMode==='delivery')renderToday();
+    if(currentIsDriver()){
+      const assigned=String(n.assigned_driver_id||'');
+      if(assigned===String(currentUser.id)&&n.status==='assigned'&&id&&!knownMyAssignedJobIds.has(id)){
+        knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSound();
+      }else if(assigned!==String(currentUser.id)&&id){
+        knownMyAssignedJobIds.delete(id);
+      }
     }
   }
   loadDelivery();
