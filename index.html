@@ -623,6 +623,7 @@ window.chooseDeliveryDriver=async(id,uid)=>{
   const preservedReply=preserveLegacyDriverReplies(j);
   closeDriverPicker();
   await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})});
+  try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
   if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${j.customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
 };
 window.claimDelivery=async id=>{
@@ -674,7 +675,12 @@ $('#saveDeliveryEdit').onclick=async()=>{
   const uid=$('#editDeliveryDriver').value,driver=deliveryDrivers.find(x=>x.user_id===uid),file=$('#editDeliveryPhotoInput').files?.[0];
   const patch={customer,delivery_date:$('#editDeliveryDate').value||taipeiDate(),pickup_time:$('#editDeliveryPickup').value||null,request_text:$('#editDeliveryText').value.trim()||null,note:$('#editDeliveryNote').value.trim()||null,is_urgent:$('#editDeliveryUrgent').checked,proof_required:$('#editDeliveryProofRequired').checked,payment_required:$('#editDeliveryPaymentRequired').checked,assigned_driver_id:uid||null,assigned_driver_name:uid?deliveryDisplayName(driver?.display_name||''):null,status:uid?'assigned':'waiting',accepted_at:null};
   if(file){try{patch.slip_photo_url=await uploadDeliveryProof(file,'order-'+id)}catch(e){alert('照片上傳失敗：'+e.message);return;}}
+  const oldUid=j.assigned_driver_id||'';
   const {error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('修改失敗：'+error.message);return;}
+  if(oldUid!==(uid||'')){
+    try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
+    if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
+  }
   $('#deliveryEditModal').classList.remove('show');await loadDelivery();
 };
 window.deleteDelivery=async id=>{
@@ -1193,7 +1199,33 @@ function checkDeliveryOverdue(){
 setInterval(()=>{if(document.visibilityState==='visible')checkDeliveryOverdue();},60000);
 
 const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{if(!currentUser)return;const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);if(shouldHearPacking())playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>{if(currentUser)loadOrders()}).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
-const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{if(!currentUser)return;const n=payload.new||{};if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSound();loadDelivery()}).subscribe();
+const deliveryChannel=sb.channel('xinru-delivery-live')
+.on('broadcast',{event:'assignment'},msg=>{
+  if(!currentUser)return;
+  const p=msg?.payload||{};const id=String(p.id||'');const newUid=String(p.new_driver_id||'');
+  if(currentIsDriver()){
+    if(newUid===String(currentUser.id)){
+      if(id&&!knownMyAssignedJobIds.has(id)){knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSound()}
+    }else if(!canManageFreight()&&id){
+      deliveryJobs=deliveryJobs.filter(j=>String(j.id)!==id);renderDelivery();if(orderQueryMode==='delivery')renderToday();
+    }
+  }
+  loadDelivery();
+})
+.on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{
+  if(!currentUser)return;
+  const n=payload.new||{};const id=String(n.id||'');
+  if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSound();
+  if(payload.eventType==='UPDATE'&&currentIsDriver()){
+    const assigned=String(n.assigned_driver_id||'');
+    if(assigned===String(currentUser.id)&&n.status==='assigned'&&id&&!knownMyAssignedJobIds.has(id)){
+      knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSound();
+    }else if(assigned&&assigned!==String(currentUser.id)&&!canManageFreight()&&id){
+      deliveryJobs=deliveryJobs.filter(j=>String(j.id)!==id);renderDelivery();if(orderQueryMode==='delivery')renderToday();
+    }
+  }
+  loadDelivery();
+}).subscribe();
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
 $('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';try{localStorage.setItem('xinru_order_query_mode','packing')}catch(e){}renderToday()};
