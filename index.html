@@ -187,30 +187,25 @@
         <div id="deliveryBody"></div>
       </div>
 
-      <div class="card">
-        <h2 style="font-size:20px">📅 貨運紀錄查詢</h2>
-        <div class="helper">可快速查看今天、未來排程或歷史貨運紀錄，也可直接選日期查詢。</div>
-        <div class="actions" style="margin:12px 0;flex-wrap:wrap">
-          <button type="button" class="btn gray" onclick="setDeliveryRecordMode('today')">今天</button>
-          <button type="button" class="btn gray" onclick="setDeliveryRecordMode('future')">未來</button>
-          <button type="button" class="btn gray" onclick="setDeliveryRecordMode('history')">歷史</button>
-          <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
-          <button id="deliveryQueryDateBtn" type="button" class="btn primary">查詢日期</button>
-        </div>
-        <div id="deliveryHistoryBody"></div>
-      </div>
     </section>
 
     <section id="today" class="panel">
       <h2>訂單查詢</h2>
-      <div class="helper">分開查詢包裝部訂單與貨運部配送紀錄。</div>
+      <div class="helper">選擇要查包裝部或貨運部，歷史與未來紀錄都集中在這裡。</div>
       <div class="actions" style="margin:12px 0;flex-wrap:wrap">
         <button id="queryPackingBtn" class="btn primary">📦 包裝部</button>
         <button id="queryDeliveryBtn" class="btn gray">🚚 貨運部</button>
       </div>
-      <div class="actions" style="margin:12px 0">
+      <div id="packingQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap">
         <input id="queryDate" class="input" type="date" style="max-width:220px">
-        <button id="queryDateBtn" class="btn primary">查詢</button>
+        <button id="queryDateBtn" class="btn primary">查詢日期</button>
+      </div>
+      <div id="deliveryQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap;display:none">
+        <button id="deliveryTodayBtn" type="button" class="btn gray">今天</button>
+        <button id="deliveryFutureBtn" type="button" class="btn gray">未來</button>
+        <button id="deliveryHistoryBtn" type="button" class="btn gray">歷史</button>
+        <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
+        <button id="deliveryQueryDateBtn" type="button" class="btn primary">查詢日期</button>
       </div>
       <div id="todayBody"></div>
     </section>
@@ -395,13 +390,22 @@ function renderWall(){
 const DELIVERY_STATUS_LABEL={waiting:'待接單',assigned:'已指派',accepted:'已接單',delivering:'配送中',completed:'配送完成'};
 function deliveryStatusBadge(st){return `<span class="deliveryStatus ds-${esc(st)}">${esc(DELIVERY_STATUS_LABEL[st]||st)}</span>`}
 function currentIsDriver(){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes('driver')}
+function currentIsStall(){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes('stall')}
+function canManageFreight(){return currentProfile?.role==='admin'||currentIsStall()}
+function canViewFreight(){return canManageFreight()||currentIsDriver()}
 function deliveryNo(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `D${p(d.getMonth()+1)}${p(d.getDate())}-${Date.now().toString().slice(-6)}`}
 function deliveryDisplayName(name){return String(name||'').includes('管理員')?'懿':String(name||'')}
 async function loadDeliveryDrivers(){
   try{
-    const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,work_roles,is_active').eq('is_active',true);
-    if(error)throw error;
-    deliveryDrivers=(data||[]).filter(x=>Array.isArray(x.work_roles)&&x.work_roles.includes('driver')).sort((a,b)=>deliveryDisplayName(a.display_name).localeCompare(deliveryDisplayName(b.display_name),'zh-Hant'));
+    if(canManageFreight()){
+      const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,work_roles,is_active').eq('is_active',true);
+      if(error)throw error;
+      deliveryDrivers=(data||[]).filter(x=>Array.isArray(x.work_roles)&&x.work_roles.includes('driver')).sort((a,b)=>deliveryDisplayName(a.display_name).localeCompare(deliveryDisplayName(b.display_name),'zh-Hant'));
+    }else if(currentIsDriver()){
+      deliveryDrivers=[{user_id:currentUser.id,display_name:currentProfile.display_name,work_roles:['driver'],is_active:true}];
+    }else{
+      deliveryDrivers=[];
+    }
   }catch(e){
     console.warn('司機名單讀取失敗',e);
     deliveryDrivers=currentIsDriver()?[{user_id:currentUser.id,display_name:currentProfile.display_name,work_roles:['driver'],is_active:true}]:[];
@@ -415,10 +419,18 @@ async function loadDeliveryDrivers(){
 }
 async function loadDelivery(){
   if(!currentUser)return;
-  const {data,error}=await sb.from('delivery_jobs').select('*').order('delivery_date',{ascending:false}).order('created_at',{ascending:false});
+  await loadDeliveryDrivers();
+  if(!canViewFreight()){
+    deliveryJobs=[];
+    renderDelivery();
+    if(orderQueryMode==='delivery')renderToday();
+    return;
+  }
+  let q=sb.from('delivery_jobs').select('*');
+  if(!canManageFreight()&&currentIsDriver())q=q.or(`assigned_driver_id.eq.${currentUser.id},and(assigned_driver_id.is.null,status.eq.waiting)`);
+  const {data,error}=await q.order('delivery_date',{ascending:false}).order('created_at',{ascending:false});
   if(error){console.error(error);const b=$('#deliveryBody');if(b)b.innerHTML=`<div class="empty" style="color:#b4232c">配送資料讀取失敗：${esc(error.message)}</div>`;return}
   deliveryJobs=data||[];
-  await loadDeliveryDrivers();
   renderDelivery();
   if(deliveryRecordMode)window.setDeliveryRecordMode(deliveryRecordMode);
   if(orderQueryMode==='delivery')renderToday();
@@ -426,11 +438,23 @@ async function loadDelivery(){
 function renderDelivery(){
   const filters=$('#driverFilters'),body=$('#deliveryBody');
   if(!filters||!body)return;
-  let chips=[{id:'all',name:'全部'},{id:'unassigned',name:'⏳ 待接單'}];
-  deliveryDrivers.forEach(d=>chips.push({id:d.user_id,name:'🚚 '+deliveryDisplayName(d.display_name)}));
-  if(currentIsDriver()&&!chips.some(x=>x.id===currentUser.id))chips.push({id:currentUser.id,name:'🚚 '+deliveryDisplayName(currentProfile.display_name)});
+  if(!canViewFreight()){
+    filters.innerHTML='';
+    body.innerHTML='<div class="empty">你的工作職務沒有貨運部權限</div>';
+    return;
+  }
+  let chips=[];
+  if(canManageFreight()){
+    chips=[{id:'all',name:'全部'},{id:'unassigned',name:'⏳ 待接單'}];
+    deliveryDrivers.forEach(d=>chips.push({id:d.user_id,name:'🚚 '+deliveryDisplayName(d.display_name)}));
+    if(!chips.some(x=>x.id===deliveryDriverFilter))deliveryDriverFilter='all';
+  }else{
+    chips=[{id:'unassigned',name:'⏳ 尚未分配'},{id:currentUser.id,name:'🚚 '+deliveryDisplayName(currentProfile.display_name)}];
+    if(!['unassigned',currentUser.id].includes(deliveryDriverFilter))deliveryDriverFilter=currentUser.id;
+  }
   filters.innerHTML=chips.map(x=>`<button class="driverChip ${deliveryDriverFilter===x.id?'active':''}" onclick="setDeliveryDriverFilter('${esc(x.id)}')">${esc(x.name)}</button>`).join('');
   let arr=[...deliveryJobs].filter(x=>x.status!=='completed');
+  if(!canManageFreight())arr=arr.filter(x=>(x.assigned_driver_id===currentUser.id)||(!x.assigned_driver_id&&x.status==='waiting'));
   if(deliveryDriverFilter==='unassigned')arr=arr.filter(x=>!x.assigned_driver_id&&x.status==='waiting');
   else if(deliveryDriverFilter!=='all')arr=arr.filter(x=>x.assigned_driver_id===deliveryDriverFilter);
   arr.sort((a,b)=>(a.status==='completed')-(b.status==='completed') || String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
@@ -438,27 +462,24 @@ function renderDelivery(){
 }
 window.setDeliveryDriverFilter=id=>{deliveryDriverFilter=id;renderDelivery()};
 function deliveryRecordTable(arr,label){
-  const box=$('#deliveryHistoryBody');if(!box)return;
+  const box=$('#todayBody');if(!box)return;
   const sorted=[...arr].sort((a,b)=>String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
   box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>建立時間</th><th>客戶</th><th>司機</th><th>狀態</th><th>完成時間</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}</td><td>${fmtDateTime(j.created_at)}</td><td><b>${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div></td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}</td><td>${j.completed_at?fmtDateTime(j.completed_at):''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
 }
 window.setDeliveryRecordMode=mode=>{
   deliveryRecordMode=mode;
-  const t=taipeiDate();
-  if(mode==='today')deliveryRecordTable(deliveryJobs.filter(j=>j.delivery_date===t),'📅 今天 '+t);
-  else if(mode==='future')deliveryRecordTable(deliveryJobs.filter(j=>String(j.delivery_date||'')>t),'🔮 未來紀錄');
-  else deliveryRecordTable(deliveryJobs.filter(j=>String(j.delivery_date||'')<t),'🕘 歷史紀錄');
+  if(orderQueryMode==='delivery')renderToday();
 };
 function renderDeliveryRecordQuery(){
-  const q=$('#deliveryQueryDate')?.value||taipeiDate();
-  deliveryRecordTable(deliveryJobs.filter(j=>j.delivery_date===q),`📅 ${q}`);
+  deliveryRecordMode='date';
+  if(orderQueryMode==='delivery')renderToday();
 }
 function renderDeliveryCard(j){
   const mine=j.assigned_driver_id===currentUser?.id;
   const unassigned=!j.assigned_driver_id&&j.status==='waiting';
   const canClaim=currentIsDriver()&&unassigned;
   const canOperate=mine&&currentIsDriver();
-  const canAssign=canWrite()&&!['accepted','delivering','completed'].includes(j.status);
+  const canAssign=canManageFreight()&&canWrite()&&!['accepted','delivering','completed'].includes(j.status);
   const opts='<option value="">尚未指派</option>'+deliveryDrivers.map(d=>`<option value="${esc(d.user_id)}" ${j.assigned_driver_id===d.user_id?'selected':''}>${esc(deliveryDisplayName(d.display_name))}</option>`).join('');
   let actions='';
   if(canClaim)actions+=`<button class="btn primary" onclick="claimDelivery(${j.id})">🙋 我要配送</button>`;
@@ -501,11 +522,22 @@ function renderToday(){
   const b=$('#todayBody');if(!b)return;
   const q=$('#queryDate')?.value||taipeiDate();
   const pb=$('#queryPackingBtn'),db=$('#queryDeliveryBtn');
-  if(pb){pb.className='btn '+(orderQueryMode==='packing'?'primary':'gray');}
-  if(db){db.className='btn '+(orderQueryMode==='delivery'?'primary':'gray');}
+  const pc=$('#packingQueryControls'),dc=$('#deliveryQueryControls');
+  if(pb)pb.className='btn '+(orderQueryMode==='packing'?'primary':'gray');
+  if(db)db.className='btn '+(orderQueryMode==='delivery'?'primary':'gray');
+  if(pc)pc.style.display=orderQueryMode==='packing'?'flex':'none';
+  if(dc)dc.style.display=orderQueryMode==='delivery'?'flex':'none';
   if(orderQueryMode==='delivery'){
-    const arr=[...deliveryJobs].filter(j=>j.delivery_date===q).sort((a,b)=>(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
-    b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">🚚 ${q}｜共 ${arr.length} 張貨運單</div><table class="table"><thead><tr><th>建立時間</th><th>客戶</th><th>司機</th><th>狀態</th><th>完成時間</th></tr></thead><tbody>${arr.map(j=>`<tr><td>${fmtDateTime(j.created_at)}</td><td><b>${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div></td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}</td><td>${j.completed_at?fmtDateTime(j.completed_at):''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">🚚 ${q} 沒有貨運單</div>`;
+    const t=taipeiDate();
+    const tq=$('#deliveryQueryDate')?.value||t;
+    const ids={today:'#deliveryTodayBtn',future:'#deliveryFutureBtn',history:'#deliveryHistoryBtn'};
+    Object.entries(ids).forEach(([m,id])=>{const el=$(id);if(el)el.className='btn '+(deliveryRecordMode===m?'primary':'gray')});
+    let arr=[],label='';
+    if(deliveryRecordMode==='future'){arr=deliveryJobs.filter(j=>String(j.delivery_date||'')>t);label='🔮 未來貨運紀錄';}
+    else if(deliveryRecordMode==='history'){arr=deliveryJobs.filter(j=>String(j.delivery_date||'')<t);label='🕘 歷史貨運紀錄';}
+    else if(deliveryRecordMode==='date'){arr=deliveryJobs.filter(j=>j.delivery_date===tq);label=`📅 ${tq}`;}
+    else {arr=deliveryJobs.filter(j=>j.delivery_date===t);label=`📅 今天 ${t}`;}
+    deliveryRecordTable(arr,label);
     return;
   }
   const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});
@@ -834,11 +866,14 @@ async function loadMyProfile(user){
 function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
-  const shownName=currentProfile.role==='admin'?'管理員小懿':currentProfile.display_name;$('#currentUserName').textContent=`👤 ${shownName}`;$('#currentUserRole').textContent=`｜${ROLE_LABEL[currentProfile.role]||currentProfile.role}`;
+  const shownName=currentProfile.role==='admin'?'懿':currentProfile.display_name;
+  const workText=currentProfile.role==='admin'?'系統管理員':((currentProfile.work_roles||[]).map(r=>WORK_LABEL[r]||r).join('／')||ROLE_LABEL[currentProfile.role]||currentProfile.role);
+  $('#currentUserName').textContent=`👤 ${shownName}`;
+  $('#currentUserRole').textContent=`｜職務：${workText}`;
   applyRoleUI();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}if(Array.isArray(currentProfile.work_roles)&&currentProfile.work_roles.length===1&&currentProfile.work_roles[0]==='driver'){deliveryDriverFilter=currentUser.id;activateTab('delivery',{save:true});}}
+  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}if(currentIsDriver()&&!canManageFreight()){deliveryDriverFilter=currentUser.id;}if(Array.isArray(currentProfile.work_roles)&&currentProfile.work_roles.length===1&&currentProfile.work_roles[0]==='driver'){activateTab('delivery',{save:true});}}
   catch(e){console.error(e);await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin(e.message||'無法登入');}
 }
 async function resolveLoginEmail(account){
@@ -897,7 +932,12 @@ const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{e
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
 $('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';renderToday()};
-$('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';renderToday()};
+$('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';deliveryRecordMode='today';renderToday()};
+$('#deliveryTodayBtn').onclick=()=>setDeliveryRecordMode('today');
+$('#deliveryFutureBtn').onclick=()=>setDeliveryRecordMode('future');
+$('#deliveryHistoryBtn').onclick=()=>setDeliveryRecordMode('history');
+$('#deliveryQueryDateBtn').onclick=()=>renderDeliveryRecordQuery();
+$('#deliveryQueryDate').onchange=()=>renderDeliveryRecordQuery();
 $('#deliveryQueryDateBtn').onclick=()=>renderDeliveryRecordQuery();
 $('#deliveryQueryDate').onchange=()=>renderDeliveryRecordQuery();
   // loadOrders 會在登入驗證成功後啟動。
