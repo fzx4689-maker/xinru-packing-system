@@ -154,6 +154,7 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
+    <div class="helper" style="margin-top:-4px">版本：員工管理錯誤顯示修正版 09/13-B</div>
     <div class="helper">只有系統管理員可以新增、變更權限、停用或刪除員工帳號。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
@@ -413,19 +414,28 @@ function playOrderSound(isUrgent=false){
 ['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>unlockAudio(),{passive:true}));
 updateSoundReadyUI(false);
 function employeeErrorText(err,fallback='員工管理操作失敗'){
-  if(!err)return fallback;
+  const safe=(v)=>{
+    if(v==null)return '';
+    if(typeof v==='string')return v;
+    try{return JSON.stringify(v,null,2);}catch(e){return String(v);}
+  };
+  if(err==null)return fallback;
   if(typeof err==='string')return err;
-  if(err instanceof Error)return err.message||fallback;
+  if(err instanceof Error){
+    const m=safe(err.message);
+    return (m&&m!=='[object Object]')?m:(safe(err.cause)||fallback);
+  }
   if(typeof err==='object'){
     const parts=[];
-    if(err.message)parts.push(err.message);
-    if(err.details)parts.push(err.details);
-    if(err.hint)parts.push('提示：'+err.hint);
-    if(err.code)parts.push('代碼：'+err.code);
-    if(parts.length)return parts.join('｜');
-    try{return JSON.stringify(err);}catch(e){return fallback;}
+    if(err.message)parts.push(safe(err.message));
+    if(err.error)parts.push(safe(err.error));
+    if(err.details)parts.push(safe(err.details));
+    if(err.hint)parts.push('提示：'+safe(err.hint));
+    if(err.code)parts.push('代碼：'+safe(err.code));
+    const text=parts.filter(Boolean).join('｜');
+    return text||safe(err)||fallback;
   }
-  return String(err);
+  return safe(err)||fallback;
 }
 async function callEmployeeManager(action,payload={}){
   const {data:{session}}=await sb.auth.getSession();
@@ -441,8 +451,12 @@ async function callEmployeeManager(action,payload={}){
     data={error:raw||`HTTP ${res.status}`};
   }
   if(!res.ok||data.ok===false){
-    const detail=employeeErrorText(data.error||data.message||data,`員工管理操作失敗 (${res.status})`);
-    throw new Error(detail);
+    const rawErr=(data&&Object.prototype.hasOwnProperty.call(data,'error'))?data.error:((data&&data.message)?data.message:data);
+    let detail=employeeErrorText(rawErr,`員工管理操作失敗 (${res.status})`);
+    if(detail==='[object Object]'||detail==='{}'){
+      try{detail=JSON.stringify(data,null,2);}catch(e){detail=`員工管理操作失敗 (${res.status})`;}
+    }
+    throw new Error(String(detail));
   }
   return data;
 }
