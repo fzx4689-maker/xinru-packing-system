@@ -89,9 +89,9 @@
     <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none">👁️ 瀏覽人員：目前為唯讀模式，四個頁面都可以查看，但不能修改內容。</div>
     <div class="tabs">
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
+      <button class="tab" data-tab="delivery">🚚 貨運部<div class="th">小白單配送</div></button>
       <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
       <button class="tab" data-tab="wall">電視牆<div class="th">เตี้ยน ซื่อ เฉียง</div></button>
-      <button class="tab" data-tab="delivery">🚚 配送中心<div class="th">小白單配送</div></button>
       <button class="tab" data-tab="today">訂單查詢<div class="th">ติ้ง ตาน ฉา สวิน</div></button>
     </div>
   </div>
@@ -154,8 +154,8 @@
 
     <section id="delivery" class="panel">
       <div class="card">
-        <h2>🚚 配送中心</h2>
-        <div class="helper">小白單獨立配送｜攤位可指定司機，也可留給司機自己接單。</div>
+        <h2>🚚 貨運部</h2>
+        <div class="helper">拍攝小白單建立貨運單｜可指定司機，也可留給司機自己接單。</div>
         <div class="grid2">
           <div class="field"><label class="label">客戶／店家名稱</label><input id="deliveryCustomer" class="input" autocomplete="off"></div>
           <div class="field"><label class="label">配送日期</label><input id="deliveryDate" class="input" type="date"></div>
@@ -175,26 +175,44 @@
           <div class="field"><label class="label">指定司機（可不選）</label><select id="deliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
           <div class="field"><label class="label">備註</label><input id="deliveryNote" class="input" autocomplete="off"></div>
         </div>
-        <button id="createDeliveryBtn" type="button" class="btn primary" style="width:100%">建立配送單</button>
+        <button id="createDeliveryBtn" type="button" class="btn primary" style="width:100%">建立貨運單</button>
       </div>
 
       <div class="card">
         <div class="deliveryHead">
-          <div><h2 style="margin-bottom:4px">司機配送單</h2><div class="helper" style="margin:0">點司機名字，只看該司機的配送單。</div></div>
+          <div><h2 style="margin-bottom:4px">目前貨運單</h2><div class="helper" style="margin:0">和攤位下單一樣，建立後的貨運單會顯示在下方。點司機名字可只看該司機的單。</div></div>
           <button id="refreshDeliveryBtn" type="button" class="btn gray">重新整理</button>
         </div>
         <div id="driverFilters" class="driverFilters"></div>
         <div id="deliveryBody"></div>
       </div>
+
+      <div class="card">
+        <h2 style="font-size:20px">📅 貨運紀錄查詢</h2>
+        <div class="helper">可快速查看今天、未來排程或歷史貨運紀錄，也可直接選日期查詢。</div>
+        <div class="actions" style="margin:12px 0;flex-wrap:wrap">
+          <button type="button" class="btn gray" onclick="setDeliveryRecordMode('today')">今天</button>
+          <button type="button" class="btn gray" onclick="setDeliveryRecordMode('future')">未來</button>
+          <button type="button" class="btn gray" onclick="setDeliveryRecordMode('history')">歷史</button>
+          <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
+          <button id="deliveryQueryDateBtn" type="button" class="btn primary">查詢日期</button>
+        </div>
+        <div id="deliveryHistoryBody"></div>
+      </div>
     </section>
 
     <section id="today" class="panel">
-<h2>訂單查詢</h2>
-<div class="helper">可查詢今天、未來預定單與歷史訂單。</div>
-<div class="actions" style="margin:12px 0">
-  <input id="queryDate" class="input" type="date" style="max-width:220px">
-  <button id="queryDateBtn" class="btn primary">查詢訂單</button>
-</div><div id="todayBody"></div>
+      <h2>訂單查詢</h2>
+      <div class="helper">分開查詢包裝部訂單與貨運部配送紀錄。</div>
+      <div class="actions" style="margin:12px 0;flex-wrap:wrap">
+        <button id="queryPackingBtn" class="btn primary">📦 包裝部</button>
+        <button id="queryDeliveryBtn" class="btn gray">🚚 貨運部</button>
+      </div>
+      <div class="actions" style="margin:12px 0">
+        <input id="queryDate" class="input" type="date" style="max-width:220px">
+        <button id="queryDateBtn" class="btn primary">查詢</button>
+      </div>
+      <div id="todayBody"></div>
     </section>
   </div>
 </div>
@@ -219,7 +237,7 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：內部作業系統｜配送中心 H3</div>
+    <div class="helper" style="margin-top:-4px">版本：內部作業系統｜貨運部 H5</div>
     <div class="helper">員工可用簡單帳號登入，不需要自己的 Email。工作職能可複選。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
@@ -253,7 +271,7 @@ const MAP={
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
 let currentUser=null; let currentProfile=null; let appStarted=false;
-let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter='all';
+let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter='all'; let deliveryRecordMode='today'; let orderQueryMode='packing';
 const ROLE_LABEL={admin:'系統管理員',operator:'作業人員',viewer:'瀏覽人員'};
 const canWrite=()=>currentProfile&&['admin','operator'].includes(currentProfile.role);
 const actorFields=(kind='updated')=>{if(!currentUser||!currentProfile)return {}; if(kind==='created')return {created_by:currentUser.id,created_by_name:currentProfile.display_name}; if(kind==='completed')return {completed_by:currentUser.id,completed_by_name:currentProfile.display_name,updated_by:currentUser.id,updated_by_name:currentProfile.display_name}; return {updated_by:currentUser.id,updated_by_name:currentProfile.display_name};};
@@ -262,6 +280,7 @@ function requireWrite(){if(canWrite())return true;alert('你的帳號是「瀏�
 const taipeiDate=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});
 $('#orderDate').value=taipeiDate();
 $('#queryDate').value=taipeiDate();
+const dq=$('#deliveryQueryDate');if(dq)dq.value=taipeiDate();
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function fmt(t){if(!t)return'';return new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Taipei'})}
 function fmtDateTime(t){if(!t)return'';const d=new Date(t);const date=d.toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'});const time=d.toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false});return `${date} ${time}`}
@@ -377,11 +396,12 @@ const DELIVERY_STATUS_LABEL={waiting:'待接單',assigned:'已指派',accepted:'
 function deliveryStatusBadge(st){return `<span class="deliveryStatus ds-${esc(st)}">${esc(DELIVERY_STATUS_LABEL[st]||st)}</span>`}
 function currentIsDriver(){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes('driver')}
 function deliveryNo(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `D${p(d.getMonth()+1)}${p(d.getDate())}-${Date.now().toString().slice(-6)}`}
+function deliveryDisplayName(name){return String(name||'').includes('管理員')?'懿':String(name||'')}
 async function loadDeliveryDrivers(){
   try{
     const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,work_roles,is_active').eq('is_active',true);
     if(error)throw error;
-    deliveryDrivers=(data||[]).filter(x=>Array.isArray(x.work_roles)&&x.work_roles.includes('driver')).sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name),'zh-Hant'));
+    deliveryDrivers=(data||[]).filter(x=>Array.isArray(x.work_roles)&&x.work_roles.includes('driver')).sort((a,b)=>deliveryDisplayName(a.display_name).localeCompare(deliveryDisplayName(b.display_name),'zh-Hant'));
   }catch(e){
     console.warn('司機名單讀取失敗',e);
     deliveryDrivers=currentIsDriver()?[{user_id:currentUser.id,display_name:currentProfile.display_name,work_roles:['driver'],is_active:true}]:[];
@@ -389,7 +409,7 @@ async function loadDeliveryDrivers(){
   const sel=$('#deliveryDriver');
   if(sel){
     const keep=sel.value;
-    sel.innerHTML='<option value="">尚未指派｜讓司機自己接</option>'+deliveryDrivers.map(x=>`<option value="${esc(x.user_id)}">${esc(x.display_name)}</option>`).join('');
+    sel.innerHTML='<option value="">尚未指派｜讓司機自己接</option>'+deliveryDrivers.map(x=>`<option value="${esc(x.user_id)}">${esc(deliveryDisplayName(x.display_name))}</option>`).join('');
     if([...sel.options].some(o=>o.value===keep))sel.value=keep;
   }
 }
@@ -400,28 +420,46 @@ async function loadDelivery(){
   deliveryJobs=data||[];
   await loadDeliveryDrivers();
   renderDelivery();
+  if(deliveryRecordMode)window.setDeliveryRecordMode(deliveryRecordMode);
+  if(orderQueryMode==='delivery')renderToday();
 }
 function renderDelivery(){
   const filters=$('#driverFilters'),body=$('#deliveryBody');
   if(!filters||!body)return;
   let chips=[{id:'all',name:'全部'},{id:'unassigned',name:'⏳ 待接單'}];
-  deliveryDrivers.forEach(d=>chips.push({id:d.user_id,name:'🚚 '+d.display_name}));
-  if(currentIsDriver()&&!chips.some(x=>x.id===currentUser.id))chips.push({id:currentUser.id,name:'🚚 '+currentProfile.display_name});
+  deliveryDrivers.forEach(d=>chips.push({id:d.user_id,name:'🚚 '+deliveryDisplayName(d.display_name)}));
+  if(currentIsDriver()&&!chips.some(x=>x.id===currentUser.id))chips.push({id:currentUser.id,name:'🚚 '+deliveryDisplayName(currentProfile.display_name)});
   filters.innerHTML=chips.map(x=>`<button class="driverChip ${deliveryDriverFilter===x.id?'active':''}" onclick="setDeliveryDriverFilter('${esc(x.id)}')">${esc(x.name)}</button>`).join('');
-  let arr=[...deliveryJobs];
+  let arr=[...deliveryJobs].filter(x=>x.status!=='completed');
   if(deliveryDriverFilter==='unassigned')arr=arr.filter(x=>!x.assigned_driver_id&&x.status==='waiting');
   else if(deliveryDriverFilter!=='all')arr=arr.filter(x=>x.assigned_driver_id===deliveryDriverFilter);
   arr.sort((a,b)=>(a.status==='completed')-(b.status==='completed') || String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
-  body.innerHTML=arr.length?arr.map(renderDeliveryCard).join(''):'<div class="empty">目前沒有配送單</div>';
+  body.innerHTML=arr.length?arr.map(renderDeliveryCard).join(''):'<div class="empty">目前沒有待處理貨運單</div>';
 }
 window.setDeliveryDriverFilter=id=>{deliveryDriverFilter=id;renderDelivery()};
+function deliveryRecordTable(arr,label){
+  const box=$('#deliveryHistoryBody');if(!box)return;
+  const sorted=[...arr].sort((a,b)=>String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
+  box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>建立時間</th><th>客戶</th><th>司機</th><th>狀態</th><th>完成時間</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}</td><td>${fmtDateTime(j.created_at)}</td><td><b>${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div></td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}</td><td>${j.completed_at?fmtDateTime(j.completed_at):''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
+}
+window.setDeliveryRecordMode=mode=>{
+  deliveryRecordMode=mode;
+  const t=taipeiDate();
+  if(mode==='today')deliveryRecordTable(deliveryJobs.filter(j=>j.delivery_date===t),'📅 今天 '+t);
+  else if(mode==='future')deliveryRecordTable(deliveryJobs.filter(j=>String(j.delivery_date||'')>t),'🔮 未來紀錄');
+  else deliveryRecordTable(deliveryJobs.filter(j=>String(j.delivery_date||'')<t),'🕘 歷史紀錄');
+};
+function renderDeliveryRecordQuery(){
+  const q=$('#deliveryQueryDate')?.value||taipeiDate();
+  deliveryRecordTable(deliveryJobs.filter(j=>j.delivery_date===q),`📅 ${q}`);
+}
 function renderDeliveryCard(j){
   const mine=j.assigned_driver_id===currentUser?.id;
   const unassigned=!j.assigned_driver_id&&j.status==='waiting';
   const canClaim=currentIsDriver()&&unassigned;
   const canOperate=mine&&currentIsDriver();
   const canAssign=canWrite()&&!['accepted','delivering','completed'].includes(j.status);
-  const opts='<option value="">尚未指派</option>'+deliveryDrivers.map(d=>`<option value="${esc(d.user_id)}" ${j.assigned_driver_id===d.user_id?'selected':''}>${esc(d.display_name)}</option>`).join('');
+  const opts='<option value="">尚未指派</option>'+deliveryDrivers.map(d=>`<option value="${esc(d.user_id)}" ${j.assigned_driver_id===d.user_id?'selected':''}>${esc(deliveryDisplayName(d.display_name))}</option>`).join('');
   let actions='';
   if(canClaim)actions+=`<button class="btn primary" onclick="claimDelivery(${j.id})">🙋 我要配送</button>`;
   if(canOperate&&j.status==='assigned')actions+=`<button class="btn primary" onclick="acceptDelivery(${j.id})">接單</button>`;
@@ -429,10 +467,10 @@ function renderDeliveryCard(j){
   if(canOperate&&j.status==='delivering')actions+=`<button class="btn green" onclick="completeDelivery(${j.id})">✅ 配送完成</button>`;
   return `<div class="deliveryCard ${j.status==='completed'?'completed':''}">
     <div class="orderHead"><div><div style="font-size:21px;font-weight:900">${esc(j.customer||'未填客戶')}</div><div class="meta">${esc(j.delivery_no)}｜配送 ${esc(j.delivery_date||'')}</div></div>${deliveryStatusBadge(j.status)}</div>
-    <div style="margin-top:8px"><b>🚚 司機：</b>${esc(j.assigned_driver_name||'尚未指派')}</div>
+    <div style="margin-top:8px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>
     ${j.slip_photo_url?`<a href="${esc(j.slip_photo_url)}" target="_blank" rel="noopener"><img class="deliveryPhoto" src="${esc(j.slip_photo_url)}" alt="小白單"></a>`:''}
     ${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}
-    ${j.completed_at?`<div class="meta" style="margin-top:7px">✅ ${esc(j.assigned_driver_name||'')} 完成配送｜${fmtDateTime(j.completed_at)}</div>`:''}
+    ${j.completed_at?`<div class="meta" style="margin-top:7px">✅ ${esc(deliveryDisplayName(j.assigned_driver_name||''))} 完成配送｜${fmtDateTime(j.completed_at)}</div>`:''}
     ${canAssign?`<div class="actions" style="margin-top:10px"><select class="input" id="assignDriver_${j.id}" style="max-width:230px">${opts}</select><button class="btn gray" onclick="assignDelivery(${j.id})">指派司機</button></div>`:''}
     ${actions?`<div class="actions" style="margin-top:10px">${actions}</div>`:''}
   </div>`;
@@ -446,11 +484,11 @@ async function updateDelivery(id,patch){
 window.assignDelivery=async id=>{
   const sel=$(`#assignDriver_${id}`);if(!sel)return;
   const uid=sel.value,driver=deliveryDrivers.find(x=>x.user_id===uid);
-  await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:driver?.display_name||'',status:'assigned',accepted_at:null}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null});
+  await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null});
 };
 window.claimDelivery=async id=>{
   if(!currentIsDriver()){alert('你的工作職能不是司機');return}
-  const {data,error}=await sb.from('delivery_jobs').update({assigned_driver_id:currentUser.id,assigned_driver_name:currentProfile.display_name,status:'accepted',accepted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).is('assigned_driver_id',null).eq('status','waiting').select();
+  const {data,error}=await sb.from('delivery_jobs').update({assigned_driver_id:currentUser.id,assigned_driver_name:deliveryDisplayName(currentProfile.display_name),status:'accepted',accepted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).is('assigned_driver_id',null).eq('status','waiting').select();
   if(error){alert('接單失敗：'+error.message);return}
   if(!data?.length){alert('這張單已經被其他司機接走了');}
   deliveryDriverFilter=currentUser.id;await loadDelivery();
@@ -459,7 +497,20 @@ window.acceptDelivery=id=>updateDelivery(id,{status:'accepted',accepted_at:new D
 window.startDelivery=id=>updateDelivery(id,{status:'delivering',delivering_at:new Date().toISOString()});
 window.completeDelivery=id=>{if(confirm('確定這張小白單已經配送完成？'))updateDelivery(id,{status:'completed',completed_at:new Date().toISOString()})};
 
-function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
+function renderToday(){
+  const b=$('#todayBody');if(!b)return;
+  const q=$('#queryDate')?.value||taipeiDate();
+  const pb=$('#queryPackingBtn'),db=$('#queryDeliveryBtn');
+  if(pb){pb.className='btn '+(orderQueryMode==='packing'?'primary':'gray');}
+  if(db){db.className='btn '+(orderQueryMode==='delivery'?'primary':'gray');}
+  if(orderQueryMode==='delivery'){
+    const arr=[...deliveryJobs].filter(j=>j.delivery_date===q).sort((a,b)=>(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
+    b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">🚚 ${q}｜共 ${arr.length} 張貨運單</div><table class="table"><thead><tr><th>建立時間</th><th>客戶</th><th>司機</th><th>狀態</th><th>完成時間</th></tr></thead><tbody>${arr.map(j=>`<tr><td>${fmtDateTime(j.created_at)}</td><td><b>${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div></td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}</td><td>${j.completed_at?fmtDateTime(j.completed_at):''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">🚚 ${q} 沒有貨運單</div>`;
+    return;
+  }
+  const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});
+  b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📦 ${q}｜共 ${arr.length} 張包裝部訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📦 ${q} 沒有包裝部訂單</div>`;
+}
 window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{if(!requireWrite())return;const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null,...actorFields('updated')}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
 window.startPacking=async id=>{if(!requireWrite())return;await sb.from('orders').update({status:'packing',...actorFields('updated')}).eq('id',id);await loadOrders()};
@@ -767,9 +818,9 @@ $('#createDeliveryBtn').onclick=async()=>{
     });
     if(error)throw error;
     $('#deliveryCustomer').value='';$('#deliveryNote').value='';$('#deliveryDriver').value='';
-    $('#deliveryClearPhoto').click();await loadDelivery();alert('配送單已建立');
-  }catch(e){alert('建立配送單失敗：'+e.message)}
-  finally{btn.disabled=false;btn.textContent='建立配送單'}
+    $('#deliveryClearPhoto').click();await loadDelivery();alert('貨運單已建立');
+  }catch(e){alert('建立貨運單失敗：'+e.message)}
+  finally{btn.disabled=false;btn.textContent='建立貨運單'}
 };
 $('#refreshDeliveryBtn').onclick=()=>loadDelivery();
 
@@ -845,6 +896,10 @@ const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',sch
 const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},()=>{if(currentUser)loadDelivery()}).subscribe();
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
+$('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';renderToday()};
+$('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';renderToday()};
+$('#deliveryQueryDateBtn').onclick=()=>renderDeliveryRecordQuery();
+$('#deliveryQueryDate').onchange=()=>renderDeliveryRecordQuery();
   // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
 setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();enforceActiveSession();}},AUTO_REFRESH_MS);
