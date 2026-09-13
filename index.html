@@ -40,7 +40,7 @@
 
 .authGate{position:fixed;inset:0;background:#f4f6f8;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px}.authGate.hidden{display:none}.loginBox{width:min(430px,100%);background:#fff;border:1px solid #e3e7eb;border-radius:22px;padding:26px;box-shadow:0 12px 40px rgba(0,0,0,.12)}.loginBox h1{font-size:24px;margin:0 0 8px}.loginError{color:#b4232c;font-weight:700;margin-top:10px}.userBar{display:none;align-items:center;justify-content:center;gap:10px;padding:0 14px 8px;font-size:13px;color:#59606a}.userBar.show{display:flex}.readonlyNote{background:#fff7d6;border:1px solid #f3d978;padding:10px 12px;border-radius:12px;margin:0 14px 10px;font-weight:800;color:#765400}.viewer-disabled{pointer-events:none;opacity:.45}
 
-.employeeModal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;padding:16px;z-index:100001}.employeeModal.show{display:flex}.employeeBox{width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.25)}.employeeHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.employeeHead h2{margin:0}.employeeGrid{display:grid;grid-template-columns:1.1fr 1.4fr 1fr auto;gap:8px;align-items:end}.employeeList{margin-top:18px;border-top:1px solid var(--line)}.employeeRow{display:grid;grid-template-columns:1.2fr 1.5fr 1fr auto auto;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.employeeStatus{font-weight:900}.employeeStatus.on{color:#18703c}.employeeStatus.off{color:#b4232c}.employeeMsg{font-weight:800;margin-top:10px}.employeeMsg.err{color:#b4232c}.employeeMsg.ok{color:#18703c}@media(max-width:760px){.employeeGrid,.employeeRow{grid-template-columns:1fr}.employeeRow{padding:14px 0}.employeeRow .btn{width:100%}}
+.employeeModal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;padding:16px;z-index:100001}.employeeModal.show{display:flex}.employeeBox{width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.25)}.employeeHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.employeeHead h2{margin:0}.employeeGrid{display:grid;grid-template-columns:1.1fr 1.4fr 1fr auto;gap:8px;align-items:end}.employeeList{margin-top:18px;border-top:1px solid var(--line)}.employeeRow{display:grid;grid-template-columns:1.2fr 1.35fr .9fr auto auto auto;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.employeeStatus{font-weight:900}.employeeStatus.on{color:#18703c}.employeeStatus.off{color:#b4232c}.employeeMsg{font-weight:800;margin-top:10px}.employeeMsg.err{color:#b4232c}.employeeMsg.ok{color:#18703c}@media(max-width:760px){.employeeGrid,.employeeRow{grid-template-columns:1fr}.employeeRow{padding:14px 0}.employeeRow .btn{width:100%}}
 </style>
 
 
@@ -154,8 +154,8 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：員工管理錯誤顯示修正版 09/13-B</div>
-    <div class="helper">只有系統管理員可以新增、變更權限、停用或刪除員工帳號。</div>
+    <div class="helper" style="margin-top:-4px">版本：員工管理＋修改密碼 09/13-C</div>
+    <div class="helper">只有系統管理員可以新增、變更權限、修改密碼、停用或刪除員工帳號。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
       <div class="employeeGrid">
@@ -469,10 +469,24 @@ function renderEmployeeList(list=[]){
     <div><b>${esc(e.display_name)}</b>${e.email?`<div class="meta">${esc(e.email)}</div>`:''}</div>
     <div><select class="input emp-role" data-id="${esc(e.user_id)}" ${e.user_id===currentUser?.id?'disabled':''}>${roleOptions(e.role)}</select></div>
     <div class="employeeStatus ${e.is_active?'on':'off'}">${e.is_active?'● 使用中':'● 已停用'}</div>
+    <button class="btn blue emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">修改密碼</button>
     <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'停用':'啟用'}</button>
     <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>刪除</button>
   </div>`).join('');
   box.querySelectorAll('.emp-role').forEach(el=>el.onchange=async()=>{try{await callEmployeeManager('set_role',{user_id:el.dataset.id,role:el.value});setEmployeeMsg('權限已更新',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);await loadEmployees();}});
+  box.querySelectorAll('.emp-password').forEach(el=>el.onclick=async()=>{
+    const name=el.dataset.name||'員工';
+    const p1=prompt(`請輸入「${name}」的新密碼（至少 6 碼）`);
+    if(p1===null)return;
+    if(p1.length<6){setEmployeeMsg('新密碼至少要 6 碼');return;}
+    const p2=prompt('請再輸入一次新密碼確認');
+    if(p2===null)return;
+    if(p1!==p2){setEmployeeMsg('兩次輸入的密碼不一致');return;}
+    try{
+      await callEmployeeManager('change_password',{user_id:el.dataset.id,password:p1});
+      setEmployeeMsg(`「${name}」密碼已更新`,true);
+    }catch(e){setEmployeeMsg(e.message,false);}
+  });
   box.querySelectorAll('.emp-active').forEach(el=>el.onclick=async()=>{const active=el.dataset.active==='1';try{await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});setEmployeeMsg(active?'員工已停用':'員工已啟用',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-delete').forEach(el=>el.onclick=async()=>{if(!confirm(`確定要刪除員工「${el.dataset.name}」的登入帳號嗎？\n刪除後該員工將無法再登入。`))return;try{await callEmployeeManager('delete',{user_id:el.dataset.id});setEmployeeMsg('員工帳號已刪除',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
 }
