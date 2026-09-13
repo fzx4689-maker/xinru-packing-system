@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#f7f8fa" />
-<title>欣儒農產行｜包裝即時系統</title>
+<title>欣儒農產行｜內部作業系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -73,12 +73,13 @@
 </div>
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
-    <div class="title">欣儒農產行｜包裝即時系統</div>
+    <div class="title">欣儒農產行｜內部作業系統</div>
     <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none">👁️ 瀏覽人員：目前為唯讀模式，四個頁面都可以查看，但不能修改內容。</div>
     <div class="tabs">
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
       <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
       <button class="tab" data-tab="wall">電視牆<div class="th">เตี้ยน ซื่อ เฉียง</div></button>
+      <button class="tab" data-tab="delivery">🚚 配送中心<div class="th">配送／取貨</div></button>
       <button class="tab" data-tab="today">訂單查詢<div class="th">ติ้ง ตาน ฉา สวิน</div></button>
     </div>
   </div>
@@ -138,6 +139,18 @@
       </div>
     </section>
 
+    <section id="delivery" class="panel">
+      <div class="card">
+        <h2>🚚 配送中心</h2>
+        <div class="helper">每個品項可設定取貨位置：大庫／小庫／包裝／攤位／其他商家。其他商家可直接輸入名稱。</div>
+        <div class="actions" style="margin:12px 0">
+          <button id="deliveryByCustomer" class="btn primary">依客戶看</button>
+          <button id="deliveryBySource" class="btn gray">依取貨位置看</button>
+        </div>
+        <div id="deliveryBody"></div>
+      </div>
+    </section>
+
     <section id="today" class="panel">
 <h2>訂單查詢</h2>
 <div class="helper">可查詢今天、未來預定單與歷史訂單。</div>
@@ -169,7 +182,7 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：核准職能修正版 09/13-G4</div>
+    <div class="helper" style="margin-top:-4px">版本：核准職能修正版 09/13-H1</div>
     <div class="helper">員工可用簡單帳號登入，不需要自己的 Email。工作職能可複選。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
@@ -270,6 +283,7 @@ function renderAll(){
   renderStall();
   if(!isEditingPackingReply()) renderPacking();
   renderWall();
+  renderDelivery();
   renderToday();
   applyRoleUI();
 }
@@ -320,8 +334,24 @@ function renderWall(){
   </article>`;
  }).join(''):'<div class="empty">目前沒有待處理訂單</div>';
 }
+let deliveryView='customer';
+function pickupSourceLabel(x){
+  const m={warehouse_big:'大庫',warehouse_small:'小庫',packing:'包裝',stall:'攤位',vendor:'其他商家'};
+  return x?.pickup_source==='vendor'?(x.pickup_vendor||'其他商家'):(m[x?.pickup_source]||'包裝');
+}
+function deliveryStatusLabel(s){return ({not_assigned:'待派送',assigned:'已指派',accepted:'已接配送',delivering:'配送中',delivered:'配送完成'})[s]||'待派送'}
+function sourceSelect(x){return `<select class="input" style="max-width:145px;padding:8px" onchange="changePickupSource(${x.id},this.value)">
+<option value="warehouse_big" ${x.pickup_source==='warehouse_big'?'selected':''}>大庫</option><option value="warehouse_small" ${x.pickup_source==='warehouse_small'?'selected':''}>小庫</option><option value="packing" ${(!x.pickup_source||x.pickup_source==='packing')?'selected':''}>包裝</option><option value="stall" ${x.pickup_source==='stall'?'selected':''}>攤位</option><option value="vendor" ${x.pickup_source==='vendor'?'selected':''}>其他商家</option></select>${x.pickup_source==='vendor'?`<input class="input" style="max-width:170px;padding:8px" value="${esc(x.pickup_vendor||'')}" placeholder="商家名稱" onchange="saveVendor(${x.id},this.value)">`:''}`}
+function deliveryItemRow(x,o){return `<div class="item" style="grid-template-columns:auto 1fr auto;gap:10px"><div class="check ${x.driver_picked?'done':''}" onclick="toggleDriverPicked(${x.id},${x.driver_picked?'false':'true'})">${x.driver_picked?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="meta">📍 ${esc(pickupSourceLabel(x))}｜${x.pickup_ready?'🟢 已備妥':'🟠 待備貨'}｜${x.driver_picked?'🚚 已取貨':'待取貨'}</div><div class="actions" style="margin-top:7px">${sourceSelect(x)}${x.pickup_source!=='packing'?`<button class="btn ${x.pickup_ready?'gray':'blue'}" style="padding:8px 10px" onclick="togglePickupReady(${x.id},${x.pickup_ready?'false':'true'})">${x.pickup_ready?'取消備妥':'備妥'}</button>`:''}</div></div><div></div></div>`}
+function deliveryOrderCard(o){const total=o.items.length,picked=o.items.filter(x=>x.driver_picked).length,ready=o.items.filter(x=>x.pickup_ready).length,all=total>0&&picked===total;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)}</div><div class="meta">${esc(o.order_no)}｜備妥 ${ready}/${total}｜已取 ${picked}/${total}</div></div><span class="badge ${o.delivery_status==='delivered'?'green':'yellow'}">${deliveryStatusLabel(o.delivery_status)}</span></div>${o.items.map(x=>deliveryItemRow(x,o)).join('')}<div style="margin-top:12px;font-weight:900;color:${all?'#11823b':'#9a6700'}">${all?'🟢 貨物已全部取齊，可以出車':'🟠 尚有貨物未取齊'}</div><div class="actions" style="margin-top:12px">${o.delivery_status==='not_assigned'?`<button class="btn blue" onclick="setDeliveryStatus(${o.id},'accepted')">接配送</button>`:''}${o.delivery_status==='accepted'?`<button class="btn primary" ${all?'':'disabled style="opacity:.45"'} onclick="setDeliveryStatus(${o.id},'delivering')">🚚 開始配送</button>`:''}${o.delivery_status==='delivering'?`<button class="btn primary" onclick="setDeliveryStatus(${o.id},'delivered')">✅ 配送完成</button>`:''}</div></div>`}
+function renderDelivery(){const b=$('#deliveryBody');if(!b)return;const arr=[...orders].filter(o=>o.delivery_status!=='delivered').sort((a,b)=>new Date(a.order_date||a.created_at)-new Date(b.order_date||b.created_at));if(deliveryView==='customer'){b.innerHTML=arr.length?arr.map(deliveryOrderCard).join(''):'<div class="empty">目前沒有待配送訂單</div>';return}const groups={};arr.forEach(o=>o.items.forEach(x=>{const k=pickupSourceLabel(x);(groups[k]??=[]).push({x,o})}));const preferred=['大庫','小庫','包裝','攤位'];const keys=Object.keys(groups).sort((a,b)=>{let ia=preferred.indexOf(a),ib=preferred.indexOf(b);ia=ia<0?99:ia;ib=ib<0?99:ib;return ia-ib||a.localeCompare(b,'zh-Hant')});b.innerHTML=keys.length?keys.map(k=>`<div class="order"><h2 style="font-size:20px">📍 ${esc(k)}</h2>${groups[k].map(({x,o})=>`<div class="item" style="grid-template-columns:auto 1fr auto"><div class="check ${x.driver_picked?'done':''}" onclick="toggleDriverPicked(${x.id},${x.driver_picked?'false':'true'})">${x.driver_picked?'✓':''}</div><div><b>${esc(o.customer)}</b>｜${esc(x.item_name)}<div class="meta">${x.pickup_ready?'🟢 已備妥':'🟠 待備貨'}｜${x.driver_picked?'已取貨':'待取貨'}</div></div><div></div></div>`).join('')}</div>`).join(''):'<div class="empty">目前沒有待取貨品項</div>'}
+window.changePickupSource=async(id,v)=>{if(!requireWrite())return;let vendor=null;if(v==='vendor'){vendor=prompt('請輸入商家名稱，例如：青苑、隆記、新和盛')||'';if(!vendor.trim()){alert('請輸入商家名稱');await loadOrders();return}}const {error}=await sb.from('order_items').update({pickup_source:v,pickup_vendor:v==='vendor'?vendor.trim():null,pickup_ready:false,pickup_ready_at:null,driver_picked:false,driver_picked_at:null}).eq('id',id);if(error)alert(error.message);await loadOrders()};
+window.saveVendor=async(id,v)=>{if(!requireWrite())return;const name=v.trim();if(!name){alert('商家名稱不能空白');return}const {error}=await sb.from('order_items').update({pickup_vendor:name}).eq('id',id);if(error)alert(error.message);await loadOrders()};
+window.togglePickupReady=async(id,val)=>{if(!requireWrite())return;const {error}=await sb.from('order_items').update({pickup_ready:val,pickup_ready_at:val?new Date().toISOString():null}).eq('id',id);if(error)alert(error.message);await loadOrders()};
+window.toggleDriverPicked=async(id,val)=>{if(!requireWrite())return;const {error}=await sb.from('order_items').update({driver_picked:val,driver_picked_at:val?new Date().toISOString():null}).eq('id',id);if(error)alert(error.message);await loadOrders()};
+window.setDeliveryStatus=async(id,status)=>{if(!requireWrite())return;const patch={delivery_status:status,...actorFields('updated')};if(status==='accepted'){patch.assigned_driver_id=currentUser?.id||null;patch.assigned_driver_name=currentProfile?.display_name||currentUser?.email||null}if(status==='delivering')patch.delivery_started_at=new Date().toISOString();if(status==='delivered')patch.delivered_at=new Date().toISOString();const {error}=await sb.from('orders').update(patch).eq('id',id);if(error)alert(error.message);await loadOrders()};
 function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
-window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
+window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null,pickup_ready:newVal,pickup_ready_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{if(!requireWrite())return;const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null,...actorFields('updated')}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
 window.startPacking=async id=>{if(!requireWrite())return;await sb.from('orders').update({status:'packing',...actorFields('updated')}).eq('id',id);await loadOrders()};
 window.finishOrder=async id=>{if(!requireWrite())return;const o=orders.find(x=>x.id===id);if(!o||!o.items.every(x=>x.is_completed))return;await sb.from('orders').update({status:'done',completed_at:new Date().toISOString(),...actorFields('completed')}).eq('id',id);await loadOrders()};
@@ -665,6 +695,10 @@ $('#loginBtn').onclick=async()=>{
 $('#loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')$('#loginBtn').click();});
 $('#logoutBtn').onclick=async()=>{await sb.auth.signOut();location.reload();};
 (async()=>{const {data}=await sb.auth.getSession();if(data.session?.user)await startApp(data.session.user);else showLogin();})();
+
+
+$('#deliveryByCustomer').onclick=()=>{deliveryView='customer';$('#deliveryByCustomer').className='btn primary';$('#deliveryBySource').className='btn gray';renderDelivery()};
+$('#deliveryBySource').onclick=()=>{deliveryView='source';$('#deliveryBySource').className='btn primary';$('#deliveryByCustomer').className='btn gray';renderDelivery()};
 
 const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{if(!currentUser)return;const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>{if(currentUser)loadOrders()}).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
 $('#queryDateBtn').onclick=()=>renderToday();
