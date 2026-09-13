@@ -265,8 +265,23 @@ window.openEdit=id=>{const o=orders.find(x=>x.id===id);if(!o||o.status==='done')
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
 $('#saveEdit').onclick=async()=>{const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
-$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active');renderAll()});
-const requestedTab=new URLSearchParams(location.search).get('tab');if(requestedTab&&['stall','packing','wall','today'].includes(requestedTab)){const t=document.querySelector(`.tab[data-tab="${requestedTab}"]`);if(t)setTimeout(()=>t.click(),0)}
+const VALID_TABS=['stall','packing','wall','today'];
+$$('.tab').forEach(t=>t.onclick=()=>{
+  $$('.tab').forEach(x=>x.classList.remove('active'));
+  $$('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  $('#'+t.dataset.tab).classList.add('active');
+  localStorage.setItem('xinru_active_tab',t.dataset.tab);
+  const u=new URL(location.href);
+  u.searchParams.set('tab',t.dataset.tab);
+  history.replaceState(null,'',u);
+  renderAll();
+});
+const requestedTab=new URLSearchParams(location.search).get('tab');
+const savedTab=localStorage.getItem('xinru_active_tab');
+const initialTab=VALID_TABS.includes(requestedTab)?requestedTab:(VALID_TABS.includes(savedTab)?savedTab:'stall');
+const initialTabButton=document.querySelector(`.tab[data-tab="${initialTab}"]`);
+if(initialTabButton)setTimeout(()=>initialTabButton.click(),0);
 $('#pickupTime').addEventListener('input',e=>{let v=e.target.value.replace(/[^0-9:]/g,'');if(/^\d{4}$/.test(v))v=v.slice(0,2)+':'+v.slice(2);e.target.value=v.slice(0,5)});
 $('#urgentSwitch').onclick=()=>{urgent=!urgent;$('#urgentSwitch').classList.toggle('on',urgent)};
 $('#takePhoto').onclick=()=>$('#photoInput').click();
