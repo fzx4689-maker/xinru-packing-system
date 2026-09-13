@@ -213,8 +213,21 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：內部作業系統｜貨運精簡 H7</div>
+    <div class="helper" style="margin-top:-4px">版本：內部作業系統｜員工管理精簡 H8</div>
     <div class="helper">員工可用簡單帳號登入，不需要自己的 Email。工作職能可複選。</div>
+    <div class="actions" style="margin:10px 0 12px;gap:8px;flex-wrap:wrap">
+      <button id="toggleEmployeeListBtn" class="btn blue">👥 已有員工帳號</button>
+      <button id="togglePermissionHelpBtn" class="btn gray">❓ 三種權限說明</button>
+    </div>
+    <div id="permissionHelpBox" class="card" style="display:none;box-shadow:none;margin-bottom:12px;padding:14px">
+      <h2 style="font-size:18px;margin:0 0 10px">三種權限說明</h2>
+      <div style="display:grid;gap:10px;font-size:14px;line-height:1.6">
+        <div><b>系統管理員</b>：全部功能，可管理員工、設定權限、修改及刪除資料。</div>
+        <div><b>作業人員</b>：可新增、修改、處理、回覆及完成日常工作。</div>
+        <div><b>瀏覽人員</b>：可查看、接單、工作回覆、配送中與配送完成；不能修改原始訂單內容或刪除資料。</div>
+      </div>
+      <div class="helper" style="margin-top:8px">這些權限只在管理者的員工管理頁顯示，員工本人不會看到自己的權限等級。</div>
+    </div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
       <div class="employeeGrid">
@@ -232,8 +245,11 @@
       <button id="createEmployeeBtn" class="btn primary">＋ 建立員工帳號</button>
       <div id="employeeMsg" class="employeeMsg"></div>
     </div>
-    <div class="employeeHead"><h2 style="font-size:19px">員工帳號</h2><button id="refreshEmployeesBtn" class="btn gray">重新整理</button></div>
-    <div id="employeeList" class="employeeList"><div class="empty">讀取中…</div></div>
+    <div id="existingEmployeesSection" style="display:none">
+      <div class="employeeHead"><h2 style="font-size:19px">已有員工帳號</h2><button id="refreshEmployeesBtn" class="btn gray">重新整理</button></div>
+      <div class="helper" style="margin-bottom:8px">系統管理員固定排在最上方。</div>
+      <div id="employeeList" class="employeeList"><div class="empty">讀取中…</div></div>
+    </div>
   </div>
 </div>
 
@@ -788,6 +804,11 @@ function chooseWorkRoles(name,currentRoles=[],title='設定工作職能',onConfi
 function renderEmployeeList(list=[]){
   const box=$('#employeeList');
   if(!list.length){box.innerHTML='<div class="empty">目前沒有員工帳號</div>';return;}
+  list=[...list].sort((a,b)=>{
+    const ra=a.role==='admin'?0:1, rb=b.role==='admin'?0:1;
+    if(ra!==rb)return ra-rb;
+    return String(a.display_name||'').localeCompare(String(b.display_name||''),'zh-Hant');
+  });
   box.innerHTML=list.map(e=>`<div class="employeeRow">
     <div><b>${esc(e.display_name)}</b><div class="empAccount">帳號：${e.login_name?esc(e.login_name):'<span style="color:#b4232c">尚未設定</span>'}</div>${e.email?`<div class="meta">原登入：${esc(e.email)}</div>`:''}</div>
     <div><select class="input emp-role" data-id="${esc(e.user_id)}" ${e.user_id===currentUser?.id?'disabled':''}>${roleOptions(e.role)}</select></div>
@@ -855,6 +876,19 @@ async function refreshPendingEmployeeBadge(){
 async function loadEmployees(){if(currentProfile?.role!=='admin')return;$('#employeeList').innerHTML='<div class="empty">讀取中…</div>';try{const data=await callEmployeeManager('list');updatePendingEmployeeBadge(data.employees||[]);renderEmployeeList(data.employees||[]);}catch(e){$('#employeeList').innerHTML=`<div class="empty" style="color:#b4232c">${esc(e.message)}</div>`;}}
 $('#employeeManageBtn').onclick=async()=>{if(currentProfile?.role!=='admin')return;setEmployeeMsg('');$('#employeeModal').classList.add('show');await loadEmployees();};
 $('#closeEmployeeModal').onclick=()=>$('#employeeModal').classList.remove('show');
+$('#toggleEmployeeListBtn').onclick=async()=>{
+  const sec=$('#existingEmployeesSection');
+  const opening=sec.style.display==='none'||!sec.style.display;
+  sec.style.display=opening?'block':'none';
+  $('#toggleEmployeeListBtn').textContent=opening?'收起員工帳號':'👥 已有員工帳號';
+  if(opening)await loadEmployees();
+};
+$('#togglePermissionHelpBtn').onclick=()=>{
+  const box=$('#permissionHelpBox');
+  const opening=box.style.display==='none'||!box.style.display;
+  box.style.display=opening?'block':'none';
+  $('#togglePermissionHelpBtn').textContent=opening?'收起權限說明':'❓ 三種權限說明';
+};
 $('#employeeModal').addEventListener('click',e=>{if(e.target===$('#employeeModal'))$('#employeeModal').classList.remove('show');});
 $('#refreshEmployeesBtn').onclick=()=>loadEmployees();
 $('#empRole').onchange=()=>{if($('#empRole').value==='admin')$$('.new-work-role').forEach(x=>x.checked=true);};
