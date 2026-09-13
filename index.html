@@ -37,15 +37,27 @@
 .wallCardTime{font-size:14px;color:var(--muted);white-space:nowrap}
 @media(max-width:900px){.wallCards{grid-template-columns:1fr}}
 
+
+.authGate{position:fixed;inset:0;background:#f4f6f8;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px}.authGate.hidden{display:none}.loginBox{width:min(430px,100%);background:#fff;border:1px solid #e3e7eb;border-radius:22px;padding:26px;box-shadow:0 12px 40px rgba(0,0,0,.12)}.loginBox h1{font-size:24px;margin:0 0 8px}.loginError{color:#b4232c;font-weight:700;margin-top:10px}.userBar{display:none;align-items:center;justify-content:center;gap:10px;padding:0 14px 8px;font-size:13px;color:#59606a}.userBar.show{display:flex}.readonlyNote{background:#fff7d6;border:1px solid #f3d978;padding:10px 12px;border-radius:12px;margin:0 14px 10px;font-weight:800;color:#765400}.viewer-disabled{pointer-events:none;opacity:.45}
 </style>
 
 
 </head>
 <body>
-<div class="app">
+<div id="authGate" class="authGate">
+  <div class="loginBox">
+    <h1>欣儒農產行｜員工登入</h1>
+    <div class="helper">第一次登入後會保持登入，關閉網頁再打開通常不需要重新登入。</div>
+    <div class="field"><label class="label">登入帳號（Email）</label><input id="loginEmail" class="input" type="email" autocomplete="username"></div>
+    <div class="field"><label class="label">密碼</label><input id="loginPassword" class="input" type="password" autocomplete="current-password"></div>
+    <button id="loginBtn" class="btn primary" style="width:100%">登入系統</button>
+    <div id="loginError" class="loginError"></div>
+  </div>
+</div>
+<div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
     <div class="title">欣儒農產行｜包裝即時系統</div>
-    <div class="sync" id="syncState">正在連線 Supabase…</div>
+    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none">👁️ 瀏覽人員：目前為唯讀模式，四個頁面都可以查看，但不能修改內容。</div>
     <div class="tabs">
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
       <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
@@ -145,6 +157,12 @@ const MAP={
 ,'仙草':'เซียน เฉ่า','愛玉':'อ้าย อวี่','中華豆腐':'จง ฮวา โต้ว ฝู่','雞蛋豆腐':'จี ตั้น โต้ว ฝู่','板豆腐':'ป่าน โต้ว ฝู่','生豆包':'เซิง โต้ว เปา','豆干':'โต้ว กาน','佛恩寺':'ฝอ เอิน ซื่อ','果果龍':'กั่ว กั่ว หลง','六禾':'ลิ่ว เหอ','古早味':'กู่ เจ่า เว่ย','洋晨時光':'หยาง เฉิน สือ กวง','史堤克':'สื่อ ตี เค่อ','安中':'อัน จง','仁和':'เหริน เหอ','水牛':'สุ่ย หนิว','坤霖':'คุน หลิน','善化':'ซ่าน ฮว่า','鹹水雞':'เสียน สุ่ย จี','開宣':'ไค เซวียน','民雄':'หมิน สยง','元泰':'หยวน ไท่','偉嘉':'เหว่ย เจีย','鐵架':'เถี่ย เจี้ย','蛤蜊':'เก๋อ หลี','鳥蛋':'เหนี่ยว ตั้น','老薑':'เหล่า เจียง','五香豆干':'อู่ เซียง โต้ว กาน','黑豆干':'เฮย โต้ว กาน','油豆腐':'โหยว โต้ว ฝู่','鮮香菇':'เซียน เซียง กู','秀珍菇':'ซิ่ว เจิน กู','海帶結':'ไห่ ไต้ เจี๋ย','海龍':'ไห่ หลง','麵腸':'เมี่ยน ฉาง','蒜米':'ซ่วน หมี่','紅椒':'หง เจียว','黃椒':'หวง เจียว','青苑':'ชิง หย่วน','隆記':'หลง จี้','龍鍇':'หลง ข่าย','穠全':'หนง เฉวียน','新和盛':'ซิน เหอ เซิ่ง','打冰':'ต่า ปิง','玉米筍':'อวี่ หมี่ สุ่ย','進馬':'จิ้น หม่า','燦霖':'ช่าน หลิน','芹菜':'ฉิน ไช่','甜玉米':'เถียน อวี่ หมี่','金針菇':'จิน เจิน กู','全紅':'เฉวียน หง','杏鮑菇':'ซิ่ง เป้า กู','龍鬚':'หลง ซวี','檸檬':'หนิง เหมิง','橘子':'จวี๋ จื่อ','葡萄':'ผู เถา','水梨':'สุ่ย หลี','酪梨':'ลั่ว หลี'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
+let currentUser=null; let currentProfile=null; let appStarted=false;
+const ROLE_LABEL={admin:'系統管理員',operator:'作業人員',viewer:'瀏覽人員'};
+const canWrite=()=>currentProfile&&['admin','operator'].includes(currentProfile.role);
+const actorFields=(kind='updated')=>{if(!currentUser||!currentProfile)return {}; if(kind==='created')return {created_by:currentUser.id,created_by_name:currentProfile.display_name}; if(kind==='completed')return {completed_by:currentUser.id,completed_by_name:currentProfile.display_name,updated_by:currentUser.id,updated_by_name:currentProfile.display_name}; return {updated_by:currentUser.id,updated_by_name:currentProfile.display_name};};
+function requireWrite(){if(canWrite())return true;alert('你的帳號是「瀏覽人員」，只能觀看，不能修改內容。');return false;}
+
 const taipeiDate=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});
 $('#orderDate').value=taipeiDate();
 $('#queryDate').value=taipeiDate();
@@ -208,8 +226,10 @@ function renderAll(){
   if(!isEditingPackingReply()) renderPacking();
   renderWall();
   renderToday();
+  applyRoleUI();
 }
-function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'}<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button></div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
+function applyRoleUI(){const viewer=currentProfile?.role==='viewer';$('#readonlyNote').style.display=viewer?'block':'none';['#submitOrder','#urgentSwitch','#takePhoto','#ocrPhoto','#clearPhoto','#customer','#orderDate','#pickupTime','#items','#note'].forEach(sel=>{const el=$(sel);if(el){if('disabled'in el)el.disabled=viewer;el.classList.toggle('viewer-disabled',viewer);}});}
+function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${canWrite()?(o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'):''}${canWrite()?`<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
 function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="th">${esc(translitLine(o.customer))}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''}" onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})">${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${o.photo_url?`<div style="margin-top:10px"><a href="${esc(o.photo_url)}" target="_blank"><img class="photoMini" src="${esc(o.photo_url)}"></a></div>`:''}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder=""><button class="btn gray" onclick="savePackingReply(${o.id})">儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}<button class="btn primary" ${done!==total?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button></div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
 
 // 使用者一開始打包裝回覆，就標記為草稿；10秒輪詢/Realtime 都不會重建輸入框。
@@ -255,16 +275,16 @@ function renderWall(){
   </article>`;
  }).join(''):'<div class="empty">目前沒有待處理訂單</div>';
 }
-function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
-window.toggleItem=async(itemId,newVal,orderId)=>{await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);if(o&&o.status==='waiting')await sb.from('orders').update({status:'packing'}).eq('id',orderId);await loadOrders()};
-window.savePackingReply=async id=>{const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
-window.startPacking=async id=>{await sb.from('orders').update({status:'packing'}).eq('id',id);await loadOrders()};
-window.finishOrder=async id=>{const o=orders.find(x=>x.id===id);if(!o||!o.items.every(x=>x.is_completed))return;await sb.from('orders').update({status:'done',completed_at:new Date().toISOString()}).eq('id',id);await loadOrders()};
-window.deleteOrder=async id=>{const o=orders.find(x=>x.id===id);if(!o)return;const ok=confirm(`確定要刪除「${o.customer}」的訂單嗎？\n訂單編號：${o.order_no}\n\n刪除後無法復原。`);if(!ok)return;try{const {error}=await sb.from('orders').delete().eq('id',id);if(error)throw error;await loadOrders();alert('訂單已刪除');}catch(e){console.error(e);alert('刪除失敗：'+e.message)}};
-window.openEdit=id=>{const o=orders.find(x=>x.id===id);if(!o||o.status==='done')return;$('#editOrderId').value=o.id;$('#editCustomer').value=o.customer||'';$('#editPickupTime').value=o.pickup_time||'';$('#editOrderDate').value=o.order_date||taipeiDate();$('#editItems').value=o.items.map(x=>x.item_name).join('\n');$('#editNote').value=o.note||'';editUrgent=!!o.is_urgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent);$('#editModal').classList.add('show')};
+function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
+window.toggleItem=async(itemId,newVal,orderId)=>{if(!requireWrite())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);if(o&&o.status==='waiting')await sb.from('orders').update({status:'packing'}).eq('id',orderId);await loadOrders()};
+window.savePackingReply=async id=>{if(!requireWrite())return;const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null,...actorFields('updated')}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
+window.startPacking=async id=>{if(!requireWrite())return;await sb.from('orders').update({status:'packing',...actorFields('updated')}).eq('id',id);await loadOrders()};
+window.finishOrder=async id=>{if(!requireWrite())return;const o=orders.find(x=>x.id===id);if(!o||!o.items.every(x=>x.is_completed))return;await sb.from('orders').update({status:'done',completed_at:new Date().toISOString(),...actorFields('completed')}).eq('id',id);await loadOrders()};
+window.deleteOrder=async id=>{if(!requireWrite())return;const o=orders.find(x=>x.id===id);if(!o)return;const ok=confirm(`確定要刪除「${o.customer}」的訂單嗎？\n訂單編號：${o.order_no}\n\n刪除後無法復原。`);if(!ok)return;try{const {error}=await sb.from('orders').delete().eq('id',id);if(error)throw error;await loadOrders();alert('訂單已刪除');}catch(e){console.error(e);alert('刪除失敗：'+e.message)}};
+window.openEdit=id=>{if(!requireWrite())return;const o=orders.find(x=>x.id===id);if(!o||o.status==='done')return;$('#editOrderId').value=o.id;$('#editCustomer').value=o.customer||'';$('#editPickupTime').value=o.pickup_time||'';$('#editOrderDate').value=o.order_date||taipeiDate();$('#editItems').value=o.items.map(x=>x.item_name).join('\n');$('#editNote').value=o.note||'';editUrgent=!!o.is_urgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent);$('#editModal').classList.add('show')};
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
-$('#saveEdit').onclick=async()=>{const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
+$('#saveEdit').onclick=async()=>{if(!requireWrite())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent,...actorFields('updated')}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
 const VALID_TABS=['stall','packing','wall','today'];
 function activateTab(tabName,{save=true}={}){
   if(!VALID_TABS.includes(tabName))tabName='stall';
@@ -299,7 +319,7 @@ $('#clearPhoto').onclick=()=>{photoFile=null;$('#photoInput').value='';$('#photo
 $('#photoInput').onchange=e=>{const f=e.target.files[0];if(!f)return;photoFile=f;const r=new FileReader();r.onload=()=>{$('#photoPreview').src=r.result;$('#photoPreview').style.display='block'};r.readAsDataURL(f)};
 $('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';try{const result=await Tesseract.recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
 async function uploadPhoto(orderNo){if(!photoFile)return null;try{const ext=(photoFile.name.split('.').pop()||'jpg').toLowerCase();const path=`${orderNo}-${Date.now()}.${ext}`;const {error}=await sb.storage.from('order-photos').upload(path,photoFile,{upsert:false});if(error)throw error;const {data}=sb.storage.from('order-photos').getPublicUrl(path);return data.publicUrl}catch(e){console.warn('照片尚未上傳：',e.message);return null}}
-$('#submitOrder').onclick=async()=>{const customer=$('#customer').value.trim(),pickup=$('#pickupTime').value.trim();if(pickup&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(pickup)){alert('取貨時間請輸入24小時制，例如 08:30、18:45');return}const lines=$('#items').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請先輸入客戶／店家名稱');return}if(!lines.length){alert('請先輸入需求內容');return}const btn=$('#submitOrder');btn.disabled=true;btn.textContent='送出中…';try{const orderNo=makeOrderNo();const photoUrl=await uploadPhoto(orderNo);const {data:order,error}=await sb.from('orders').insert({order_no:orderNo,customer,pickup_time:pickup||null,note:$('#note').value.trim()||null,photo_url:photoUrl,is_urgent:urgent,order_date:$('#orderDate').value,status:'waiting'}).select().single();if(error)throw error;const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();urgent=false;$('#urgentSwitch').classList.remove('on');$('#clearPhoto').click();await loadOrders();alert('訂單已送出');}catch(e){console.error(e);alert('送出失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='送出訂單'}};
+$('#submitOrder').onclick=async()=>{if(!requireWrite())return;const customer=$('#customer').value.trim(),pickup=$('#pickupTime').value.trim();if(pickup&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(pickup)){alert('取貨時間請輸入24小時制，例如 08:30、18:45');return}const lines=$('#items').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請先輸入客戶／店家名稱');return}if(!lines.length){alert('請先輸入需求內容');return}const btn=$('#submitOrder');btn.disabled=true;btn.textContent='送出中…';try{const orderNo=makeOrderNo();const photoUrl=await uploadPhoto(orderNo);const {data:order,error}=await sb.from('orders').insert({order_no:orderNo,customer,pickup_time:pickup||null,note:$('#note').value.trim()||null,photo_url:photoUrl,is_urgent:urgent,order_date:$('#orderDate').value,status:'waiting',...actorFields('created')}).select().single();if(error)throw error;const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();urgent=false;$('#urgentSwitch').classList.remove('on');$('#clearPhoto').click();await loadOrders();alert('訂單已送出');}catch(e){console.error(e);alert('送出失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='送出訂單'}};
 function runTransTest(){const v=$('#transInput').value.trim();if(!v){$('#transResult').textContent='';return}const th=translitLine(v);$('#transResult').textContent=th?`${v} → ${th}`:`${v} → 尚未建立泰文音譯`;}
 $('#transBtn').onclick=runTransTest;
 $('#transInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runTransTest();}});
@@ -369,14 +389,43 @@ function playOrderSound(isUrgent=false){
 // 任何點擊、觸控或按鍵都會自動解鎖；右下角也會顯示目前狀態。
 ['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>unlockAudio(),{passive:true}));
 updateSoundReadyUI(false);
-const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>loadOrders()).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>loadOrders()).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
+async function loadMyProfile(user){
+  const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,role,is_active').eq('user_id',user.id).maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error('這個登入帳號尚未建立員工權限');
+  if(!data.is_active)throw new Error('這個員工帳號已停用');
+  return data;
+}
+function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
+function showApp(){
+  $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
+  $('#currentUserName').textContent=`👤 ${currentProfile.display_name}`;$('#currentUserRole').textContent=`｜${ROLE_LABEL[currentProfile.role]||currentProfile.role}`;
+  applyRoleUI();
+}
+async function startApp(user){
+  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}}
+  catch(e){console.error(e);await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin(e.message||'無法登入');}
+}
+$('#loginBtn').onclick=async()=>{
+  const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;
+  if(!email||!password){$('#loginError').textContent='請輸入帳號和密碼';return}
+  const btn=$('#loginBtn');btn.disabled=true;btn.textContent='登入中…';$('#loginError').textContent='';
+  try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;await startApp(data.user);}
+  catch(e){$('#loginError').textContent='登入失敗：'+(e.message||'帳號或密碼錯誤');}
+  finally{btn.disabled=false;btn.textContent='登入系統';}
+};
+$('#loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')$('#loginBtn').click();});
+$('#logoutBtn').onclick=async()=>{await sb.auth.signOut();location.reload();};
+(async()=>{const {data}=await sb.auth.getSession();if(data.session?.user)await startApp(data.session.user);else showLogin();})();
+
+const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{if(!currentUser)return;const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>{if(currentUser)loadOrders()}).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
-  loadOrders();
+  // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
-setInterval(()=>{if(document.visibilityState==='visible')loadOrders();},AUTO_REFRESH_MS);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')loadOrders();});
-window.addEventListener('focus',()=>loadOrders());
+setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadOrders();},AUTO_REFRESH_MS);
+document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible')loadOrders();});
+window.addEventListener('focus',()=>{if(currentUser)loadOrders();});
 
 </script>
 </body></html>
