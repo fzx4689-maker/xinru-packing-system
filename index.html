@@ -907,12 +907,16 @@ async function getPushSubscription(){
 async function savePushSubscription(sub){
   if(!currentUser||!sub)throw new Error('尚未登入或推播訂閱不存在');
   const j=sub.toJSON();
-  const row={user_id:currentUser.id,endpoint:j.endpoint,p256dh:j.keys?.p256dh||'',auth:j.keys?.auth||'',user_agent:navigator.userAgent,enabled:true,updated_at:new Date().toISOString()};
-  const {error}=await sb.from('push_subscriptions').upsert(row,{onConflict:'endpoint'});
+  const {error}=await sb.rpc('xinru_claim_push_subscription',{
+    p_endpoint:j.endpoint,
+    p_p256dh:j.keys?.p256dh||'',
+    p_auth:j.keys?.auth||'',
+    p_user_agent:navigator.userAgent
+  });
   if(error)throw error;
   const {data:verify,error:verifyError}=await sb.from('push_subscriptions').select('id,user_id,endpoint,enabled').eq('endpoint',j.endpoint).eq('user_id',currentUser.id).eq('enabled',true).maybeSingle();
   if(verifyError)throw verifyError;
-  if(!verify)throw new Error('手機推播訂閱沒有成功寫入資料庫');
+  if(!verify)throw new Error('手機推播訂閱沒有成功綁定目前帳號');
   return verify;
 }
 async function enablePushNotifications(){
