@@ -289,6 +289,8 @@ const MAP={
 ,'仙草':'เซียน เฉ่า','愛玉':'อ้าย อวี่','中華豆腐':'จง ฮวา โต้ว ฝู่','雞蛋豆腐':'จี ตั้น โต้ว ฝู่','板豆腐':'ป่าน โต้ว ฝู่','生豆包':'เซิง โต้ว เปา','豆干':'โต้ว กาน','佛恩寺':'ฝอ เอิน ซื่อ','果果龍':'กั่ว กั่ว หลง','六禾':'ลิ่ว เหอ','古早味':'กู่ เจ่า เว่ย','洋晨時光':'หยาง เฉิน สือ กวง','史堤克':'สื่อ ตี เค่อ','安中':'อัน จง','仁和':'เหริน เหอ','水牛':'สุ่ย หนิว','坤霖':'คุน หลิน','善化':'ซ่าน ฮว่า','鹹水雞':'เสียน สุ่ย จี','開宣':'ไค เซวียน','民雄':'หมิน สยง','元泰':'หยวน ไท่','偉嘉':'เหว่ย เจีย','鐵架':'เถี่ย เจี้ย','蛤蜊':'เก๋อ หลี','鳥蛋':'เหนี่ยว ตั้น','老薑':'เหล่า เจียง','五香豆干':'อู่ เซียง โต้ว กาน','黑豆干':'เฮย โต้ว กาน','油豆腐':'โหยว โต้ว ฝู่','鮮香菇':'เซียน เซียง กู','秀珍菇':'ซิ่ว เจิน กู','海帶結':'ไห่ ไต้ เจี๋ย','海龍':'ไห่ หลง','麵腸':'เมี่ยน ฉาง','蒜米':'ซ่วน หมี่','紅椒':'หง เจียว','黃椒':'หวง เจียว','青苑':'ชิง หย่วน','隆記':'หลง จี้','龍鍇':'หลง ข่าย','穠全':'หนง เฉวียน','新和盛':'ซิน เหอ เซิ่ง','打冰':'ต่า ปิง','玉米筍':'อวี่ หมี่ สุ่ย','進馬':'จิ้น หม่า','燦霖':'ช่าน หลิน','芹菜':'ฉิน ไช่','甜玉米':'เถียน อวี่ หมี่','金針菇':'จิน เจิน กู','全紅':'เฉวียน หง','杏鮑菇':'ซิ่ง เป้า กู','龍鬚':'หลง ซวี','檸檬':'หนิง เหมิง','橘子':'จวี๋ จื่อ','葡萄':'ผู เถา','水梨':'สุ่ย หลี','酪梨':'ลั่ว หลี'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
+const SOUND_PREF_KEY='xinru_sound_enabled';
+try{soundEnabled=localStorage.getItem(SOUND_PREF_KEY)==='1';}catch(e){}
 let currentUser=null; let currentProfile=null; let appStarted=false;
 let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter='all'; let deliveryQueryDriverFilter='all'; let deliveryRecordMode='date'; let orderQueryMode='packing';
 const ROLE_LABEL={admin:'系統管理員',operator:'作業人員',viewer:'瀏覽人員'};
@@ -726,9 +728,9 @@ async function unlockAudio(){
   try{
     if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
     if(audioCtx.state==='suspended')await audioCtx.resume();
-    updateSoundReadyUI(soundEnabled && audioCtx.state==='running');
+    updateSoundReadyUI(soundEnabled);
     return audioCtx.state==='running';
-  }catch(e){console.warn('無法啟用提醒聲',e);updateSoundReadyUI(false);return false}
+  }catch(e){console.warn('無法啟用提醒聲',e);updateSoundReadyUI(soundEnabled);return false}
 }
 function updateSoundReadyUI(ok){
   let el=document.querySelector('#soundReadyBox');
@@ -736,9 +738,11 @@ function updateSoundReadyUI(ok){
     el=document.createElement('div');el.id='soundReadyBox';
     el.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:14px;font-weight:900;box-shadow:0 4px 18px rgba(0,0,0,.18);cursor:pointer;user-select:none;font-size:15px';
     el.onclick=async()=>{
-      if(soundEnabled){soundEnabled=false;updateSoundReadyUI(false);return;}
+      if(soundEnabled){soundEnabled=false;try{localStorage.setItem(SOUND_PREF_KEY,'0')}catch(e){}updateSoundReadyUI(soundEnabled);return;}
+      soundEnabled=true;try{localStorage.setItem(SOUND_PREF_KEY,'1')}catch(e){}
       const good=await unlockAudio();
-      if(good){soundEnabled=true;updateSoundReadyUI(true);playSoundTest();}
+      updateSoundReadyUI(true);
+      if(good)playSoundTest();
     };
     document.body.appendChild(el);
   }
@@ -801,8 +805,9 @@ function playFreightSound(){
 }
 // 手機/平板瀏覽器基於安全規則，聲音必須先由使用者互動解鎖一次。
 // 任何點擊、觸控或按鍵都會自動解鎖；右下角也會顯示目前狀態。
-['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>unlockAudio(),{passive:true}));
-updateSoundReadyUI(false);
+['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(soundEnabled)unlockAudio();},{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&soundEnabled)unlockAudio();});
+updateSoundReadyUI(soundEnabled);
 function employeeErrorText(err,fallback='員工管理操作失敗'){
   const safe=(v)=>{
     if(v==null)return '';
