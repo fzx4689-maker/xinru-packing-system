@@ -468,7 +468,7 @@ async function loadMyProfile(user){
 function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
-  $('#currentUserName').textContent=`👤 ${currentProfile.display_name}`;$('#currentUserRole').textContent=`｜${ROLE_LABEL[currentProfile.role]||currentProfile.role}`;
+  const shownName=currentProfile.role==='admin'?'管理員小懿':currentProfile.display_name;$('#currentUserName').textContent=`👤 ${shownName}`;$('#currentUserRole').textContent=`｜${ROLE_LABEL[currentProfile.role]||currentProfile.role}`;
   applyRoleUI();
 }
 async function startApp(user){
