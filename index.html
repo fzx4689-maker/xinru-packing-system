@@ -300,7 +300,7 @@ const PUSH_VAPID_PUBLIC='BJ-cj-c6DJsGne_Zh0XhWTFa-krMd2TpmdEtbOVEvjymdakhwv3eoV8
 let deferredInstallPrompt=null;
 try{soundEnabled=localStorage.getItem(SOUND_PREF_KEY)==='1';}catch(e){}
 let currentUser=null; let currentProfile=null; let appStarted=false;
-let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter='all'; let deliveryQueryDriverFilter='all'; let deliveryRecordMode='date';
+let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter=localStorage.getItem('xinru_delivery_driver_filter')||'all'; let deliveryQueryDriverFilter=localStorage.getItem('xinru_delivery_query_driver_filter')||'all'; let deliveryRecordMode='date';
 let orderQueryMode='packing';
 try{const savedQueryMode=localStorage.getItem('xinru_order_query_mode');if(savedQueryMode==='delivery'||savedQueryMode==='packing')orderQueryMode=savedQueryMode;}catch(e){}
 let deliveryAssignmentBaselineReady=false; let knownMyAssignedJobIds=new Set();
@@ -499,7 +499,7 @@ function renderDelivery(){
   if(canManageFreight()){
     chips=[{id:'all',name:'全部'},{id:'unassigned',name:'⏳ 待接單'}];
     deliveryDrivers.forEach(d=>chips.push({id:d.user_id,name:'🚚 '+deliveryDisplayName(d.display_name)}));
-    if(!chips.some(x=>x.id===deliveryDriverFilter))deliveryDriverFilter='all';
+    if(!chips.some(x=>x.id===deliveryDriverFilter))deliveryDriverFilter=(currentIsDriver()?currentUser.id:'all');
   }else{
     chips=[{id:'unassigned',name:'⏳ 尚未分配'},{id:currentUser.id,name:'🚚 '+deliveryDisplayName(currentProfile.display_name)}];
     if(!['unassigned',currentUser.id].includes(deliveryDriverFilter))deliveryDriverFilter=currentUser.id;
@@ -515,7 +515,7 @@ function renderDelivery(){
   arr.sort((a,b)=>(Number(!!b.is_urgent)-Number(!!a.is_urgent)) || String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
   body.innerHTML=arr.length?arr.map(renderDeliveryCard).join(''):'<div class="empty">目前沒有待處理貨運單</div>';
 }
-window.setDeliveryDriverFilter=id=>{deliveryDriverFilter=id;renderDelivery()};
+window.setDeliveryDriverFilter=id=>{deliveryDriverFilter=id;localStorage.setItem('xinru_delivery_driver_filter',id);renderDelivery()};
 function renderDeliveryQueryDriverFilters(){
   const box=$('#deliveryQueryDriverFilters');if(!box)return;
   if(!canManageFreight()){
@@ -524,13 +524,26 @@ function renderDeliveryQueryDriverFilters(){
     return;
   }
   const chips=[{id:'all',name:'全部'},...deliveryDrivers.map(d=>({id:d.user_id,name:'🚚 '+deliveryDisplayName(d.display_name)}))];
-  if(!chips.some(x=>x.id===deliveryQueryDriverFilter))deliveryQueryDriverFilter='all';
+  if(!chips.some(x=>x.id===deliveryQueryDriverFilter))deliveryQueryDriverFilter=(currentIsDriver()?currentUser.id:'all');
   box.innerHTML=chips.map(x=>`<button class="driverChip ${deliveryQueryDriverFilter===x.id?'active':''}" onclick="setDeliveryQueryDriverFilter('${esc(x.id)}')">${esc(x.name)}</button>`).join('');
 }
-window.setDeliveryQueryDriverFilter=id=>{deliveryQueryDriverFilter=id;renderToday()};
+window.setDeliveryQueryDriverFilter=id=>{deliveryQueryDriverFilter=id;localStorage.setItem('xinru_delivery_query_driver_filter',id);renderToday()};
 function renderDriverReplies(text){
   if(!text)return '';
-  return String(text).split(/\n+/).filter(Boolean).map(line=>`<div class="meta" style="white-space:normal">💬 ${esc(line)}</div>`).join('');
+  return String(text).split(/\n+/).filter(Boolean).map(raw=>{
+    const line=String(raw).trim();
+    const structured=/^(?:\d{1,2}:\d{2}｜)?[^：|｜]{1,30}：/.test(line);
+    return `<div class="meta" style="white-space:normal">💬 ${structured?esc(line):`<span style="color:#64748b">舊回覆：</span>${esc(line)}`}</div>`;
+  }).join('');
+}
+function preserveLegacyDriverReplies(j){
+  if(!j?.driver_reply||!j?.assigned_driver_name)return j?.driver_reply||null;
+  const who=deliveryDisplayName(j.assigned_driver_name);
+  return String(j.driver_reply).split(/\n+/).filter(Boolean).map(raw=>{
+    const line=String(raw).trim();
+    const structured=/^(?:\d{1,2}:\d{2}｜)?[^：|｜]{1,30}：/.test(line);
+    return structured?line:`${who}：${line}`;
+  }).join('\n');
 }
 function deliveryRecordTable(arr,label){
   const box=$('#todayBody');if(!box)return;
@@ -601,8 +614,9 @@ window.chooseDeliveryDriver=async(id,uid)=>{
   const oldUid=j.assigned_driver_id||'';
   if(oldUid===uid){closeDriverPicker();return;}
   const driver=deliveryDrivers.find(x=>x.user_id===uid);
+  const preservedReply=preserveLegacyDriverReplies(j);
   closeDriverPicker();
-  await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null});
+  await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})});
   if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${j.customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
 };
 window.claimDelivery=async id=>{
@@ -1087,7 +1101,13 @@ function showApp(){
   updatePwaPushButton();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}if(currentIsDriver()&&!canManageFreight()){deliveryDriverFilter=currentUser.id;}if(Array.isArray(currentProfile.work_roles)&&currentProfile.work_roles.length===1&&currentProfile.work_roles[0]==='driver'){activateTab('delivery',{save:true});}}
+  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
+    const saved=localStorage.getItem('xinru_delivery_driver_filter');
+    if(!saved||saved==='all'){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}
+    const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
+    if(!savedQ||savedQ==='all'){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}
+  }
+  await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}if(Array.isArray(currentProfile.work_roles)&&currentProfile.work_roles.length===1&&currentProfile.work_roles[0]==='driver'){activateTab('delivery',{save:true});}}
   catch(e){console.error(e);await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin(e.message||'無法登入');}
 }
 async function resolveLoginEmail(account){
