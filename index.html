@@ -431,10 +431,16 @@ function currentIsStall(){return Array.isArray(currentProfile?.work_roles)&&curr
 function hasWorkRole(role){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes(role)}
 function shouldHearPacking(){return currentProfile?.role==='admin'||hasWorkRole('packing')}
 function shouldHearFreight(){return currentProfile?.role==='admin'||hasWorkRole('driver')}
+function shouldHearFreightJob(job){
+  if(!currentUser||!shouldHearFreight()||!job)return false;
+  const assigned=String(job.assigned_driver_id||'');
+  if(assigned)return assigned===String(currentUser.id);
+  return job.status==='waiting';
+}
 function canManageFreight(){return currentProfile?.role==='admin'||currentIsStall()}
 function canViewFreight(){return canManageFreight()||currentIsDriver()}
 function deliveryNo(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `D${p(d.getMonth()+1)}${p(d.getDate())}-${Date.now().toString().slice(-6)}`}
-function deliveryDisplayName(name){return String(name||'').includes('管理員')?'懿':String(name||'')}
+function deliveryDisplayName(name){return String(name||'').trim()}
 async function loadDeliveryDrivers(){
   try{
     if(canManageFreight()){
@@ -778,7 +784,7 @@ $('#submitOrder').onclick=async()=>{
       }).select('id,delivery_no').single();
       if(error)throw error;
       await loadDelivery();
-      await sendXinruPush({targetRole:'driver',title:urgent?'🚨 貨運急單':'🚚 貨運新單',body:`${customer}${uid&&driver?`｜指定 ${deliveryDisplayName(driver.display_name)}`:'｜尚未指派'}`,url:'./#delivery',tag:`freight-${freight.id}`,kind:'freight',urgent});
+      await sendXinruPush({targetRole:uid?null:'driver',targetUserId:uid||null,title:urgent?'🚨 貨運急單':'🚚 貨運新單',body:`${customer}${uid&&driver?`｜指定 ${deliveryDisplayName(driver.display_name)}`:'｜尚未指派'}`,url:'./#delivery',tag:`freight-${freight.id}`,kind:'freight',urgent});
       alert(uid?'已送到貨運部並指定司機':'已送到貨運部，等待司機接單');
     }
     $('#customer').value='';$('#pickupTime').value='';$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();
@@ -944,7 +950,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{
   if(event.data?.type==='PUSH_RECEIVED'){
     const p=event.data.payload||{};
     if(p.kind==='packing'&&shouldHearPacking())playOrderSound(!!p.urgent);
-    if(p.kind==='freight'&&shouldHearFreight())playFreightSound();
+    if(p.kind==='freight'&&shouldHearFreightJob({assigned_driver_id:p.target_user_id||null,status:p.target_user_id?'assigned':'waiting'}))playFreightSound();
   }
 });
 
@@ -1099,7 +1105,7 @@ async function loadMyProfile(user){
 function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
-  const shownName=currentProfile.role==='admin'?'懿':currentProfile.display_name;
+  const shownName=currentProfile.display_name;
   const workText=(currentProfile.work_roles||[]).map(r=>WORK_LABEL[r]||r).join('／')||'未設定';
   $('#currentUserName').textContent=`👤 ${shownName}`;
   $('#currentUserRole').textContent=`｜職務：${workText}`;
@@ -1187,7 +1193,7 @@ function checkDeliveryOverdue(){
 setInterval(()=>{if(document.visibilityState==='visible')checkDeliveryOverdue();},60000);
 
 const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{if(!currentUser)return;const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);if(shouldHearPacking())playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>{if(currentUser)loadOrders()}).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
-const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{if(!currentUser)return;const n=payload.new||{};if(payload.eventType==='INSERT'&&shouldHearFreight())playFreightSound();loadDelivery()}).subscribe();
+const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{if(!currentUser)return;const n=payload.new||{};if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSound();loadDelivery()}).subscribe();
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
 $('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';try{localStorage.setItem('xinru_order_query_mode','packing')}catch(e){}renderToday()};
@@ -1198,10 +1204,10 @@ $('#deliveryQueryDateBtn').onclick=()=>renderDeliveryRecordQuery();
 $('#deliveryQueryDate').onchange=()=>renderDeliveryRecordQuery();
   // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
-setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();enforceActiveSession();}},AUTO_REFRESH_MS);
+setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();enforceActiveSession();}},AUTO_REFRESH_MS);
 setInterval(()=>{if(currentUser&&currentProfile?.role==='admin'&&document.visibilityState==='visible')refreshPendingEmployeeBadge();},60000);
-document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();enforceActiveSession();}});
-window.addEventListener('focus',()=>{if(currentUser){loadOrders();enforceActiveSession();}});
+document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();enforceActiveSession();}});
+window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery();enforceActiveSession();}});
 
 </script>
 
