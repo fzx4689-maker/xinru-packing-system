@@ -169,7 +169,7 @@
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
     <div class="employeeHead"><h2>👥 員工管理</h2><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="helper" style="margin-top:-4px">版本：待審核提醒＋核准職能 09/13-G2</div>
+    <div class="helper" style="margin-top:-4px">版本：核准職能修正版 09/13-G4</div>
     <div class="helper">員工可用簡單帳號登入，不需要自己的 Email。工作職能可複選。</div>
     <div class="card" style="box-shadow:none;margin-bottom:12px">
       <h2 style="font-size:19px">新增員工</h2>
@@ -487,14 +487,23 @@ function setEmployeeMsg(msg='',ok=false){const el=$('#employeeMsg');el.textConte
 const WORK_LABEL={stall:'攤位',packing:'包裝',driver:'司機',accounting:'帳務'};
 function roleOptions(current){return ['admin','operator','viewer'].map(r=>`<option value="${r}" ${current===r?'selected':''}>${ROLE_LABEL[r]}</option>`).join('');}
 function workRoleBadges(list=[]){return list.length?list.map(r=>`<span class="miniRole">${WORK_LABEL[r]||r}</span>`).join(''):'<span class="meta">未設定</span>';}
-function chooseWorkRoles(name,currentRoles=[],title='設定工作職能'){
+function chooseWorkRoles(name,currentRoles=[],title='設定工作職能',onConfirm=null){
   return new Promise(resolve=>{
-    const overlay=$('#workPickOverlay'), checks=[...overlay.querySelectorAll('input[type="checkbox"]')];
-    $('#workPickTitle').textContent=title; $('#workPickName').textContent=name||''; $('#workPickError').textContent='';
-    const cur=new Set(currentRoles||[]); checks.forEach(c=>c.checked=cur.has(c.value)); overlay.classList.add('show');
-    const close=v=>{overlay.classList.remove('show'); $('#workPickCancel').onclick=null; $('#workPickConfirm').onclick=null; resolve(v);};
-    $('#workPickCancel').onclick=()=>close(null);
-    $('#workPickConfirm').onclick=()=>{const roles=checks.filter(c=>c.checked).map(c=>c.value); if(!roles.length){$('#workPickError').textContent='請至少勾選一個工作職能';return;} close(roles);};
+    const overlay=$('#workPickOverlay');
+    const checks=[...overlay.querySelectorAll('input[type="checkbox"]')];
+    const cancelBtn=$('#workPickCancel'), confirmBtn=$('#workPickConfirm'), errBox=$('#workPickError');
+    $('#workPickTitle').textContent=title; $('#workPickName').textContent=name||''; errBox.textContent='';
+    const cur=new Set(currentRoles||[]); checks.forEach(c=>c.checked=cur.has(c.value));
+    overlay.classList.add('show');
+    const close=v=>{overlay.classList.remove('show'); cancelBtn.onclick=null; confirmBtn.onclick=null; confirmBtn.disabled=false; confirmBtn.textContent='確定'; resolve(v);};
+    cancelBtn.onclick=()=>close(null);
+    confirmBtn.onclick=async()=>{
+      const roles=checks.filter(c=>c.checked).map(c=>c.value);
+      if(!roles.length){errBox.textContent='請至少勾選一個工作職能';return;}
+      if(!onConfirm){close(roles);return;}
+      confirmBtn.disabled=true; confirmBtn.textContent='處理中…'; errBox.textContent='';
+      try{await onConfirm(roles); close(roles);}catch(e){errBox.textContent=e?.message||'處理失敗，請再試一次'; confirmBtn.disabled=false; confirmBtn.textContent='確定';}
+    };
   });
 }
 function renderEmployeeList(list=[]){
@@ -522,8 +531,11 @@ function renderEmployeeList(list=[]){
   });
   box.querySelectorAll('.emp-work').forEach(el=>el.onclick=async()=>{
     const cur=(el.dataset.roles||'').split(',').filter(Boolean);
-    const roles=await chooseWorkRoles(el.dataset.name,cur,'設定工作職能'); if(roles===null)return;
-    try{await callEmployeeManager('set_work_roles',{user_id:el.dataset.id,work_roles:roles});setEmployeeMsg('工作職能已更新',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}
+    const roles=await chooseWorkRoles(el.dataset.name,cur,'設定工作職能',async(selected)=>{
+      await callEmployeeManager('set_work_roles',{user_id:el.dataset.id,work_roles:selected});
+    });
+    if(roles===null)return;
+    setEmployeeMsg('工作職能已更新',true); await loadEmployees();
   });
   box.querySelectorAll('.emp-password').forEach(el=>el.onclick=async()=>{
     const name=el.dataset.name||'員工'; const p1=prompt(`請輸入「${name}」的新密碼（至少 6 碼）`); if(p1===null)return;
@@ -538,9 +550,10 @@ function renderEmployeeList(list=[]){
     try{
       if(isPending){
         const name=row?.querySelector('b')?.textContent||'新員工';
-        const roles=await chooseWorkRoles(name,[],'核准員工・選擇工作職能');
+        const roles=await chooseWorkRoles(name,[],'核准員工・選擇工作職能',async(selected)=>{
+          await callEmployeeManager('approve',{user_id:el.dataset.id,work_roles:selected});
+        });
         if(roles===null)return;
-        await callEmployeeManager('approve',{user_id:el.dataset.id,work_roles:roles});
         setEmployeeMsg(`「${name}」已核准並設定工作職能`,true);
       }else{
         await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});
@@ -665,5 +678,5 @@ window.addEventListener('focus',()=>{if(currentUser){loadOrders();enforceActiveS
 
 </script>
 
-<div id="workPickOverlay" class="workPickOverlay"><div class="workPickBox"><h2 id="workPickTitle">工作職能</h2><div id="workPickName" class="workPickName"></div><div class="workPickChoices"><label class="workPickChoice"><input type="checkbox" value="stall"> 🧾 攤位</label><label class="workPickChoice"><input type="checkbox" value="packing"> 📦 包裝</label><label class="workPickChoice"><input type="checkbox" value="driver"> 🚚 司機</label><label class="workPickChoice"><input type="checkbox" value="accounting"> 💰 帳務</label></div><div id="workPickError" class="employeeMsg err"></div><div class="workPickActions"><button id="workPickCancel" class="btn gray">取消</button><button id="workPickConfirm" class="btn primary">確定</button></div></div></div>
+<div id="workPickOverlay" class="workPickOverlay"><div class="workPickBox"><h2 id="workPickTitle">工作職能</h2><div id="workPickName" class="workPickName"></div><div class="workPickChoices"><label class="workPickChoice"><input type="checkbox" value="stall"> 🧾 攤位</label><label class="workPickChoice"><input type="checkbox" value="packing"> 📦 包裝</label><label class="workPickChoice"><input type="checkbox" value="driver"> 🚚 司機</label><label class="workPickChoice"><input type="checkbox" value="accounting"> 💰 帳務</label></div><div id="workPickError" class="employeeMsg err"></div><div class="workPickActions"><button id="workPickCancel" type="button" class="btn gray">取消</button><button id="workPickConfirm" type="button" class="btn primary">確定</button></div></div></div>
 </body></html>
