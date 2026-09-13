@@ -905,11 +905,15 @@ async function getPushSubscription(){
   return await reg.pushManager.getSubscription();
 }
 async function savePushSubscription(sub){
-  if(!currentUser||!sub)return;
+  if(!currentUser||!sub)throw new Error('尚未登入或推播訂閱不存在');
   const j=sub.toJSON();
   const row={user_id:currentUser.id,endpoint:j.endpoint,p256dh:j.keys?.p256dh||'',auth:j.keys?.auth||'',user_agent:navigator.userAgent,enabled:true,updated_at:new Date().toISOString()};
   const {error}=await sb.from('push_subscriptions').upsert(row,{onConflict:'endpoint'});
   if(error)throw error;
+  const {data:verify,error:verifyError}=await sb.from('push_subscriptions').select('id,user_id,endpoint,enabled').eq('endpoint',j.endpoint).eq('user_id',currentUser.id).eq('enabled',true).maybeSingle();
+  if(verifyError)throw verifyError;
+  if(!verify)throw new Error('手機推播訂閱沒有成功寫入資料庫');
+  return verify;
 }
 async function enablePushNotifications(){
   if(!currentUser){alert('請先登入');return false;}
@@ -924,9 +928,17 @@ async function enablePushNotifications(){
   const reg=await navigator.serviceWorker.ready;
   let sub=await reg.pushManager.getSubscription();
   if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(PUSH_VAPID_PUBLIC)});
-  await savePushSubscription(sub);
+  try{
+    await savePushSubscription(sub);
+  }catch(e){
+    console.error('推播訂閱儲存失敗',e);
+    alert('推播尚未真正啟用：'+(e?.message||e));
+    updatePwaPushButton();
+    return false;
+  }
   if(navigator.clearAppBadge){try{await navigator.clearAppBadge();}catch(e){}}
-  updatePwaPushButton();
+  await updatePwaPushButton();
+  alert('✅ 推播已真正啟用');
   return true;
 }
 async function updatePwaPushButton(){
@@ -934,7 +946,13 @@ async function updatePwaPushButton(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)){b.textContent='📱 加到桌面';return;}
   try{
     const sub=await getPushSubscription();
-    if(Notification.permission==='granted'&&sub){b.textContent='🔔 推播已開';b.className='btn primary';}
+    let serverSaved=false;
+    if(Notification.permission==='granted'&&sub&&currentUser){
+      const endpoint=sub.toJSON().endpoint;
+      const {data}=await sb.from('push_subscriptions').select('id').eq('endpoint',endpoint).eq('user_id',currentUser.id).eq('enabled',true).maybeSingle();
+      serverSaved=!!data;
+    }
+    if(Notification.permission==='granted'&&sub&&serverSaved){b.textContent='🔔 推播已開';b.className='btn primary';}
     else if(isStandalonePWA()){b.textContent='🔔 開啟推播';b.className='btn gray';}
     else{b.textContent='📱 安裝App';b.className='btn gray';}
   }catch(e){b.textContent='📱 App通知';b.className='btn gray';}
@@ -1247,6 +1265,9 @@ $('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_q
   // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
 setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();enforceActiveSession();}},AUTO_REFRESH_MS);
+// 貨運指派需要比一般資料更即時：可見時每 2 秒核對一次目前貨運單。
+// 篩選值存在 localStorage，不會因同步而跳回「懿」或其他預設頁。
+setInterval(()=>{if(currentUser&&document.visibilityState==='visible'&&activeTab==='delivery')loadDelivery();},2000);
 setInterval(()=>{if(currentUser&&currentProfile?.role==='admin'&&document.visibilityState==='visible')refreshPendingEmployeeBadge();},60000);
 document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();enforceActiveSession();}});
 window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery();enforceActiveSession();}});
