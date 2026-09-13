@@ -255,7 +255,7 @@ function renderWall(){
   </article>`;
  }).join(''):'<div class="empty">目前沒有待處理訂單</div>';
 }
-function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
+function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const d=new Date(b.created_at)-new Date(a.created_at);return d!==0?d:Number(b.id||0)-Number(a.id||0)});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
 window.toggleItem=async(itemId,newVal,orderId)=>{await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);if(o&&o.status==='waiting')await sb.from('orders').update({status:'packing'}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
 window.startPacking=async id=>{await sb.from('orders').update({status:'packing'}).eq('id',id);await loadOrders()};
@@ -266,22 +266,28 @@ $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch'
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
 $('#saveEdit').onclick=async()=>{const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
 const VALID_TABS=['stall','packing','wall','today'];
-$$('.tab').forEach(t=>t.onclick=()=>{
-  $$('.tab').forEach(x=>x.classList.remove('active'));
-  $$('.panel').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active');
-  $('#'+t.dataset.tab).classList.add('active');
-  localStorage.setItem('xinru_active_tab',t.dataset.tab);
-  const u=new URL(location.href);
-  u.searchParams.set('tab',t.dataset.tab);
-  history.replaceState(null,'',u);
+function activateTab(tabName,{save=true}={}){
+  if(!VALID_TABS.includes(tabName))tabName='stall';
+  $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tabName));
+  $$('.panel').forEach(x=>x.classList.toggle('active',x.id===tabName));
+  if(save){
+    try{localStorage.setItem('xinru_active_tab',tabName);}catch(e){}
+    // 用網址 hash 記住目前頁面，重新整理後仍停在原頁。
+    if(location.hash!==`#${tabName}`)history.replaceState(null,'',`${location.pathname}${location.search}#${tabName}`);
+  }
   renderAll();
+}
+$$('.tab').forEach(t=>t.onclick=()=>activateTab(t.dataset.tab));
+const hashTab=(location.hash||'').replace(/^#/,'');
+const queryTab=new URLSearchParams(location.search).get('tab');
+let savedTab='';
+try{savedTab=localStorage.getItem('xinru_active_tab')||'';}catch(e){}
+const initialTab=VALID_TABS.includes(hashTab)?hashTab:(VALID_TABS.includes(queryTab)?queryTab:(VALID_TABS.includes(savedTab)?savedTab:'stall'));
+activateTab(initialTab,{save:true});
+window.addEventListener('hashchange',()=>{
+  const t=(location.hash||'').replace(/^#/,'');
+  if(VALID_TABS.includes(t))activateTab(t,{save:true});
 });
-const requestedTab=new URLSearchParams(location.search).get('tab');
-const savedTab=localStorage.getItem('xinru_active_tab');
-const initialTab=VALID_TABS.includes(requestedTab)?requestedTab:(VALID_TABS.includes(savedTab)?savedTab:'stall');
-const initialTabButton=document.querySelector(`.tab[data-tab="${initialTab}"]`);
-if(initialTabButton)setTimeout(()=>initialTabButton.click(),0);
 $('#pickupTime').addEventListener('input',e=>{let v=e.target.value.replace(/[^0-9:]/g,'');if(/^\d{4}$/.test(v))v=v.slice(0,2)+':'+v.slice(2);e.target.value=v.slice(0,5)});
 $('#urgentSwitch').onclick=()=>{urgent=!urgent;$('#urgentSwitch').classList.toggle('on',urgent)};
 $('#takePhoto').onclick=()=>$('#photoInput').click();
