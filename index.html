@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="#f7f8fa" />
+<meta name="theme-color" content="#168c4e" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="欣儒系統" />
 <title>欣儒農產行｜內部作業系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -45,6 +50,7 @@
 .workPickOverlay{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:200005;display:none;align-items:center;justify-content:center;padding:18px}.workPickOverlay.show{display:flex}.workPickBox{background:#fff;border-radius:22px;padding:24px;width:min(520px,100%);box-shadow:0 20px 60px rgba(0,0,0,.25)}.workPickBox h2{margin:0 0 8px}.workPickName{color:#667085;margin-bottom:16px}.workPickChoices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 20px}.workPickChoice{display:flex;align-items:center;gap:10px;border:1px solid #d9e1ea;border-radius:16px;padding:15px;font-weight:800;cursor:pointer}.workPickChoice input{width:22px;height:22px}.workPickActions{display:flex;gap:10px}.workPickActions button{flex:1}@media(max-width:520px){.workPickChoices{grid-template-columns:1fr}}
 
 .deliveryHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.driverAssignLine{display:flex;align-items:center;gap:8px;justify-content:flex-start;margin-top:8px}.driverAssignMini{border:0;background:#eef2f6;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:900;cursor:pointer}.driverAssignOverlay{position:fixed;inset:0;background:rgba(0,0,0,.38);display:flex;align-items:flex-end;justify-content:center;padding:12px;z-index:100010}.driverAssignBox{width:min(520px,100%);background:#fff;border-radius:20px;padding:14px;box-shadow:0 18px 60px rgba(0,0,0,.24);max-height:70vh;overflow:auto}.driverAssignHead{display:flex;align-items:center;justify-content:space-between;font-size:19px;margin-bottom:10px}.driverAssignClose{border:0;background:#eef2f6;border-radius:999px;width:34px;height:34px;font-size:24px;line-height:1;cursor:pointer}.driverAssignChoices{display:grid;gap:8px}.driverAssignChoice{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px 14px;font-size:16px;font-weight:900;cursor:pointer}.driverAssignChoice.active{background:#dbeeff;border-color:#a8d5ff;color:#1e5f94}
 .driverFilters{display:flex;gap:8px;overflow-x:auto;padding:8px 0 14px;white-space:nowrap}
 .driverChip{border:1px solid #dfe3e8;background:#fff;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer}
 .driverChip.active{background:#dbeeff;color:#1e5f94;border-color:#a8d5ff}
@@ -86,7 +92,7 @@
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
     <div class="title">欣儒農產行｜內部作業系統</div>
-    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
+    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray" style="padding:6px 10px;font-size:12px">📱 App通知</button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs">
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
       <button class="tab" data-tab="delivery">🚚 貨運部<div class="th">配送作業</div></button>
@@ -290,9 +296,14 @@ const MAP={
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
 const SOUND_PREF_KEY='xinru_sound_enabled';
+const PUSH_VAPID_PUBLIC='BJ-cj-c6DJsGne_Zh0XhWTFa-krMd2TpmdEtbOVEvjymdakhwv3eoV8Q1vAhIT7Jt4R4WoNylvw9uDomcPXBuGo';
+let deferredInstallPrompt=null;
 try{soundEnabled=localStorage.getItem(SOUND_PREF_KEY)==='1';}catch(e){}
 let currentUser=null; let currentProfile=null; let appStarted=false;
-let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter='all'; let deliveryQueryDriverFilter='all'; let deliveryRecordMode='date'; let orderQueryMode='packing';
+let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter='all'; let deliveryQueryDriverFilter='all'; let deliveryRecordMode='date';
+let orderQueryMode='packing';
+try{const savedQueryMode=localStorage.getItem('xinru_order_query_mode');if(savedQueryMode==='delivery'||savedQueryMode==='packing')orderQueryMode=savedQueryMode;}catch(e){}
+let deliveryAssignmentBaselineReady=false; let knownMyAssignedJobIds=new Set();
 const ROLE_LABEL={admin:'系統管理員',operator:'作業人員',viewer:'瀏覽人員'};
 const canWrite=()=>currentProfile&&['admin','operator'].includes(currentProfile.role);
 const actorFields=(kind='updated')=>{if(!currentUser||!currentProfile)return {}; if(kind==='created')return {created_by:currentUser.id,created_by_name:currentProfile.display_name}; if(kind==='completed')return {completed_by:currentUser.id,completed_by_name:currentProfile.display_name,updated_by:currentUser.id,updated_by_name:currentProfile.display_name}; return {updated_by:currentUser.id,updated_by_name:currentProfile.display_name};};
@@ -459,6 +470,18 @@ async function loadDelivery(){
   const {data,error}=await q.order('delivery_date',{ascending:false}).order('created_at',{ascending:false});
   if(error){console.error(error);const b=$('#deliveryBody');if(b)b.innerHTML=`<div class="empty" style="color:#b4232c">配送資料讀取失敗：${esc(error.message)}</div>`;return}
   deliveryJobs=data||[];
+  // 司機被新指派／重新指派時，就算 Realtime 偶爾漏掉，也會在重新載入時補響一次。
+  if(currentIsDriver()){
+    const nowMine=new Set(deliveryJobs.filter(j=>j.assigned_driver_id===currentUser.id&&j.status==='assigned').map(j=>String(j.id)));
+    if(!deliveryAssignmentBaselineReady){
+      knownMyAssignedJobIds=nowMine;
+      deliveryAssignmentBaselineReady=true;
+    }else{
+      const hasNew=[...nowMine].some(id=>!knownMyAssignedJobIds.has(id));
+      knownMyAssignedJobIds=nowMine;
+      if(hasNew&&shouldHearFreight())playFreightSound();
+    }
+  }
   renderDelivery();
   if(deliveryRecordMode)window.setDeliveryRecordMode(deliveryRecordMode);
   if(orderQueryMode==='delivery')renderToday();
@@ -485,7 +508,10 @@ function renderDelivery(){
   let arr=[...deliveryJobs].filter(x=>x.status!=='completed');
   if(!canManageFreight())arr=arr.filter(x=>(x.assigned_driver_id===currentUser.id)||(!x.assigned_driver_id&&x.status==='waiting'));
   if(deliveryDriverFilter==='unassigned')arr=arr.filter(x=>!x.assigned_driver_id&&x.status==='waiting');
-  else if(deliveryDriverFilter!=='all')arr=arr.filter(x=>x.assigned_driver_id===deliveryDriverFilter);
+  else if(deliveryDriverFilter!=='all'){
+    if(!canManageFreight()&&deliveryDriverFilter===currentUser.id)arr=arr.filter(x=>x.assigned_driver_id===currentUser.id||(!x.assigned_driver_id&&x.status==='waiting'));
+    else arr=arr.filter(x=>x.assigned_driver_id===deliveryDriverFilter);
+  }
   arr.sort((a,b)=>(Number(!!b.is_urgent)-Number(!!a.is_urgent)) || String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
   body.innerHTML=arr.length?arr.map(renderDeliveryCard).join(''):'<div class="empty">目前沒有待處理貨運單</div>';
 }
@@ -502,13 +528,17 @@ function renderDeliveryQueryDriverFilters(){
   box.innerHTML=chips.map(x=>`<button class="driverChip ${deliveryQueryDriverFilter===x.id?'active':''}" onclick="setDeliveryQueryDriverFilter('${esc(x.id)}')">${esc(x.name)}</button>`).join('');
 }
 window.setDeliveryQueryDriverFilter=id=>{deliveryQueryDriverFilter=id;renderToday()};
+function renderDriverReplies(text){
+  if(!text)return '';
+  return String(text).split(/\n+/).filter(Boolean).map(line=>`<div class="meta" style="white-space:normal">💬 ${esc(line)}</div>`).join('');
+}
 function deliveryRecordTable(arr,label){
   const box=$('#todayBody');if(!box)return;
   if(!canManageFreight())arr=arr.filter(j=>j.assigned_driver_id===currentUser?.id);
   else if(deliveryQueryDriverFilter!=='all')arr=arr.filter(j=>j.assigned_driver_id===deliveryQueryDriverFilter);
   renderDeliveryQueryDriverFilters();
   const sorted=[...arr].sort((a,b)=>String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
-  box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>客戶</th><th>司機</th><th>狀態</th><th>送達資料</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}<div class="meta">${fmtDateTime(j.created_at)}</div></td><td><b>${j.is_urgent?'🚨 ':''}${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div>${j.request_text?`<div class="meta" style="white-space:normal;max-width:280px">${esc(j.request_text).replace(/\n/g,'<br>')}</div>`:''}</td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}${j.driver_reply?`<div class="meta">📣 ${esc(j.driver_reply)}</div>`:''}</td><td>${j.completed_at?`<div>${fmtDateTime(j.completed_at)}</div>`:''}${j.delivery_photo_url?`<div><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:(j.proof_required?'<div class="meta">📷 待回傳</div>':'')}${j.collected_amount!=null?`<div>💰 實收 $${esc(j.collected_amount)}</div>`:''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
+  box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>客戶</th><th>司機</th><th>狀態</th><th>送達資料</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}<div class="meta">${fmtDateTime(j.created_at)}</div></td><td><b>${j.is_urgent?'🚨 ':''}${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div>${j.request_text?`<div class="meta" style="white-space:normal;max-width:280px">${esc(j.request_text).replace(/\n/g,'<br>')}</div>`:''}</td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}${renderDriverReplies(j.driver_reply)}</td><td>${j.completed_at?`<div>${fmtDateTime(j.completed_at)}</div>`:''}${j.delivery_photo_url?`<div><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:(j.proof_required?'<div class="meta">📷 待回傳</div>':'')}${j.collected_amount!=null?`<div>💰 實收 $${esc(j.collected_amount)}</div>`:''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
 }
 window.setDeliveryRecordMode=mode=>{
   deliveryRecordMode=mode;
@@ -526,7 +556,6 @@ function renderDeliveryCard(j){
   const canAssign=canManageFreight()&&canWrite()&&!['delivering','completed'].includes(j.status);
   const canEdit=canManageFreight()&&canWrite()&&j.status!=='completed';
   const canDelete=canManageFreight()&&canWrite()&&(currentProfile?.role==='admin'||j.status!=='completed');
-  const opts='<option value="">尚未指派</option>'+deliveryDrivers.map(d=>`<option value="${esc(d.user_id)}" ${j.assigned_driver_id===d.user_id?'selected':''}>${esc(deliveryDisplayName(d.display_name))}</option>`).join('');
   let actions='';
   if(canClaim)actions+=`<button class="btn primary" onclick="claimDelivery(${j.id})">🙋 我要配送</button>`;
   if(canOperate&&j.status==='assigned')actions+=`<button class="btn primary" onclick="acceptDelivery(${j.id})">接單</button>`;
@@ -535,17 +564,16 @@ function renderDeliveryCard(j){
   if(canOperate&&['assigned','accepted','delivering'].includes(j.status))actions+=`<button class="btn gray" onclick="replyDelivery(${j.id})">💬 回覆</button>`;
   return `<div class="deliveryCard ${j.status==='completed'?'completed':''} ${j.is_urgent?'urgent':''}">
     <div class="orderHead"><div><div style="font-size:21px;font-weight:900">${esc(j.customer||'未填客戶')} ${j.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(j.delivery_no)}｜配送 ${esc(j.delivery_date||'')}</div></div>${deliveryStatusBadge(j.status)}</div>
-    <div style="margin-top:8px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>
+    ${canAssign?`<div class="driverAssignLine"><span><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</span><button class="driverAssignMini" onclick="openDriverPicker(${j.id})">${j.assigned_driver_id?'更換':'指派'}</button></div>`:`<div style="margin-top:8px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>`}
     ${j.pickup_time?`<div class="meta" style="margin-top:6px">取貨時間：${esc(j.pickup_time)}</div>`:''}
     ${j.request_text?`<div class="urgentRow" style="margin-top:10px;background:#f8fafc;border-color:#e2e8f0"><div><b>品項：</b><br>${esc(j.request_text).replace(/\n/g,'<br>')}</div></div>`:''}
     ${j.slip_photo_url?`<a href="${esc(j.slip_photo_url)}" target="_blank" rel="noopener"><img class="deliveryPhoto" src="${esc(j.slip_photo_url)}" alt="訂單照片"></a>`:''}
     ${(j.proof_required||j.payment_required)?`<div class="meta" style="margin-top:8px;font-weight:800">${j.proof_required?'📷 需送達照片　':''}${j.payment_required?'💰 需收款':''}</div>`:''}
-    ${j.driver_reply?`<div class="urgentRow" style="margin-top:8px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 司機回覆：</b>${esc(j.driver_reply)}</div></div>`:''}
+    ${j.driver_reply?`<div class="urgentRow" style="margin-top:8px;background:#eef7ff;border-color:#cfe7ff"><div><b>💬 司機回覆</b>${renderDriverReplies(j.driver_reply)}</div></div>`:''}
     ${j.delivery_photo_url?`<div style="margin-top:8px"><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:''}
     ${j.collected_amount!=null?`<div class="meta" style="font-weight:800">💰 實收 $${esc(j.collected_amount)}</div>`:''}
     ${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}
     ${j.completed_at?`<div class="meta" style="margin-top:7px">✅ ${esc(deliveryDisplayName(j.assigned_driver_name||''))} 已送達｜${fmtDateTime(j.completed_at)}</div>`:''}
-    ${canAssign?`<div class="actions" style="margin-top:10px"><select class="input" id="assignDriver_${j.id}" style="max-width:200px">${opts}</select><button class="btn gray" onclick="assignDelivery(${j.id})">指派／更換</button></div>`:''}
     ${(canEdit||canDelete)?`<div class="empMiniActions">${canEdit?`<button class="btn gray" onclick="openDeliveryEdit(${j.id})">✏️ 修改</button>`:''}${canDelete?`<button class="btn red" onclick="deleteDelivery(${j.id})">🗑️ 刪除</button>`:''}</div>`:''}
     ${actions?`<div class="actions" style="margin-top:10px">${actions}</div>`:''}
   </div>`;
@@ -556,10 +584,26 @@ async function updateDelivery(id,patch){
   if(error){alert('更新失敗：'+error.message);return}
   await loadDelivery();
 }
-window.assignDelivery=async id=>{
-  const sel=$(`#assignDriver_${id}`);if(!sel)return;
-  const uid=sel.value,driver=deliveryDrivers.find(x=>x.user_id===uid);
+window.openDriverPicker=id=>{
+  const j=deliveryJobs.find(x=>x.id===id);if(!j||!canManageFreight()||!canWrite()||['delivering','completed'].includes(j.status))return;
+  let overlay=document.getElementById('driverAssignOverlay');
+  if(overlay)overlay.remove();
+  overlay=document.createElement('div');overlay.id='driverAssignOverlay';overlay.className='driverAssignOverlay';
+  const options=[{user_id:'',display_name:'尚未指派'},...deliveryDrivers];
+  overlay.innerHTML=`<div class="driverAssignBox"><div class="driverAssignHead"><b>${j.assigned_driver_id?'更換司機':'指派司機'}</b><button type="button" class="driverAssignClose" onclick="closeDriverPicker()">×</button></div><div class="driverAssignChoices">${options.map(d=>{const uid=d.user_id||'';const name=uid?deliveryDisplayName(d.display_name):'尚未指派';const active=(j.assigned_driver_id||'')===uid;return `<button type="button" class="driverAssignChoice ${active?'active':''}" onclick="chooseDeliveryDriver(${j.id},'${esc(uid)}')">${uid?'🚚 ':'⏳ '}${esc(name)}</button>`}).join('')}</div><div class="meta" style="margin-top:8px">點司機名字就立即生效</div></div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeDriverPicker();});
+  document.body.appendChild(overlay);
+};
+window.closeDriverPicker=()=>{document.getElementById('driverAssignOverlay')?.remove();};
+window.chooseDeliveryDriver=async(id,uid)=>{
+  const j=deliveryJobs.find(x=>x.id===id);if(!j)return;
+  if(['delivering','completed'].includes(j.status)){closeDriverPicker();alert('已開始配送，不能直接更換司機');return;}
+  const oldUid=j.assigned_driver_id||'';
+  if(oldUid===uid){closeDriverPicker();return;}
+  const driver=deliveryDrivers.find(x=>x.user_id===uid);
+  closeDriverPicker();
   await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null});
+  if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${j.customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
 };
 window.claimDelivery=async id=>{
   if(!currentIsDriver()){alert('你的工作職能不是司機');return}
@@ -586,8 +630,14 @@ window.completeDelivery=async id=>{
 };
 window.replyDelivery=async id=>{
   const j=deliveryJobs.find(x=>x.id===id);if(!j||j.assigned_driver_id!==currentUser?.id)return;
-  const v=prompt('貨運回覆',j.driver_reply||'');if(v===null)return;
-  await updateDelivery(id,{driver_reply:v.trim()||null});
+  const v=prompt('貨運回覆','');if(v===null)return;
+  const text=v.trim();if(!text)return;
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0');
+  const who=deliveryDisplayName(currentProfile?.display_name||'司機');
+  const line=`${hh}:${mm}｜${who}：${text}`;
+  const merged=j.driver_reply?`${j.driver_reply}\n${line}`:line;
+  await updateDelivery(id,{driver_reply:merged});
 };
 window.openDeliveryEdit=id=>{
   if(!canManageFreight()||!canWrite())return;
@@ -699,20 +749,22 @@ $('#submitOrder').onclick=async()=>{
       if(error)throw error;
       if(lines.length){const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;}
       await loadOrders();
+      await sendXinruPush({targetRole:'packing',title:urgent?'🚨 包裝急單':'📦 包裝新單',body:`${customer}${pickup?`｜取貨 ${pickup}`:''}`,url:'./#packing',tag:`packing-${order.id}`,kind:'packing',urgent});
       alert('已送到包裝部與電視牆');
     }else{
       const uid=$('#stallDeliveryDriver')?.value||'';
       const driver=deliveryDrivers.find(x=>x.user_id===uid);
-      const {error}=await sb.from('delivery_jobs').insert({
+      const {data:freight,error}=await sb.from('delivery_jobs').insert({
         delivery_no:deliveryNo(),customer,delivery_date:$('#orderDate').value||taipeiDate(),
         slip_photo_url:photoUrl||null,request_text:lines.length?lines.join('\n'):null,pickup_time:pickup||null,is_urgent:urgent,
         proof_required:!!$('#deliveryPhotoRequired')?.checked,payment_required:!!$('#deliveryPaymentRequired')?.checked,
         note:$('#note').value.trim()||null,status:uid?'assigned':'waiting',assigned_driver_id:uid||null,
         assigned_driver_name:driver?deliveryDisplayName(driver.display_name):null,created_by:currentUser.id,
         created_by_name:currentProfile.display_name,source:'stall'
-      });
+      }).select('id,delivery_no').single();
       if(error)throw error;
       await loadDelivery();
+      await sendXinruPush({targetRole:'driver',title:urgent?'🚨 貨運急單':'🚚 貨運新單',body:`${customer}${uid&&driver?`｜指定 ${deliveryDisplayName(driver.display_name)}`:'｜尚未指派'}`,url:'./#delivery',tag:`freight-${freight.id}`,kind:'freight',urgent});
       alert(uid?'已送到貨運部並指定司機':'已送到貨運部，等待司機接單');
     }
     $('#customer').value='';$('#pickupTime').value='';$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();
@@ -808,6 +860,80 @@ function playFreightSound(){
 ['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(soundEnabled)unlockAudio();},{passive:true}));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&soundEnabled)unlockAudio();});
 updateSoundReadyUI(soundEnabled);
+
+function isStandalonePWA(){return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone===true;}
+function urlBase64ToUint8Array(base64String){const padding='='.repeat((4-base64String.length%4)%4);const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
+async function registerXinruServiceWorker(){
+  if(!('serviceWorker' in navigator))return null;
+  try{return await navigator.serviceWorker.register('./sw.js',{scope:'./'});}catch(e){console.warn('Service Worker 註冊失敗',e);return null;}
+}
+async function getPushSubscription(){
+  if(!('serviceWorker' in navigator))return null;
+  const reg=await navigator.serviceWorker.ready;
+  return await reg.pushManager.getSubscription();
+}
+async function savePushSubscription(sub){
+  if(!currentUser||!sub)return;
+  const j=sub.toJSON();
+  const row={user_id:currentUser.id,endpoint:j.endpoint,p256dh:j.keys?.p256dh||'',auth:j.keys?.auth||'',user_agent:navigator.userAgent,enabled:true,updated_at:new Date().toISOString()};
+  const {error}=await sb.from('push_subscriptions').upsert(row,{onConflict:'endpoint'});
+  if(error)throw error;
+}
+async function enablePushNotifications(){
+  if(!currentUser){alert('請先登入');return false;}
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){alert('這台裝置目前不支援網頁推播');return false;}
+  const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
+  if(isiOS&&!isStandalonePWA()){
+    alert('iPhone 要先把「欣儒系統」加入主畫面。\n\nSafari 下方分享 → 加入主畫面 → 從桌面的「欣儒系統」打開，再按一次「📱 App通知」。');
+    return false;
+  }
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted'){alert('通知權限沒有開啟。之後可到手機設定 → 通知 → 欣儒系統重新開啟。');return false;}
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(PUSH_VAPID_PUBLIC)});
+  await savePushSubscription(sub);
+  if(navigator.clearAppBadge){try{await navigator.clearAppBadge();}catch(e){}}
+  updatePwaPushButton();
+  return true;
+}
+async function updatePwaPushButton(){
+  const b=$('#pwaPushBtn');if(!b)return;
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){b.textContent='📱 加到桌面';return;}
+  try{
+    const sub=await getPushSubscription();
+    if(Notification.permission==='granted'&&sub){b.textContent='🔔 推播已開';b.className='btn primary';}
+    else if(isStandalonePWA()){b.textContent='🔔 開啟推播';b.className='btn gray';}
+    else{b.textContent='📱 安裝App';b.className='btn gray';}
+  }catch(e){b.textContent='📱 App通知';b.className='btn gray';}
+}
+async function sendXinruPush({targetRole=null,targetUserId=null,title='欣儒系統',body='',url='./',tag='xinru-work',kind='',urgent=false}={}){
+  try{
+    const {error}=await sb.functions.invoke('send-push',{body:{target_role:targetRole,target_user_id:targetUserId,title,body,url,tag,kind,urgent}});
+    if(error)console.warn('推播送出失敗',error);
+  }catch(e){console.warn('推播送出失敗',e);}
+}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;updatePwaPushButton();});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updatePwaPushButton();});
+$('#pwaPushBtn').onclick=async()=>{
+  if(deferredInstallPrompt&&!isStandalonePWA()){
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt=null;
+    updatePwaPushButton();
+    return;
+  }
+  await enablePushNotifications();
+};
+registerXinruServiceWorker();
+navigator.serviceWorker?.addEventListener('message',event=>{
+  if(event.data?.type==='PUSH_RECEIVED'){
+    const p=event.data.payload||{};
+    if(p.kind==='packing'&&shouldHearPacking())playOrderSound(!!p.urgent);
+    if(p.kind==='freight'&&shouldHearFreight())playFreightSound();
+  }
+});
+
 function employeeErrorText(err,fallback='員工管理操作失敗'){
   const safe=(v)=>{
     if(v==null)return '';
@@ -958,6 +1084,7 @@ function showApp(){
   $('#currentUserName').textContent=`👤 ${shownName}`;
   $('#currentUserRole').textContent=`｜職務：${workText}`;
   applyRoleUI();
+  updatePwaPushButton();
 }
 async function startApp(user){
   try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}if(currentIsDriver()&&!canManageFreight()){deliveryDriverFilter=currentUser.id;}if(Array.isArray(currentProfile.work_roles)&&currentProfile.work_roles.length===1&&currentProfile.work_roles[0]==='driver'){activateTab('delivery',{save:true});}}
@@ -1025,11 +1152,11 @@ function checkDeliveryOverdue(){
 setInterval(()=>{if(document.visibilityState==='visible')checkDeliveryOverdue();},60000);
 
 const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{if(!currentUser)return;const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);if(shouldHearPacking())playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>{if(currentUser)loadOrders()}).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
-const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{if(!currentUser)return;const n=payload.new||{};if(payload.eventType==='INSERT'&&shouldHearFreight())playFreightSound();if(payload.eventType==='UPDATE'&&currentIsDriver()&&n.assigned_driver_id===currentUser.id&&n.status==='assigned')playFreightSound();loadDelivery()}).subscribe();
+const deliveryChannel=sb.channel('xinru-delivery-live').on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{if(!currentUser)return;const n=payload.new||{};if(payload.eventType==='INSERT'&&shouldHearFreight())playFreightSound();loadDelivery()}).subscribe();
 $('#queryDateBtn').onclick=()=>renderToday();
 $('#queryDate').onchange=()=>renderToday();
-$('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';renderToday()};
-$('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';deliveryRecordMode='date';renderToday()};
+$('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';try{localStorage.setItem('xinru_order_query_mode','packing')}catch(e){}renderToday()};
+$('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';deliveryRecordMode='date';try{localStorage.setItem('xinru_order_query_mode','delivery')}catch(e){}renderToday()};
 $('#deliveryQueryDateBtn').onclick=()=>renderDeliveryRecordQuery();
 $('#deliveryQueryDate').onchange=()=>renderDeliveryRecordQuery();
 $('#deliveryQueryDateBtn').onclick=()=>renderDeliveryRecordQuery();
