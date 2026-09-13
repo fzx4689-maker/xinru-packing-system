@@ -255,7 +255,7 @@ function renderWall(){
   </article>`;
  }).join(''):'<div class="empty">目前沒有待處理訂單</div>';
 }
-function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const d=new Date(b.created_at)-new Date(a.created_at);return d!==0?d:Number(b.id||0)-Number(a.id||0)});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
+function renderToday(){const b=$('#todayBody');const q=$('#queryDate')?.value||new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'});const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📅 ${q}｜共 ${arr.length} 張訂單</div><table class="table"><thead><tr><th>下單時間</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📅 ${q} 沒有訂單</div>`}
 window.toggleItem=async(itemId,newVal,orderId)=>{await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);if(o&&o.status==='waiting')await sb.from('orders').update({status:'packing'}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
 window.startPacking=async id=>{await sb.from('orders').update({status:'packing'}).eq('id',id);await loadOrders()};
@@ -277,13 +277,17 @@ function activateTab(tabName,{save=true}={}){
   }
   renderAll();
 }
-$$('.tab').forEach(t=>t.onclick=()=>activateTab(t.dataset.tab));
-const hashTab=(location.hash||'').replace(/^#/,'');
-const queryTab=new URLSearchParams(location.search).get('tab');
-let savedTab='';
-try{savedTab=localStorage.getItem('xinru_active_tab')||'';}catch(e){}
-const initialTab=VALID_TABS.includes(hashTab)?hashTab:(VALID_TABS.includes(queryTab)?queryTab:(VALID_TABS.includes(savedTab)?savedTab:'stall'));
-activateTab(initialTab,{save:true});
+$$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
+function getRememberedTab(){
+  const hashTab=(location.hash||'').replace(/^#/,'');
+  if(VALID_TABS.includes(hashTab)) return hashTab;
+  try{const saved=localStorage.getItem('xinru_active_tab');if(VALID_TABS.includes(saved))return saved;}catch(e){}
+  const queryTab=new URLSearchParams(location.search).get('tab');
+  if(VALID_TABS.includes(queryTab)) return queryTab;
+  return 'stall';
+}
+activateTab(getRememberedTab(),{save:true});
+window.addEventListener('pageshow',()=>activateTab(getRememberedTab(),{save:false}));
 window.addEventListener('hashchange',()=>{
   const t=(location.hash||'').replace(/^#/,'');
   if(VALID_TABS.includes(t))activateTab(t,{save:true});
