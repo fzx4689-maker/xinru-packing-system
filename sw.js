@@ -1,143 +1,94 @@
-const CACHE_NAME = "xinru-pwa-v2";
+const SW_VERSION = 'xinru-pwa-v3-ios';
 
-const APP_FILES = [
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
-];
-
-// 安裝
-self.addEventListener("install", (event) => {
+self.addEventListener('install', event => {
   self.skipWaiting();
-
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_FILES))
-      .catch(() => null)
-  );
 });
 
-// 啟用新版
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-
-      caches.keys().then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-        )
-      )
-    ])
-  );
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
 });
 
-// 網路優先
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const copy = response.clone();
-
-        caches.open(CACHE_NAME)
-          .then((cache) => cache.put(event.request, copy))
-          .catch(() => {});
-
-        return response;
-      })
-      .catch(() =>
-        caches.match(event.request)
-          .then((cached) => cached || caches.match("./index.html"))
-      )
-  );
-});
-
-// 收到手機 Push
-self.addEventListener("push", (event) => {
+self.addEventListener('push', event => {
   let data = {};
 
   try {
     data = event.data ? event.data.json() : {};
-  } catch (_) {
+  } catch (e) {
     data = {
-      title: "欣儒系統",
-      body: event.data ? event.data.text() : "有新的工作通知"
+      title: '欣儒系統',
+      body: event.data ? event.data.text() : '有新的通知'
     };
   }
 
-  const title = data.title || "欣儒系統";
+  const title = data.title || '欣儒系統';
 
   const options = {
-    body: data.body || "有新的工作通知",
-    icon: "./icon-192.png",
-    badge: "./icon-192.png",
-    tag: data.tag || ("xinru-work-" + Date.now()),
+    body: data.body || '有新的工作通知',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: data.tag || 'xinru-work',
     renotify: true,
-    requireInteraction: !!data.urgent,
-
     data: {
-      url: data.url || "./",
-      kind: data.kind || "",
-      target_user_id: data.target_user_id || null
-    }
+      url: data.url || './'
+    },
+    silent: false
   };
 
-  event.waitUntil(
-    Promise.all([
-      // 不管 App 在前景、背景或關閉
-      // 都一定顯示手機系統通知
-      self.registration.showNotification(title, options),
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    });
 
-      // 如果 App 有開著，再通知網頁播放自訂提醒聲
-      self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true
-      }).then((clients) => {
-        clients.forEach((client) => {
-          if (client.visibilityState === "visible") {
-            client.postMessage({
-              type: "PUSH_RECEIVED",
-              payload: data
-            });
-          }
-        });
-      })
-    ])
-  );
+    windows.forEach(client => {
+      client.postMessage({
+        type: 'PUSH_RECEIVED',
+        payload: data
+      });
+    });
+
+    if (self.registration.setAppBadge) {
+      try {
+        await self.registration.setAppBadge(1);
+      } catch (e) {}
+    }
+
+    await self.registration.showNotification(title, options);
+  })());
 });
 
-// 點手機通知
-self.addEventListener("notificationclick", (event) => {
+self.addEventListener('notificationclick', event => {
   event.notification.close();
 
-  const targetUrl =
-    event.notification?.data?.url || "./";
+  const target = new URL(
+    event.notification.data?.url || './',
+    self.location.origin
+  ).href;
 
-  event.waitUntil(
-    self.clients.matchAll({
-      type: "window",
+  event.waitUntil((async () => {
+    if (self.registration.clearAppBadge) {
+      try {
+        await self.registration.clearAppBadge();
+      } catch (e) {}
+    }
+
+    const windows = await self.clients.matchAll({
+      type: 'window',
       includeUncontrolled: true
-    }).then(async (clients) => {
+    });
 
-      for (const client of clients) {
-        if ("focus" in client) {
-          try {
-            await client.navigate(targetUrl);
-          } catch (_) {}
+    for (const client of windows) {
+      if ('focus' in client) {
+        try {
+          await client.navigate(target);
+        } catch (e) {}
 
-          return client.focus();
-        }
+        return client.focus();
       }
+    }
 
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-    })
-  );
+    if (self.clients.openWindow) {
+      return self.clients.openWindow(target);
+    }
+  })());
 });
