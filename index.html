@@ -466,8 +466,9 @@ function deliveryStatusBadge(st){return `<span class="deliveryStatus ds-${esc(st
 function currentIsDriver(){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes('driver')}
 function currentIsStall(){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes('stall')}
 function hasWorkRole(role){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes(role)}
-function shouldHearPacking(){return currentProfile?.role==='admin'||hasWorkRole('packing')}
-function shouldHearFreight(){return currentProfile?.role==='admin'||hasWorkRole('driver')}
+function hasNotification(kind){return Array.isArray(currentProfile?.notification_permissions)&&currentProfile.notification_permissions.includes(kind)}
+function shouldHearPacking(){return hasNotification('packing')}
+function shouldHearFreight(){return hasNotification('delivery')}
 function shouldHearFreightJob(job){
   if(!currentUser||!shouldHearFreight()||!job)return false;
   const assigned=String(job.assigned_driver_id||'');
