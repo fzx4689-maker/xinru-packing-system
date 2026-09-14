@@ -1,4 +1,4 @@
-const CACHE_NAME = "xinru-pwa-v1";
+const CACHE_NAME = "xinru-pwa-v2";
 
 const APP_FILES = [
   "./",
@@ -36,7 +36,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// 網路優先，避免系統一直卡在舊版
+// 網路優先
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
@@ -77,39 +77,38 @@ self.addEventListener("push", (event) => {
     body: data.body || "有新的工作通知",
     icon: "./icon-192.png",
     badge: "./icon-192.png",
-    tag: data.tag || "xinru-work",
+    tag: data.tag || ("xinru-work-" + Date.now()),
     renotify: true,
     requireInteraction: !!data.urgent,
+
     data: {
       url: data.url || "./",
-      kind: data.kind || ""
+      kind: data.kind || "",
+      target_user_id: data.target_user_id || null
     }
   };
 
   event.waitUntil(
-    self.clients.matchAll({
-      type: "window",
-      includeUncontrolled: true
-    }).then((clients) => {
+    Promise.all([
+      // 不管 App 在前景、背景或關閉
+      // 都一定顯示手機系統通知
+      self.registration.showNotification(title, options),
 
-      // App 正在前景開著時，交給網頁內的提醒聲處理，
-      // 避免同一張訂單「系統通知 + 網頁聲音」重複提醒。
-      const visibleClient = clients.find(
-        (client) => client.visibilityState === "visible"
-      );
-
-      if (visibleClient) {
-        visibleClient.postMessage({
-          type: "PUSH_RECEIVED",
-          payload: data
+      // 如果 App 有開著，再通知網頁播放自訂提醒聲
+      self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true
+      }).then((clients) => {
+        clients.forEach((client) => {
+          if (client.visibilityState === "visible") {
+            client.postMessage({
+              type: "PUSH_RECEIVED",
+              payload: data
+            });
+          }
         });
-
-        return;
-      }
-
-      // App 在背景或關閉時，顯示手機系統通知。
-      return self.registration.showNotification(title, options);
-    })
+      })
+    ])
   );
 });
 
