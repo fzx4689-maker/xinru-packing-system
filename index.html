@@ -110,6 +110,7 @@
 .accountTotals{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}.accountTotalBox{border:1px solid var(--line);border-radius:11px;padding:8px;background:#fff}
 .accountTotalBox b{display:block;font-size:18px;margin-top:2px}.accountRecords{display:grid;gap:6px;margin-top:8px}.accountRecord{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff;display:flex;justify-content:space-between;gap:8px}
 .freightBox,.basketBox{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:8px;margin-top:7px;border:1px dashed #cfd5dc;border-radius:11px;background:#fff}.freightBox .field,.basketBox .field{margin:0}
+.acctQueryBox{border:1px solid var(--line);border-radius:14px;padding:10px;background:#fff;margin-top:12px}.acctQueryHead{display:grid;grid-template-columns:1fr auto;gap:7px}.acctQueryTabs{display:flex;gap:5px;overflow-x:auto;margin:8px 0}.acctQueryTab{border:1px solid var(--line);background:#f6f8fa;border-radius:999px;padding:7px 10px;font-weight:900;white-space:nowrap;cursor:pointer}.acctQueryTab.active{background:#dbeeff;color:#1e5f94;border-color:#9cccf5}.acctCustomerSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:7px 0}.acctHistoryLine{display:grid;grid-template-columns:95px 1fr auto;gap:7px;padding:8px 3px;border-bottom:1px solid var(--line);align-items:center}.acctHistoryLine:last-child{border-bottom:0}
 
 /* 電視牆頁面只保留頁籤列，讓訂單從畫面最上方開始。 */
 body.wall-focus .title,body.wall-focus .sync,body.wall-focus .userBar{display:none!important}
@@ -189,6 +190,8 @@ body.wall-focus #wall>.card>.helper{display:none}
   #accounting .accountItems .accountItemLine{grid-template-columns:1.4fr .6fr .8fr auto;font-size:12px}
   #accounting .accountTotals{gap:4px}.accountTotalBox{padding:6px;font-size:11px}.accountTotalBox b{font-size:15px}
   #accounting .freightBox,#accounting .basketBox{grid-template-columns:1fr 1fr;gap:5px}
+  #accounting .acctCustomerSummary{grid-template-columns:1fr 1fr}
+  #accounting .acctHistoryLine{grid-template-columns:72px 1fr auto;font-size:12px}
 }
 
 </style>
@@ -224,10 +227,10 @@ body.wall-focus #wall>.card>.helper{display:none}
     <div class="title">欣儒農產行｜內部作業系統</div>
     <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray" style="padding:6px 10px;font-size:12px">📱 App通知</button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs">
-      <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
+      <button class="tab active" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
+      <button class="tab" data-tab="accounting">💰 帳務部<div class="th">會計作業</div></button>
       <button class="tab" data-tab="delivery">🚚 貨運部<div class="th">配送作業</div></button>
       <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
-      <button class="tab" data-tab="accounting">💰 帳務部<div class="th">會計作業</div></button>
       <button class="tab" data-tab="wall">電視牆<div class="th">เตี้ยน ซื่อ เฉียง</div></button>
       <button class="tab" data-tab="today">訂單查詢<div class="th">ติ้ง ตาน ฉา สวิน</div></button>
     </div>
@@ -236,7 +239,7 @@ body.wall-focus #wall>.card>.helper{display:none}
   <div class="wrap">
     <section id="stall" class="panel active">
       <div class="card">
-        <h2>攤位下單</h2>
+        <h2>📋 派工</h2>
         <div class="helper">所有訂單統一從這裡建立。可選擇送到包裝部或貨運部。</div>
 
         <div class="quickOrderRow">
@@ -378,6 +381,12 @@ body.wall-focus #wall>.card>.helper{display:none}
           </div>
           <div class="actions" style="margin-top:8px"><button id="acctSaveTest" class="btn primary" type="button" style="flex:1">儲存測試帳款</button><button id="acctClear" class="btn gray" type="button">清空</button></div>
         </div>
+        <div class="acctQueryBox">
+          <h3 style="margin:0 0 7px">🔎 客戶帳戶查詢</h3>
+          <div class="acctQueryHead"><input id="acctQueryCustomer" class="input" list="acctCustomerList" placeholder="輸入車牌、人名或超市"><button id="acctQueryBtn" class="btn blue" type="button">查詢</button></div>
+          <div class="acctQueryTabs"><button class="acctQueryTab active" data-acct-filter="all">全部</button><button class="acctQueryTab" data-acct-filter="money">貨款</button><button class="acctQueryTab" data-acct-filter="payment">收款／儲值</button><button class="acctQueryTab" data-acct-filter="basket">籃子</button><button class="acctQueryTab" data-acct-filter="freight">貨運</button></div>
+          <div id="acctQueryResult"><div class="empty" style="padding:14px">輸入客戶後查詢</div></div>
+        </div>
         <h3 style="margin:12px 0 5px">最近測試紀錄</h3><div id="acctRecords" class="accountRecords"></div>
       </div>
     </section>
@@ -451,7 +460,7 @@ body.wall-focus #wall>.card>.helper{display:none}
         </div>
         <div class="helper" style="margin-top:8px"><b>額外加開功能</b>（不會改變職務，可不勾）</div>
         <div class="workRoles">
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="stall_order"> 🧾 攤位下單</label>
+          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="stall_order"> 📋 派工</label>
           <label class="workRoleChip"><input type="checkbox" class="new-feature" value="packing"> 📦 包裝部</label>
           <label class="workRoleChip"><input type="checkbox" class="new-feature" value="delivery"> 🚚 貨運部</label>
           <label class="workRoleChip"><input type="checkbox" class="new-feature" value="accounting"> 💰 帳務</label>
@@ -1316,7 +1325,7 @@ async function callEmployeeManager(action,payload={}){
 }
 function setEmployeeMsg(msg='',ok=false){const el=$('#employeeMsg');el.textContent=msg;el.className='employeeMsg '+(msg?(ok?'ok':'err'):'');}
 const WORK_LABEL={stall:'攤位',packing:'包裝',driver:'司機',accounting:'帳務'};
-const FEATURE_LABEL={stall_order:'攤位下單',packing:'包裝部',delivery:'貨運部',accounting:'帳務'};
+const FEATURE_LABEL={stall_order:'派工',packing:'包裝部',delivery:'貨運部',accounting:'帳務'};
 const NOTIFICATION_LABEL={packing:'包裝',delivery:'貨運',accounting:'帳務'};
 function featureBadges(list=[]){return list.length?list.map(r=>`<span class="miniRole">${FEATURE_LABEL[r]||r}</span>`).join(''):'<span class="meta">無額外功能</span>';}
 function notificationBadges(list=[]){return list.length?list.map(r=>`<span class="miniRole">${NOTIFICATION_LABEL[r]||r}</span>`).join(''):'<span class="meta">無通知</span>';}
@@ -1354,7 +1363,7 @@ function chooseWorkRoles(name,currentRoles=[],title='設定職務',onConfirm=nul
 }
 function chooseFeatures(name,currentFeatures=[],onConfirm=null){
   return chooseOptions(name,currentFeatures,'額外加開功能（不會改變職務）',[
-    {value:'stall_order',label:'🧾 攤位下單'},
+    {value:'stall_order',label:'📋 派工'},
     {value:'packing',label:'📦 包裝部'},
     {value:'delivery',label:'🚚 貨運部'},
     {value:'accounting',label:'💰 帳務'}
@@ -1610,6 +1619,7 @@ $('#deliveryQueryDateBtn').onclick=()=>{try{localStorage.setItem('xinru_delivery
 $('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
 // 帳務功能測試版：只存本機 localStorage，不寫入 Supabase 正式資料。
 let acctDraftItems=[];
+let acctQueryFilter='all';
 const acctLoad=(key,fallback=[])=>{try{return JSON.parse(localStorage.getItem(key)||'null')||fallback}catch(e){return fallback}};
 const acctMoney=n=>'$'+Math.round(Number(n)||0).toLocaleString('zh-TW');
 function acctCatalog(){return acctLoad('xinru_acct_test_products',{})}
@@ -1635,6 +1645,18 @@ function renderAcctRecords(){
   $('#acctRecords').innerHTML=rows.length?rows.slice(0,12).map(x=>`<div class="accountRecord"><div><b>${esc(x.customer)}</b><div class="meta">${esc(x.date)}｜${esc(x.txnTypeLabel||'菜品銷售')}｜${esc(x.payment)}｜${x.items.length}項${x.freight?'｜運費 '+acctMoney(x.freight):''}${x.basketDiff?'｜籃 '+(x.basketDiff>0?'+':'')+x.basketDiff:''}${x.twoCopy?'｜二聯單':''}</div></div><div style="text-align:right"><b>${acctMoney(x.total)}</b><div class="meta" style="color:${x.due?'#b4232c':'#18703c'}">${x.due?'尚欠 '+acctMoney(x.due):'已收清'}</div></div></div>`).join(''):'<div class="empty" style="padding:14px">還沒有測試紀錄</div>';
   renderAcctLists();
 }
+function renderAcctCustomerQuery(){
+  const name=$('#acctQueryCustomer').value.trim(),box=$('#acctQueryResult');
+  if(!name){box.innerHTML='<div class="empty" style="padding:14px">輸入客戶後查詢</div>';return}
+  const all=acctRecords().filter(x=>x.customer===name),due=all.reduce((s,x)=>s+(Number(x.due)||0),0),deposits=all.reduce((s,x)=>s+(Number(x.deposit)||0),0),storedUsed=all.filter(x=>x.payment==='儲值扣款').reduce((s,x)=>s+(Number(x.paid)||0),0),stored=Math.max(0,deposits-storedUsed),basket=all.reduce((s,x)=>s+(Number(x.basketDiff)||0),0),freight=all.reduce((s,x)=>s+(Number(x.freight)||0),0);
+  const filtered=all.filter(x=>acctQueryFilter==='all'||(acctQueryFilter==='money'&&Number(x.total)>0)||(acctQueryFilter==='payment'&&(Number(x.paid)>0||Number(x.deposit)>0))||(acctQueryFilter==='basket'&&Number(x.basketDiff)!==0)||(acctQueryFilter==='freight'&&Number(x.freight)>0));
+  const summary=`<div class="acctCustomerSummary"><div class="accountTotalBox">目前欠款<b style="color:#b4232c">${acctMoney(due)}</b></div><div class="accountTotalBox">可用儲值<b style="color:#18703c">${acctMoney(stored)}</b></div><div class="accountTotalBox">目前欠籃<b>${basket}個</b></div><div class="accountTotalBox">累計運費<b>${acctMoney(freight)}</b></div></div>`;
+  const history=filtered.length?filtered.map(x=>{const parts=[];if(x.items?.length)parts.push(`商品${x.items.length}項`);if(x.freight)parts.push(`${x.route==='north'?'北部線':'南部線'} ${x.kg}kg／運費${acctMoney(x.freight)}`);if(x.deposit)parts.push(`儲值入金${acctMoney(x.deposit)}`);if(x.paid&&!x.deposit)parts.push(`${x.payment}實收${acctMoney(x.paid)}`);if(x.basketOut)parts.push(`帶出${x.basketOut}籃`);if(x.basketBack)parts.push(`歸還${x.basketBack}籃`);return `<div class="acctHistoryLine"><div>${esc(x.date||'')}</div><div><b>${esc(x.txnTypeLabel||'菜品銷售')}</b><div class="meta">${parts.join('｜')||'帳務紀錄'}</div></div><div style="text-align:right"><b>${acctMoney(x.total||0)}</b>${x.due?`<div class="meta" style="color:#b4232c">欠${acctMoney(x.due)}</div>`:''}</div></div>`}).join(''):'<div class="empty" style="padding:14px">這個分類沒有紀錄</div>';
+  box.innerHTML=all.length?summary+history:'<div class="empty" style="padding:14px">找不到這位客戶的測試紀錄</div>';
+}
+$('#acctQueryBtn').onclick=renderAcctCustomerQuery;
+$('#acctQueryCustomer').addEventListener('change',renderAcctCustomerQuery);
+$$('.acctQueryTab').forEach(btn=>btn.onclick=()=>{acctQueryFilter=btn.dataset.acctFilter;$$('.acctQueryTab').forEach(x=>x.classList.toggle('active',x===btn));renderAcctCustomerQuery()});
 $('#acctAddItem').onclick=()=>{
   const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit=$('#acctUnit').value;
   if(!name||!(qty>0)||price<0){alert('請輸入商品、數量與單價');return}
