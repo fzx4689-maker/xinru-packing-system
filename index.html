@@ -279,6 +279,10 @@ body.wall-focus #wall>.card>.helper{display:none}
 @media (max-width:900px){
   #stall .quickOrderRow{grid-template-columns:1fr auto}
 }
+
+/* 欣儒系統 2.0：七大主頁導覽（只調整主導覽，不碰登入與既有功能） */
+.tabs.mainTabs7{grid-template-columns:repeat(7,minmax(110px,1fr));}
+@media(max-width:760px){.tabs.mainTabs7{display:flex;overflow-x:auto;gap:5px}.tabs.mainTabs7 .tab{min-width:105px;flex:0 0 auto}}
 </style>
 
 
@@ -310,18 +314,37 @@ body.wall-focus #wall>.card>.helper{display:none}
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
     <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
-    <div class="tabs">
-      <button class="tab active" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
-      <button class="tab" data-tab="accounting">💰 帳務部<div class="th">會計作業</div></button>
-      <button class="tab" data-tab="delivery">🚚 貨運部<div class="th">配送作業</div></button>
-      <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
-      <button class="tab" data-tab="wall">電視牆<div class="th">เตี้ยน ซื่อ เฉียง</div></button>
-      <button class="tab" data-tab="today">訂單查詢<div class="th">ติ้ง ตาน ฉา สวิน</div></button>
+    <div class="tabs mainTabs7">
+      <button class="tab active" data-tab="home">🏠 首頁<div class="th">今日待辦</div></button>
+      <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">登帳・收款・帳本</div></button>
+      <button class="tab" data-tab="procurement">🛒 叫貨／採購<div class="th">超市・產農・廠商</div></button>
+      <button class="tab" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
+      <button class="tab" data-tab="packing">📦 包裝部<div class="th">包裝作業</div></button>
+      <button class="tab" data-tab="delivery">🚚 貨運中心<div class="th">配送作業</div></button>
+      <button class="tab" data-tab="wall">📺 電視牆<div class="th">即時看板</div></button>
     </div>
   </div>
 
   <div class="wrap">
-    <section id="stall" class="panel active">
+    <section id="home" class="panel active">
+      <div class="card">
+        <h2>🏠 首頁</h2>
+        <div class="helper">今日待辦、異常提醒集中在這裡。</div>
+        <div class="actions" style="margin-top:12px;flex-wrap:wrap">
+          <button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="procurement" class="panel">
+      <div class="card">
+        <h2>🛒 叫貨／採購</h2>
+        <div class="helper">超市叫貨、產農、廠商、到貨、退換貨。</div>
+        <div class="empty">功能接下來再逐項建立</div>
+      </div>
+    </section>
+
+    <section id="stall" class="panel">
       <div class="card" lang="zh-Hant">
         <h2>📋 派工</h2>
         <div class="helper">所有訂單統一從這裡建立。可選擇送到包裝部或貨運部。</div>
@@ -720,14 +743,15 @@ function canSeeTab(tab){
   if(!currentProfile)return false;
   const admin=currentProfile.role==='admin';
   if(admin)return true; // 管理員可查看全部頁面，但不會因此出現在司機名單
-  if(tab==='wall'||tab==='today')return true; // 所有人固定都有電視牆、訂單查詢
+  if(tab==='home'||tab==='wall'||tab==='today')return true; // 首頁、電視牆、訂單查詢固定可查看
+  if(tab==='procurement')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
   if(tab==='stall')return hasWorkRole('stall')||hasFeature('stall_order');
   if(tab==='packing')return hasWorkRole('packing')||hasFeature('packing');
   if(tab==='delivery')return hasWorkRole('driver')||hasFeature('delivery');
   if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
   return false;
 }
-function firstVisibleTab(){return ['stall','packing','delivery','wall','today','accounting'].find(canSeeTab)||'wall'}
+function firstVisibleTab(){return ['home','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
   $('#readonlyNote').style.display='none';
@@ -1117,9 +1141,9 @@ window.openEdit=id=>{if(!requireStallWork())return;const o=orders.find(x=>x.id==
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
 $('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent,...actorFields('updated')}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
-const VALID_TABS=['stall','packing','wall','delivery','today','accounting'];
+const VALID_TABS=['home','accounting','procurement','stall','packing','delivery','wall','today'];
 function activateTab(tabName,{save=true}={}){
-  if(!VALID_TABS.includes(tabName))tabName='stall';
+  if(!VALID_TABS.includes(tabName))tabName='home';
   // 登入後若上次停留的頁面現在沒有職務權限，直接跳到第一個可見頁面。
   if(currentProfile&&!canSeeTab(tabName))tabName=firstVisibleTab();
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tabName));
@@ -1133,13 +1157,14 @@ function activateTab(tabName,{save=true}={}){
   renderAll();
 }
 $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
+$('#homeOrderQueryBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
 function getRememberedTab(){
   const hashTab=(location.hash||'').replace(/^#/,'');
   if(VALID_TABS.includes(hashTab)) return hashTab;
   try{const saved=localStorage.getItem('xinru_active_tab');if(VALID_TABS.includes(saved))return saved;}catch(e){}
   const queryTab=new URLSearchParams(location.search).get('tab');
   if(VALID_TABS.includes(queryTab)) return queryTab;
-  return 'stall';
+  return 'home';
 }
 activateTab(getRememberedTab(),{save:true});
 window.addEventListener('pageshow',()=>activateTab(getRememberedTab(),{save:false}));
