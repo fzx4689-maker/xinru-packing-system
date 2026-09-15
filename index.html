@@ -105,7 +105,7 @@
 .urgentCompact .switch{transform:scale(.78)}
 .accountEntry{border:1px solid var(--line);background:#fafbfc;border-radius:14px;padding:10px;margin:8px 0}
 .accountFormGrid{display:grid;grid-template-columns:1.1fr 1.3fr 1fr 1fr;gap:7px}.accountFormGrid .field{margin:3px 0}
-.accountItemGrid{display:grid;grid-template-columns:2fr .65fr .7fr 1fr auto;gap:6px;align-items:end;margin-top:6px}
+.accountItemGrid{display:grid;grid-template-columns:1.8fr .58fr .65fr .8fr .85fr auto;gap:6px;align-items:end;margin-top:6px}
 .externalItemGrid{display:grid;grid-template-columns:1.55fr .75fr .65fr .9fr auto;gap:5px;align-items:end;margin-top:6px;padding-top:6px;border-top:1px dashed #d8dde3}.externalItems{display:grid;gap:3px;margin-top:4px}.externalItemLine{display:grid;grid-template-columns:1.4fr .62fr .55fr .72fr .95fr auto;gap:5px;align-items:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:5px 7px;line-height:1.2}
 .accountItems{display:grid;gap:5px;margin-top:7px}.accountItemLine{display:grid;grid-template-columns:2fr .7fr 1fr auto;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px}
 .accountTotals{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}.accountTotalBox{border:1px solid var(--line);border-radius:11px;padding:8px;background:#fff}
@@ -192,7 +192,7 @@ body.wall-focus #wall>.card>.helper{display:none}
   #accounting .accountRow>*:nth-child(3){display:none}
   #accounting .accountFormGrid{grid-template-columns:1fr 1fr}
   #accounting .accountFormGrid .customerField{grid-column:1/-1}
-  #accounting .accountItemGrid{grid-template-columns:1.4fr .55fr .8fr auto}
+  #accounting .accountItemGrid{grid-template-columns:1.25fr .48fr .7fr .7fr auto}
   #accounting .externalItemGrid{grid-template-columns:1.25fr .55fr .55fr .75fr auto}#accounting .externalItemLine{grid-template-columns:1.1fr .5fr .45fr .6fr .75fr auto;font-size:11px}
   #accounting .accountItemGrid .unitField{display:none}
   #accounting .accountItems .accountItemLine{grid-template-columns:1.4fr .6fr .8fr auto;font-size:12px}
@@ -215,6 +215,15 @@ body.wall-focus #wall>.card>.helper{display:none}
   .deliveryCard{padding:9px;margin:6px 0;border-radius:13px}.driverFilters{padding:4px 0 7px}.driverChip{padding:6px 9px;font-size:12px}.deliveryPhoto{max-height:280px}
   .accountSummary{gap:5px;margin:5px 0 7px}.accountStat{padding:7px}.accountStat .name{font-size:10px}.accountStat .amount{font-size:17px}.accountEntry,.acctQueryBox{padding:7px;margin-top:7px}.accountFormGrid,.accountItemGrid,.externalItemGrid,.freightBox,.basketBox{gap:5px}.accountTotals{gap:5px;margin:6px 0}.accountTotalBox{padding:6px;font-size:11px}.accountTotalBox b{font-size:15px}.accountRecord{padding:7px}.acctHistoryLine{padding:6px 2px}
   .employeeBox{width:min(1080px,96vw);padding:14px;max-height:94vh}.employeeHead{margin-bottom:7px}.employeeHead h2{font-size:19px}.employeeCount{font-size:11px;padding:4px 8px}.employeeCompact{padding:7px 0}.empMiniActions{margin-top:5px}.empMiniActions .btn{padding:5px 7px;font-size:11px}.workRoleChip{padding:5px 8px;font-size:11px}
+  #today .queryToolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:0 0 5px}
+  #today .queryToolbar>h2{font-size:18px;margin:0 8px 0 0}
+  #today .queryToolbar>.helper{display:none}
+  #today .queryToolbar .actions,#today #packingQueryControls,#today #deliveryQueryControls{margin:0!important;gap:4px}
+  #today #deliveryQueryControls{align-items:center}
+  #today .queryDriverFilters{margin:0;gap:3px}
+  #todayBody>.helper{margin:4px 0!important}
+  #today .table th,#today .table td{padding:5px 6px;font-size:11px;line-height:1.2}
+  #today .table .meta,#today .table .th{font-size:10px}
 }
 
 </style>
@@ -260,7 +269,7 @@ body.wall-focus #wall>.card>.helper{display:none}
 
   <div class="wrap">
     <section id="stall" class="panel active">
-      <div class="card">
+      <div class="card" lang="zh-Hant">
         <h2>📋 派工</h2>
         <div class="helper">所有訂單統一從這裡建立。可選擇送到包裝部或貨運部。</div>
 
@@ -333,22 +342,24 @@ body.wall-focus #wall>.card>.helper{display:none}
     </section>
 
     <section id="today" class="panel">
-      <h2>訂單查詢</h2>
-      <div class="helper">選擇要查包裝部或貨運部，歷史與未來紀錄都集中在這裡。</div>
-      <div class="actions" style="margin:12px 0;flex-wrap:wrap">
-        <button id="queryPackingBtn" class="btn primary">📦 包裝部</button>
-        <button id="queryDeliveryBtn" class="btn gray">🚚 貨運部</button>
-      </div>
-      <div id="packingQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap">
-        <input id="queryDate" class="input" type="date" style="max-width:220px">
-        <button id="queryDateBtn" class="btn primary">查詢日期</button>
-      </div>
-      <div id="deliveryQueryControls" style="margin:12px 0;display:none">
-        <div class="actions" style="flex-wrap:wrap">
-          <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
-          <button id="deliveryQueryDateBtn" type="button" class="btn primary">查詢日期</button>
+      <div class="queryToolbar">
+        <h2>訂單查詢</h2>
+        <div class="helper">選擇要查包裝部或貨運部，歷史與未來紀錄都集中在這裡。</div>
+        <div class="actions" style="margin:12px 0;flex-wrap:wrap">
+          <button id="queryPackingBtn" class="btn primary">📦 包裝部</button>
+          <button id="queryDeliveryBtn" class="btn gray">🚚 貨運部</button>
         </div>
-        <div id="deliveryQueryDriverFilters" class="queryDriverFilters"></div>
+        <div id="packingQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap">
+          <input id="queryDate" class="input" type="date" style="max-width:220px">
+          <button id="queryDateBtn" class="btn primary">查詢日期</button>
+        </div>
+        <div id="deliveryQueryControls" style="margin:12px 0;display:none">
+          <div class="actions" style="flex-wrap:wrap">
+            <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
+            <button id="deliveryQueryDateBtn" type="button" class="btn primary">查詢日期</button>
+          </div>
+          <div id="deliveryQueryDriverFilters" class="queryDriverFilters"></div>
+        </div>
       </div>
       <div id="todayBody"></div>
     </section>
@@ -373,18 +384,19 @@ body.wall-focus #wall>.card>.helper{display:none}
             <div class="field"><label class="label">付款方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>儲值扣款</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
           </div>
           <div class="accountItemGrid">
-            <div class="field"><label class="label">商品</label><input id="acctProduct" class="input" list="acctProductList" autocomplete="off" placeholder="打一兩個字搜尋"><datalist id="acctProductList"></datalist></div>
-            <div class="field"><label class="label">數量</label><input id="acctQty" class="input" type="number" min="0" step="0.1" value="1"></div>
+            <div class="field"><label class="label">商品</label><input id="acctProduct" class="input" lang="zh-Hant" list="acctProductList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="打一兩個字搜尋"><datalist id="acctProductList"></datalist></div>
+            <div class="field"><label class="label">數量</label><input id="acctQty" class="input" type="text" inputmode="decimal" value="1"></div>
             <div class="field unitField"><label class="label">單位</label><select id="acctUnit" class="input"><option>件</option><option>箱</option><option>公斤</option><option>斤</option><option>包</option><option>袋</option><option>顆</option><option>綑</option><option>其他</option></select></div>
-            <div class="field"><label class="label">單價</label><input id="acctPrice" class="input" type="number" min="0" step="1" placeholder="0"></div>
+            <div class="field"><label class="label">單價</label><input id="acctPrice" class="input" type="text" inputmode="decimal" placeholder="0"></div>
+            <div class="field"><label class="label">小計</label><div id="acctItemSubtotal" class="input" style="font-weight:900">$0</div></div>
             <button id="acctAddItem" class="btn blue" type="button">＋</button>
           </div>
           <div id="acctItems" class="accountItems"><div class="empty" style="padding:12px">尚未加入商品</div></div>
           <div class="externalItemGrid">
-            <div class="field"><label class="label">外店商品</label><input id="acctExternalProduct" class="input" placeholder="例如：高麗菜"></div>
-            <div class="field"><label class="label">每件公斤</label><input id="acctExternalKgEach" class="input" type="number" min="0" step="0.1" placeholder="30"></div>
-            <div class="field"><label class="label">件數</label><input id="acctExternalQty" class="input" type="number" min="0" step="1" value="1"></div>
-            <div class="field"><label class="label">代墊／件</label><input id="acctExternalAdvance" class="input" type="number" min="0" step="1" value="0"></div>
+            <div class="field"><label class="label">外店商品</label><input id="acctExternalProduct" class="input" lang="zh-Hant" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例如：高麗菜"></div>
+            <div class="field"><label class="label">每件公斤</label><input id="acctExternalKgEach" class="input" type="text" inputmode="decimal" placeholder="30"></div>
+            <div class="field"><label class="label">件數</label><input id="acctExternalQty" class="input" type="text" inputmode="numeric" value="1"></div>
+            <div class="field"><label class="label">代墊／件</label><input id="acctExternalAdvance" class="input" type="text" inputmode="decimal" value="0"></div>
             <button id="acctAddExternalItem" class="btn blue" type="button">＋</button>
           </div>
           <div class="meta" style="margin-top:4px">未代墊就填0元；有代客人付款才輸入每件金額。</div>
@@ -1670,6 +1682,8 @@ function renderAcctLists(){
   $('#acctCustomerList').innerHTML=[...new Set(records.map(x=>x.customer).filter(Boolean))].sort().map(x=>`<option value="${esc(x)}"></option>`).join('');
 }
 function renderAcctDraft(){
+  const entryQty=Number($('#acctQty').value)||0,entryPrice=Number($('#acctPrice').value)||0;
+  $('#acctItemSubtotal').textContent=acctMoney(entryQty*entryPrice);
   const box=$('#acctItems');
   box.innerHTML=acctDraftItems.length?acctDraftItems.map((x,i)=>`<div class="accountItemLine"><div><b>${esc(x.name)}</b><div class="meta">${esc(x.unit)}｜單價 ${acctMoney(x.price)}</div></div><div>${x.qty}</div><div><span class="meta">小計</span> <b>${acctMoney(x.qty*x.price)}</b></div><button type="button" class="btn red" style="padding:6px 8px" onclick="acctRemoveItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:12px">尚未加入商品</div>';
   const extBox=$('#acctExternalItems');
@@ -1704,15 +1718,16 @@ $('#acctAddItem').onclick=()=>{
   const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit=$('#acctUnit').value;
   if(!name||!(qty>0)||price<0){alert('請輸入商品、數量與單價');return}
   acctDraftItems.push({name,qty,price,unit});const catalog=acctCatalog();catalog[name]={price,unit};localStorage.setItem('xinru_acct_test_products',JSON.stringify(catalog));
-  $('#acctProduct').value='';$('#acctQty').value='1';$('#acctPrice').value='';renderAcctDraft();renderAcctLists();$('#acctProduct').focus();
+  $('#acctProduct').value='';$('#acctQty').value='1';$('#acctPrice').value='';renderAcctDraft();renderAcctLists();
 };
-$('#acctProduct').onchange=()=>{const x=acctCatalog()[$('#acctProduct').value.trim()];if(x){$('#acctPrice').value=x.price;$('#acctUnit').value=x.unit}};
+$('#acctProduct').onchange=()=>{const x=acctCatalog()[$('#acctProduct').value.trim()];if(x){$('#acctPrice').value=x.price;$('#acctUnit').value=x.unit}renderAcctDraft()};
 $('#acctAddExternalItem').onclick=()=>{
   const name=$('#acctExternalProduct').value.trim(),kgEach=Number($('#acctExternalKgEach').value),qty=Number($('#acctExternalQty').value),advance=Math.max(0,Number($('#acctExternalAdvance').value)||0);
   if(!name||!(kgEach>0)||!(qty>0)){alert('請輸入外店商品、每件公斤與件數');return}
-  acctExternalDraftItems.push({name,kgEach,qty,advance});$('#acctExternalProduct').value='';$('#acctExternalKgEach').value='';$('#acctExternalQty').value='1';$('#acctExternalAdvance').value='0';renderAcctDraft();$('#acctExternalProduct').focus();
+  acctExternalDraftItems.push({name,kgEach,qty,advance});$('#acctExternalProduct').value='';$('#acctExternalKgEach').value='';$('#acctExternalQty').value='1';$('#acctExternalAdvance').value='0';renderAcctDraft();
 };
 $('#acctPaid').oninput=renderAcctDraft;
+['#acctQty','#acctPrice'].forEach(sel=>$(sel).addEventListener('input',renderAcctDraft));
 ['#acctOwnKg','#acctFreightRate','#acctRoute','#acctBasketOut','#acctBasketBack','#acctCustomer'].forEach(sel=>$(sel).addEventListener('input',renderAcctDraft));
 $('#acctPayment').onchange=()=>{const goods=acctDraftItems.reduce((s,x)=>s+x.qty*x.price,0),advance=acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.advance,0),kg=(Number($('#acctOwnKg').value)||0)+acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.kgEach,0),freight=$('#acctRoute').value==='none'?0:kg*(Number($('#acctFreightRate').value)||0),total=goods+advance+freight;if(['現金','匯款','儲值扣款'].includes($('#acctPayment').value)&&!Number($('#acctPaid').value))$('#acctPaid').value=total;renderAcctDraft()};
 $('#acctSaveTest').onclick=()=>{
