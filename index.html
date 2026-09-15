@@ -106,7 +106,7 @@
 .accountEntry{border:1px solid var(--line);background:#fafbfc;border-radius:14px;padding:10px;margin:8px 0}
 .accountFormGrid{display:grid;grid-template-columns:1fr 1.25fr 1fr 1fr 1fr;gap:7px}.accountFormGrid .field{margin:3px 0}
 .accountItemGrid{display:grid;grid-template-columns:1.7fr .52fr .62fr .62fr .72fr .8fr auto;gap:6px;align-items:end;margin-top:6px}
-.externalItemGrid{display:grid;grid-template-columns:1.55fr .75fr .65fr .9fr auto;gap:5px;align-items:end;margin-top:6px;padding-top:6px;border-top:1px dashed #d8dde3}.externalItems{display:grid;gap:3px;margin-top:4px}.externalItemLine{display:grid;grid-template-columns:1.4fr .62fr .55fr .72fr .95fr auto;gap:5px;align-items:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:5px 7px;line-height:1.2}
+.externalItemGrid{display:grid;grid-template-columns:1.7fr .52fr .62fr .62fr .72fr .8fr auto;gap:5px;align-items:end;margin-top:6px;padding-top:6px;border-top:1px dashed #d8dde3}.externalItems{display:grid;gap:3px;margin-top:4px}.externalItemLine{display:grid;grid-template-columns:1.4fr .62fr .55fr .72fr .95fr auto;gap:5px;align-items:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:5px 7px;line-height:1.2}
 .accountItems{display:grid;gap:5px;margin-top:7px}.accountItemLine{display:grid;grid-template-columns:2fr .7fr 1fr auto;gap:6px;align-items:center;background:#eef6ff;border:1px solid #bfdbfe;border-radius:10px;padding:7px}
 .accountTotals{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}.accountTotalBox{border:1px solid var(--line);border-radius:11px;padding:8px;background:#fff}
 .accountTotalBox b{display:block;font-size:18px;margin-top:2px}.accountRecords{display:grid;gap:6px;margin-top:8px}.accountRecord{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff;display:flex;justify-content:space-between;gap:8px}
@@ -196,7 +196,7 @@ body.wall-focus #wall>.card>.helper{display:none}
   #accounting .accountFormGrid{grid-template-columns:1fr 1fr}
   #accounting .accountFormGrid .customerField{grid-column:1/-1}
   #accounting .accountItemGrid{grid-template-columns:1.2fr .45fr .55fr .65fr .65fr auto}
-  #accounting .externalItemGrid{grid-template-columns:1.25fr .55fr .55fr .75fr auto}#accounting .externalItemLine{grid-template-columns:1.1fr .5fr .45fr .6fr .75fr auto;font-size:11px}
+  #accounting .externalItemGrid{grid-template-columns:1.2fr .45fr .55fr .65fr .65fr .7fr auto}#accounting .externalItemLine{grid-template-columns:1.1fr .5fr .45fr .6fr .75fr auto;font-size:11px}
   #accounting .accountItemGrid .unitField{display:block}
   #accounting .accountItems .accountItemLine{grid-template-columns:1.4fr .6fr .8fr auto;font-size:12px}
   #accounting .accountTotals{gap:4px}.accountTotalBox{padding:6px;font-size:11px}.accountTotalBox b{font-size:15px}
@@ -414,10 +414,12 @@ body.wall-focus #wall>.card>.helper{display:none}
           <div id="acctItems" class="accountItems"><div class="empty" style="padding:12px">尚未加入商品</div></div>
           <div id="acctItemsSummary" class="acctItemsSummary">共 0 項｜總數量 0｜商品金額 $0</div>
           <div class="externalItemGrid">
-            <div class="field"><label class="label">外店商品</label><input id="acctExternalProduct" class="input" lang="zh-Hant" list="acctExternalProductList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例如：高麗菜"><datalist id="acctExternalProductList"></datalist></div>
-            <div class="field"><label class="label">每件公斤</label><input id="acctExternalKgEach" class="input" type="number" min="0.1" max="9999" step="0.1" inputmode="decimal" lang="zh-Hant" autocomplete="off" value="" placeholder="30"></div>
-            <div class="field"><label class="label">件數</label><input id="acctExternalQty" class="input" type="number" min="1" max="9999" step="1" inputmode="numeric" lang="zh-Hant" autocomplete="off" value="1"></div>
-            <div class="field"><label class="label">代墊／件</label><input id="acctExternalAdvance" class="input" type="text" lang="zh-Hant" autocomplete="off" value="0"></div>
+            <div class="field"><label class="label">商品</label><input id="acctExternalProduct" class="input" lang="zh-Hant" list="acctExternalProductList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="打一兩個字搜尋"><datalist id="acctExternalProductList"></datalist></div>
+            <div class="field"><label class="label">數量</label><input id="acctExternalQty" class="input" type="number" min="1" max="9999" step="1" inputmode="numeric" lang="zh-Hant" autocomplete="off" value="1"></div>
+            <div class="field unitField"><label class="label">單位</label><select id="acctExternalUnit" class="input"><option>件</option><option>箱</option><option>公斤</option><option>斤</option><option>包</option><option>袋</option><option>盒</option><option>顆</option><option>綑</option><option>其他</option></select></div>
+            <div class="field"><label class="label">每件 KG</label><input id="acctExternalKgEach" class="input" type="number" min="0" max="9999" step="0.1" inputmode="decimal" lang="zh-Hant" autocomplete="off" value="" placeholder="0"></div>
+            <div class="field"><label class="label">單價</label><input id="acctExternalAdvance" class="input" type="number" min="0" step="1" inputmode="decimal" lang="zh-Hant" autocomplete="off" value="0"></div>
+            <div class="field"><label class="label">小計</label><div id="acctExternalSubtotal" class="input" style="font-weight:900">$0</div></div>
             <button id="acctAddExternalItem" class="btn blue" type="button">＋</button>
           </div>
           <div class="meta" style="margin-top:4px">未代墊就填0元；有代客人付款才輸入每件金額。</div>
@@ -1798,7 +1800,21 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 #today #deliveryQueryControls .actions{
   width:100%;
 }
-</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script></body></html>`}
+</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
+<script>
+(function(){
+  const $q=s=>document.querySelector(s);
+  function updateExternalSubtotal(){
+    const q=Number($q('#acctExternalQty')?.value)||0, p=Number($q('#acctExternalAdvance')?.value)||0;
+    const el=$q('#acctExternalSubtotal'); if(el) el.textContent='$'+Math.round(q*p).toLocaleString();
+  }
+  ['#acctExternalQty','#acctExternalAdvance'].forEach(sel=>{const el=$q(sel);if(el)el.addEventListener('input',updateExternalSubtotal)});
+  const btn=$q('#acctAddExternalItem');
+  if(btn){btn.addEventListener('click',()=>setTimeout(updateExternalSubtotal,0));}
+  updateExternalSubtotal();
+})();
+</script>
+</body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){if(d.isSupermarket)return acctSupermarketCanvas(d);const entries=acctNormalEntries(d),width=1800,margin=24,top=150,rowH=31,per=28,colW=(width-margin*2)/3,height=top+per*rowH+75,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,width,height);g.fillStyle='#111';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('欣儒農產行　0900-767-577',width/2,42);g.textAlign='left';g.font='bold 22px sans-serif';g.fillText('客戶：'+d.customer,margin,82);g.font='19px sans-serif';g.fillText(`貨款餘額 ${acctMoney(Math.max(0,d.balance))}　欠籃 ${d.baskets}個　儲值餘額 ${acctMoney(Math.max(0,d.deposit-d.storedUsed))}`,margin,115);const headers=['序','日期','品名／內容','數量','單價','金額'];for(let col=0;col<3;col++){const x=margin+col*colW,widths=[42,92,colW-314,62,62,56];let xx=x;g.font='bold 13px sans-serif';headers.forEach((h,i)=>{g.strokeStyle='#333';g.strokeRect(xx,top-28,widths[i],28);g.fillStyle='#111';g.fillText(h,xx+3,top-8);xx+=widths[i]});for(let i=0;i<per;i++){const r=entries[col*per+i],y=top+i*rowH;xx=x;widths.forEach(w=>{g.strokeRect(xx,y,w,rowH);xx+=w});g.font='13px sans-serif';g.fillStyle='#111';g.fillText(String(col*per+i+1),x+3,y+21);if(r){let vals=[r.date,r.name,r.qty!==''?String(r.qty)+(r.unit||''):'',r.price!==''?r.price:'',r.amount||''];xx=x+widths[0];vals.forEach((v,k)=>{if(k===4)g.fillStyle=Number(r.amount)<0?'#c22':'#2457a6';else g.fillStyle='#111';let t=String(v??'');if(k===1&&t.length>18)t=t.slice(0,18)+'…';g.fillText(t,xx+3,y+21);xx+=widths[k+1]})}}}g.fillStyle='#111';g.textAlign='right';g.font='bold 22px sans-serif';g.fillText('合計：'+acctMoney(d.balance),width-margin,height-25);return c}
 function acctSupermarketCanvas(d){
@@ -1885,4 +1901,18 @@ window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery()
 </script>
 
 <div id="workPickOverlay" class="workPickOverlay"><div class="workPickBox"><h2 id="workPickTitle">工作職能</h2><div id="workPickName" class="workPickName"></div><div id="workPickChoices" class="workPickChoices"><label class="workPickChoice"><input type="checkbox" value="stall"> 🧾 攤位</label><label class="workPickChoice"><input type="checkbox" value="packing"> 📦 包裝</label><label class="workPickChoice"><input type="checkbox" value="driver"> 🚚 司機</label><label class="workPickChoice"><input type="checkbox" value="accounting"> 💰 帳務</label></div><div id="workPickError" class="employeeMsg err"></div><div class="workPickActions"><button id="workPickCancel" type="button" class="btn gray">取消</button><button id="workPickConfirm" type="button" class="btn primary">確定</button></div></div></div>
+
+<script>
+(function(){
+  const $q=s=>document.querySelector(s);
+  function updateExternalSubtotal(){
+    const q=Number($q('#acctExternalQty')?.value)||0, p=Number($q('#acctExternalAdvance')?.value)||0;
+    const el=$q('#acctExternalSubtotal'); if(el) el.textContent='$'+Math.round(q*p).toLocaleString();
+  }
+  ['#acctExternalQty','#acctExternalAdvance'].forEach(sel=>{const el=$q(sel);if(el)el.addEventListener('input',updateExternalSubtotal)});
+  const btn=$q('#acctAddExternalItem');
+  if(btn){btn.addEventListener('click',()=>setTimeout(updateExternalSubtotal,0));}
+  updateExternalSubtotal();
+})();
+</script>
 </body></html>
