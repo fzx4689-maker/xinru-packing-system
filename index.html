@@ -100,6 +100,15 @@
 .accountPreview{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:#fff}
 .accountRow{display:grid;grid-template-columns:1.2fr .8fr .8fr .7fr;gap:8px;padding:10px;border-bottom:1px solid var(--line);align-items:center}
 .accountRow:last-child{border-bottom:0}.accountRow.head{background:#f6f8fa;font-size:12px;font-weight:900}
+.quickOrderRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin-bottom:5px}
+.quickOrderRow .field{margin:0}.urgentCompact{height:43px;display:flex;align-items:center;gap:7px;border:1px solid #ffd6d8;background:#fff7f7;border-radius:11px;padding:4px 8px;font-weight:900;white-space:nowrap}
+.urgentCompact .switch{transform:scale(.78)}
+.accountEntry{border:1px solid var(--line);background:#fafbfc;border-radius:14px;padding:10px;margin:8px 0}
+.accountFormGrid{display:grid;grid-template-columns:1.1fr 1.3fr 1fr 1fr;gap:7px}.accountFormGrid .field{margin:3px 0}
+.accountItemGrid{display:grid;grid-template-columns:2fr .65fr .7fr 1fr auto;gap:6px;align-items:end;margin-top:6px}
+.accountItems{display:grid;gap:5px;margin-top:7px}.accountItemLine{display:grid;grid-template-columns:2fr .7fr 1fr auto;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px}
+.accountTotals{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}.accountTotalBox{border:1px solid var(--line);border-radius:11px;padding:8px;background:#fff}
+.accountTotalBox b{display:block;font-size:18px;margin-top:2px}.accountRecords{display:grid;gap:6px;margin-top:8px}.accountRecord{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff;display:flex;justify-content:space-between;gap:8px}
 
 /* 電視牆頁面只保留頁籤列，讓訂單從畫面最上方開始。 */
 body.wall-focus .title,body.wall-focus .sync,body.wall-focus .userBar{display:none!important}
@@ -132,9 +141,11 @@ body.wall-focus #wall>.card>.helper{display:none}
   #stall .urgentRow{padding:7px 10px;border-radius:10px}
   #stall .urgentRow .meta{display:none}
   #stall .switch{transform:scale(.82)}
-  #stall .orderTargetGrid{grid-template-columns:1fr 1fr}
   #stall .orderInfoGrid{grid-template-columns:1fr 1fr}
   #stall .orderInfoGrid .field:first-child{grid-column:1/-1}
+  #stall .orderInfoGrid>*{min-width:0}
+  #stall .orderInfoGrid input{min-width:0;width:100%;font-size:14px}
+  #stall #orderDate{appearance:none;-webkit-appearance:none}
   #stall .label{margin-bottom:4px;font-size:13px}
   #stall .input{padding:8px 9px;border-radius:10px}
   #stall .field{margin:5px 0}
@@ -168,6 +179,12 @@ body.wall-focus #wall>.card>.helper{display:none}
   #accounting .accountTools .input{max-width:155px;padding:8px}
   #accounting .accountRow{grid-template-columns:1.1fr .75fr .7fr;padding:8px 6px;font-size:12px}
   #accounting .accountRow>*:nth-child(3){display:none}
+  #accounting .accountFormGrid{grid-template-columns:1fr 1fr}
+  #accounting .accountFormGrid .customerField{grid-column:1/-1}
+  #accounting .accountItemGrid{grid-template-columns:1.4fr .55fr .8fr auto}
+  #accounting .accountItemGrid .unitField{display:none}
+  #accounting .accountItems .accountItemLine{grid-template-columns:1.4fr .6fr .8fr auto;font-size:12px}
+  #accounting .accountTotals{gap:4px}.accountTotalBox{padding:6px;font-size:11px}.accountTotalBox b{font-size:15px}
 }
 
 </style>
@@ -218,15 +235,12 @@ body.wall-focus #wall>.card>.helper{display:none}
         <h2>攤位下單</h2>
         <div class="helper">所有訂單統一從這裡建立。可選擇送到包裝部或貨運部。</div>
 
-        <div class="urgentRow">
-          <div><b>🚨 急單</b><div id="urgentTargetHint" class="meta">送出後自動排到包裝部與電視牆最上面</div></div>
-          <div id="urgentSwitch" class="switch"></div>
-        </div>
-
-        <div class="grid2 orderTargetGrid">
+        <div class="quickOrderRow">
           <div class="field"><label class="label">下單給</label><select id="orderTarget" class="input"><option value="packing">📦 包裝部</option><option value="delivery">🚚 貨運部</option></select></div>
-          <div id="stallDriverWrap" class="field" style="display:none"><label class="label">指定司機（可不選）</label><select id="stallDeliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
+          <div class="urgentCompact"><span>🚨 急單</span><div id="urgentSwitch" class="switch"></div></div>
         </div>
+        <div id="urgentTargetHint" class="meta" style="display:none">急單提示</div>
+        <div id="stallDriverWrap" class="field" style="display:none"><label class="label">指定司機（可不選）</label><select id="stallDeliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
         <div id="deliveryRequirements" class="actions" style="display:none;margin:2px 0 12px;gap:14px;flex-wrap:wrap">
           <label style="font-weight:800"><input id="deliveryPhotoRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 📷 送達需拍照</label>
           <label style="font-weight:800"><input id="deliveryPaymentRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 💰 需要收款</label>
@@ -312,22 +326,40 @@ body.wall-focus #wall>.card>.helper{display:none}
 
     <section id="accounting" class="panel">
       <div class="card">
-        <h2>💰 帳務部</h2>
-        <div class="helper">先預覽帳務版面；收銀貓尚未串接，目前不會寫入或修改任何帳務資料。</div>
-        <div class="accountTools">
-          <input class="input" type="date" aria-label="帳務日期">
-          <button class="btn primary" type="button">查詢</button>
-          <button class="btn gray" type="button">本日</button>
-        </div>
+        <h2>💰 帳務測試版</h2>
+        <div class="helper">依照收銀貓訂單手動輸入；目前只儲存在這台裝置測試，不會影響正式資料。</div>
         <div class="accountSummary">
-          <div class="accountStat"><div class="name">本日應收</div><div class="amount">$0</div></div>
-          <div class="accountStat"><div class="name">本日已收</div><div class="amount" style="color:#18703c">$0</div></div>
-          <div class="accountStat"><div class="name">尚未收款</div><div class="amount" style="color:#b4232c">$0</div></div>
+          <div class="accountStat"><div class="name">測試訂單</div><div id="testOrderCount" class="amount">0</div></div>
+          <div class="accountStat"><div class="name">測試已收</div><div id="testPaidSum" class="amount" style="color:#18703c">$0</div></div>
+          <div class="accountStat"><div class="name">測試未收</div><div id="testDueSum" class="amount" style="color:#b4232c">$0</div></div>
         </div>
-        <div class="accountPreview">
-          <div class="accountRow head"><div>客戶／店家</div><div>金額</div><div>付款方式</div><div>狀態</div></div>
-          <div class="accountRow"><div><b>帳務資料預覽</b><div class="meta">等待收銀貓串接</div></div><div><b>$0</b></div><div>尚未設定</div><div><span class="badge yellow">待收款</span></div></div>
+        <div class="accountEntry">
+          <div class="accountFormGrid">
+            <div class="field"><label class="label">訂單日期</label><input id="acctDate" class="input" type="date"></div>
+            <div class="field customerField"><label class="label">車牌／人名／超市</label><input id="acctCustomer" class="input" list="acctCustomerList" autocomplete="off"><datalist id="acctCustomerList"></datalist></div>
+            <div class="field"><label class="label">客戶類型</label><select id="acctCustomerType" class="input"><option>車牌客戶</option><option>個人</option><option>超市</option><option>中盤</option><option>產農</option><option>其他</option></select></div>
+            <div class="field"><label class="label">付款方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
+          </div>
+          <div class="accountItemGrid">
+            <div class="field"><label class="label">商品</label><input id="acctProduct" class="input" list="acctProductList" autocomplete="off" placeholder="打一兩個字搜尋"><datalist id="acctProductList"></datalist></div>
+            <div class="field"><label class="label">數量</label><input id="acctQty" class="input" type="number" min="0" step="0.1" value="1"></div>
+            <div class="field unitField"><label class="label">單位</label><select id="acctUnit" class="input"><option>件</option><option>箱</option><option>公斤</option><option>包</option><option>袋</option><option>顆</option><option>綑</option><option>其他</option></select></div>
+            <div class="field"><label class="label">單價</label><input id="acctPrice" class="input" type="number" min="0" step="1" placeholder="0"></div>
+            <button id="acctAddItem" class="btn blue" type="button">＋</button>
+          </div>
+          <div id="acctItems" class="accountItems"><div class="empty" style="padding:12px">尚未加入商品</div></div>
+          <div class="accountTotals">
+            <div class="accountTotalBox">訂單總額<b id="acctTotal">$0</b></div>
+            <div class="accountTotalBox">本次實收<input id="acctPaid" class="input" type="number" min="0" value="0" style="padding:5px;margin-top:3px"></div>
+            <div class="accountTotalBox">尚欠金額<b id="acctDue" style="color:#b4232c">$0</b></div>
+          </div>
+          <div class="grid2">
+            <label style="font-weight:800"><input id="acctTwoCopy" type="checkbox"> 需要二聯單</label>
+            <input id="acctNote" class="input" placeholder="備註（可不填）">
+          </div>
+          <div class="actions" style="margin-top:8px"><button id="acctSaveTest" class="btn primary" type="button" style="flex:1">儲存測試帳款</button><button id="acctClear" class="btn gray" type="button">清空</button></div>
         </div>
+        <h3 style="margin:12px 0 5px">最近測試紀錄</h3><div id="acctRecords" class="accountRecords"></div>
       </div>
     </section>
   </div>
@@ -1557,6 +1589,47 @@ $('#deliveryQueryDateBtn').onclick=()=>{try{localStorage.setItem('xinru_delivery
 $('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
 $('#deliveryQueryDateBtn').onclick=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
 $('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
+// 帳務功能測試版：只存本機 localStorage，不寫入 Supabase 正式資料。
+let acctDraftItems=[];
+const acctLoad=(key,fallback=[])=>{try{return JSON.parse(localStorage.getItem(key)||'null')||fallback}catch(e){return fallback}};
+const acctMoney=n=>'$'+Math.round(Number(n)||0).toLocaleString('zh-TW');
+function acctCatalog(){return acctLoad('xinru_acct_test_products',{})}
+function acctRecords(){return acctLoad('xinru_acct_test_records',[])}
+function renderAcctLists(){
+  const products=acctCatalog(),records=acctRecords();
+  $('#acctProductList').innerHTML=Object.keys(products).sort().map(x=>`<option value="${esc(x)}"></option>`).join('');
+  $('#acctCustomerList').innerHTML=[...new Set(records.map(x=>x.customer).filter(Boolean))].sort().map(x=>`<option value="${esc(x)}"></option>`).join('');
+}
+function renderAcctDraft(){
+  const box=$('#acctItems');
+  box.innerHTML=acctDraftItems.length?acctDraftItems.map((x,i)=>`<div class="accountItemLine"><div><b>${esc(x.name)}</b><div class="meta">${esc(x.unit)}</div></div><div>${x.qty}</div><div>${acctMoney(x.qty*x.price)}</div><button type="button" class="btn red" style="padding:6px 8px" onclick="acctRemoveItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:12px">尚未加入商品</div>';
+  const total=acctDraftItems.reduce((s,x)=>s+x.qty*x.price,0),paid=Number($('#acctPaid').value)||0;
+  $('#acctTotal').textContent=acctMoney(total);$('#acctDue').textContent=acctMoney(Math.max(0,total-paid));
+}
+window.acctRemoveItem=i=>{acctDraftItems.splice(i,1);renderAcctDraft()};
+function renderAcctRecords(){
+  const rows=acctRecords(),paid=rows.reduce((s,x)=>s+(Number(x.paid)||0),0),due=rows.reduce((s,x)=>s+(Number(x.due)||0),0);
+  $('#testOrderCount').textContent=rows.length;$('#testPaidSum').textContent=acctMoney(paid);$('#testDueSum').textContent=acctMoney(due);
+  $('#acctRecords').innerHTML=rows.length?rows.slice(0,12).map(x=>`<div class="accountRecord"><div><b>${esc(x.customer)}</b><div class="meta">${esc(x.date)}｜${esc(x.payment)}｜${x.items.length}項${x.twoCopy?'｜二聯單':''}</div></div><div style="text-align:right"><b>${acctMoney(x.total)}</b><div class="meta" style="color:${x.due?'#b4232c':'#18703c'}">${x.due?'尚欠 '+acctMoney(x.due):'已收清'}</div></div></div>`).join(''):'<div class="empty" style="padding:14px">還沒有測試紀錄</div>';
+  renderAcctLists();
+}
+$('#acctAddItem').onclick=()=>{
+  const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit=$('#acctUnit').value;
+  if(!name||!(qty>0)||price<0){alert('請輸入商品、數量與單價');return}
+  acctDraftItems.push({name,qty,price,unit});const catalog=acctCatalog();catalog[name]={price,unit};localStorage.setItem('xinru_acct_test_products',JSON.stringify(catalog));
+  $('#acctProduct').value='';$('#acctQty').value='1';$('#acctPrice').value='';renderAcctDraft();renderAcctLists();$('#acctProduct').focus();
+};
+$('#acctProduct').onchange=()=>{const x=acctCatalog()[$('#acctProduct').value.trim()];if(x){$('#acctPrice').value=x.price;$('#acctUnit').value=x.unit}};
+$('#acctPaid').oninput=renderAcctDraft;
+$('#acctPayment').onchange=()=>{const total=acctDraftItems.reduce((s,x)=>s+x.qty*x.price,0);if(['現金','匯款'].includes($('#acctPayment').value)&&!Number($('#acctPaid').value))$('#acctPaid').value=total;renderAcctDraft()};
+$('#acctSaveTest').onclick=()=>{
+  const customer=$('#acctCustomer').value.trim();if(!customer){alert('請輸入車牌、人名或超市名稱');return}if(!acctDraftItems.length){alert('請先加入商品');return}
+  const total=acctDraftItems.reduce((s,x)=>s+x.qty*x.price,0),paid=Math.min(total,Math.max(0,Number($('#acctPaid').value)||0));
+  const rows=acctRecords();rows.unshift({id:Date.now(),date:$('#acctDate').value,customer,type:$('#acctCustomerType').value,payment:$('#acctPayment').value,items:acctDraftItems,total,paid,due:total-paid,twoCopy:$('#acctTwoCopy').checked,note:$('#acctNote').value.trim()});
+  localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));acctDraftItems=[];$('#acctCustomer').value='';$('#acctPaid').value='0';$('#acctNote').value='';$('#acctTwoCopy').checked=false;renderAcctDraft();renderAcctRecords();alert('已儲存到這台裝置的測試資料');
+};
+$('#acctClear').onclick=()=>{acctDraftItems=[];$('#acctPaid').value='0';renderAcctDraft()};
+$('#acctDate').value=taipeiDate();renderAcctDraft();renderAcctRecords();
   // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
 setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();enforceActiveSession();}},AUTO_REFRESH_MS);
