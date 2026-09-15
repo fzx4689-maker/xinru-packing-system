@@ -106,7 +106,7 @@
 .accountEntry{border:1px solid var(--line);background:#fafbfc;border-radius:14px;padding:10px;margin:8px 0}
 .accountFormGrid{display:grid;grid-template-columns:1.1fr 1.3fr 1fr 1fr;gap:7px}.accountFormGrid .field{margin:3px 0}
 .accountItemGrid{display:grid;grid-template-columns:2fr .65fr .7fr 1fr auto;gap:6px;align-items:end;margin-top:6px}
-.externalItemGrid{display:grid;grid-template-columns:1.55fr .75fr .65fr .9fr auto;gap:6px;align-items:end;margin-top:8px;padding-top:8px;border-top:1px dashed #d8dde3}.externalItems{display:grid;gap:5px;margin-top:6px}.externalItemLine{display:grid;grid-template-columns:1.5fr .65fr .7fr .85fr auto;gap:6px;align-items:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:7px}
+.externalItemGrid{display:grid;grid-template-columns:1.55fr .75fr .65fr .9fr auto;gap:5px;align-items:end;margin-top:6px;padding-top:6px;border-top:1px dashed #d8dde3}.externalItems{display:grid;gap:3px;margin-top:4px}.externalItemLine{display:grid;grid-template-columns:1.4fr .62fr .55fr .72fr .95fr auto;gap:5px;align-items:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:5px 7px;line-height:1.2}
 .accountItems{display:grid;gap:5px;margin-top:7px}.accountItemLine{display:grid;grid-template-columns:2fr .7fr 1fr auto;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px}
 .accountTotals{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}.accountTotalBox{border:1px solid var(--line);border-radius:11px;padding:8px;background:#fff}
 .accountTotalBox b{display:block;font-size:18px;margin-top:2px}.accountRecords{display:grid;gap:6px;margin-top:8px}.accountRecord{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff;display:flex;justify-content:space-between;gap:8px}
@@ -193,13 +193,28 @@ body.wall-focus #wall>.card>.helper{display:none}
   #accounting .accountFormGrid{grid-template-columns:1fr 1fr}
   #accounting .accountFormGrid .customerField{grid-column:1/-1}
   #accounting .accountItemGrid{grid-template-columns:1.4fr .55fr .8fr auto}
-  #accounting .externalItemGrid{grid-template-columns:1.25fr .55fr .55fr .75fr auto}#accounting .externalItemLine{grid-template-columns:1.2fr .55fr .65fr .75fr auto;font-size:12px}
+  #accounting .externalItemGrid{grid-template-columns:1.25fr .55fr .55fr .75fr auto}#accounting .externalItemLine{grid-template-columns:1.1fr .5fr .45fr .6fr .75fr auto;font-size:11px}
   #accounting .accountItemGrid .unitField{display:none}
   #accounting .accountItems .accountItemLine{grid-template-columns:1.4fr .6fr .8fr auto;font-size:12px}
   #accounting .accountTotals{gap:4px}.accountTotalBox{padding:6px;font-size:11px}.accountTotalBox b{font-size:15px}
   #accounting .freightBox,#accounting .basketBox{grid-template-columns:1fr 1fr;gap:5px}
   #accounting .acctCustomerSummary{grid-template-columns:1fr 1fr}
   #accounting .acctHistoryLine{grid-template-columns:72px 1fr auto;font-size:12px}
+}
+
+/* 電腦版高密度顯示：手機版不受影響 */
+@media(min-width:1000px){
+  .app{max-width:1480px;padding-bottom:48px}
+  .compactUserBar{min-height:34px;padding:2px 8px!important}.brandIcon{width:27px;height:27px;border-radius:7px}.identityBox b{font-size:12px}.identityBox span,.compactSync{font-size:10px}.compactActions .btn{padding:4px 7px!important;font-size:11px!important}
+  .tabs{gap:4px;padding:3px 7px 5px}.tab{padding:6px 3px;border-radius:9px;font-size:12px}.tab .th{font-size:8px}
+  .wrap{padding:6px}.card{padding:9px;border-radius:13px;margin-bottom:6px}.card h2{font-size:18px}.helper{font-size:11px;margin-bottom:6px}
+  .field{margin:6px 0}.label{font-size:12px;margin-bottom:4px}.input,.textarea{padding:8px 9px;border-radius:10px;font-size:14px}.textarea{min-height:96px;line-height:1.35}
+  .btn{padding:8px 11px;border-radius:10px;font-size:13px}.actions{gap:6px}.urgentRow{padding:7px 9px;border-radius:10px}.switch{transform:scale(.82)}
+  .order{padding:9px;margin-bottom:6px;border-radius:13px}.orderHead{margin-bottom:7px}.orderTitle{font-size:16px}.item{padding:5px 0}.check{width:24px;height:24px;border-radius:7px}.meta,.th{font-size:11px}.table th,.table td{padding:7px 8px;font-size:12px}
+  .wallCards{gap:7px}.wallOrderCard{padding:9px;border-radius:13px}.wallCardHead{padding-bottom:5px;margin-bottom:5px}.wallCardCustomer{font-size:19px}.wallCardThai{font-size:11px}.wallCardDate{font-size:13px;margin-top:3px}.wallCardItems{font-size:15px;line-height:1.28}.wallCardItem{padding:4px 0}.wallCardFoot{margin-top:5px}.wallDateBar{margin-bottom:5px}.wallDateBtn{padding:4px 8px;font-size:11px}
+  .deliveryCard{padding:9px;margin:6px 0;border-radius:13px}.driverFilters{padding:4px 0 7px}.driverChip{padding:6px 9px;font-size:12px}.deliveryPhoto{max-height:280px}
+  .accountSummary{gap:5px;margin:5px 0 7px}.accountStat{padding:7px}.accountStat .name{font-size:10px}.accountStat .amount{font-size:17px}.accountEntry,.acctQueryBox{padding:7px;margin-top:7px}.accountFormGrid,.accountItemGrid,.externalItemGrid,.freightBox,.basketBox{gap:5px}.accountTotals{gap:5px;margin:6px 0}.accountTotalBox{padding:6px;font-size:11px}.accountTotalBox b{font-size:15px}.accountRecord{padding:7px}.acctHistoryLine{padding:6px 2px}
+  .employeeBox{width:min(1080px,96vw);padding:14px;max-height:94vh}.employeeHead{margin-bottom:7px}.employeeHead h2{font-size:19px}.employeeCount{font-size:11px;padding:4px 8px}.employeeCompact{padding:7px 0}.empMiniActions{margin-top:5px}.empMiniActions .btn{padding:5px 7px;font-size:11px}.workRoleChip{padding:5px 8px;font-size:11px}
 }
 
 </style>
@@ -360,7 +375,7 @@ body.wall-focus #wall>.card>.helper{display:none}
           <div class="accountItemGrid">
             <div class="field"><label class="label">商品</label><input id="acctProduct" class="input" list="acctProductList" autocomplete="off" placeholder="打一兩個字搜尋"><datalist id="acctProductList"></datalist></div>
             <div class="field"><label class="label">數量</label><input id="acctQty" class="input" type="number" min="0" step="0.1" value="1"></div>
-            <div class="field unitField"><label class="label">單位</label><select id="acctUnit" class="input"><option>件</option><option>箱</option><option>公斤</option><option>包</option><option>袋</option><option>顆</option><option>綑</option><option>其他</option></select></div>
+            <div class="field unitField"><label class="label">單位</label><select id="acctUnit" class="input"><option>件</option><option>箱</option><option>公斤</option><option>斤</option><option>包</option><option>袋</option><option>顆</option><option>綑</option><option>其他</option></select></div>
             <div class="field"><label class="label">單價</label><input id="acctPrice" class="input" type="number" min="0" step="1" placeholder="0"></div>
             <button id="acctAddItem" class="btn blue" type="button">＋</button>
           </div>
@@ -1656,9 +1671,9 @@ function renderAcctLists(){
 }
 function renderAcctDraft(){
   const box=$('#acctItems');
-  box.innerHTML=acctDraftItems.length?acctDraftItems.map((x,i)=>`<div class="accountItemLine"><div><b>${esc(x.name)}</b><div class="meta">${esc(x.unit)}</div></div><div>${x.qty}</div><div>${acctMoney(x.qty*x.price)}</div><button type="button" class="btn red" style="padding:6px 8px" onclick="acctRemoveItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:12px">尚未加入商品</div>';
+  box.innerHTML=acctDraftItems.length?acctDraftItems.map((x,i)=>`<div class="accountItemLine"><div><b>${esc(x.name)}</b><div class="meta">${esc(x.unit)}｜單價 ${acctMoney(x.price)}</div></div><div>${x.qty}</div><div><span class="meta">小計</span> <b>${acctMoney(x.qty*x.price)}</b></div><button type="button" class="btn red" style="padding:6px 8px" onclick="acctRemoveItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:12px">尚未加入商品</div>';
   const extBox=$('#acctExternalItems');
-  extBox.innerHTML=acctExternalDraftItems.length?acctExternalDraftItems.map((x,i)=>`<div class="externalItemLine"><div><b>${esc(x.name)}</b><div class="meta">外店商品</div></div><div>${x.kgEach}kg</div><div>${x.qty}件</div><div>${x.advance?`代墊 ${acctMoney(x.qty*x.advance)}`:'不計菜價'}</div><button type="button" class="btn red" style="padding:6px 8px" onclick="acctRemoveExternalItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:10px">尚未加入外店商品</div>';
+  extBox.innerHTML=acctExternalDraftItems.length?acctExternalDraftItems.map((x,i)=>`<div class="externalItemLine"><div><b>${esc(x.name)}</b></div><div>${x.kgEach}kg/件</div><div>${x.qty}件</div><div><span class="meta">重量小計</span> <b>${x.kgEach*x.qty}kg</b></div><div>${x.advance?`<span class="meta">代墊小計</span> <b>${acctMoney(x.qty*x.advance)}</b>`:'<span class="meta">未代墊</span>'}</div><button type="button" class="btn red" style="padding:4px 7px" onclick="acctRemoveExternalItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:10px">尚未加入外店商品</div>';
   const goods=acctDraftItems.reduce((s,x)=>s+x.qty*x.price,0),advance=acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.advance,0),ownKg=Number($('#acctOwnKg').value)||0,externalKg=acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.kgEach,0),kg=ownKg+externalKg,rate=Number($('#acctFreightRate').value)||0,freight=$('#acctRoute').value==='none'?0:kg*rate,total=goods+advance+freight,paid=Number($('#acctPaid').value)||0;
   const out=Number($('#acctBasketOut').value)||0,back=Number($('#acctBasketBack').value)||0,customer=$('#acctCustomer').value.trim();
   const oldBasket=acctRecords().filter(x=>x.customer===customer).reduce((s,x)=>s+(Number(x.basketDiff)||0),0);
