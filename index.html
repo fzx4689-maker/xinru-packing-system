@@ -229,6 +229,17 @@ body.wall-focus #wall>.card>.helper{display:none}
   #today .table .meta,#today .table .th{font-size:10px}
 }
 
+
+/* v3：只調整兩項－派工五欄同排、帳務商品緊湊單行 */
+.stallFiveRow{display:grid;grid-template-columns:1.15fr .55fr 1.6fr 1fr .8fr;gap:8px;align-items:end}
+.stallFiveRow .field{margin:0}.stallFiveRow .urgentCompact{height:100%;min-height:43px;justify-content:center}
+#accounting .accountItemHead,#accounting .accountItemLine{display:grid!important;grid-template-columns:minmax(180px,2.2fr) .55fr .65fr .65fr .75fr .85fr 42px!important;gap:6px!important;align-items:center!important}
+#accounting .accountItemHead{padding:4px 8px;font-size:11px;font-weight:900;color:#667085;border-bottom:1px solid #dbeafe}
+#accounting .accountItemLine{min-height:36px!important;padding:4px 8px!important;border-radius:7px!important;line-height:1.15!important;margin:0!important}
+#accounting .accountItemLine .btn{padding:4px 6px!important;min-height:28px!important;font-size:13px!important}
+#accounting .accountItems{gap:3px!important}
+@media(max-width:999px){.stallFiveRow{grid-template-columns:1fr 1fr}.stallFiveRow .urgentField{align-self:end}#accounting .accountItemHead{display:none!important}#accounting .accountItemLine{grid-template-columns:1.4fr .5fr .6fr .6fr .7fr .8fr 36px!important;font-size:12px!important;overflow-x:auto}}
+
 </style>
 
 
@@ -276,9 +287,12 @@ body.wall-focus #wall>.card>.helper{display:none}
         <h2>📋 派工</h2>
         <div class="helper">所有訂單統一從這裡建立。可選擇送到包裝部或貨運部。</div>
 
-        <div class="quickOrderRow">
+        <div class="stallFiveRow">
           <div class="field"><label class="label">下單給</label><select id="orderTarget" class="input"><option value="packing">📦 包裝部</option><option value="delivery">🚚 貨運部</option></select></div>
-          <div class="urgentCompact"><span>🚨 急單</span><div id="urgentSwitch" class="switch"></div></div>
+          <div class="field urgentField"><label class="label">急單</label><div class="urgentCompact"><span>🚨 急單</span><div id="urgentSwitch" class="switch"></div></div></div>
+          <div class="field"><label class="label">客戶／店家名稱</label><input id="customer" class="input" autocomplete="off"></div>
+          <div class="field"><label class="label">訂單日期</label><input id="orderDate" class="input" type="date"></div>
+          <div class="field"><label class="label">取貨時間</label><input id="pickupTime" class="input" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></div>
         </div>
         <div id="urgentTargetHint" class="meta" style="display:none">急單提示</div>
         <div id="stallDriverWrap" class="field" style="display:none"><label class="label">指定司機（可不選）</label><select id="stallDeliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
@@ -287,11 +301,7 @@ body.wall-focus #wall>.card>.helper{display:none}
           <label style="font-weight:800"><input id="deliveryPaymentRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 💰 需要收款</label>
         </div>
 
-        <div class="grid2 orderInfoGrid">
-          <div class="field"><label class="label">客戶／店家名稱</label><input id="customer" class="input" autocomplete="off"></div>
-          <div class="field"><label class="label">訂單日期</label><input id="orderDate" class="input" type="date"></div>
-          <div class="field"><label class="label">取貨時間</label><input id="pickupTime" class="input" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></div>
-        </div>
+
 
         <div class="field">
           <label class="label">需求內容（每行一項）</label>
