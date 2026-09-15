@@ -10,6 +10,17 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
 <title>欣儒農產行｜內部作業系統</title>
+
+<script>
+async function loadProfile(...args){
+  try {
+    if (typeof registerXinruServiceWorker === 'function') return await registerXinruServiceWorker(...args);
+  } catch (e) {
+    console.error('loadProfile:', e);
+  }
+  return null;
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -309,6 +320,9 @@ body.wall-focus #wall>.card>.helper{display:none}
         <div class="quickOrderRow">
           <div class="field"><label class="label">下單給</label><select id="orderTarget" class="input"><option value="packing">📦 包裝部</option><option value="delivery">🚚 貨運部</option></select></div>
           <div class="urgentCompact"><span>🚨 急單</span><div id="urgentSwitch" class="switch"></div></div>
+          <div class="field"><label class="label">客戶／店家名稱</label><input id="customer" class="input" autocomplete="off"></div>
+          <div class="field"><label class="label">訂單日期</label><input id="orderDate" class="input" type="date"></div>
+          <div class="field"><label class="label">取貨時間</label><input id="pickupTime" class="input" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></div>
         </div>
         <div id="urgentTargetHint" class="meta" style="display:none">急單提示</div>
         <div id="stallDriverWrap" class="field" style="display:none"><label class="label">指定司機（可不選）</label><select id="stallDeliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
@@ -317,11 +331,7 @@ body.wall-focus #wall>.card>.helper{display:none}
           <label style="font-weight:800"><input id="deliveryPaymentRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 💰 需要收款</label>
         </div>
 
-        <div class="grid2 orderInfoGrid">
-          <div class="field"><label class="label">客戶／店家名稱</label><input id="customer" class="input" autocomplete="off"></div>
-          <div class="field"><label class="label">訂單日期</label><input id="orderDate" class="input" type="date"></div>
-          <div class="field"><label class="label">取貨時間</label><input id="pickupTime" class="input" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></div>
-        </div>
+        
 
         <div class="field">
           <label class="label">需求內容（每行一項）</label>
@@ -1814,7 +1824,39 @@ $('#acctExportExcel').onclick=()=>{
   else{const head=['日期','類型','明細','應收','已收','儲值入金','貨款餘額','本次籃數','欠籃總數'];lines=[['欣儒農產行 客戶帳本'],['客戶',d.customer],[],head,...d.rows.map(r=>[r.date,r.type,r.details,r.charge,r.payment,r.deposit,r.balance,r.basketDiff,r.baskets])]}
   const csv='\ufeff'+lines.map(row=>row.map(acctCsvCell).join(',')).join('\r\n');acctDownload(new Blob([csv],{type:'text/csv;charset=utf-8'}),acctSafeName(d.customer)+'_客戶帳本.csv')
 };
-function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script></body></html>`}
+function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style>
+<style>
+/* 欣儒系統：桌機緊湊單排版 */
+@media (min-width: 901px){
+  #stall .quickOrderRow{
+    display:grid !important;
+    grid-template-columns:1.05fr auto 1.65fr 1.05fr .9fr !important;
+    gap:7px !important;
+    align-items:end !important;
+    margin-bottom:5px !important;
+  }
+  #stall .quickOrderRow .field{margin:0 !important;min-width:0}
+  #stall .urgentCompact{height:43px;margin:0 !important;align-self:end}
+  #stall .quickOrderRow .input{width:100%;min-width:0}
+
+  #accounting .accountFormGrid{
+    display:grid !important;
+    grid-template-columns:1.05fr 1.25fr .95fr .95fr .95fr !important;
+    gap:7px !important;
+    align-items:end !important;
+  }
+  #accounting .accountFormGrid .customerField{grid-column:auto !important}
+  #accounting .accountFormGrid .field{margin:3px 0 !important;min-width:0}
+  #accounting .accountFormGrid .input{width:100%;min-width:0}
+}
+@media (max-width: 900px){
+  #stall .quickOrderRow{grid-template-columns:1fr auto !important}
+  #stall .quickOrderRow .field:nth-of-type(2),
+  #stall .quickOrderRow .field:nth-of-type(3),
+  #stall .quickOrderRow .field:nth-of-type(4){grid-column:1/-1}
+}
+</style>
+</head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script></body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){if(d.isSupermarket)return acctSupermarketCanvas(d);const width=1800,margin=24,top=150,rowH=31,per=28,colW=(width-margin*2)/3,height=top+per*rowH+75,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,width,height);g.fillStyle='#111';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('欣儒農產行　0900-767-577',width/2,42);g.textAlign='left';g.font='bold 22px sans-serif';g.fillText('客戶：'+d.customer,margin,82);g.font='19px sans-serif';g.fillText(`貨款餘額 ${acctMoney(Math.max(0,d.balance))}　欠籃 ${d.baskets}個　儲值餘額 ${acctMoney(Math.max(0,d.deposit-d.storedUsed))}`,margin,115);const headers=['日期','序','品名／內容','金額'];for(let col=0;col<3;col++){const x=margin+col*colW,widths=[90,45,colW-230,95];let xx=x;g.font='bold 16px sans-serif';headers.forEach((h,i)=>{g.strokeStyle='#333';g.strokeRect(xx,top-28,widths[i],28);g.fillText(h,xx+5,top-8);xx+=widths[i]});for(let i=0;i<per;i++){const r=d.rows[col*per+i],y=top+i*rowH;xx=x;widths.forEach(w=>{g.strokeRect(xx,y,w,rowH);xx+=w});g.font='15px sans-serif';g.fillStyle='#111';if(r){g.fillText(r.date.slice(5),x+4,y+21);g.fillText(String(col*per+i+1),x+94,y+21);const detail=(r.details||r.type);g.fillText(detail.length>35?detail.slice(0,35)+'…':detail,x+139,y+21);g.fillStyle=(r.charge-r.payment)<0?'#c22':'#2457a6';g.fillText(String(r.charge-r.payment||''),x+colW-88,y+21)}}}g.fillStyle='#111';g.textAlign='right';g.font='bold 22px sans-serif';g.fillText('合計：'+acctMoney(d.balance),width-margin,height-25);return c}
 function acctSupermarketCanvas(d){
