@@ -247,6 +247,18 @@ body.wall-focus #wall>.card>.helper{display:none}
   #accounting #acctSaveTest{position:sticky;bottom:6px;z-index:4;box-shadow:0 6px 18px rgba(0,0,0,.16)}
 }
 
+
+/* 欣儒系統 2.0：帳務中心第二層分頁 */
+.acctSubTabs{display:flex;gap:7px;overflow-x:auto;padding:3px 0 10px;margin-bottom:8px;scrollbar-width:thin}
+.acctSubTab{flex:0 0 auto;border:1px solid #dfe3e8;background:#fff;border-radius:999px;padding:9px 13px;font-weight:900;cursor:pointer;white-space:nowrap}
+.acctSubTab.active{background:#dbeeff;color:#1e5f94;border-color:#9cccf5}
+.acctSubPage{display:none}.acctSubPage.active{display:block}
+.acctComing{border:1px dashed #cbd5df;background:#fafbfc;border-radius:14px;padding:22px;text-align:center;color:#667085;font-weight:800}
+@media(max-width:760px){
+  .acctSubTabs{margin:0 -2px 7px;padding-bottom:7px}
+  .acctSubTab{padding:8px 11px;font-size:12px}
+}
+
 </style>
 
 
@@ -387,8 +399,19 @@ body.wall-focus #wall>.card>.helper{display:none}
 
     <section id="accounting" class="panel">
       <div class="card">
-        <h2>💰 今日快速登帳</h2>
-        <div class="helper">依照收銀貓訂單快速登帳｜Enter 連續輸入｜F2 完成本筆</div>
+        <h2>💰 帳務中心</h2>
+        <div class="acctSubTabs" id="acctSubTabs">
+          <button class="acctSubTab active" data-acct-page="quick">快速登帳</button>
+          <button class="acctSubTab" data-acct-page="payment">收款中心</button>
+          <button class="acctSubTab" data-acct-page="ledger">客戶帳本</button>
+          <button class="acctSubTab" data-acct-page="settlement">結帳管理</button>
+          <button class="acctSubTab" data-acct-page="farmer">產農帳</button>
+          <button class="acctSubTab" data-acct-page="middleman">中盤帳</button>
+          <button class="acctSubTab" data-acct-page="vendor">廠商帳</button>
+          <button class="acctSubTab" data-acct-page="liuhe">六禾調撥</button>
+        </div>
+        <div class="acctSubPage active" data-acct-page-panel="quick">
+          <div class="helper">依照收銀貓訂單快速登帳｜Enter 連續輸入｜F2 完成本筆</div>
         <div class="accountSummary">
           <div class="accountStat"><div class="name">今日／目前訂單</div><div id="testOrderCount" class="amount">0</div></div>
           <div class="accountStat"><div class="name">已收</div><div id="testPaidSum" class="amount" style="color:#18703c">$0</div></div>
@@ -451,14 +474,25 @@ body.wall-focus #wall>.card>.helper{display:none}
           </div>
           <div class="actions" style="margin-top:8px"><button id="acctSaveTest" class="btn primary" type="button" style="flex:1">F2 完成本筆</button><button id="acctClear" class="btn gray" type="button">清空</button></div>
         </div>
+        </div>
+        <div class="acctSubPage" data-acct-page-panel="payment">
+          <div class="acctComing">💵 收款中心<br><small>現金／匯款／部分付款／儲值會集中在這裡。</small></div>
+        </div>
+        <div class="acctSubPage" data-acct-page-panel="ledger">
         <div class="acctQueryBox">
-          <h3 style="margin:0 0 7px">🔎 客戶帳戶查詢</h3>
+          <h3 style="margin:0 0 7px">🔎 客戶帳本</h3>
           <div class="acctQueryHead"><input id="acctQueryCustomer" class="input" list="acctCustomerList" placeholder="輸入車牌、人名或超市"><button id="acctQueryBtn" class="btn blue" type="button">查詢</button></div>
           <div class="acctQueryTabs"><button class="acctQueryTab active" data-acct-filter="all">全部</button><button class="acctQueryTab" data-acct-filter="money">貨款</button><button class="acctQueryTab" data-acct-filter="payment">收款／儲值</button><button class="acctQueryTab" data-acct-filter="basket">籃子</button><button class="acctQueryTab" data-acct-filter="freight">貨運</button></div>
           <div id="acctExportBar" class="acctExportBar" style="display:none"><button id="acctExportExcel" class="btn green" type="button">匯出 Excel</button><button id="acctExportPdf" class="btn gray" type="button">匯出 PDF</button><button id="acctShareLine" class="btn blue" type="button">手機分享 LINE</button><button id="acctCopyLine" class="btn blue" type="button">電腦複製帳單圖片</button></div>
           <div id="acctQueryResult"><div class="empty" style="padding:14px">輸入客戶後查詢</div></div>
         </div>
         <h3 style="margin:12px 0 5px">最近帳務紀錄</h3><div id="acctRecords" class="accountRecords"></div>
+        </div>
+        <div class="acctSubPage" data-acct-page-panel="settlement"><div class="acctComing">🧾 結帳管理<br><small>3日結／週結／月結。</small></div></div>
+        <div class="acctSubPage" data-acct-page-panel="farmer"><div class="acctComing">🌱 產農帳<br><small>週一～週六、待報價、週結與付款單。</small></div></div>
+        <div class="acctSubPage" data-acct-page-panel="middleman"><div class="acctComing">🔄 中盤帳<br><small>進貨、出貨、付款、收款分開保留。</small></div></div>
+        <div class="acctSubPage" data-acct-page-panel="vendor"><div class="acctComing">🏭 廠商帳<br><small>叫貨、到貨、對帳、付款與退換貨。</small></div></div>
+        <div class="acctSubPage" data-acct-page-panel="liuhe"><div class="acctComing">🥬 六禾調撥<br><small>欣儒 → 六禾內部調撥帳。</small></div></div>
       </div>
     </section>
   </div>
@@ -1780,7 +1814,25 @@ $('#acctExportExcel').onclick=()=>{
   else{const head=['日期','類型','明細','應收','已收','儲值入金','貨款餘額','本次籃數','欠籃總數'];lines=[['欣儒農產行 客戶帳本'],['客戶',d.customer],[],head,...d.rows.map(r=>[r.date,r.type,r.details,r.charge,r.payment,r.deposit,r.balance,r.basketDiff,r.baskets])]}
   const csv='\ufeff'+lines.map(row=>row.map(acctCsvCell).join(',')).join('\r\n');acctDownload(new Blob([csv],{type:'text/csv;charset=utf-8'}),acctSafeName(d.customer)+'_客戶帳本.csv')
 };
-function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script></body></html>`}
+function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
+<script>
+(function(){
+  const tabs=[...document.querySelectorAll('.acctSubTab')];
+  const pages=[...document.querySelectorAll('.acctSubPage')];
+  function showAcctPage(name){
+    tabs.forEach(b=>b.classList.toggle('active',b.dataset.acctPage===name));
+    pages.forEach(p=>p.classList.toggle('active',p.dataset.acctPagePanel===name));
+    try{localStorage.setItem('xinru_acct_subpage',name)}catch(e){}
+  }
+  tabs.forEach(b=>b.addEventListener('click',()=>showAcctPage(b.dataset.acctPage)));
+  let saved='quick';
+  try{saved=localStorage.getItem('xinru_acct_subpage')||'quick'}catch(e){}
+  if(!tabs.some(b=>b.dataset.acctPage===saved)) saved='quick';
+  showAcctPage(saved);
+})();
+</script>
+
+</body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){if(d.isSupermarket)return acctSupermarketCanvas(d);const width=1800,margin=24,top=150,rowH=31,per=28,colW=(width-margin*2)/3,height=top+per*rowH+75,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,width,height);g.fillStyle='#111';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('欣儒農產行　0900-767-577',width/2,42);g.textAlign='left';g.font='bold 22px sans-serif';g.fillText('客戶：'+d.customer,margin,82);g.font='19px sans-serif';g.fillText(`貨款餘額 ${acctMoney(Math.max(0,d.balance))}　欠籃 ${d.baskets}個　儲值餘額 ${acctMoney(Math.max(0,d.deposit-d.storedUsed))}`,margin,115);const headers=['日期','序','品名／內容','金額'];for(let col=0;col<3;col++){const x=margin+col*colW,widths=[90,45,colW-230,95];let xx=x;g.font='bold 16px sans-serif';headers.forEach((h,i)=>{g.strokeStyle='#333';g.strokeRect(xx,top-28,widths[i],28);g.fillText(h,xx+5,top-8);xx+=widths[i]});for(let i=0;i<per;i++){const r=d.rows[col*per+i],y=top+i*rowH;xx=x;widths.forEach(w=>{g.strokeRect(xx,y,w,rowH);xx+=w});g.font='15px sans-serif';g.fillStyle='#111';if(r){g.fillText(r.date.slice(5),x+4,y+21);g.fillText(String(col*per+i+1),x+94,y+21);const detail=(r.details||r.type);g.fillText(detail.length>35?detail.slice(0,35)+'…':detail,x+139,y+21);g.fillStyle=(r.charge-r.payment)<0?'#c22':'#2457a6';g.fillText(String(r.charge-r.payment||''),x+colW-88,y+21)}}}g.fillStyle='#111';g.textAlign='right';g.font='bold 22px sans-serif';g.fillText('合計：'+acctMoney(d.balance),width-margin,height-25);return c}
 function acctSupermarketCanvas(d){
