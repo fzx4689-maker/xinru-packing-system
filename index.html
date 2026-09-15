@@ -680,7 +680,44 @@ window.claimDelivery=async id=>{
 };
 window.acceptDelivery=id=>updateDelivery(id,{status:'accepted',accepted_at:new Date().toISOString()});
 window.startDelivery=id=>updateDelivery(id,{status:'delivering',delivering_at:new Date().toISOString()});
-async function uploadDeliveryProof(file,id){const ext=(file.name.split('.').pop()||'jpg').toLowerCase();const path=`delivery-proof/${id}-${Date.now()}.${ext}`;const {error}=await sb.storage.from('order-photos').upload(path,file,{upsert:false});if(error)throw error;return sb.storage.from('order-photos').getPublicUrl(path).data.publicUrl;}
+async function compressPhoto(file,maxSide=1600,quality=.74){
+  if(!file||!String(file.type||'').startsWith('image/'))return file;
+  let url='';
+  try{
+    url=URL.createObjectURL(file);
+    const img=await new Promise((resolve,reject)=>{const el=new Image();el.onload=()=>resolve(el);el.onerror=()=>reject(new Error('照片讀取失敗'));el.src=url;});
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+    const width=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
+    const height=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d',{alpha:false});ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0,width,height);
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('照片壓縮失敗')),'image/jpeg',quality));
+    const base=(file.name||'photo').replace(/\.[^.]+$/,'');
+    return new File([blob],`${base}.jpg`,{type:'image/jpeg',lastModified:Date.now()});
+  }catch(e){console.warn('改用原始照片上傳：',e);return file}
+  finally{if(url)URL.revokeObjectURL(url)}
+}
+function photoSizeText(file){return file?`${Math.max(1,Math.round(file.size/1024))} KB`:''}
+function openPhotoUploadStatus(message='正在處理照片…'){
+  document.getElementById('photoUploadOverlay')?.remove();
+  const overlay=document.createElement('div');overlay.id='photoUploadOverlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:300000;background:rgba(15,23,42,.5);display:grid;place-items:center;padding:24px';
+  overlay.innerHTML='<div style="width:min(360px,100%);background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 18px 60px rgba(0,0,0,.28)"><div style="font-size:42px;margin-bottom:10px">📷</div><b id="photoUploadStatusText" style="font-size:18px">'+esc(message)+'</b><div class="meta" style="margin-top:9px">請保持此畫面開啟，不要重複按按鈕</div></div>';
+  document.body.appendChild(overlay);
+  return {el:overlay.querySelector('#photoUploadStatusText'),close:()=>overlay.remove()};
+}
+async function uploadOrderPhoto(file,path,statusEl=null){
+  if(!file)return null;
+  if(statusEl)statusEl.textContent='正在壓縮照片…';
+  const ready=await compressPhoto(file);
+  if(statusEl)statusEl.textContent=`正在上傳照片（${photoSizeText(ready)}）…`;
+  const upload=sb.storage.from('order-photos').upload(path.replace(/\.[^.]+$/,'.jpg'),ready,{upsert:false,contentType:ready.type||'image/jpeg'});
+  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('上傳超過 45 秒，請確認網路後再試一次')),45000));
+  const {error}=await Promise.race([upload,timeout]);if(error)throw error;
+  if(statusEl)statusEl.textContent='✅ 照片上傳完成';
+  return sb.storage.from('order-photos').getPublicUrl(path.replace(/\.[^.]+$/,'.jpg')).data.publicUrl;
+}
+async function uploadDeliveryProof(file,id,statusEl=null){const path=`delivery-proof/${id}-${Date.now()}.jpg`;return uploadOrderPhoto(file,path,statusEl);}
 window.completeDelivery=async id=>{
   const j=deliveryJobs.find(x=>x.id===id);if(!j)return;
   let amount=null,proofUrl=null;
@@ -689,7 +726,10 @@ window.completeDelivery=async id=>{
     const input=$('#deliveryProofInput');input.value='';
     const file=await new Promise(resolve=>{input.onchange=()=>resolve(input.files?.[0]||null);input.click();});
     if(!file){alert('這張單設定為送達需拍照，請先拍照回傳');return;}
-    try{proofUrl=await uploadDeliveryProof(file,id)}catch(e){alert('送達照片上傳失敗：'+e.message);return;}
+    const progress=openPhotoUploadStatus();
+    try{proofUrl=await uploadDeliveryProof(file,id,progress.el);progress.el.textContent='✅ 照片上傳完成';await new Promise(r=>setTimeout(r,500));}
+    catch(e){alert('送達照片上傳失敗：'+e.message);return;}
+    finally{progress.close();}
   }
   if(!confirm('確定配送完成？'))return;
   await updateDelivery(id,{status:'completed',completed_at:new Date().toISOString(),...(proofUrl?{delivery_photo_url:proofUrl}:{}),...(amount!==null?{collected_amount:amount,collected_at:new Date().toISOString()}: {})});
@@ -719,13 +759,14 @@ $('#saveDeliveryEdit').onclick=async()=>{
   const customer=$('#editDeliveryCustomer').value.trim();if(!customer){alert('請輸入客戶／店家名稱');return;}
   const uid=$('#editDeliveryDriver').value,driver=deliveryDrivers.find(x=>x.user_id===uid),file=$('#editDeliveryPhotoInput').files?.[0];
   const patch={customer,delivery_date:$('#editDeliveryDate').value||taipeiDate(),pickup_time:$('#editDeliveryPickup').value||null,request_text:$('#editDeliveryText').value.trim()||null,note:$('#editDeliveryNote').value.trim()||null,is_urgent:$('#editDeliveryUrgent').checked,proof_required:$('#editDeliveryProofRequired').checked,payment_required:$('#editDeliveryPaymentRequired').checked,assigned_driver_id:uid||null,assigned_driver_name:uid?deliveryDisplayName(driver?.display_name||''):null,status:uid?'assigned':'waiting',accepted_at:null};
-  if(file){try{patch.slip_photo_url=await uploadDeliveryProof(file,'order-'+id)}catch(e){alert('照片上傳失敗：'+e.message);return;}}
+  if(file){const saveBtn=$('#saveDeliveryEdit');const oldText=saveBtn.textContent,progress=openPhotoUploadStatus();saveBtn.disabled=true;saveBtn.textContent='照片處理中…';try{patch.slip_photo_url=await uploadDeliveryProof(file,'order-'+id,progress.el);progress.el.textContent='✅ 照片上傳完成';await new Promise(r=>setTimeout(r,500));}catch(e){alert('照片上傳失敗：'+e.message);return;}finally{progress.close();saveBtn.disabled=false;saveBtn.textContent=oldText;}}
   const oldUid=j.assigned_driver_id||'';
   const {error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('修改失敗：'+error.message);return;}
   if(oldUid!==(uid||'')){
     try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,old_driver_id:oldUid||null,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
-    if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
   }
+  try{await deliveryChannel.send({type:'broadcast',event:'job_updated',payload:{id,driver_id:uid||null,customer,updated_at:Date.now()}})}catch(e){console.warn('貨運訂單更新廣播失敗',e)}
+  if(uid){try{await sendXinruPush({targetUserId:uid,title:oldUid===(uid||'')?'🚚 配送單已修改':'🚚 指派配送',body:oldUid===(uid||'')?`${customer||'貨運單'}｜內容已修改，請重新確認`:`${customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`delivery-update-${id}-${Date.now()}`,kind:'freight'});}catch(e){console.warn('貨運修改推播失敗',e);alert('訂單已修改，但手機推播失敗；貨運頁面仍會即時更新。');}}
   $('#deliveryEditModal').classList.remove('show');await loadDelivery();
 };
 window.deleteDelivery=async id=>{
@@ -794,10 +835,11 @@ window.addEventListener('hashchange',()=>{
 $('#pickupTime').addEventListener('input',e=>{let v=e.target.value.replace(/[^0-9:]/g,'');if(/^\d{4}$/.test(v))v=v.slice(0,2)+':'+v.slice(2);e.target.value=v.slice(0,5)});
 $('#urgentSwitch').onclick=()=>{urgent=!urgent;$('#urgentSwitch').classList.toggle('on',urgent)};
 $('#takePhoto').onclick=()=>$('#photoInput').click();
-$('#clearPhoto').onclick=()=>{photoFile=null;$('#photoInput').value='';$('#photoPreview').style.display='none';$('#photoPreview').src=''};
-$('#photoInput').onchange=e=>{const f=e.target.files[0];if(!f)return;photoFile=f;const r=new FileReader();r.onload=()=>{$('#photoPreview').src=r.result;$('#photoPreview').style.display='block'};r.readAsDataURL(f)};
+let photoPreviewUrl='';
+$('#clearPhoto').onclick=()=>{photoFile=null;$('#photoInput').value='';if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl='';$('#photoPreview').style.display='none';$('#photoPreview').src='';$('#ocrStatus').textContent=''};
+$('#photoInput').onchange=async e=>{const original=e.target.files[0];if(!original)return;const status=$('#ocrStatus');status.textContent='正在處理照片…';photoFile=await compressPhoto(original);if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl=URL.createObjectURL(photoFile);$('#photoPreview').src=photoPreviewUrl;$('#photoPreview').style.display='block';status.textContent=`✅ 照片已準備（${photoSizeText(photoFile)}），送出時會自動上傳`};
 $('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';try{const result=await Tesseract.recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
-async function uploadPhoto(orderNo){if(!photoFile)return null;try{const ext=(photoFile.name.split('.').pop()||'jpg').toLowerCase();const path=`${orderNo}-${Date.now()}.${ext}`;const {error}=await sb.storage.from('order-photos').upload(path,photoFile,{upsert:false});if(error)throw error;const {data}=sb.storage.from('order-photos').getPublicUrl(path);return data.publicUrl}catch(e){console.warn('照片尚未上傳：',e.message);return null}}
+async function uploadPhoto(orderNo){if(!photoFile)return null;return uploadOrderPhoto(photoFile,`${orderNo}-${Date.now()}.jpg`,$('#ocrStatus'))}
 function updateOrderTargetUI(){
   const freight=$('#orderTarget')?.value==='delivery';
   const wrap=$('#stallDriverWrap');if(wrap)wrap.style.display=freight?'block':'none'; const req=$('#deliveryRequirements');if(req)req.style.display=freight?'flex':'none';
@@ -1319,6 +1361,17 @@ setInterval(()=>{if(document.visibilityState==='visible')checkDeliveryOverdue();
 
 const channel=sb.channel('xinru-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{if(!currentUser)return;const id=payload.new?.id;if(id!=null)knownOrderIds.add(id);if(shouldHearPacking())playOrderSound(!!payload.new?.is_urgent);loadOrders()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'DELETE',schema:'public',table:'orders'},()=>{if(currentUser)loadOrders()}).on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>{if(currentUser)loadOrders()}).subscribe(status=>{$('#syncState').textContent=status==='SUBSCRIBED'?'● 已連線｜即時同步中':'正在連線 Supabase…'});
 const deliveryChannel=sb.channel('xinru-delivery-live')
+.on('broadcast',{event:'job_updated'},msg=>{
+  if(!currentUser)return;
+  const p=msg?.payload||{};const id=String(p.id||'');
+  loadDelivery();
+  if(currentIsDriver()&&String(p.driver_id||'')===String(currentUser.id)){
+    playFreightSound();
+    const name=p.customer||'貨運單';
+    const wrap=$('#overdueToastWrap');
+    if(wrap){const el=document.createElement('div');el.className='overdueToast';el.innerHTML=`<button aria-label="關閉">×</button>📝 配送單已修改<div class="meta">${esc(name)}｜請重新確認內容</div>`;el.querySelector('button').onclick=()=>el.remove();wrap.prepend(el);setTimeout(()=>el.remove(),20000);}
+  }
+})
 .on('broadcast',{event:'assignment'},msg=>{
   if(!currentUser)return;
   const p=msg?.payload||{};const id=String(p.id||'');const oldUid=String(p.old_driver_id||'');const newUid=String(p.new_driver_id||'');
