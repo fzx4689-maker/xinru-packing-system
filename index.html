@@ -240,6 +240,13 @@ body.wall-focus #wall>.card>.helper{display:none}
 #accounting .accountItems{gap:3px!important}
 @media(max-width:999px){.stallFiveRow{grid-template-columns:1fr 1fr}.stallFiveRow .urgentField{align-self:end}#accounting .accountItemHead{display:none!important}#accounting .accountItemLine{grid-template-columns:1.4fr .5fr .6fr .6fr .7fr .8fr 36px!important;font-size:12px!important;overflow-x:auto}}
 
+
+/* 大量商品操作：固定高度捲動，列印時完整展開 */
+#accounting .accountItems{max-height:520px;overflow-y:auto;overscroll-behavior:contain;padding-right:3px}
+#accounting .accountItemLine{min-height:40px;padding:5px 8px}
+#accounting .acctItemsSummary{position:sticky;bottom:0;z-index:2;margin-top:5px;padding:8px 10px;border:1px solid #bfdbfe;border-radius:10px;background:#fff;font-weight:900;text-align:right}
+@media(max-width:760px){#accounting .accountItems{max-height:440px}}
+@media print{#accounting .accountItems{max-height:none!important;overflow:visible!important}#accounting .acctItemsSummary{position:static}}
 </style>
 
 
@@ -397,7 +404,7 @@ body.wall-focus #wall>.card>.helper{display:none}
           </div>
           <div class="accountItemGrid">
             <div class="field"><label class="label">商品</label><input id="acctProduct" class="input" lang="zh-Hant" list="acctProductList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="打一兩個字搜尋"><datalist id="acctProductList"></datalist></div>
-            <div class="field"><label class="label">數量</label><input id="acctQty" class="input" type="text" inputmode="decimal" value="1"></div>
+            <div class="field"><label class="label">數量</label><input id="acctQty" class="input" type="number" min="1" max="999" step="1" value="1"></div>
             <div class="field unitField"><label class="label">單位</label><select id="acctUnit" class="input"><option>件</option><option>箱</option><option>公斤</option><option>斤</option><option>包</option><option>袋</option><option>盒</option><option>顆</option><option>綑</option><option>其他</option><option value="自訂">自訂</option></select><input id="acctCustomUnit" class="input" style="display:none;margin-top:4px" placeholder="輸入自訂單位"></div>
             <div class="field"><label class="label">每件 KG</label><input id="acctItemKg" class="input" type="text" inputmode="decimal" placeholder="0"></div>
             <div class="field"><label class="label">單價</label><input id="acctPrice" class="input" type="text" inputmode="decimal" placeholder="0"></div>
@@ -405,6 +412,7 @@ body.wall-focus #wall>.card>.helper{display:none}
             <button id="acctAddItem" class="btn blue" type="button">＋</button>
           </div>
           <div id="acctItems" class="accountItems"><div class="empty" style="padding:12px">尚未加入商品</div></div>
+          <div id="acctItemsSummary" class="acctItemsSummary">共 0 項｜總數量 0｜商品金額 $0</div>
           <div class="externalItemGrid">
             <div class="field"><label class="label">外店商品</label><input id="acctExternalProduct" class="input" lang="zh-Hant" list="acctExternalProductList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例如：高麗菜"><datalist id="acctExternalProductList"></datalist></div>
             <div class="field"><label class="label">每件公斤</label><input id="acctExternalKgEach" class="input" type="text" lang="zh-Hant" autocomplete="off" value="" placeholder="30"></div>
@@ -1709,6 +1717,8 @@ function renderAcctDraft(){
   $('#acctItemSubtotal').textContent=acctMoney(entryQty*entryPrice);
   const box=$('#acctItems');
   box.innerHTML=acctDraftItems.length?acctDraftItems.map((x,i)=>`<div class="accountItemLine"><div><b>${esc(x.name)}</b><div class="meta">${esc(x.unit)}｜${x.kgEach?x.kgEach+'KG/件｜':''}單價 ${acctMoney(x.price)}</div></div><div>${x.qty}</div><div><span class="meta">小計</span> <b>${acctMoney(x.qty*x.price)}</b></div><button type="button" class="btn red" style="padding:6px 8px" onclick="acctRemoveItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:12px">尚未加入商品</div>';
+  const sumBox=$('#acctItemsSummary');
+  if(sumBox){const totalQty=acctDraftItems.reduce((s,x)=>s+(Number(x.qty)||0),0),goodsSum=acctDraftItems.reduce((s,x)=>s+(Number(x.qty)||0)*(Number(x.price)||0),0);sumBox.textContent=`共 ${acctDraftItems.length} 項｜總數量 ${totalQty.toLocaleString('zh-TW')}｜商品金額 ${acctMoney(goodsSum)}`;}
   const extBox=$('#acctExternalItems');
   extBox.innerHTML=acctExternalDraftItems.length?acctExternalDraftItems.map((x,i)=>`<div class="externalItemLine"><div><b>${esc(x.name)}</b></div><div>${x.kgEach}kg/件</div><div>${x.qty}件</div><div><span class="meta">重量小計</span> <b>${x.kgEach*x.qty}kg</b></div><div>${x.advance?`<span class="meta">代墊小計</span> <b>${acctMoney(x.qty*x.advance)}</b>`:'<span class="meta">未代墊</span>'}</div><button type="button" class="btn red" style="padding:4px 7px" onclick="acctRemoveExternalItem(${i})">×</button></div>`).join(''):'<div class="empty" style="padding:10px">尚未加入外店商品</div>';
   const goods=acctDraftItems.reduce((s,x)=>s+x.qty*x.price,0),advance=acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.advance,0),ownKg=Number($('#acctOwnKg').value)||0,externalKg=acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.kgEach,0),kg=ownKg+externalKg,rate=Number($('#acctFreightRate').value)||0,freight=$('#acctRoute').value==='none'?0:kg*rate,total=goods+advance+freight,paid=Number($('#acctPaid').value)||0;
@@ -1805,7 +1815,8 @@ $$('.acctQueryTab').forEach(btn=>btn.onclick=()=>{acctQueryFilter=btn.dataset.ac
 $('#acctAddItem').onclick=()=>{
   const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit=$('#acctUnit').value==='自訂'?($('#acctCustomUnit').value.trim()||'其他'):$('#acctUnit').value,kgEach=Math.max(0,Number($('#acctItemKg').value)||0);
   if(!name||!(qty>0)||price<0){alert('請輸入商品、數量與單價');return}
-  acctDraftItems.push({name,qty,price,unit,kgEach});const catalog=acctCatalog();catalog[name]={price,unit,kgEach};localStorage.setItem('xinru_acct_test_products',JSON.stringify(catalog));
+  const same=acctDraftItems.find(x=>x.name===name&&String(x.unit)===String(unit)&&Number(x.price)===price&&Number(x.kgEach||0)===kgEach);
+  if(same) same.qty=Number(same.qty||0)+qty; else acctDraftItems.push({name,qty,price,unit,kgEach});const catalog=acctCatalog();catalog[name]={price,unit,kgEach};localStorage.setItem('xinru_acct_test_products',JSON.stringify(catalog));
   const itemKg=acctDraftItems.reduce((s,x)=>s+(Number(x.kgEach)||0)*(Number(x.qty)||0),0);if(itemKg>0)$('#acctOwnKg').value=itemKg;
   $('#acctProduct').value='';$('#acctQty').value='1';$('#acctItemKg').value='';$('#acctPrice').value='';renderAcctDraft();renderAcctLists();
 };
