@@ -10,17 +10,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
 <title>欣儒農產行｜內部作業系統</title>
-
-<script>
-async function loadProfile(...args){
-  try {
-    if (typeof registerXinruServiceWorker === 'function') return await registerXinruServiceWorker(...args);
-  } catch (e) {
-    console.error('loadProfile:', e);
-  }
-  return null;
-}
-</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -115,7 +104,7 @@ async function loadProfile(...args){
 .quickOrderRow .field{margin:0}.urgentCompact{height:43px;display:flex;align-items:center;gap:7px;border:1px solid #ffd6d8;background:#fff7f7;border-radius:11px;padding:4px 8px;font-weight:900;white-space:nowrap}
 .urgentCompact .switch{transform:scale(.78)}
 .accountEntry{border:1px solid var(--line);background:#fafbfc;border-radius:14px;padding:10px;margin:8px 0}
-.accountFormGrid{display:grid;grid-template-columns:1.1fr 1.3fr 1fr 1fr;gap:7px}.accountFormGrid .field{margin:3px 0}
+.accountFormGrid{display:grid;grid-template-columns:1.05fr 1.35fr 1fr 1fr 1fr;gap:7px}.accountFormGrid .field{margin:3px 0;min-width:0}
 .accountItemGrid{display:grid;grid-template-columns:1.7fr .52fr .62fr .62fr .72fr .8fr auto;gap:6px;align-items:end;margin-top:6px}
 .externalItemGrid{display:grid;grid-template-columns:1.55fr .75fr .65fr .9fr auto;gap:5px;align-items:end;margin-top:6px;padding-top:6px;border-top:1px dashed #d8dde3}.externalItems{display:grid;gap:3px;margin-top:4px}.externalItemLine{display:grid;grid-template-columns:1.4fr .62fr .55fr .72fr .95fr auto;gap:5px;align-items:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:5px 7px;line-height:1.2}
 .accountItems{display:grid;gap:5px;margin-top:7px}.accountItemLine{display:grid;grid-template-columns:2fr .7fr 1fr auto;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px}
@@ -273,43 +262,6 @@ body.wall-focus #wall>.card>.helper{display:none}
 </style>
 
 
-
-<style>
-/* 真正桌機單排：以元素 ID 重組後套用，不再受原本 grid 影響 */
-@media (min-width:901px){
-  .xinru-force-row{
-    display:flex !important;
-    flex-flow:row nowrap !important;
-    align-items:flex-end !important;
-    gap:8px !important;
-    width:100% !important;
-    margin:4px 0 8px !important;
-  }
-  .xinru-force-row > *{
-    margin:0 !important;
-    min-width:0 !important;
-  }
-  .xinru-dispatch-row > *:nth-child(1){flex:0 1 210px !important}
-  .xinru-dispatch-row > *:nth-child(2){flex:0 0 150px !important}
-  .xinru-dispatch-row > *:nth-child(3){flex:1 1 360px !important}
-  .xinru-dispatch-row > *:nth-child(4){flex:0 1 190px !important}
-  .xinru-dispatch-row > *:nth-child(5){flex:0 1 150px !important}
-
-  .xinru-account-row > *:nth-child(1){flex:0 1 210px !important}
-  .xinru-account-row > *:nth-child(2){flex:1 1 300px !important}
-  .xinru-account-row > *:nth-child(3){flex:0 1 210px !important}
-  .xinru-account-row > *:nth-child(4){flex:0 1 210px !important}
-  .xinru-account-row > *:nth-child(5){flex:0 1 210px !important}
-
-  .xinru-force-row input,
-  .xinru-force-row select{
-    width:100% !important;
-    min-width:0 !important;
-    box-sizing:border-box !important;
-  }
-}
-</style>
-
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -367,8 +319,6 @@ body.wall-focus #wall>.card>.helper{display:none}
           <label style="font-weight:800"><input id="deliveryPhotoRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 📷 送達需拍照</label>
           <label style="font-weight:800"><input id="deliveryPaymentRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 💰 需要收款</label>
         </div>
-
-        
 
         <div class="field">
           <label class="label">需求內容（每行一項）</label>
@@ -1861,102 +1811,49 @@ $('#acctExportExcel').onclick=()=>{
   else{const head=['日期','類型','明細','應收','已收','儲值入金','貨款餘額','本次籃數','欠籃總數'];lines=[['欣儒農產行 客戶帳本'],['客戶',d.customer],[],head,...d.rows.map(r=>[r.date,r.type,r.details,r.charge,r.payment,r.deposit,r.balance,r.basketDiff,r.baskets])]}
   const csv='\ufeff'+lines.map(row=>row.map(acctCsvCell).join(',')).join('\r\n');acctDownload(new Blob([csv],{type:'text/csv;charset=utf-8'}),acctSafeName(d.customer)+'_客戶帳本.csv')
 };
-function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style>
-<style>
-/* 欣儒系統：桌機緊湊單排版 */
-@media (min-width: 901px){
+function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}
+/* 桌機：派工與帳務的主要欄位固定同一排；手機才允許換行 */
+@media(min-width:901px){
   #stall .quickOrderRow{
     display:grid !important;
-    grid-template-columns:1.05fr auto 1.65fr 1.05fr .9fr !important;
+    grid-template-columns:minmax(180px,1.05fr) 105px minmax(260px,1.55fr) minmax(160px,.9fr) minmax(140px,.8fr) !important;
     gap:7px !important;
     align-items:end !important;
     margin-bottom:5px !important;
   }
-  #stall .quickOrderRow .field{margin:0 !important;min-width:0}
-  #stall .urgentCompact{height:43px;margin:0 !important;align-self:end}
-  #stall .quickOrderRow .input{width:100%;min-width:0}
-
+  #stall .quickOrderRow > .field{margin:0 !important;min-width:0}
+  #stall .quickOrderRow .urgentCompact{
+    width:105px !important;
+    min-width:105px !important;
+    height:43px !important;
+    margin:0 !important;
+    box-sizing:border-box !important;
+  }
+  #stall .quickOrderRow .input{width:100% !important;min-width:0 !important}
   #accounting .accountFormGrid{
     display:grid !important;
-    grid-template-columns:1.05fr 1.25fr .95fr .95fr .95fr !important;
+    grid-template-columns:minmax(150px,1.05fr) minmax(220px,1.35fr) minmax(170px,1fr) minmax(150px,1fr) minmax(150px,1fr) !important;
     gap:7px !important;
     align-items:end !important;
   }
-  #accounting .accountFormGrid .customerField{grid-column:auto !important}
-  #accounting .accountFormGrid .field{margin:3px 0 !important;min-width:0}
-  #accounting .accountFormGrid .input{width:100%;min-width:0}
+  #accounting .accountFormGrid .field{min-width:0 !important}
+  #accounting .accountFormGrid .input{width:100% !important;min-width:0 !important}
 }
-@media (max-width: 900px){
-  #stall .quickOrderRow{grid-template-columns:1fr auto !important}
-  #stall .quickOrderRow .field:nth-of-type(2),
-  #stall .quickOrderRow .field:nth-of-type(3),
-  #stall .quickOrderRow .field:nth-of-type(4){grid-column:1/-1}
-}
-</style>
-</head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
+</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <script>
 (function(){
-  function oneRow(ids, cls){
-    const els = ids.map(id=>document.getElementById(id)).filter(Boolean);
-    if(els.length !== ids.length) return;
-    const wrappers = els.map(el => el.closest('.field') || el.parentElement);
-    const first = wrappers[0];
-    let row = first.closest('.quickOrderRow, .xinru-force-row');
-    if(!row){
-      row=document.createElement('div');
-      row.className='xinru-force-row '+cls;
-      first.parentNode.insertBefore(row, first);
-    } else {
-      row.classList.add('xinru-force-row',cls);
-    }
-    wrappers.forEach(w=>row.appendChild(w));
+  const tabs=[...document.querySelectorAll('.acctSubTab')];
+  const pages=[...document.querySelectorAll('.acctSubPage')];
+  function showAcctPage(name){
+    tabs.forEach(b=>b.classList.toggle('active',b.dataset.acctPage===name));
+    pages.forEach(p=>p.classList.toggle('active',p.dataset.acctPagePanel===name));
+    try{localStorage.setItem('xinru_acct_subpage',name)}catch(e){}
   }
-
-  function fixRows(){
-    // 派工
-    const target=document.getElementById('orderTarget');
-    const urgent=document.getElementById('urgentSwitch');
-    const customer=document.getElementById('customer');
-    const date=document.getElementById('orderDate');
-    const time=document.getElementById('pickupTime');
-    if(target && urgent && customer && date && time){
-      let row=target.closest('.quickOrderRow') || document.createElement('div');
-      if(!row.parentNode){
-        const w=target.closest('.field')||target.parentElement;
-        w.parentNode.insertBefore(row,w);
-      }
-      row.classList.add('xinru-force-row','xinru-dispatch-row');
-      [target.closest('.field')||target.parentElement,
-       urgent.closest('.urgentCompact')||urgent.parentElement,
-       customer.closest('.field')||customer.parentElement,
-       date.closest('.field')||date.parentElement,
-       time.closest('.field')||time.parentElement].forEach(w=>row.appendChild(w));
-    }
-
-    // 帳務：依目前檔案的實際 ID
-    const sets=[
-      ['acctDate','acctCustomer','acctTxnType','acctCustomerType','acctPayment'],
-      ['accountDate','accountCustomer','accountTxnType','accountCustomerType','accountPayment']
-    ];
-    for(const ids of sets){
-      if(ids.every(id=>document.getElementById(id))){
-        const ws=ids.map(id=>{
-          const e=document.getElementById(id);
-          return e.closest('.field')||e.parentElement;
-        });
-        let row=ws[0].closest('.accountFormGrid');
-        if(!row){
-          row=document.createElement('div');
-          ws[0].parentNode.insertBefore(row,ws[0]);
-        }
-        row.classList.add('xinru-force-row','xinru-account-row');
-        ws.forEach(w=>row.appendChild(w));
-        break;
-      }
-    }
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',fixRows);
-  else fixRows();
+  tabs.forEach(b=>b.addEventListener('click',()=>showAcctPage(b.dataset.acctPage)));
+  let saved='quick';
+  try{saved=localStorage.getItem('xinru_acct_subpage')||'quick'}catch(e){}
+  if(!tabs.some(b=>b.dataset.acctPage===saved)) saved='quick';
+  showAcctPage(saved);
 })();
 </script>
 
@@ -2040,21 +1937,4 @@ window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery()
 </script>
 
 <div id="workPickOverlay" class="workPickOverlay"><div class="workPickBox"><h2 id="workPickTitle">工作職能</h2><div id="workPickName" class="workPickName"></div><div id="workPickChoices" class="workPickChoices"><label class="workPickChoice"><input type="checkbox" value="stall"> 🧾 攤位</label><label class="workPickChoice"><input type="checkbox" value="packing"> 📦 包裝</label><label class="workPickChoice"><input type="checkbox" value="driver"> 🚚 司機</label><label class="workPickChoice"><input type="checkbox" value="accounting"> 💰 帳務</label></div><div id="workPickError" class="employeeMsg err"></div><div class="workPickActions"><button id="workPickCancel" type="button" class="btn gray">取消</button><button id="workPickConfirm" type="button" class="btn primary">確定</button></div></div></div>
-
-<script>
-(function(){
-  const tabs=[...document.querySelectorAll('.acctSubTab')];
-  const pages=[...document.querySelectorAll('.acctSubPage')];
-  function showAcctPage(name){
-    tabs.forEach(b=>b.classList.toggle('active',b.dataset.acctPage===name));
-    pages.forEach(p=>p.classList.toggle('active',p.dataset.acctPagePanel===name));
-    try{localStorage.setItem('xinru_acct_subpage',name)}catch(e){}
-  }
-  tabs.forEach(b=>b.addEventListener('click',()=>showAcctPage(b.dataset.acctPage)));
-  let saved='quick';
-  try{saved=localStorage.getItem('xinru_acct_subpage')||'quick'}catch(e){}
-  if(!tabs.some(b=>b.dataset.acctPage===saved)) saved='quick';
-  showAcctPage(saved);
-})();
-</script>
 </body></html>
