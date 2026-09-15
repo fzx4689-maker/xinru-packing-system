@@ -111,9 +111,13 @@
 .accountTotalBox b{display:block;font-size:18px;margin-top:2px}.accountRecords{display:grid;gap:6px;margin-top:8px}.accountRecord{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff;display:flex;justify-content:space-between;gap:8px}
 .freightBox,.basketBox{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:8px;margin-top:7px;border:1px dashed #cfd5dc;border-radius:11px;background:#fff}.freightBox .field,.basketBox .field{margin:0}
 .acctQueryBox{border:1px solid var(--line);border-radius:14px;padding:10px;background:#fff;margin-top:12px}.acctQueryHead{display:grid;grid-template-columns:1fr auto;gap:7px}.acctQueryTabs{display:flex;gap:5px;overflow-x:auto;margin:8px 0}.acctQueryTab{border:1px solid var(--line);background:#f6f8fa;border-radius:999px;padding:7px 10px;font-weight:900;white-space:nowrap;cursor:pointer}.acctQueryTab.active{background:#dbeeff;color:#1e5f94;border-color:#9cccf5}.acctCustomerSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:7px 0}.acctHistoryLine{display:grid;grid-template-columns:95px 1fr auto;gap:7px;padding:8px 3px;border-bottom:1px solid var(--line);align-items:center}.acctHistoryLine:last-child{border-bottom:0}
+.compactUserBar{display:none!important;min-height:42px;padding:4px 8px!important;justify-content:flex-start!important;gap:7px!important;white-space:nowrap}
+.compactUserBar.show{display:flex!important}.brandIcon{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:0 0 auto}.identityBox{display:flex;align-items:center;gap:6px;min-width:0}.identityBox b{font-size:14px;color:#16181d}.identityBox span{font-size:12px}.compactSync{font-size:11px;color:#18703c;font-weight:800;margin-left:auto}.compactActions{display:flex;gap:5px;align-items:center}.compactActions .btn{padding:6px 9px!important;font-size:12px!important;border-radius:9px!important}
+.panel>.card{margin-top:0}.panel>.card>h2{margin-bottom:3px}.panel>.card>.helper{margin-bottom:7px}
 
 /* 電視牆頁面只保留頁籤列，讓訂單從畫面最上方開始。 */
 body.wall-focus .title,body.wall-focus .sync,body.wall-focus .userBar{display:none!important}
+body.wall-focus .compactUserBar{display:flex!important}
 body.wall-focus .tabs{padding-top:6px}
 body.wall-focus #wall>.card>.helper{display:none}
 
@@ -124,6 +128,7 @@ body.wall-focus #wall>.card>.helper{display:none}
   .app{padding-bottom:68px}
   .title,.sync{display:none}
   .userBar{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;padding-top:4px}
+  .compactUserBar{overflow:visible;padding:3px 5px!important;gap:5px!important}.brandIcon{width:30px;height:30px;border-radius:8px}.identityBox{display:grid;gap:0;line-height:1.15}.identityBox b{font-size:12px}.identityBox span{font-size:10px}.compactSync{font-size:0;margin-left:auto}.compactSync::before{content:'●';font-size:11px}.compactActions{gap:3px}.compactActions .btn{padding:5px 7px!important;font-size:11px!important}.compactActions #pwaPushBtn{font-size:0!important}.compactActions #pwaPushBtn::before{content:'🔔';font-size:14px}.compactActions #logoutBtn{font-size:0!important}.compactActions #logoutBtn::before{content:'登出';font-size:11px}
   .tabs{grid-template-columns:repeat(6,minmax(70px,1fr));gap:4px;padding:3px 5px 6px;overflow-x:auto}
   .tab{padding:7px 2px;border-radius:10px;font-size:11px}
   .tab .th{font-size:7px}
@@ -224,8 +229,7 @@ body.wall-focus #wall>.card>.helper{display:none}
 </div>
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
-    <div class="title">欣儒農產行｜內部作業系統</div>
-    <div class="sync" id="syncState">正在連線 Supabase…</div><div id="userBar" class="userBar"><b id="currentUserName"></b><span id="currentUserRole"></span><button id="employeeManageBtn" class="btn blue" style="display:none;padding:6px 10px;font-size:12px">👥 員工管理 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray" style="padding:6px 10px;font-size:12px">📱 App通知</button><button id="logoutBtn" class="btn gray" style="padding:6px 10px;font-size:12px">登出</button></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
+    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./icon-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs">
       <button class="tab active" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
       <button class="tab" data-tab="accounting">💰 帳務部<div class="th">會計作業</div></button>
