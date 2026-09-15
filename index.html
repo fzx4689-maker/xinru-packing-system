@@ -229,6 +229,24 @@ body.wall-focus #wall>.card>.helper{display:none}
   #today .table .meta,#today .table .th{font-size:10px}
 }
 
+
+/* 欣儒系統 2.0：今日快速登帳 */
+#accounting .accountEntry{border:2px solid #b9ddca;background:#fbfffd}
+#accounting #acctSaveTest{font-size:17px}
+#accounting #acctPrice{background:#fffdf2;border-color:#e9cf79}
+#accounting #acctPrice::placeholder{color:#9a7b19}
+@media(min-width:761px){
+  #accounting .accountItemGrid{grid-template-columns:minmax(190px,1.8fr) 85px 95px 100px 110px 115px 52px}
+  #accounting #acctCustomer{font-size:18px;font-weight:800}
+}
+@media(max-width:760px){
+  #accounting .accountItemGrid{display:grid;grid-template-columns:1.45fr .55fr .72fr .78fr auto;gap:5px}
+  #accounting .accountItemGrid .unitField{display:none}
+  #accounting .accountItemGrid .field:nth-child(6){display:none}
+  #accounting #acctAddItem{min-height:42px;padding:8px 11px}
+  #accounting #acctSaveTest{position:sticky;bottom:6px;z-index:4;box-shadow:0 6px 18px rgba(0,0,0,.16)}
+}
+
 </style>
 
 
@@ -369,12 +387,12 @@ body.wall-focus #wall>.card>.helper{display:none}
 
     <section id="accounting" class="panel">
       <div class="card">
-        <h2>💰 帳務測試版</h2>
-        <div class="helper">依照收銀貓訂單手動輸入；目前只儲存在這台裝置測試，不會影響正式資料。</div>
+        <h2>💰 今日快速登帳</h2>
+        <div class="helper">依照收銀貓訂單快速登帳｜Enter 連續輸入｜F2 完成本筆</div>
         <div class="accountSummary">
-          <div class="accountStat"><div class="name">測試訂單</div><div id="testOrderCount" class="amount">0</div></div>
-          <div class="accountStat"><div class="name">測試已收</div><div id="testPaidSum" class="amount" style="color:#18703c">$0</div></div>
-          <div class="accountStat"><div class="name">測試未收</div><div id="testDueSum" class="amount" style="color:#b4232c">$0</div></div>
+          <div class="accountStat"><div class="name">今日／目前訂單</div><div id="testOrderCount" class="amount">0</div></div>
+          <div class="accountStat"><div class="name">已收</div><div id="testPaidSum" class="amount" style="color:#18703c">$0</div></div>
+          <div class="accountStat"><div class="name">未收</div><div id="testDueSum" class="amount" style="color:#b4232c">$0</div></div>
           <div class="accountStat"><div class="name">貨運收入</div><div id="testFreightSum" class="amount">$0</div></div>
           <div class="accountStat"><div class="name">欠籃總數</div><div id="testBasketSum" class="amount">0</div></div>
         </div>
@@ -384,7 +402,7 @@ body.wall-focus #wall>.card>.helper{display:none}
             <div class="field customerField"><label class="label">車牌／人名／超市</label><input id="acctCustomer" class="input" list="acctCustomerList" autocomplete="off"><datalist id="acctCustomerList"></datalist></div>
             <div class="field"><label class="label">交易內容</label><select id="acctTxnType" class="input"><option value="sale">本店商品</option><option value="mixed">本店商品＋外店商品</option><option value="freight">只有外店商品</option><option value="repayment">收回舊欠款</option><option value="deposit">儲值入金</option></select></div>
             <div class="field"><label class="label">客戶類型</label><select id="acctCustomerType" class="input"><option>車牌客戶</option><option>個人</option><option>超市</option><option>中盤</option><option>產農</option><option>其他</option></select></div>
-            <div class="field"><label class="label">付款方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>儲值扣款</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
+            <div class="field"><label class="label">付款方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>儲值扣款</option><option>3日結</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
           </div>
           <div class="accountItemGrid">
             <div class="field"><label class="label">商品</label><input id="acctProduct" class="input" lang="zh-Hant" list="acctProductList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="打一兩個字搜尋"><datalist id="acctProductList"></datalist></div>
@@ -431,7 +449,7 @@ body.wall-focus #wall>.card>.helper{display:none}
             <label style="font-weight:800"><input id="acctTwoCopy" type="checkbox"> 需要二聯單</label>
             <input id="acctNote" class="input" placeholder="備註（可不填）">
           </div>
-          <div class="actions" style="margin-top:8px"><button id="acctSaveTest" class="btn primary" type="button" style="flex:1">儲存測試帳款</button><button id="acctClear" class="btn gray" type="button">清空</button></div>
+          <div class="actions" style="margin-top:8px"><button id="acctSaveTest" class="btn primary" type="button" style="flex:1">F2 完成本筆</button><button id="acctClear" class="btn gray" type="button">清空</button></div>
         </div>
         <div class="acctQueryBox">
           <h3 style="margin:0 0 7px">🔎 客戶帳戶查詢</h3>
@@ -440,7 +458,7 @@ body.wall-focus #wall>.card>.helper{display:none}
           <div id="acctExportBar" class="acctExportBar" style="display:none"><button id="acctExportExcel" class="btn green" type="button">匯出 Excel</button><button id="acctExportPdf" class="btn gray" type="button">匯出 PDF</button><button id="acctShareLine" class="btn blue" type="button">手機分享 LINE</button><button id="acctCopyLine" class="btn blue" type="button">電腦複製帳單圖片</button></div>
           <div id="acctQueryResult"><div class="empty" style="padding:14px">輸入客戶後查詢</div></div>
         </div>
-        <h3 style="margin:12px 0 5px">最近測試紀錄</h3><div id="acctRecords" class="accountRecords"></div>
+        <h3 style="margin:12px 0 5px">最近帳務紀錄</h3><div id="acctRecords" class="accountRecords"></div>
       </div>
     </section>
   </div>
@@ -1779,11 +1797,11 @@ $$('.acctQueryTab').forEach(btn=>btn.onclick=()=>{acctQueryFilter=btn.dataset.ac
 $('#acctAddItem').onclick=()=>{
   const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit=$('#acctUnit').value,kgEach=Math.max(0,Number($('#acctItemKg').value)||0);
   if(!name||!(qty>0)||price<0){alert('請輸入商品、數量與單價');return}
-  acctDraftItems.push({name,qty,price,unit,kgEach});const catalog=acctCatalog();catalog[name]={price,unit,kgEach};localStorage.setItem('xinru_acct_test_products',JSON.stringify(catalog));
+  acctDraftItems.push({name,qty,price,unit,kgEach});const catalog=acctCatalog();catalog[name]={...(catalog[name]||{}),price:'',unit,kgEach};localStorage.setItem('xinru_acct_test_products',JSON.stringify(catalog));
   const itemKg=acctDraftItems.reduce((s,x)=>s+(Number(x.kgEach)||0)*(Number(x.qty)||0),0);if(itemKg>0)$('#acctOwnKg').value=itemKg;
   $('#acctProduct').value='';$('#acctQty').value='1';$('#acctItemKg').value='';$('#acctPrice').value='';renderAcctDraft();renderAcctLists();
 };
-$('#acctProduct').onchange=()=>{const x=acctCatalog()[$('#acctProduct').value.trim()];if(x){$('#acctPrice').value=x.price;$('#acctUnit').value=x.unit;$('#acctItemKg').value=x.kgEach||''}renderAcctDraft()};
+$('#acctProduct').onchange=()=>{const x=acctCatalog()[$('#acctProduct').value.trim()];if(x){$('#acctUnit').value=x.unit||'件';$('#acctItemKg').value=x.kgEach||'';$('#acctPrice').value=''}renderAcctDraft()};
 $('#acctAddExternalItem').onclick=()=>{
   const name=$('#acctExternalProduct').value.trim(),kgEach=Number($('#acctExternalKgEach').value),qty=Number($('#acctExternalQty').value),advance=Math.max(0,Number($('#acctExternalAdvance').value)||0);
   if(!name||!(kgEach>0)||!(qty>0)){alert('請輸入外店商品、每件公斤與件數');return}
@@ -1800,9 +1818,34 @@ $('#acctSaveTest').onclick=async()=>{
   const labels={sale:'本店商品',mixed:'本店商品＋外店商品',freight:'只有外店商品',repayment:'收回舊欠款',deposit:'儲值入金'},record={id:Date.now(),date:$('#acctDate').value,customer,type:$('#acctCustomerType').value,txnType:txn,txnTypeLabel:labels[txn],payment:$('#acctPayment').value,items:[...acctDraftItems],externalItems:[...acctExternalDraftItems],goods,advance,route:$('#acctRoute').value,ownKg,externalKg,kg,freightRate:rate,freight,total,paid,due:Math.max(0,total-paid),deposit,basketOut:out,basketBack:back,basketDiff:out-back,twoCopy:$('#acctTwoCopy').checked,note:$('#acctNote').value.trim()},rows=acctRecords().slice();rows.unshift(record);
   localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));if(acctCloudRecords!==null)acctCloudRecords=rows;
   try{await saveAccountingCloud(record)}catch(e){alert('帳務已暫存在這台裝置，但尚未同步到手機。請先在 Supabase 執行帳務資料表 SQL。\n\n'+e.message);return}
-  acctDraftItems=[];acctExternalDraftItems=[];$('#acctCustomer').value='';$('#acctPaid').value='0';$('#acctOwnKg').value='0';$('#acctRoute').value='none';$('#acctBasketOut').value='0';$('#acctBasketBack').value='0';$('#acctNote').value='';$('#acctTwoCopy').checked=false;await loadAccountingCloud();renderAcctDraft();renderAcctRecords();alert('帳務已儲存，手機與電腦可以同步查詢');
+  acctDraftItems=[];acctExternalDraftItems=[];$('#acctCustomer').value='';$('#acctProduct').value='';$('#acctQty').value='1';$('#acctItemKg').value='';$('#acctPrice').value='';$('#acctPaid').value='0';$('#acctOwnKg').value='0';$('#acctRoute').value='none';$('#acctBasketOut').value='0';$('#acctBasketBack').value='0';$('#acctNote').value='';$('#acctTwoCopy').checked=false;await loadAccountingCloud();renderAcctDraft();renderAcctRecords();$('#acctCustomer').focus();alert('帳務已儲存，手機與電腦可以同步查詢');
 };
 $('#acctClear').onclick=()=>{acctDraftItems=[];acctExternalDraftItems=[];$('#acctPaid').value='0';renderAcctDraft()};
+
+// 欣儒系統 2.0：今日快速登帳鍵盤流程。
+// 中文輸入法組字期間不攔截 Enter，避免選字時跳到下一欄。
+let acctImeComposing=false;
+['acctCustomer','acctProduct'].forEach(id=>{
+  const el=document.getElementById(id); if(!el)return;
+  el.addEventListener('compositionstart',()=>acctImeComposing=true);
+  el.addEventListener('compositionend',()=>{acctImeComposing=false;});
+});
+function acctFocusSelect(id){const el=document.getElementById(id);if(!el)return;el.focus();if(typeof el.select==='function')el.select()}
+function acctQuickAdd(){
+  const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit=$('#acctUnit').value,kgEach=Math.max(0,Number($('#acctItemKg').value)||0);
+  if(!name){acctFocusSelect('acctProduct');return false}
+  if(!(qty>0)){acctFocusSelect('acctQty');return false}
+  if($('#acctPrice').value.trim()===''||price<0){acctFocusSelect('acctPrice');return false}
+  $('#acctAddItem').click();
+  setTimeout(()=>acctFocusSelect('acctProduct'),0);
+  return true;
+}
+$('#acctCustomer').addEventListener('keydown',e=>{if(e.key==='Enter'&&!acctImeComposing){e.preventDefault();acctFocusSelect('acctProduct')}});
+$('#acctProduct').addEventListener('keydown',e=>{if(e.key==='Enter'&&!acctImeComposing){e.preventDefault();const x=acctCatalog()[$('#acctProduct').value.trim()];if(x){$('#acctUnit').value=x.unit||'件';$('#acctItemKg').value=x.kgEach||'';$('#acctPrice').value=''}acctFocusSelect('acctQty');renderAcctDraft()}});
+$('#acctQty').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();acctFocusSelect('acctPrice')}});
+$('#acctPrice').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();acctQuickAdd()}});
+document.addEventListener('keydown',e=>{if(e.key==='F2'&&activeTab==='accounting'){e.preventDefault();$('#acctSaveTest').click()}});
+
 $('#acctDate').value=taipeiDate();renderAcctDraft();renderAcctRecords();
   // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
