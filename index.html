@@ -17,7 +17,7 @@
 :root{--bg:#f3f5f7;--card:#fff;--text:#16181d;--muted:#7b818b;--line:#e5e8ec;--blue:#dbeeff;--blueText:#1e5f94;--green:#1f9d55;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed;--shadow:0 8px 28px rgba(0,0,0,.06)}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",Arial,sans-serif;color:var(--text)}
 .app{max-width:1180px;margin:auto;min-height:100vh;background:#f7f8fa;padding-bottom:90px}.top{position:sticky;top:0;z-index:10;background:rgba(247,248,250,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.title{padding:18px 20px 10px;text-align:center;font-weight:800;font-size:22px}.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px 14px 14px}.tab{border:0;background:#fff;border-radius:16px;padding:14px 8px;font-weight:800;font-size:15px;box-shadow:0 1px 0 #e7e9ec;cursor:pointer}.tab.active{background:var(--blue);color:var(--blueText)}
+.title{padding:18px 20px 10px;text-align:center;font-weight:800;font-size:22px}.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:8px 14px 14px}.tab{border:0;background:#fff;border-radius:16px;padding:14px 8px;font-weight:800;font-size:15px;box-shadow:0 1px 0 #e7e9ec;cursor:pointer}.tab.active{background:var(--blue);color:var(--blueText)}
 .wrap{padding:16px}.panel{display:none}.panel.active{display:block}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.card h2{margin:0 0 6px;font-size:24px}.helper{color:var(--muted);font-size:14px;margin-bottom:16px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin:12px 0}.label{display:block;font-size:14px;font-weight:800;margin-bottom:7px}.input,.textarea{width:100%;border:1px solid #dfe3e8;border-radius:14px;background:#fafbfc;padding:13px 14px;font-size:16px;outline:none}.textarea{min-height:150px;resize:vertical;line-height:1.6}.input:focus,.textarea:focus{border-color:#7ab8f5;background:white}
 .btn{border:0;border-radius:14px;padding:13px 16px;font-weight:800;font-size:16px;cursor:pointer}.btn.primary{background:#1f9d55;color:#fff}.btn.blue{background:#2563eb;color:#fff}.btn.gray{background:#eef1f4}.btn.red{background:#ffe8e9;color:#b4232c}.actions{display:flex;gap:10px;flex-wrap:wrap}.urgentRow{display:flex;align-items:center;justify-content:space-between;background:#fff7f7;border:1px solid #ffd6d8;padding:12px 14px;border-radius:14px}.switch{width:52px;height:30px;background:#d8dce1;border-radius:999px;position:relative;cursor:pointer;transition:.2s}.switch:after{content:"";position:absolute;width:24px;height:24px;background:white;border-radius:50%;top:3px;left:3px;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:.2s}.switch.on{background:var(--red)}.switch.on:after{left:25px}
 .photoBox{border:2px dashed #cfd5dc;border-radius:18px;padding:14px;text-align:center;background:#fafbfc}.photoBox img{max-width:100%;max-height:280px;border-radius:14px;display:none;margin:0 auto 12px}.file{display:none}
@@ -87,6 +87,19 @@
 .wallCardItem{padding:5px 0}
 .wallCardFoot{margin-top:8px}
 .wallCardTime{font-size:12px}
+.photoDetails{margin:8px 0;border:1px solid #dfe3e8;border-radius:12px;background:#fafbfc;overflow:hidden}
+.photoDetails summary{padding:10px 12px;font-weight:900;cursor:pointer;list-style:none;color:#2563eb}
+.photoDetails summary::-webkit-details-marker{display:none}
+.photoDetails[open] summary{border-bottom:1px solid #e5e8ec}
+.photoDetails .photoBox{border:0;border-radius:0;padding:10px}
+.accountSummary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 12px}
+.accountStat{background:#f7fafc;border:1px solid var(--line);border-radius:13px;padding:11px}
+.accountStat .name{font-size:12px;color:var(--muted);font-weight:800}
+.accountStat .amount{font-size:21px;font-weight:900;margin-top:3px}
+.accountTools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.accountPreview{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:#fff}
+.accountRow{display:grid;grid-template-columns:1.2fr .8fr .8fr .7fr;gap:8px;padding:10px;border-bottom:1px solid var(--line);align-items:center}
+.accountRow:last-child{border-bottom:0}.accountRow.head{background:#f6f8fa;font-size:12px;font-weight:900}
 
 /* 電視牆頁面只保留頁籤列，讓訂單從畫面最上方開始。 */
 body.wall-focus .title,body.wall-focus .sync,body.wall-focus .userBar{display:none!important}
@@ -98,24 +111,63 @@ body.wall-focus #wall>.card>.helper{display:none}
 }
 @media(max-width:760px){
   .app{padding-bottom:68px}
-  .title{padding:7px 8px 2px;font-size:16px}
-  .sync{font-size:9px;padding-bottom:2px}
-  .userBar{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}
-  .tabs{grid-template-columns:repeat(5,minmax(68px,1fr));gap:4px;padding:3px 5px 6px;overflow-x:auto}
+  .title,.sync{display:none}
+  .userBar{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;padding-top:4px}
+  .tabs{grid-template-columns:repeat(6,minmax(70px,1fr));gap:4px;padding:3px 5px 6px;overflow-x:auto}
   .tab{padding:7px 2px;border-radius:10px;font-size:11px}
   .tab .th{font-size:7px}
   .wrap{padding:6px}
-  .card{padding:10px;border-radius:14px}
+  .card{padding:9px;border-radius:14px}
   .card h2{font-size:19px}
   .grid2{gap:6px}
   .field{margin:7px 0}
   .input,.textarea{padding:10px 11px}
-  .textarea{min-height:110px}
+  .textarea{min-height:86px;line-height:1.35}
   .actions{gap:6px}
   .btn{padding:10px 12px;font-size:14px}
   .wallCards{grid-template-columns:1fr;gap:7px}
   .wallCardCustomer{font-size:20px}
   .wallCardItems{font-size:16px}
+  #stall>.card:first-child>h2,#stall>.card:first-child>.helper{display:none}
+  #stall .urgentRow{padding:7px 10px;border-radius:10px}
+  #stall .urgentRow .meta{display:none}
+  #stall .switch{transform:scale(.82)}
+  #stall .orderTargetGrid{grid-template-columns:1fr 1fr}
+  #stall .orderInfoGrid{grid-template-columns:1fr 1fr}
+  #stall .orderInfoGrid .field:first-child{grid-column:1/-1}
+  #stall .label{margin-bottom:4px;font-size:13px}
+  #stall .input{padding:8px 9px;border-radius:10px}
+  #stall .field{margin:5px 0}
+  #stall .photoDetails{margin:5px 0}
+  #stall .photoDetails summary{padding:8px 10px;font-size:13px}
+  #stall #submitOrder{padding:11px;font-size:16px}
+  #stall .actions[style*="margin-top:14px"]{margin-top:6px!important}
+
+  #delivery .card{padding:7px}
+  #delivery .deliveryHead h2{font-size:18px!important}
+  #delivery #refreshDeliveryBtn{padding:7px 9px;font-size:12px}
+  #delivery .driverFilters{gap:5px;padding:4px 0 7px}
+  #delivery .driverChip{padding:7px 10px;font-size:12px}
+  #delivery .deliveryCard{padding:9px;margin:6px 0;border-radius:13px}
+  #delivery .deliveryPhoto{max-height:220px;margin:6px 0}
+
+  #today>h2{font-size:19px;margin:2px 0}
+  #today>.helper{display:none}
+  #today>.actions,#packingQueryControls,#deliveryQueryControls{margin:6px 0!important;gap:5px}
+  #today .btn{padding:8px 10px;font-size:13px}
+  #today .input{padding:8px 9px;max-width:165px!important}
+  #today .table th,#today .table td{padding:7px 6px;font-size:12px}
+  #today .queryDriverFilters{gap:4px;margin:5px 0}
+  #today .driverChip{padding:6px 9px;font-size:12px}
+  #accounting .card{padding:8px}
+  #accounting .helper{display:none}
+  #accounting .accountSummary{gap:5px;margin:6px 0}
+  #accounting .accountStat{padding:8px 6px}
+  #accounting .accountStat .amount{font-size:17px}
+  #accounting .accountTools{margin:5px 0}
+  #accounting .accountTools .input{max-width:155px;padding:8px}
+  #accounting .accountRow{grid-template-columns:1.1fr .75fr .7fr;padding:8px 6px;font-size:12px}
+  #accounting .accountRow>*:nth-child(3){display:none}
 }
 
 </style>
@@ -154,6 +206,7 @@ body.wall-focus #wall>.card>.helper{display:none}
       <button class="tab active" data-tab="stall">攤位下單<div class="th">ทาน เว่ย เซี่ย ตาน</div></button>
       <button class="tab" data-tab="delivery">🚚 貨運部<div class="th">配送作業</div></button>
       <button class="tab" data-tab="packing">包裝部<div class="th">เปา จวง ปู้</div></button>
+      <button class="tab" data-tab="accounting">💰 帳務部<div class="th">會計作業</div></button>
       <button class="tab" data-tab="wall">電視牆<div class="th">เตี้ยน ซื่อ เฉียง</div></button>
       <button class="tab" data-tab="today">訂單查詢<div class="th">ติ้ง ตาน ฉา สวิน</div></button>
     </div>
@@ -170,7 +223,7 @@ body.wall-focus #wall>.card>.helper{display:none}
           <div id="urgentSwitch" class="switch"></div>
         </div>
 
-        <div class="grid2">
+        <div class="grid2 orderTargetGrid">
           <div class="field"><label class="label">下單給</label><select id="orderTarget" class="input"><option value="packing">📦 包裝部</option><option value="delivery">🚚 貨運部</option></select></div>
           <div id="stallDriverWrap" class="field" style="display:none"><label class="label">指定司機（可不選）</label><select id="stallDeliveryDriver" class="input"><option value="">尚未指派｜讓司機自己接</option></select></div>
         </div>
@@ -179,7 +232,7 @@ body.wall-focus #wall>.card>.helper{display:none}
           <label style="font-weight:800"><input id="deliveryPaymentRequired" type="checkbox" style="width:18px;height:18px;vertical-align:-3px"> 💰 需要收款</label>
         </div>
 
-        <div class="grid2">
+        <div class="grid2 orderInfoGrid">
           <div class="field"><label class="label">客戶／店家名稱</label><input id="customer" class="input" autocomplete="off"></div>
           <div class="field"><label class="label">訂單日期</label><input id="orderDate" class="input" type="date"></div>
           <div class="field"><label class="label">取貨時間</label><input id="pickupTime" class="input" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></div>
@@ -190,8 +243,8 @@ body.wall-focus #wall>.card>.helper{display:none}
           <textarea id="items" class="textarea" placeholder=""></textarea>
         </div>
 
-        <div class="field">
-          <label class="label">📷 拍照下單</label>
+        <details class="photoDetails">
+          <summary>📷 拍照下單（需要時再展開）</summary>
           <div class="photoBox">
             <img id="photoPreview" alt="訂單照片">
             <input id="photoInput" class="file" type="file" accept="image/*" capture="environment">
@@ -202,7 +255,7 @@ body.wall-focus #wall>.card>.helper{display:none}
             </div>
             <div id="ocrStatus" class="helper" style="margin:10px 0 0">拍照後可辨識文字，辨識結果會放到需求內容，可再人工修改後送出。</div>
           </div>
-        </div>
+        </details>
 
         <div class="field"><label class="label">備註</label><input id="note" class="input" placeholder=""></div>
 
@@ -255,6 +308,27 @@ body.wall-focus #wall>.card>.helper{display:none}
         <div id="deliveryQueryDriverFilters" class="queryDriverFilters"></div>
       </div>
       <div id="todayBody"></div>
+    </section>
+
+    <section id="accounting" class="panel">
+      <div class="card">
+        <h2>💰 帳務部</h2>
+        <div class="helper">先預覽帳務版面；收銀貓尚未串接，目前不會寫入或修改任何帳務資料。</div>
+        <div class="accountTools">
+          <input class="input" type="date" aria-label="帳務日期">
+          <button class="btn primary" type="button">查詢</button>
+          <button class="btn gray" type="button">本日</button>
+        </div>
+        <div class="accountSummary">
+          <div class="accountStat"><div class="name">本日應收</div><div class="amount">$0</div></div>
+          <div class="accountStat"><div class="name">本日已收</div><div class="amount" style="color:#18703c">$0</div></div>
+          <div class="accountStat"><div class="name">尚未收款</div><div class="amount" style="color:#b4232c">$0</div></div>
+        </div>
+        <div class="accountPreview">
+          <div class="accountRow head"><div>客戶／店家</div><div>金額</div><div>付款方式</div><div>狀態</div></div>
+          <div class="accountRow"><div><b>帳務資料預覽</b><div class="meta">等待收銀貓串接</div></div><div><b>$0</b></div><div>尚未設定</div><div><span class="badge yellow">待收款</span></div></div>
+        </div>
+      </div>
     </section>
   </div>
 </div>
@@ -468,9 +542,10 @@ function canSeeTab(tab){
   if(tab==='stall')return hasWorkRole('stall')||hasFeature('stall_order');
   if(tab==='packing')return hasWorkRole('packing')||hasFeature('packing');
   if(tab==='delivery')return hasWorkRole('driver')||hasFeature('delivery');
+  if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
   return false;
 }
-function firstVisibleTab(){return ['stall','packing','delivery','wall','today'].find(canSeeTab)||'wall'}
+function firstVisibleTab(){return ['stall','packing','delivery','wall','today','accounting'].find(canSeeTab)||'wall'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
   $('#readonlyNote').style.display='none';
@@ -860,7 +935,7 @@ window.openEdit=id=>{if(!requireStallWork())return;const o=orders.find(x=>x.id==
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
 $('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent,...actorFields('updated')}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
-const VALID_TABS=['stall','packing','wall','delivery','today'];
+const VALID_TABS=['stall','packing','wall','delivery','today','accounting'];
 function activateTab(tabName,{save=true}={}){
   if(!VALID_TABS.includes(tabName))tabName='stall';
   // 登入後若上次停留的頁面現在沒有職務權限，直接跳到第一個可見頁面。
