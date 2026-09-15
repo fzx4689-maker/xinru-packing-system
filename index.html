@@ -61,6 +61,63 @@
 .ds-waiting{background:#fff3cd;color:#805d00}.ds-assigned{background:#e8e5ff;color:#5842a8}.ds-accepted{background:#dbeeff;color:#1e5f94}.ds-delivering{background:#ffe5cc;color:#9a4d00}.ds-completed{background:#dff5e8;color:#177a43}
 @media(max-width:720px){.tabs{gap:4px;padding-left:6px;padding-right:6px}.tab{font-size:12px;padding:11px 3px}.tab .th{font-size:9px}.deliveryHead{align-items:flex-start}.grid2{grid-template-columns:1fr}}
 
+/* 2026-09-15：手機優先、平板投影精簡版 */
+.title{padding:9px 12px 3px;font-size:18px;line-height:1.2}
+.sync{padding-bottom:3px;font-size:10px}
+.userBar{gap:6px;padding:0 8px 4px;font-size:11px}
+.userBar .btn{padding:5px 8px!important;border-radius:9px;font-size:11px!important}
+.tabs{gap:5px;padding:4px 8px 7px}
+.tab{padding:8px 4px;border-radius:11px;font-size:13px;line-height:1.1}
+.tab .th{margin-top:2px;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrap{padding:8px}
+.card{padding:12px;border-radius:16px;margin-bottom:8px}
+.card h2{font-size:20px}
+.helper{font-size:12px;margin-bottom:8px}
+.order{padding:11px;margin-bottom:8px}
+.item{padding:7px 0}
+.wallDateBar{gap:5px;margin-bottom:8px}
+.wallDateBtn{padding:5px 10px;font-size:12px}
+.wallCards{gap:10px}
+.wallOrderCard{padding:12px;border-radius:16px}
+.wallCardHead{padding-bottom:7px;margin-bottom:7px}
+.wallCardCustomer{font-size:22px}
+.wallCardThai{font-size:12px}
+.wallCardDate{font-size:15px;margin-top:4px}
+.wallCardItems{font-size:17px;line-height:1.35}
+.wallCardItem{padding:5px 0}
+.wallCardFoot{margin-top:8px}
+.wallCardTime{font-size:12px}
+
+/* 電視牆頁面只保留頁籤列，讓訂單從畫面最上方開始。 */
+body.wall-focus .title,body.wall-focus .sync,body.wall-focus .userBar{display:none!important}
+body.wall-focus .tabs{padding-top:6px}
+body.wall-focus #wall>.card>.helper{display:none}
+
+@media(min-width:780px){
+  #wall .wallCards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .app{padding-bottom:68px}
+  .title{padding:7px 8px 2px;font-size:16px}
+  .sync{font-size:9px;padding-bottom:2px}
+  .userBar{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}
+  .tabs{grid-template-columns:repeat(5,minmax(68px,1fr));gap:4px;padding:3px 5px 6px;overflow-x:auto}
+  .tab{padding:7px 2px;border-radius:10px;font-size:11px}
+  .tab .th{font-size:7px}
+  .wrap{padding:6px}
+  .card{padding:10px;border-radius:14px}
+  .card h2{font-size:19px}
+  .grid2{gap:6px}
+  .field{margin:7px 0}
+  .input,.textarea{padding:10px 11px}
+  .textarea{min-height:110px}
+  .actions{gap:6px}
+  .btn{padding:10px 12px;font-size:14px}
+  .wallCards{grid-template-columns:1fr;gap:7px}
+  .wallCardCustomer{font-size:20px}
+  .wallCardItems{font-size:16px}
+}
+
 </style>
 
 
@@ -810,6 +867,7 @@ function activateTab(tabName,{save=true}={}){
   if(currentProfile&&!canSeeTab(tabName))tabName=firstVisibleTab();
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tabName));
   $$('.panel').forEach(x=>x.classList.toggle('active',x.id===tabName));
+  document.body.classList.toggle('wall-focus',tabName==='wall');
   if(save){
     try{localStorage.setItem('xinru_active_tab',tabName);}catch(e){}
     // 用網址 hash 記住目前頁面，重新整理後仍停在原頁。
