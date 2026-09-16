@@ -339,6 +339,16 @@ body.field-single-role .wrap{padding-top:8px}
 .procurementView{display:none}
 .procurementView.active{display:block}
 @media(max-width:700px){.procurementShell{padding-bottom:10px}.procurementSubTabs .procSubTab{padding:10px 12px;font-size:14px}}
+
+/* 第三十階段：叫貨單。僅新增 procurement orders UI，不修改登入/Auth。 */
+.procFormGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.procItemRows{display:grid;gap:8px;margin:8px 0}
+.procItemRow{display:grid;grid-template-columns:minmax(180px,2fr) minmax(90px,.7fr) minmax(90px,.7fr) minmax(160px,1.5fr) auto;gap:8px;align-items:end}
+.procOrderCard{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:10px;background:#fff}
+.procOrderItems{margin-top:9px;border-top:1px solid #edf2f7;padding-top:7px}
+.procOrderItem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:5px 0;border-bottom:1px dashed #edf2f7}
+@media(max-width:800px){.procFormGrid{grid-template-columns:1fr 1fr}.procItemRow{grid-template-columns:minmax(0,1fr) 80px 80px auto}.procItemRow .procItemNote{grid-column:1/-1}.procOrderItem{grid-template-columns:1fr}}
+@media(max-width:520px){.procFormGrid{grid-template-columns:1fr}.procItemRow{grid-template-columns:minmax(0,1fr) 72px 72px auto}}
 </style>
 
 
@@ -409,7 +419,26 @@ body.field-single-role .wrap{padding-top:8px}
       </div>
 
       <div class="procurementView active" data-proc-panel="orders">
-        <div class="card"><h2>📋 叫貨單</h2><div class="helper">超市、產農、廠商的叫貨統一從這裡建立與查看。</div><div class="empty">下一步建立叫貨單功能</div></div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+            <div><h2 style="margin-bottom:4px">📋 叫貨單</h2><div class="helper">建立超市、產農、廠商叫貨；一張叫貨單可輸入多個品項。</div></div>
+            <button type="button" class="btn primary" id="procNewOrderBtn">＋ 新增叫貨單</button>
+          </div>
+          <div id="procOrderForm" style="display:none;margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px">
+            <div class="procFormGrid">
+              <div class="field"><label class="label">來源類型</label><select id="procSupplierType" class="input"><option value="supermarket">超市</option><option value="farmer">產農</option><option value="vendor">廠商</option><option value="other">其他</option></select></div>
+              <div class="field"><label class="label">供應商／來源名稱</label><input id="procSupplierName" class="input" placeholder="例如：青苑、產農王先生"></div>
+              <div class="field"><label class="label">叫貨日期</label><input id="procOrderDate" type="date" class="input"></div>
+              <div class="field"><label class="label">預計到貨</label><input id="procExpectedDate" type="date" class="input"></div>
+            </div>
+            <div class="label" style="margin-top:12px">叫貨品項</div>
+            <div id="procItemRows" class="procItemRows"></div>
+            <button type="button" class="btn gray" id="procAddItemBtn">＋ 新增品項</button>
+            <div class="field" style="margin-top:12px"><label class="label">整張備註</label><input id="procOrderNote" class="input" placeholder="可留空"></div>
+            <div class="actions" style="margin-top:12px"><button type="button" class="btn primary" id="procSaveOrderBtn">💾 建立叫貨單</button><button type="button" class="btn gray" id="procCancelOrderBtn">取消</button></div>
+          </div>
+        </div>
+        <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 style="margin:0">目前叫貨單</h2><button type="button" class="btn gray" id="procReloadBtn">↻ 更新</button></div><div id="procOrderList" style="margin-top:12px"><div class="empty">讀取中…</div></div></div>
       </div>
       <div class="procurementView" data-proc-panel="pending">
         <div class="card"><h2>🚚 待到貨</h2><div class="helper">查看已叫貨、尚未完成到貨的品項。</div><div class="empty">待到貨功能接下來建立</div></div>
@@ -2739,5 +2768,20 @@ setInterval(()=>{if(currentUser&&v17LoadedFor!==currentUser.id)v17LoadMine()},15
   });
   window.setProcurementView=setProcurementView;
 })();
+</script>
+
+<script>
+/* 第三十階段：叫貨單。RPC 獨立，不修改登入/Auth。 */
+let procurementOrdersV30=[];
+function procSupplierTypeLabel(v){return ({supermarket:'超市',farmer:'產農',vendor:'廠商',other:'其他'})[v]||v||'';}
+function procCanManage(){return !!currentProfile && (currentProfile.role==='admin'||currentProfile.role==='operator'||hasFeature('procurement.work')||hasWorkRole('stall')||hasWorkRole('accounting'));}
+function procResetItemRows(){const box=document.getElementById('procItemRows');if(!box)return;box.innerHTML='';procAddItemRow();}
+function procAddItemRow(data={}){const box=document.getElementById('procItemRows');if(!box)return;const row=document.createElement('div');row.className='procItemRow';row.innerHTML=`<div class="field"><label class="label">品項</label><input class="input procItemName" value="${esc(data.item_name||'')}" placeholder="品項名稱"></div><div class="field"><label class="label">數量</label><input class="input procItemQty" inputmode="decimal" value="${esc(data.quantity||'')}" placeholder="數量"></div><div class="field"><label class="label">單位</label><input class="input procItemUnit" value="${esc(data.unit||'')}" placeholder="件/箱/斤"></div><div class="field procItemNote"><label class="label">品項備註</label><input class="input procItemNoteInput" value="${esc(data.note||'')}" placeholder="可留空"></div><button type="button" class="btn red procRemoveItem">刪除</button>`;box.appendChild(row);row.querySelector('.procRemoveItem').onclick=()=>{if(box.children.length<=1){row.querySelectorAll('input').forEach(x=>x.value='');return;}row.remove();};}
+function procRenderOrders(){const box=document.getElementById('procOrderList');if(!box)return;const rows=procurementOrdersV30||[];box.innerHTML=rows.length?rows.map(o=>`<div class="procOrderCard"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div style="font-size:18px;font-weight:900">${esc(o.supplier_name)}</div><div class="meta">${esc(procSupplierTypeLabel(o.supplier_type))}｜叫貨 ${esc(o.order_date||'')}｜預計到貨 ${esc(o.expected_date||'未填')}</div><div class="meta">單號 ${esc(o.order_no||'')}｜建立：${esc(o.created_by_name||'')} ${fmtDateTime(o.created_at)}</div></div><span class="badge yellow">待到貨</span></div><div class="procOrderItems">${(o.items||[]).map(x=>`<div class="procOrderItem"><div><b>${esc(x.item_name)}</b>${x.note?` <span class="meta">｜${esc(x.note)}</span>`:''}</div><div><b>${esc(x.quantity??'')} ${esc(x.unit||'')}</b></div></div>`).join('')}</div>${o.note?`<div class="helper" style="margin-top:8px">備註：${esc(o.note)}</div>`:''}</div>`).join(''):'<div class="empty">目前沒有叫貨單</div>';}
+async function procLoadOrders(){const box=document.getElementById('procOrderList');if(!box||!currentUser)return;box.innerHTML='<div class="empty">讀取中…</div>';try{const {data,error}=await sb.rpc('xinru_list_procurement_orders_v30');if(error)throw error;procurementOrdersV30=(data||[]).map(x=>({...x,items:Array.isArray(x.items)?x.items:[]}));procRenderOrders();}catch(e){console.warn('第三十階段叫貨單尚未啟用：',e?.message||e);box.innerHTML='<div class="empty">叫貨單資料表尚未啟用，請先執行第30階段 SQL。</div>';}}
+async function procSaveOrder(){if(!procCanManage())return alert('此帳號沒有叫貨／採購操作權限');const supplier=(document.getElementById('procSupplierName')?.value||'').trim();if(!supplier)return alert('請輸入供應商／來源名稱');const items=[...document.querySelectorAll('#procItemRows .procItemRow')].map(r=>({item_name:(r.querySelector('.procItemName')?.value||'').trim(),quantity:(r.querySelector('.procItemQty')?.value||'').trim(),unit:(r.querySelector('.procItemUnit')?.value||'').trim(),note:(r.querySelector('.procItemNoteInput')?.value||'').trim()})).filter(x=>x.item_name);if(!items.length)return alert('請至少輸入一個叫貨品項');if(items.some(x=>!x.quantity))return alert('請填寫每個品項的數量');const btn=document.getElementById('procSaveOrderBtn');btn.disabled=true;btn.textContent='建立中…';try{const {error}=await sb.rpc('xinru_create_procurement_order_v30',{p_supplier_type:document.getElementById('procSupplierType').value,p_supplier_name:supplier,p_order_date:document.getElementById('procOrderDate').value||taipeiDate(),p_expected_date:document.getElementById('procExpectedDate').value||null,p_note:(document.getElementById('procOrderNote').value||'').trim()||null,p_items:items,p_actor_id:currentUser.id,p_actor_name:currentProfile?.display_name||''});if(error)throw error;document.getElementById('procSupplierName').value='';document.getElementById('procExpectedDate').value='';document.getElementById('procOrderNote').value='';procResetItemRows();document.getElementById('procOrderForm').style.display='none';await procLoadOrders();alert('叫貨單已建立');}catch(e){alert('建立失敗：'+(e?.message||e));}finally{btn.disabled=false;btn.textContent='💾 建立叫貨單';}}
+function initProcurementV30(){const d=document.getElementById('procOrderDate');if(d&&!d.value)d.value=taipeiDate();const n=document.getElementById('procNewOrderBtn');if(n)n.onclick=()=>{if(!procCanManage())return alert('此帳號沒有叫貨／採購操作權限');const f=document.getElementById('procOrderForm');f.style.display=f.style.display==='none'?'block':'none';if(f.style.display==='block'&&!document.querySelector('#procItemRows .procItemRow'))procResetItemRows();};const a=document.getElementById('procAddItemBtn');if(a)a.onclick=()=>procAddItemRow();const c=document.getElementById('procCancelOrderBtn');if(c)c.onclick=()=>{document.getElementById('procOrderForm').style.display='none';};const sv=document.getElementById('procSaveOrderBtn');if(sv)sv.onclick=procSaveOrder;const r=document.getElementById('procReloadBtn');if(r)r.onclick=procLoadOrders;document.addEventListener('click',e=>{const b=e.target.closest('#procurement .procSubTab[data-proc-view="orders"]');if(b)setTimeout(procLoadOrders,0);});}
+document.addEventListener('DOMContentLoaded',initProcurementV30);
+
 </script>
 </body></html>
