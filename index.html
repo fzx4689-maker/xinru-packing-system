@@ -2089,26 +2089,84 @@ document.addEventListener('click', function(e){
    後續新功能應掛到 module / permission，不直接修改登入核心。
    ============================================================ */
 window.XR_CORE_ARCHITECTURE = Object.freeze({
-  version: '2.0',
-  employeeMaster: {
-    sharedEmployeeId: true,
-    fields: ['employee_id','display_name','department','job_role','employment_status'],
-    futureHR: ['attendance','shift','leave','overtime','payroll','allowance','deduction','payslip']
+  version: '2.0.2',
+
+  // 共用人員主檔：作業系統與未來人事系統共用同一個 person_id。
+  // 人事權限與作業權限仍完全分開，避免有帳務權限就看到薪資。
+  peopleMaster: {
+    sharedPersonId: true,
+    fields: [
+      'person_id','display_name','person_type','department','job_role',
+      'employment_status','attendance_enabled','payroll_enabled','pay_type'
+    ],
+    personTypes: {
+      full_time: '正職',
+      part_time: '兼職／工讀',
+      temporary: '臨時工',
+      external_partner: '外部合作人員'
+    },
+    payTypes: ['月薪','日薪','時薪','計件','其他'],
+    externalPartnerTypes: ['配合送貨司機','合作車隊','外包加工','其他合作人員'],
+    futureHR: ['attendance','shift','leave','overtime','payroll','allowance','deduction','payslip'],
+    rules: {
+      externalPartnerExcludedFromEmployeePayrollByDefault: true,
+      temporaryAndPartTimeCanUsePayroll: true,
+      systemAccountOptional: true,
+      deactivatedPersonKeepsHistory: true
+    }
   },
+
   departments: ['老闆/管理','辦公室','帳務','攤位','包裝','貨運'],
-  jobRoles: ['admin','supervisor','office','packing','driver'],
+  jobRoles: ['admin','supervisor','office','packing','driver','partner_driver'],
+
+  // 七大主頁固定；庫存屬於叫貨／採購內的功能模組，不增加第八個日常主頁。
+  mainPages: ['home','accounting','purchasing','dispatch','packing','freight','tvwall'],
   modules: {
-    home: '首頁', accounting: '帳務中心', purchasing: '叫貨/採購',
+    home: '首頁', accounting: '帳務中心', purchasing: '叫貨／採購',
     inventory: '庫存管理', dispatch: '派工', packing: '包裝部',
     freight: '貨運中心', tvwall: '電視牆', settings: '系統設定', hr: '人事管理'
   },
+
   permissionActions: ['view','create','edit','complete','export','delete'],
   highRiskActions: ['delete','edit_completed','edit_closed_accounting','manage_employee','manage_role','manage_permission'],
+
+  // 客戶可有總公司／分店關係；分店帳本永遠獨立，收款時才依規則合併。
+  customerOrganization: {
+    supportsHeadOfficeBranches: true,
+    fields: ['customer_id','name','organization_id','parent_customer_id','ledger_owner_id','payment_payer_id'],
+    rules: {
+      branchLedgerIndependent: true,
+      branchStatementIndependent: true,
+      combinedCollectionDoesNotMergeLedgerHistory: true
+    },
+    example: {
+      organization: '大統',
+      branches: ['安中','仁和'],
+      statementRule: '安中、仁和各自列印貨款明細',
+      collectionRule: '依結帳設定可由指定分店統一付款'
+    }
+  },
+
+  // 帳務中心與貨運中心共用的「司機收款交接」。
+  collectionHandoff: {
+    moduleOwner: 'accounting',
+    freightViewOnly: true,
+    statuses: ['待收款','已交司機','司機已收','已繳回公司','已入帳'],
+    documents: ['分店貨款明細','司機收款總表'],
+    rules: {
+      statementsPrintedPerBranch: true,
+      driverSummaryCanCombinePayers: true,
+      driverCannotAccessFullAccounting: true,
+      receiptAndRemittanceTrackedSeparately: true
+    }
+  },
+
   separationRules: {
     operationPermissionSeparateFromHR: true,
     notificationSeparateFromPermission: true,
     loginCoreMustNotDependOnFeatureModules: true,
-    hrUsesSameEmployeeIdButSeparatePermissions: true
+    hrUsesSameEmployeeIdButSeparatePermissions: true,
+    customerLedgerSeparateFromCollectionGrouping: true
   }
 });
 
