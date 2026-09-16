@@ -361,7 +361,7 @@ body.field-single-role .wrap{padding-top:8px}
 </div>
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
-    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
+    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7">
       <button class="tab active" data-tab="home">🏠 首頁<div class="th">今日待辦</div></button>
       <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">登帳・收款・帳本</div></button>
@@ -1725,28 +1725,8 @@ async function enforceActiveSession(){
 // 貨運單已改由攤位下單統一建立。
 $('#refreshDeliveryBtn').onclick=()=>loadDelivery();
 
-$('#myNicknameBtn').onclick=async()=>{
-  if(!currentUser||!currentProfile)return;
-  const current=(currentProfile.nickname||'').trim();
-  const v=prompt('修改自己的暱稱\\n\\n留空＝取消暱稱，畫面恢復顯示正式姓名。',current);
-  if(v===null)return;
-  const nickname=v.trim();
-  if(nickname.length>20){alert('暱稱最多 20 個字');return;}
-  try{
-    const {error}=await sb.rpc('set_my_nickname',{new_nickname:nickname||null});
-    if(error)throw error;
-    currentProfile=await loadMyProfile(currentUser);
-    showApp();
-    alert(nickname?`暱稱已更新：${nickname}`:'暱稱已取消');
-  }catch(e){
-    console.error(e);
-    alert('暱稱修改失敗：'+(e?.message||e));
-  }
-};
-
-
 async function loadMyProfile(user){
-  const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,nickname,role,is_active,login_name,work_roles,feature_permissions,notification_permissions').eq('user_id',user.id).maybeSingle();
+  const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,role,is_active,login_name,work_roles,feature_permissions,notification_permissions').eq('user_id',user.id).maybeSingle();
   if(error)throw error;
   if(!data)throw new Error('這個登入帳號尚未建立員工權限');
   if(!data.is_active)throw new Error('這個員工帳號已停用');
@@ -1755,7 +1735,7 @@ async function loadMyProfile(user){
 function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
-  const shownName=(currentProfile.nickname||'').trim()||currentProfile.display_name;
+  const shownName=currentProfile.display_name;
   const workText=(currentProfile.work_roles||[]).map(r=>WORK_LABEL[r]||r).join('／')||'未設定';
   $('#currentUserName').textContent=`👤 ${shownName}`;
   $('#currentUserRole').textContent=`｜職務：${workText}`;
@@ -2536,5 +2516,73 @@ document.addEventListener('touchend',()=>{if(xrPullReady)xrRefreshVisibleData();
 
 let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Realtime)return;stage9Realtime=sb.channel('xinru-stage10-live').on('postgres_changes',{event:'*',schema:'public',table:'field_questions'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'field_question_messages'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipts'},loadStage9).subscribe()}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentUser)loadStage9()});window.addEventListener('focus',()=>{if(currentUser)loadStage9()});window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},10000);
+</script>
+<script>
+/* 第十七階段：頁面權限＋功能權限。獨立權限表，不修改登入/Auth 核心。 */
+const V17_PAGE_OPTIONS=[
+ ['home','🏠 首頁'],['accounting','💰 帳務中心'],['procurement','🛒 叫貨／採購'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
+];
+const V17_FUNC_OPTIONS=[
+ ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],
+ ['packing.work','包裝｜勾選／回覆／完成'],['delivery.work','貨運｜配送作業'],
+ ['accounting.entry','帳務｜登帳／收款'],['accounting.export','帳務｜匯出／列印'],
+ ['procurement.work','叫貨｜採購作業']
+];
+let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
+const v17Has=(k)=>!v17Perm.configured||v17Perm.funcs.includes(k);
+async function v17LoadMine(){
+ if(!currentUser||v17LoadedFor===currentUser.id)return;
+ v17LoadedFor=currentUser.id;
+ try{
+  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',currentUser.id).maybeSingle();
+  if(error)throw error;
+  v17Perm=data?{pages:data.page_permissions||[],funcs:data.function_permissions||[],configured:true}:{pages:[],funcs:[],configured:false};
+  if(typeof applyRoleUI==='function')applyRoleUI(); if(typeof renderAll==='function')renderAll();
+ }catch(e){console.warn('第十七階段權限表尚未啟用，沿用原權限：',e?.message||e);v17Perm={pages:[],funcs:[],configured:false};}
+}
+const v17OldCanSeeTab=canSeeTab;
+canSeeTab=function(tab){
+ const legacy=v17OldCanSeeTab(tab); if(!legacy)return false;
+ if(currentProfile?.role==='admin'||!v17Perm.configured)return legacy;
+ return v17Perm.pages.includes(tab);
+};
+const v17OldPackingWork=canPackingWork;
+canPackingWork=()=>v17OldPackingWork()&&v17Has('packing.work');
+const v17OldManagePacking=canManagePacking;
+canManagePacking=()=>v17OldManagePacking()&&v17Has('packing.work');
+const v17OldOperateStall=canOperateStall;
+canOperateStall=()=>v17OldOperateStall()&&(v17Has('order.create')||v17Has('order.edit'));
+
+function v17ApplyFunctionUI(){
+ if(!currentUser||currentProfile?.role==='admin'||!v17Perm.configured)return;
+ const submit=document.getElementById('submitOrder'); if(submit){submit.disabled=!v17Has('order.create');submit.classList.toggle('viewer-disabled',!v17Has('order.create'));}
+ document.querySelectorAll('button[onclick^="openEdit("]').forEach(b=>{if(!v17Has('order.edit'))b.style.display='none'});
+ document.querySelectorAll('#accounting button').forEach(b=>{const t=b.textContent||'';if(/匯出|Excel|PDF|列印|LINE/.test(t)&&!v17Has('accounting.export'))b.style.display='none';});
+}
+const v17OldApplyRoleUI=applyRoleUI;
+applyRoleUI=function(){v17OldApplyRoleUI();v17ApplyFunctionUI();};
+
+function v17AddPermissionButtons(){
+ if(currentProfile?.role!=='admin')return;
+ document.querySelectorAll('.employeeCompact').forEach(card=>{
+  const actions=card.querySelector('.empMiniActions'); if(!actions||actions.querySelector('.emp-v17perm'))return;
+  const any=actions.querySelector('[data-id]'); if(!any)return;
+  const b=document.createElement('button');b.className='btn gray emp-v17perm';b.textContent='頁面／功能';b.dataset.id=any.dataset.id;b.dataset.name=any.dataset.name||'';
+  b.onclick=()=>v17EditEmployee(b.dataset.id,b.dataset.name);actions.insertBefore(b,actions.firstChild);
+ });
+}
+async function v17EditEmployee(uid,name){
+ try{
+  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();if(error)throw error;
+  const pages=data?.page_permissions||[],funcs=data?.function_permissions||[];
+  const pageSel=await chooseOptions(name,pages,'頁面權限',V17_PAGE_OPTIONS.map(([value,label])=>({value,label})),false);if(pageSel===null)return;
+  const funcSel=await chooseOptions(name,funcs,'功能權限',V17_FUNC_OPTIONS.map(([value,label])=>({value,label})),false);if(funcSel===null)return;
+  const {data:r,error:re}=await sb.rpc('set_employee_permissions_v17',{p_user_id:uid,p_page_permissions:pageSel,p_function_permissions:funcSel});if(re)throw re;
+  setEmployeeMsg('頁面／功能權限已更新',true);if(uid===currentUser?.id){v17LoadedFor='';await v17LoadMine();}
+ }catch(e){setEmployeeMsg('權限更新失敗：'+(e?.message||e),false);}
+}
+const v17Observer=new MutationObserver(()=>v17AddPermissionButtons());
+window.addEventListener('load',()=>{const el=document.getElementById('employeeList');if(el)v17Observer.observe(el,{childList:true,subtree:true});setTimeout(()=>{v17LoadMine();v17AddPermissionButtons()},1800)});
+setInterval(()=>{if(currentUser&&v17LoadedFor!==currentUser.id)v17LoadMine()},1500);
 </script>
 </body></html>
