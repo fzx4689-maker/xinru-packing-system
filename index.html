@@ -321,6 +321,13 @@ body.wall-focus #wall>.card{border:0;box-shadow:none;background:transparent;padd
 body.wall-focus #wall>.card>h2,body.wall-focus #wall>.card>.helper,body.wall-focus #wall #wallDateBar{display:none!important}
 .wallBackBtn{display:none;position:sticky;top:6px;z-index:20;margin:0 0 6px auto;padding:7px 11px;font-size:13px;opacity:.9}
 body.wall-focus .wallBackBtn{display:block}
+
+/* 第五階段：派工三入口 + 現場單一職務極簡模式 */
+.stallModeBar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.stallModeBar .btn{min-width:120px}
+body.field-single-role .mainTabs7{display:none!important}
+body.field-single-role .wrap{padding-top:8px}
+@media(max-width:700px){body.field-single-role .top{position:sticky;top:0;z-index:20}body.field-single-role .compactUserBar{margin-bottom:0}.stallModeBar .btn{flex:1;min-width:0}}
 </style>
 
 
@@ -383,8 +390,13 @@ body.wall-focus .wallBackBtn{display:block}
     </section>
 
     <section id="stall" class="panel">
-      <div class="card" lang="zh-Hant">
-        <h2>📋 派工</h2>
+      <div class="stallModeBar">
+        <button id="stallCreateModeBtn" class="btn primary">＋ 建立派工</button>
+        <button id="stallManageModeBtn" class="btn gray">📋 訂單管理</button>
+        <button id="stallQueryModeBtn" class="btn gray">🔎 訂單查詢</button>
+      </div>
+      <div id="stallCreateCard" class="card" lang="zh-Hant">
+        <h2>📋 建立派工</h2>
         <div class="helper">所有訂單統一從這裡建立。可選擇送到包裝部或貨運部。</div>
 
         <div class="quickOrderRow">
@@ -425,8 +437,8 @@ body.wall-focus .wallBackBtn{display:block}
         <div class="actions" style="margin-top:14px"><button id="submitOrder" class="btn primary" style="flex:1">送出訂單</button></div>
       </div>
 
-      <div class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
-      <div class="card"><h2 style="font-size:19px">目前訂單</h2><div id="stallOrders"></div></div>
+      <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
+      <div id="stallManageCard" class="card" style="display:none"><h2 style="font-size:19px">訂單管理</h2><div class="helper">未完成訂單可依權限修改；刪除僅限管理員。</div><div id="stallOrders"></div></div>
     </section>
 
     <section id="packing" class="panel">
@@ -722,7 +734,7 @@ const SUPABASE_URL='https://vzohexennzwhodovknfi.supabase.co';
 const SUPABASE_KEY='sb_publishable_JjHWTnCuEYgQ5__ZFh5UIw_UO5E5IP2';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const MAP={
-'高麗菜':'เกา ลี่ ไช่','紅蘿蔔':'หง หลัว ปัว','白蘿蔔':'ไป๋ หลัว ปัว','青花菜':'ชิง ฮวา ไช่','青花':'ชิง ฮวา','小黃瓜':'เสี่ยว หวง กวา','大黃瓜':'ต้า หวง กวา','青椒':'ชิง เจียว','彩椒':'ไฉ่ เจียว','水果椒':'สุ่ย กั่ว เจียว','茄子':'เฉีย จื่อ','絲瓜':'ซือ กวา','苦瓜':'ขู่ กวา','冬瓜':'ตง กวา','大陸妹':'ต้า ลู่ เม่ย','地瓜葉':'ตี้ กวา เย่','小白菜':'เสี่ยว ไป๋ ไช่','青江菜':'ชิง เจียง ไช่','青江':'ชิง เจียง','空心菜':'คง ซิน ไช่','菠菜':'ปัว ไช่','芥蘭':'เจี้ย หลาน','水蓮':'สุ่ย เหลียน','皇宮菜':'หวง กง ไช่','蘿美':'หลัว เหม่ย','美生':'เหม่ย เซิง','芝麻葉':'จือ หม่า เย่','四季豆':'ซื่อ จี้ โต้ว','秋葵':'ชิว ขุย','九層塔':'จิ่ว เฉิง ถ่า','蔥':'ชง','北蒜':'เป่ย ซ่วน','蒜頭':'ซ่วน โถว','紅地瓜':'หง ตี้ กวา','黃地瓜':'หวง ตี้ กวา','南瓜':'หนาน กวา','芋頭':'อวี่ โถว','牛蒡':'หนิว ปั้ง','筊白筍':'เจี่ยว ไป๋ สุ่ย','蘆筍':'หลู สุ่ย','日本山藥':'รื่อ เปิ่น ซาน เย่า','羽衣甘藍':'อวี่ อี กาน หลาน','日本茄子':'รื่อ เปิ่น เฉีย จื่อ','花瓜':'ฮวา กวา','佛手瓜':'ฝอ โส่ว กวา','西芹':'ซี ฉิน','山東':'ซาน ตง','蘿蔓':'หลัว ม่าน','清江':'ชิง เจียง','蚵白':'เขอ ไป๋','油菜':'โหยว ไช่','半軟':'ป้าน หร่วน','初秋':'ชู ชิว','全軟':'เฉวียน หร่วน','小刈菜':'เสี่ยว อี้ ไช่','皇宮':'หวง กง','紫高':'จื่อ เกา','雪翠':'เสวี่ย ชุ่ย','印高':'อิ้น เกา','白花':'ไป๋ ฮวา','紐洋大':'หนิว หยาง ต้า','紐洋中':'หนิว หยาง จง','紫洋':'จื่อ หยาง','馬大':'หม่า ต้า','馬中':'หม่า จง','馬裂':'หม่า เลี่ย','櫛瓜特':'จื้อ กวา เท่อ','櫛瓜中':'จื้อ กวา จง','大瓜':'ต้า กวา','花蒲':'ฮวา ผู','貝貝':'เป้ย เป้ย','東昇':'ตง เซิง','貴族':'กุ้ย จู๋','密本':'มี่ เปิ่น','甜豆':'เถียน โต้ว','荷豆':'เหอ โต้ว','菜豆':'ไช่ โต้ว','敏豆':'หมิ่น โต้ว','蒜包':'ซ่วน เปา','青花去絲小花':'ชิง ฮวา ชวี่ ซือ เสี่ยว ฮวา','小辣':'เสี่ยว ล่า','大辣':'ต้า ล่า','綠骨':'ลวี่ กู่','紅骨':'หง กู่','韭菜':'จิ่ว ไช่','豆芽菜':'โต้ว หยา ไช่','蒜碎':'ซ่วน ซุ่ย'
+'進口白K L':'จิ้น โข่ว ไป๋ K L','進口白K':'จิ้น โข่ว ไป๋ K','高麗菜':'เกา ลี่ ไช่','紅蘿蔔':'หง หลัว ปัว','白蘿蔔':'ไป๋ หลัว ปัว','青花菜':'ชิง ฮวา ไช่','青花':'ชิง ฮวา','小黃瓜':'เสี่ยว หวง กวา','大黃瓜':'ต้า หวง กวา','青椒':'ชิง เจียว','彩椒':'ไฉ่ เจียว','水果椒':'สุ่ย กั่ว เจียว','茄子':'เฉีย จื่อ','絲瓜':'ซือ กวา','苦瓜':'ขู่ กวา','冬瓜':'ตง กวา','大陸妹':'ต้า ลู่ เม่ย','地瓜葉':'ตี้ กวา เย่','小白菜':'เสี่ยว ไป๋ ไช่','青江菜':'ชิง เจียง ไช่','青江':'ชิง เจียง','空心菜':'คง ซิน ไช่','菠菜':'ปัว ไช่','芥蘭':'เจี้ย หลาน','水蓮':'สุ่ย เหลียน','皇宮菜':'หวง กง ไช่','蘿美':'หลัว เหม่ย','美生':'เหม่ย เซิง','芝麻葉':'จือ หม่า เย่','四季豆':'ซื่อ จี้ โต้ว','秋葵':'ชิว ขุย','九層塔':'จิ่ว เฉิง ถ่า','蔥':'ชง','北蒜':'เป่ย ซ่วน','蒜頭':'ซ่วน โถว','紅地瓜':'หง ตี้ กวา','黃地瓜':'หวง ตี้ กวา','南瓜':'หนาน กวา','芋頭':'อวี่ โถว','牛蒡':'หนิว ปั้ง','筊白筍':'เจี่ยว ไป๋ สุ่ย','蘆筍':'หลู สุ่ย','日本山藥':'รื่อ เปิ่น ซาน เย่า','羽衣甘藍':'อวี่ อี กาน หลาน','日本茄子':'รื่อ เปิ่น เฉีย จื่อ','花瓜':'ฮวา กวา','佛手瓜':'ฝอ โส่ว กวา','西芹':'ซี ฉิน','山東':'ซาน ตง','蘿蔓':'หลัว ม่าน','清江':'ชิง เจียง','蚵白':'เขอ ไป๋','油菜':'โหยว ไช่','半軟':'ป้าน หร่วน','初秋':'ชู ชิว','全軟':'เฉวียน หร่วน','小刈菜':'เสี่ยว อี้ ไช่','皇宮':'หวง กง','紫高':'จื่อ เกา','雪翠':'เสวี่ย ชุ่ย','印高':'อิ้น เกา','白花':'ไป๋ ฮวา','紐洋大':'หนิว หยาง ต้า','紐洋中':'หนิว หยาง จง','紫洋':'จื่อ หยาง','馬大':'หม่า ต้า','馬中':'หม่า จง','馬裂':'หม่า เลี่ย','櫛瓜特':'จื้อ กวา เท่อ','櫛瓜中':'จื้อ กวา จง','大瓜':'ต้า กวา','花蒲':'ฮวา ผู','貝貝':'เป้ย เป้ย','東昇':'ตง เซิง','貴族':'กุ้ย จู๋','密本':'มี่ เปิ่น','甜豆':'เถียน โต้ว','荷豆':'เหอ โต้ว','菜豆':'ไช่ โต้ว','敏豆':'หมิ่น โต้ว','蒜包':'ซ่วน เปา','青花去絲小花':'ชิง ฮวา ชวี่ ซือ เสี่ยว ฮวา','小辣':'เสี่ยว ล่า','大辣':'ต้า ล่า','綠骨':'ลวี่ กู่','紅骨':'หง กู่','韭菜':'จิ่ว ไช่','豆芽菜':'โต้ว หยา ไช่','蒜碎':'ซ่วน ซุ่ย'
 ,'仙草':'เซียน เฉ่า','愛玉':'อ้าย อวี่','中華豆腐':'จง ฮวา โต้ว ฝู่','雞蛋豆腐':'จี ตั้น โต้ว ฝู่','板豆腐':'ป่าน โต้ว ฝู่','生豆包':'เซิง โต้ว เปา','豆干':'โต้ว กาน','佛恩寺':'ฝอ เอิน ซื่อ','果果龍':'กั่ว กั่ว หลง','六禾':'ลิ่ว เหอ','古早味':'กู่ เจ่า เว่ย','洋晨時光':'หยาง เฉิน สือ กวง','史堤克':'สื่อ ตี เค่อ','安中':'อัน จง','仁和':'เหริน เหอ','水牛':'สุ่ย หนิว','坤霖':'คุน หลิน','善化':'ซ่าน ฮว่า','鹹水雞':'เสียน สุ่ย จี','開宣':'ไค เซวียน','民雄':'หมิน สยง','元泰':'หยวน ไท่','偉嘉':'เหว่ย เจีย','鐵架':'เถี่ย เจี้ย','蛤蜊':'เก๋อ หลี','鳥蛋':'เหนี่ยว ตั้น','老薑':'เหล่า เจียง','五香豆干':'อู่ เซียง โต้ว กาน','黑豆干':'เฮย โต้ว กาน','油豆腐':'โหยว โต้ว ฝู่','鮮香菇':'เซียน เซียง กู','秀珍菇':'ซิ่ว เจิน กู','海帶結':'ไห่ ไต้ เจี๋ย','海龍':'ไห่ หลง','麵腸':'เมี่ยน ฉาง','蒜米':'ซ่วน หมี่','紅椒':'หง เจียว','黃椒':'หวง เจียว','青苑':'ชิง หย่วน','隆記':'หลง จี้','龍鍇':'หลง ข่าย','穠全':'หนง เฉวียน','新和盛':'ซิน เหอ เซิ่ง','打冰':'ต่า ปิง','玉米筍':'อวี่ หมี่ สุ่ย','進馬':'จิ้น หม่า','燦霖':'ช่าน หลิน','芹菜':'ฉิน ไช่','甜玉米':'เถียน อวี่ หมี่','金針菇':'จิน เจิน กู','全紅':'เฉวียน หง','杏鮑菇':'ซิ่ง เป้า กู','龍鬚':'หลง ซวี','檸檬':'หนิง เหมิง','橘子':'จวี๋ จื่อ','葡萄':'ผู เถา','水梨':'สุ่ย หลี','酪梨':'ลั่ว หลี'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
@@ -816,11 +828,15 @@ function renderAll(){
   applyRoleUI();
 }
 function hasFeature(feature){return Array.isArray(currentProfile?.feature_permissions)&&currentProfile.feature_permissions.includes(feature)}
+function isPackingOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='packing'&&!hasFeature('stall_order')&&!hasFeature('delivery')&&!hasFeature('accounting')}
+function isDriverOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='driver'&&!hasFeature('stall_order')&&!hasFeature('packing')&&!hasFeature('accounting')}
 function canSeeTab(tab){
   if(!currentProfile)return false;
   const admin=currentProfile.role==='admin';
   if(admin)return true; // 管理員可查看全部頁面，但不會因此出現在司機名單
-  if(tab==='home'||tab==='wall'||tab==='today')return true; // 首頁、電視牆、訂單查詢固定可查看
+  if(isPackingOnly())return tab==='packing';
+  if(isDriverOnly())return tab==='delivery';
+  if(tab==='home'||tab==='wall'||tab==='today')return true; // 一般辦公室角色保留共用查看頁
   if(tab==='procurement')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
   if(tab==='stall')return hasWorkRole('stall')||hasFeature('stall_order');
   if(tab==='packing')return hasWorkRole('packing')||hasFeature('packing');
@@ -828,9 +844,10 @@ function canSeeTab(tab){
   if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
   return false;
 }
-function firstVisibleTab(){return ['home','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
+function firstVisibleTab(){if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
+  document.body.classList.toggle('field-single-role',isPackingOnly()||isDriverOnly());
   $('#readonlyNote').style.display='none';
   const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';
   $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
@@ -1240,6 +1257,20 @@ function activateTab(tabName,{save=true}={}){
   }
   renderAll();
 }
+function setStallMode(mode='create'){
+  const create=mode==='create';
+  const c=$('#stallCreateCard'),t=$('#stallTransCard'),m=$('#stallManageCard');
+  if(c)c.style.display=create?'block':'none';
+  if(t)t.style.display=create?'block':'none';
+  if(m)m.style.display=create?'none':'block';
+  const cb=$('#stallCreateModeBtn'),mb=$('#stallManageModeBtn');
+  if(cb)cb.className='btn '+(create?'primary':'gray');
+  if(mb)mb.className='btn '+(!create?'primary':'gray');
+}
+$('#stallCreateModeBtn')?.addEventListener('click',()=>setStallMode('create'));
+$('#stallManageModeBtn')?.addEventListener('click',()=>setStallMode('manage'));
+$('#stallQueryModeBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
+setStallMode('create');
 $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
 $('#homeOrderQueryBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
 function getRememberedTab(){
@@ -1938,6 +1969,7 @@ $('#acctExportExcel').onclick=()=>{
   const csv='\ufeff'+lines.map(row=>row.map(acctCsvCell).join(',')).join('\r\n');acctDownload(new Blob([csv],{type:'text/csv;charset=utf-8'}),acctSafeName(d.customer)+'_客戶帳本.csv')
 };
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
+<!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 </body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){if(d.isSupermarket)return acctSupermarketCanvas(d);const width=1800,margin=24,top=150,rowH=31,per=28,colW=(width-margin*2)/3,height=top+per*rowH+75,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,width,height);g.fillStyle='#111';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('欣儒農產行　0900-767-577',width/2,42);g.textAlign='left';g.font='bold 22px sans-serif';g.fillText('客戶：'+d.customer,margin,82);g.font='19px sans-serif';g.fillText(`貨款餘額 ${acctMoney(Math.max(0,d.balance))}　欠籃 ${d.baskets}個　儲值餘額 ${acctMoney(Math.max(0,d.deposit-d.storedUsed))}`,margin,115);const headers=['日期','序','品名／內容','金額'];for(let col=0;col<3;col++){const x=margin+col*colW,widths=[90,45,colW-230,95];let xx=x;g.font='bold 16px sans-serif';headers.forEach((h,i)=>{g.strokeStyle='#333';g.strokeRect(xx,top-28,widths[i],28);g.fillText(h,xx+5,top-8);xx+=widths[i]});for(let i=0;i<per;i++){const r=d.rows[col*per+i],y=top+i*rowH;xx=x;widths.forEach(w=>{g.strokeRect(xx,y,w,rowH);xx+=w});g.font='15px sans-serif';g.fillStyle='#111';if(r){g.fillText(r.date.slice(5),x+4,y+21);g.fillText(String(col*per+i+1),x+94,y+21);const detail=(r.details||r.type);g.fillText(detail.length>35?detail.slice(0,35)+'…':detail,x+139,y+21);g.fillStyle=(r.charge-r.payment)<0?'#c22':'#2457a6';g.fillText(String(r.charge-r.payment||''),x+colW-88,y+21)}}}g.fillStyle='#111';g.textAlign='right';g.font='bold 22px sans-serif';g.fillText('合計：'+acctMoney(d.balance),width-margin,height-25);return c}
