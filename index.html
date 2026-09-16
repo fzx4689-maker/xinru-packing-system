@@ -331,6 +331,14 @@ body.field-single-role .wrap{padding-top:8px}
 
 /* 第六階段：現場缺貨／催貨回報 */
 .shortageQuick{border:1px solid #f4c36a;background:#fffaf0;border-radius:14px;padding:10px;margin:8px 0}.shortageQuick summary{font-weight:900;cursor:pointer}.shortageGrid{display:grid;grid-template-columns:1fr 1.4fr .65fr auto;gap:6px;align-items:end;margin-top:8px}.shortageList{display:grid;gap:7px;margin-top:10px}.shortageRow{border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.shortageTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.shortageStatus{font-size:12px;font-weight:900;border-radius:999px;padding:4px 8px;background:#fff0c9;color:#805d00}.shortageActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.shortageActions .btn{padding:7px 9px;font-size:12px}.navNoticeBadge{display:none;min-width:18px;height:18px;padding:0 5px;margin-left:4px;border-radius:999px;background:#e1192d;color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:900;vertical-align:1px}.navNoticeBadge.show{display:inline-block}@media(max-width:760px){.shortageGrid{grid-template-columns:1fr 1fr}.shortageGrid .shortageItem{grid-column:1/-1}.shortageGrid .btn{width:100%}}
+
+/* 第二十九階段：叫貨／採購主架構。僅作用於 procurement，不修改登入/Auth。 */
+.procurementSubTabs{display:flex;gap:7px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.procurementSubTabs .procSubTab{flex:0 0 auto;border:1px solid #d8dee8;background:#fff;color:#334155;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.procurementSubTabs .procSubTab.active{background:#1f6feb;color:#fff;border-color:#1f6feb}
+.procurementView{display:none}
+.procurementView.active{display:block}
+@media(max-width:700px){.procurementShell{padding-bottom:10px}.procurementSubTabs .procSubTab{padding:10px 12px;font-size:14px}}
 </style>
 
 
@@ -385,15 +393,46 @@ body.field-single-role .wrap{padding-top:8px}
     </section>
 
     <section id="procurement" class="panel">
-      <div class="card">
+      <div class="card procurementShell">
         <h2>🛒 叫貨／採購</h2>
-        <div class="helper">超市叫貨、產農、廠商、到貨、退換貨。</div>
-        <div class="empty">其他採購功能接下來再逐項建立</div>
+        <div class="helper">叫貨、到貨、驗收、庫存與異常集中管理。</div>
+        <div class="procurementSubTabs" id="procurementSubTabs">
+          <button type="button" class="procSubTab active" data-proc-view="orders">📋 叫貨單</button>
+          <button type="button" class="procSubTab" data-proc-view="pending">🚚 待到貨</button>
+          <button type="button" class="procSubTab" data-proc-view="receiving">✅ 到貨驗收</button>
+          <button type="button" class="procSubTab" data-proc-view="inventory">📦 庫存管理</button>
+          <button type="button" class="procSubTab" data-proc-view="shortage">⚠️ 缺貨／催貨</button>
+          <button type="button" class="procSubTab" data-proc-view="freight">⚖️ 寄車公斤</button>
+          <button type="button" class="procSubTab" data-proc-view="returns">↩️ 退換貨／異常</button>
+          <button type="button" class="procSubTab" data-proc-view="history">📚 紀錄查詢</button>
+        </div>
       </div>
-      <div class="card"><h2>⚠️ 缺貨／催貨</h2><div class="helper">包裝或司機回報後集中在這裡。無法確認到貨時間時，不需要填預計時間。</div><div id="shortageManageList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      <div class="card"><h2>💬 現場詢問／📡 總部回應</h2><div class="helper">包裝或司機的問題集中在這裡；總部回應只回到原發問人的手機。</div><div id="fieldQuestionOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      <div class="card"><h2>📦 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      <div class="card"><h2>📚 歷史對話</h2><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option><option value="freight">寄車公斤</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
+
+      <div class="procurementView active" data-proc-panel="orders">
+        <div class="card"><h2>📋 叫貨單</h2><div class="helper">超市、產農、廠商的叫貨統一從這裡建立與查看。</div><div class="empty">下一步建立叫貨單功能</div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="pending">
+        <div class="card"><h2>🚚 待到貨</h2><div class="helper">查看已叫貨、尚未完成到貨的品項。</div><div class="empty">待到貨功能接下來建立</div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="receiving">
+        <div class="card"><h2>✅ 到貨驗收</h2><div class="helper">確認實際到貨數量與異常；完成驗收後再銜接庫存。</div><div class="empty">到貨驗收功能接下來建立</div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="inventory">
+        <div class="card"><h2>📦 庫存管理</h2><div class="helper">庫存數量、入出庫、盤點與低庫存提醒集中在這裡。</div><div class="empty">庫存管理功能接下來建立</div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="shortage">
+        <div class="card"><h2>⚠️ 缺貨／催貨</h2><div class="helper">包裝或司機回報後集中在這裡。無法確認到貨時間時，不需要填預計時間。</div><div id="shortageManageList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+        <div class="card"><h2>💬 現場詢問／📡 總部回應</h2><div class="helper">包裝或司機的問題集中在這裡；總部回應只回到原發問人的手機。</div><div id="fieldQuestionOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="freight">
+        <div class="card"><h2>⚖️ 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="returns">
+        <div class="card"><h2>↩️ 退換貨／異常</h2><div class="helper">記錄到貨短少、品質異常、退貨與換貨處理。</div><div class="empty">退換貨／異常功能接下來建立</div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="history">
+        <div class="card"><h2>📚 紀錄查詢</h2><div class="helper">目前先保留既有缺貨、現場詢問與寄車公斤歷史紀錄。</div><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option><option value="freight">寄車公斤</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
+      </div>
     </section>
 
     <section id="stall" class="panel">
@@ -2684,5 +2723,21 @@ async function v17EditEmployee(uid,name){
 const v17Observer=new MutationObserver(()=>v17AddPermissionButtons());
 window.addEventListener('load',()=>{const el=document.getElementById('employeeList');if(el)v17Observer.observe(el,{childList:true,subtree:true});setTimeout(()=>{v17LoadMine();v17AddPermissionButtons()},1800)});
 setInterval(()=>{if(currentUser&&v17LoadedFor!==currentUser.id)v17LoadMine()},1500);
+</script>
+
+<script>
+/* 第二十九階段：叫貨／採購第二層切換。獨立 UI，不碰登入/Auth/Supabase。 */
+(function(){
+  function setProcurementView(view){
+    document.querySelectorAll('#procurement .procSubTab').forEach(function(btn){btn.classList.toggle('active',btn.dataset.procView===view);});
+    document.querySelectorAll('#procurement .procurementView').forEach(function(panel){panel.classList.toggle('active',panel.dataset.procPanel===view);});
+  }
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest('#procurement .procSubTab');
+    if(!btn)return;
+    setProcurementView(btn.dataset.procView);
+  });
+  window.setProcurementView=setProcurementView;
+})();
 </script>
 </body></html>
