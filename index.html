@@ -331,6 +331,14 @@ body.field-single-role .wrap{padding-top:8px}
 
 /* 第六階段：現場缺貨／催貨回報 */
 .shortageQuick{border:1px solid #f4c36a;background:#fffaf0;border-radius:14px;padding:10px;margin:8px 0}.shortageQuick summary{font-weight:900;cursor:pointer}.shortageGrid{display:grid;grid-template-columns:1fr 1.4fr .65fr auto;gap:6px;align-items:end;margin-top:8px}.shortageList{display:grid;gap:7px;margin-top:10px}.shortageRow{border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.shortageTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.shortageStatus{font-size:12px;font-weight:900;border-radius:999px;padding:4px 8px;background:#fff0c9;color:#805d00}.shortageActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.shortageActions .btn{padding:7px 9px;font-size:12px}.navNoticeBadge{display:none;min-width:18px;height:18px;padding:0 5px;margin-left:4px;border-radius:999px;background:#e1192d;color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:900;vertical-align:1px}.navNoticeBadge.show{display:inline-block}@media(max-width:760px){.shortageGrid{grid-template-columns:1fr 1fr}.shortageGrid .shortageItem{grid-column:1/-1}.shortageGrid .btn{width:100%}}
+
+/* 第十二階段：通知紅點＋叫貨/採購小按鈕 */
+.navNoticeBadge:not(:empty){display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:4px;border-radius:999px;background:#e5484d;color:#fff;font-size:11px;font-weight:900;vertical-align:middle;box-shadow:0 0 0 2px #fff}
+.procurementMiniNav{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;padding:2px 1px 9px;scrollbar-width:thin}
+.procMiniBtn{border:1px solid #dfe3e8;background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;font-weight:900;cursor:pointer;white-space:nowrap}
+.procMiniBtn.active{background:#dbeeff;border-color:#8bc4f4;color:#1e5f94}.procMiniBtn:disabled{opacity:.45;cursor:default}
+.procMiniBadge:not(:empty){display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:3px;border-radius:999px;background:#e5484d;color:#fff;font-size:10px}
+@media(max-width:760px){.procurementMiniNav{position:sticky;top:78px;z-index:8;background:#f7f8fa;padding:5px 0 8px}.procMiniBtn{padding:8px 9px;font-size:12px}}
 </style>
 
 
@@ -390,10 +398,21 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="helper">超市叫貨、產農、廠商、到貨、退換貨。</div>
         <div class="empty">其他採購功能接下來再逐項建立</div>
       </div>
-      <div class="card"><h2>⚠️ 缺貨／催貨</h2><div class="helper">包裝或司機回報後集中在這裡。無法確認到貨時間時，不需要填預計時間。</div><div id="shortageManageList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      <div class="card"><h2>💬 現場詢問／📡 總部回應</h2><div class="helper">包裝或司機的問題集中在這裡；總部回應只回到原發問人的手機。</div><div id="fieldQuestionOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      <div class="card"><h2>📦 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      <div class="card"><h2>📚 歷史對話</h2><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
+      <div class="procurementMiniNav" id="procurementMiniNav">
+<button type="button" class="procMiniBtn active" data-proc-target="all">📌 全部</button>
+<button type="button" class="procMiniBtn" data-proc-target="procShortageCard">⚠️ 缺貨／催貨 <span id="procShortageMiniBadge" class="procMiniBadge"></span></button>
+<button type="button" class="procMiniBtn" data-proc-target="procQuestionCard">💬 現場詢問 <span id="procQuestionMiniBadge" class="procMiniBadge"></span></button>
+<button type="button" class="procMiniBtn" data-proc-target="procFreightCard">⚖️ 寄車公斤 <span id="procFreightMiniBadge" class="procMiniBadge"></span></button>
+<button type="button" class="procMiniBtn" data-proc-target="procHistoryCard">📚 紀錄查詢</button>
+<button type="button" class="procMiniBtn" disabled>📋 叫貨單</button>
+<button type="button" class="procMiniBtn" disabled>🚚 待到貨</button>
+<button type="button" class="procMiniBtn" disabled>✅ 到貨驗收</button>
+<button type="button" class="procMiniBtn" disabled>📦 庫存管理</button>
+<button type="button" class="procMiniBtn" disabled>↩️ 退換貨／異常</button>
+</div><div class="card procurementModule" id="procShortageCard"><h2>⚠️ 缺貨／催貨</h2><div class="helper">包裝或司機回報後集中在這裡。無法確認到貨時間時，不需要填預計時間。</div><div id="shortageManageList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+      <div class="card procurementModule" id="procQuestionCard"><h2>💬 現場詢問／📡 總部回應</h2><div class="helper">包裝或司機的問題集中在這裡；總部回應只回到原發問人的手機。</div><div id="fieldQuestionOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+      <div class="card procurementModule" id="procFreightCard"><h2>📦 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+      <div class="card procurementModule" id="procHistoryCard"><h2>📚 歷史對話</h2><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
     </section>
 
     <section id="stall" class="panel">
@@ -1979,6 +1998,33 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
 <div id="iosPullRefresh" style="position:fixed;left:50%;top:8px;transform:translate(-50%,-70px);z-index:99999;background:#fff;border:1px solid #dbe2ea;border-radius:999px;padding:8px 14px;box-shadow:0 4px 18px #0002;font-weight:900;transition:transform .16s ease;pointer-events:none">↓ 下拉更新</div>
+
+<script>
+/* 第十二階段：只補通知計數與叫貨/採購第二層按鈕，不碰登入核心 */
+function xinruSetCount(id,n){const el=document.getElementById(id);if(!el)return;el.textContent=n>0?String(n):'';}
+function updateStage9Badges(){
+  if(!currentUser)return;
+  const uid=String(currentUser.id);
+  const myReplied=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;
+  const shortageOpen=shortageReports.filter(x=>x.status!=='arrived').length;
+  const questionsNeedOffice=fieldQuestions.filter(x=>x.status==='open').length;
+  const freightPending=freightReceipts.filter(x=>!x.status||x.status==='reported').reduce((set,x)=>set.add(x.batch_id||('old-'+x.id)),new Set()).size;
+  // 總部：叫貨/採購紅點 = 缺貨催貨 + 現場待回 + 寄車公斤待處理
+  xinruSetCount('procurementNoticeBadge',shortageOpen+questionsNeedOffice+freightPending);
+  xinruSetCount('procShortageMiniBadge',shortageOpen);
+  xinruSetCount('procQuestionMiniBadge',questionsNeedOffice);
+  xinruSetCount('procFreightMiniBadge',freightPending);
+  // 現場：只有回給「目前登入本人」的總部回應才亮
+  xinruSetCount('packingNoticeBadge',myReplied('packing'));
+  xinruSetCount('deliveryNoticeBadge',myReplied('delivery'));
+}
+function xinruProcShow(target){
+  document.querySelectorAll('#procurement .procurementModule').forEach(c=>c.style.display=(target==='all'||c.id===target)?'':'none');
+  document.querySelectorAll('#procurementMiniNav .procMiniBtn[data-proc-target]').forEach(b=>b.classList.toggle('active',b.dataset.procTarget===target));
+  if(target!=='all'){const el=document.getElementById(target);if(el)setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),30)}
+}
+document.addEventListener('click',e=>{const b=e.target.closest('#procurementMiniNav .procMiniBtn[data-proc-target]');if(!b)return;xinruProcShow(b.dataset.procTarget)});
+</script>
 </body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){if(d.isSupermarket)return acctSupermarketCanvas(d);const width=1800,margin=24,top=150,rowH=31,per=28,colW=(width-margin*2)/3,height=top+per*rowH+75,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,width,height);g.fillStyle='#111';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('欣儒農產行　0900-767-577',width/2,42);g.textAlign='left';g.font='bold 22px sans-serif';g.fillText('客戶：'+d.customer,margin,82);g.font='19px sans-serif';g.fillText(`貨款餘額 ${acctMoney(Math.max(0,d.balance))}　欠籃 ${d.baskets}個　儲值餘額 ${acctMoney(Math.max(0,d.deposit-d.storedUsed))}`,margin,115);const headers=['日期','序','品名／內容','金額'];for(let col=0;col<3;col++){const x=margin+col*colW,widths=[90,45,colW-230,95];let xx=x;g.font='bold 16px sans-serif';headers.forEach((h,i)=>{g.strokeStyle='#333';g.strokeRect(xx,top-28,widths[i],28);g.fillText(h,xx+5,top-8);xx+=widths[i]});for(let i=0;i<per;i++){const r=d.rows[col*per+i],y=top+i*rowH;xx=x;widths.forEach(w=>{g.strokeRect(xx,y,w,rowH);xx+=w});g.font='15px sans-serif';g.fillStyle='#111';if(r){g.fillText(r.date.slice(5),x+4,y+21);g.fillText(String(col*per+i+1),x+94,y+21);const detail=(r.details||r.type);g.fillText(detail.length>35?detail.slice(0,35)+'…':detail,x+139,y+21);g.fillStyle=(r.charge-r.payment)<0?'#c22':'#2457a6';g.fillText(String(r.charge-r.payment||''),x+colW-88,y+21)}}}g.fillStyle='#111';g.textAlign='right';g.font='bold 22px sans-serif';g.fillText('合計：'+acctMoney(d.balance),width-margin,height-25);return c}
