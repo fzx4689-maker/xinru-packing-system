@@ -407,13 +407,12 @@ body.field-single-role .wrap{padding-top:8px}
     <section id="home" class="panel active">
       <div class="card">
         <h2>🏠 首頁｜今日工作總覽</h2>
-        <div class="helper">只顯示今天需要處理的事情；首頁不重複輸入資料，點卡片直接進原功能頁。</div>
-        <div class="homeSkeletonGrid">
-          <button type="button" class="homeSkeletonCard" data-home-target="accounting" onclick="document.querySelector('.tab[data-tab=accounting]').click()"><b>💰 帳務待辦</b><span>待收款・週結／月結・待處理帳務</span></button>
-          <button type="button" class="homeSkeletonCard" data-home-target="procurement" onclick="document.querySelector('.tab[data-tab=procurement]').click()"><b>📡 現場回報</b><span>缺貨催貨・現場詢問・寄車公斤</span></button>
-          <button type="button" class="homeSkeletonCard" data-home-target="procurement" onclick="document.querySelector('.tab[data-tab=procurement]').click()"><b>🛒 採購待辦</b><span>待到貨・驗收・退換貨異常</span></button>
-          <button type="button" class="homeSkeletonCard" data-home-target="stall" onclick="document.querySelector('.tab[data-tab=stall]').click()"><b>📋 作業狀態</b><span>派工・包裝・貨運的今日狀態</span></button>
+        <div class="helper">老闆／主管交代事項公告板｜指定日期當天顯示，隔天自動不顯示；不做完成打勾與逾期追蹤。</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <h3 style="margin:0">📌 今日交代事項</h3>
+          <button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增交代事項</button>
         </div>
+        <div id="homeNoticeList" style="margin-top:10px"><div class="empty">今天尚無交代事項</div></div>
         <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button></div>
       </div>
     </section>
@@ -473,7 +472,7 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="card"><h2>↩️ 退換貨／異常</h2><div class="helper">記錄到貨短少、品質異常、退貨與換貨處理。</div><div class="empty">退換貨／異常功能接下來建立</div></div>
       </div>
       <div class="procurementView" data-proc-panel="history">
-        <div class="card"><h2>📚 採購紀錄</h2><div class="helper">採購與現場處理的歷史紀錄集中查詢；細部功能後續再建立。</div><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option><option value="freight">寄車公斤</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
+        <div class="card"><h2>📚 採購紀錄</h2><div class="helper">只查真正的叫貨、到貨、驗收、退換貨等採購紀錄；現場詢問、缺貨催貨對話、寄車公斤回報不放在這裡。</div><div class="empty">採購紀錄功能後續建立</div><div style="display:none"><input id="historyDate" type="date"><input id="historyKeyword"><select id="historyType"><option value="all">全部類型</option></select><div id="conversationHistoryList"></div></div></div>
       </div>
     </section>
 
@@ -585,7 +584,6 @@ body.field-single-role .wrap{padding-top:8px}
           <button class="acctSubTab" data-acct-page="farmer">🌱 產農帳</button>
           <button class="acctSubTab" data-acct-page="middleman">🧾 中盤帳</button>
           <button class="acctSubTab" data-acct-page="vendor">🏭 廠商帳</button>
-          <button class="acctSubTab" data-acct-page="settlement">📚 帳務管理</button>
         </div>
         <div class="acctMobileGroups" id="acctMobileGroups">
           <button class="acctMobileGroupBtn active" type="button" data-acct-group="daily">日常帳務</button>
@@ -594,7 +592,6 @@ body.field-single-role .wrap{padding-top:8px}
             <button class="acctSubTab active" type="button" data-acct-page="quick">👥 客戶帳本</button>
             <button class="acctSubTab" type="button" data-acct-page="payment">💰 收款中心</button>
             <button class="acctSubTab" type="button" data-acct-page="ledger">🔎 帳本查詢</button>
-            <button class="acctSubTab" type="button" data-acct-page="settlement">📚 帳務管理</button>
           </div>
           <div class="acctMobileMenu" data-acct-menu="accounts">
             <button class="acctSubTab" type="button" data-acct-page="supermarket">🏪 超市帳</button>
@@ -617,15 +614,15 @@ body.field-single-role .wrap{padding-top:8px}
             <div class="field"><label class="label">日期</label><input id="acctDate" class="input" type="date"></div>
             <div class="field customerField"><label class="label">客戶</label><input id="acctCustomer" class="input" list="acctCustomerList" autocomplete="off"><datalist id="acctCustomerList"></datalist></div>
             <div class="field acctLegacyTxn" style="display:none"><label class="label">交易內容</label><select id="acctTxnType" class="input"><option value="sale">本店商品</option><option value="mixed">本店商品＋外店商品</option><option value="freight">只有外店商品</option><option value="repayment">收回舊欠款</option><option value="deposit">儲值入金</option></select></div>
-            <div class="field"><label class="label">客戶類型</label><select id="acctCustomerType" class="input"><option>車牌客戶</option><option>個人</option><option>超市</option><option>中盤</option><option>產農</option><option>企業合約客戶</option><option>其他</option></select></div>
-            <div class="field"><label class="label">付款方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>儲值扣款</option><option>3日結</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
+            <div class="field"><label class="label">帳戶分類</label><select id="acctCustomerType" class="input"><option>客戶</option><option>企業合約</option><option>其他</option></select></div>
+            <div class="field"><label class="label">結帳方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>儲值扣款</option><option>3日結</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
           </div>
           <div class="accountItemGrid">
             <div class="field"><label class="label">商品</label><input id="acctProduct" class="input" lang="zh-Hant" list="acctProductList" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="打一兩個字搜尋"><datalist id="acctProductList"></datalist></div>
             <div class="field"><label class="label">數量</label><input id="acctQty" class="input" type="number" inputmode="decimal" min="0" step="1" value="1"></div>
             <div class="field"><label class="label">單價</label><input id="acctPrice" class="input" type="text" inputmode="decimal" placeholder="0"></div>
-            <div class="field basketEntry"><label class="label">籃子數（選填）</label><input id="acctBasketMark" class="input" type="number" inputmode="numeric" min="0" step="1" placeholder="0"><div class="marketBasketHint">只填數量，不用判斷正負</div></div>
-            <div class="field basketEntry"><label class="label">籃子方向</label><select id="acctBasketDirection" class="input"><option value="customer_owes">客戶欠我們</option><option value="customer_returns">客戶還我們</option><option value="we_owe">我們欠客戶</option><option value="we_return">我們還客戶</option></select></div>
+            <div class="field basketEntry"><label class="label">籃子數（選填）</label><input id="acctBasketMark" class="input" type="number" inputmode="numeric" min="0" step="1" placeholder="0"><div class="marketBasketHint">只記籃數，不影響貨款</div></div>
+            <div class="field basketEntry"><label class="label">籃子動作</label><select id="acctBasketDirection" class="input"><option value="basket_owe">欠籃</option><option value="basket_return">回籃</option><option value="basket_surplus">餘籃</option></select><button id="acctBasketChargeBtn" class="btn gray" type="button" style="margin-top:6px;width:100%">💰 籃子計價 $50</button></div>
             <div class="field subtotalEntry"><label class="label">金額</label><div id="acctItemSubtotal" class="input" style="font-weight:900">$0</div></div>
             <button id="acctAddItem" class="btn blue" type="button">＋</button>
             <div class="marketHide"><select id="acctUnit"><option selected>件</option></select><input id="acctItemKg" value=""><input id="acctOwnKg" value="0"><select id="acctRoute"><option value="none" selected>不配送</option></select><input id="acctFreightRate" value="0"><input id="acctPaid" value="0"><input id="acctBasketOut" value="0"><input id="acctBasketBack" value="0"><input id="acctTwoCopy" type="checkbox"><input id="acctExternalProduct"><input id="acctExternalKgEach" value=""><input id="acctExternalQty" value="1"><input id="acctExternalAdvance" value="0"><button id="acctAddExternalItem" type="button"></button><div id="acctExternalItems"></div></div>
@@ -646,13 +643,15 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="acctQueryBox">
           <h3 style="margin:0 0 7px">🔎 帳本查詢／分享</h3>
           <div class="acctQueryHead" style="grid-template-columns:1fr"><input id="acctQueryCustomer" class="input" list="acctCustomerList" placeholder="輸入客戶名稱，立即查詢"><button id="acctQueryBtn" class="btn blue" type="button" style="display:none">查詢</button></div>
+          <div style="margin-top:10px"><b>帳戶分類：</b><div class="actions" style="margin-top:6px;flex-wrap:wrap"><button class="btn gray" type="button">客戶</button><button class="btn gray" type="button">六禾</button><button class="btn gray" type="button">超市</button><button class="btn gray" type="button">產農</button><button class="btn gray" type="button">中盤</button><button class="btn gray" type="button">廠商</button><button class="btn gray" type="button">企業合約</button><button class="btn gray" type="button">其他</button></div></div>
+          <div style="margin-top:8px"><b>結帳方式：</b><div class="actions" style="margin-top:6px;flex-wrap:wrap"><button class="btn gray" type="button">現金</button><button class="btn gray" type="button">匯款</button><button class="btn gray" type="button">3日結</button><button class="btn gray" type="button">週結</button><button class="btn gray" type="button">月結</button><button class="btn gray" type="button">下次付款</button><button class="btn gray" type="button">部分付款</button></div></div>
           <div id="acctExportBar" class="acctExportBar" style="display:none"><button id="acctExportExcel" class="btn green" type="button">匯出 Excel（LQ-310）</button><button id="acctExportPdf" class="btn gray" type="button">匯出 PDF</button><button id="acctShareLine" class="btn blue" type="button">手機分享 LINE</button><button id="acctCopyLine" class="btn blue" type="button">電腦複製帳單圖片</button><button id="acctBasketOverviewBtn" class="btn gray" type="button">🧺 籃子總覽</button></div><div id="acctBasketOverview" class="basketOverview"></div>
           <div id="acctQueryResult"><div class="empty" style="padding:14px">輸入客戶名稱即可查帳</div></div>
         </div>
         <h3 style="margin:12px 0 5px">最近帳務紀錄</h3><div id="acctRecords" class="accountRecords"></div>
         </div>
         <div id="acctPreviewModal" class="acctPreviewModal"><div class="acctPreviewCard"><div class="acctPreviewHead"><b id="acctPreviewTitle">帳本預覽</b><div class="acctPreviewActions"><button id="acctPreviewShare" class="btn blue" type="button">LINE 分享</button><button id="acctPreviewCopy" class="btn blue" type="button">複製圖片</button><button id="acctPreviewClose" class="btn gray" type="button">關閉</button></div></div><div id="acctPreviewBody"></div></div></div>
-        <div class="acctSubPage" data-acct-page-panel="settlement">
+        <div class="acctSubPage" data-acct-page-panel="settlement" style="display:none!important">
   <div class="crmWrap">
     <div class="crmHead"><h3>🧾 結帳管理</h3><button id="crmAddBtn" class="btn blue" type="button">＋ 新增客戶資料</button></div>
     <div class="crmSearch"><input id="crmSearch" class="input" placeholder="搜尋客戶／公司／電話／代號"><select id="crmTypeFilter" class="input"><option value="">全部分類</option><option>超市</option><option>一般客戶</option><option>企業合約客戶</option><option>廠商</option><option>產農</option><option>中盤</option><option>六禾</option></select></div>
@@ -2176,13 +2175,14 @@ $('#acctQueryCustomer').addEventListener('compositionend',()=>{acctQueryComposin
 $('#acctQueryCustomer').addEventListener('input',()=>{if(!acctQueryComposing)renderAcctCustomerQuery()});
 $('#acctQueryCustomer').addEventListener('keydown',e=>{if(e.key==='Enter'&&!acctQueryComposing){e.preventDefault();runAcctCustomerQuery();e.target.blur()}});
 $('#acctAddItem').onclick=()=>{
-  const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit='件',kgEach=0,basketRaw=$('#acctBasketMark').value.trim(),basketQty=basketRaw===''?0:Number(basketRaw),basketDirection=$('#acctBasketDirection').value,sign=({customer_owes:1,customer_returns:-1,we_owe:-1,we_return:1})[basketDirection]||1,basketSigned=basketRaw===''?'':basketQty*sign,basketMark=basketSigned;
+  const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit='件',kgEach=0,basketRaw=$('#acctBasketMark').value.trim(),basketQty=basketRaw===''?0:Number(basketRaw),basketDirection=$('#acctBasketDirection').value,sign=({basket_owe:1,basket_return:-1,basket_surplus:-1})[basketDirection]||1,basketSigned=basketRaw===''?'':basketQty*sign,basketMark=basketSigned;
   if(!name||!(qty>0)||!Number.isFinite(price)){alert('請輸入商品、數量與單價');return}
   if(basketRaw!==''&&(!Number.isFinite(basketQty)||basketQty<0)){alert('籃子數只要輸入數量，不用輸入正負號');return}
   acctDraftItems.push({name,qty,price,unit,kgEach,basketMark,basketQty,basketDirection,basketSigned});const catalog=acctCatalog();catalog[name]={...(catalog[name]||{}),price:'',unit,kgEach};localStorage.setItem('xinru_acct_test_products',JSON.stringify(catalog));
   $('#acctProduct').value='';$('#acctQty').value='1';$('#acctPrice').value='';$('#acctBasketMark').value='';renderAcctDraft();renderAcctLists();
 };
 $('#acctProduct').onchange=()=>{$('#acctPrice').value='';renderAcctDraft()};
+{const b=document.getElementById('acctBasketChargeBtn');if(b)b.onclick=()=>{document.getElementById('acctProduct').value='籃子';document.getElementById('acctQty').value='1';document.getElementById('acctPrice').value='50';renderAcctDraft();document.getElementById('acctQty').focus();}}
 $('#acctAddExternalItem').onclick=()=>{
   const name=$('#acctExternalProduct').value.trim(),kgEach=Number($('#acctExternalKgEach').value),qty=Number($('#acctExternalQty').value),advance=Math.max(0,Number($('#acctExternalAdvance').value)||0);
   if(!name||!(kgEach>0)||!(qty>0)){alert('請輸入外店商品、每件公斤與件數');return}
