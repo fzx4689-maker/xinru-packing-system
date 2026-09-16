@@ -446,7 +446,7 @@ body.field-single-role .wrap{padding-top:8px}
     </section>
 
     <section id="packing" class="panel">
-      <div class="card"><h2>包裝部</h2><details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div></details><div class="helper">急單置頂。單個品項完成就 ☑️；未完成訂單隔天會繼續顯示。可用「包裝回覆」回報進度，例如：已檢30件，待20件。</div><div id="packingOrders"></div></div>
+      <div class="card"><h2>包裝部</h2><details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div></details><div id="packingShortageReplies" class="shortageList"></div><div class="helper">急單置頂。單個品項完成就 ☑️；未完成訂單隔天會繼續顯示。可用「包裝回覆」回報進度，例如：已檢30件，待20件。</div><div id="packingOrders"></div></div>
     </section>
 
     <section id="wall" class="panel">
@@ -463,7 +463,7 @@ body.field-single-role .wrap{padding-top:8px}
           <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
           <button id="refreshDeliveryBtn" type="button" class="btn gray">重新整理</button>
         </div>
-        <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div></details><div id="driverFilters" class="driverFilters"></div>
+        <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div></details><div id="deliveryShortageReplies" class="shortageList"></div><div id="driverFilters" class="driverFilters"></div>
         <div id="deliveryBody"></div>
       </div>
 
@@ -2289,7 +2289,7 @@ async function loadShortageReports(){
   if(!window.sb && typeof sb==='undefined')return;
   try{
     const {data,error}=await sb.from('shortage_reports').select('*').order('created_at',{ascending:false}).limit(200);
-    if(error)throw error; shortageReports=data||[]; renderShortageManage();
+    if(error)throw error; shortageReports=data||[]; renderShortageManage(); renderShortageSource('packing'); renderShortageSource('delivery');
   }catch(e){
     const box=document.getElementById('shortageManageList');
     if(box)box.innerHTML='<div class="empty">缺貨回報資料表尚未啟用</div>';
@@ -2308,11 +2308,27 @@ window.submitShortageReport=async function(source){
   document.getElementById(p+'ShortCustomer').value='';document.getElementById(p+'ShortItem').value='';document.getElementById(p+'ShortQty').value='';
   alert('已回報給小姐'); loadShortageReports();
 };
+function shortageTime(v){return v?new Date(v).toLocaleString('zh-TW',{hour12:false}):''}
 function renderShortageManage(){
   const box=document.getElementById('shortageManageList');if(!box)return;
   const arr=shortageReports.filter(x=>x.status!=='arrived');
-  box.innerHTML=arr.length?arr.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${x.reported_at?new Date(x.reported_at).toLocaleString('zh-TW',{hour12:false}):''}</div><div class="shortageActions"><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button><button class="btn primary" onclick="setShortageStatus(${x.id},'arrived')">✓ 已到貨</button></div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';
+  box.innerHTML=arr.length?arr.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${shortageTime(x.reported_at)}</div>${x.reply_text?`<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>💬 已回覆現場：</b>${esc(x.reply_text)}<div class="meta">${esc(x.replied_by_name||'')}｜${shortageTime(x.replied_at)}</div></div>`:''}<div class="shortageActions"><button class="btn blue" onclick="replyShortage(${x.id})">💬 回覆現場</button><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button><button class="btn primary" onclick="setShortageStatus(${x.id},'arrived')">✓ 已到貨結案</button></div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';
 }
+function renderShortageSource(source){
+  const box=document.getElementById(source==='packing'?'packingShortageReplies':'deliveryShortageReplies');if(!box||!currentUser)return;
+  const arr=shortageReports.filter(x=>x.source===source&&x.reported_by===currentUser.id&&x.status!=='arrived');
+  box.innerHTML=arr.length?arr.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div>${x.reply_text?`<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>💬 小姐回覆：</b>${esc(x.reply_text)}<div class="meta">回覆人：${esc(x.replied_by_name||'')}｜${shortageTime(x.replied_at)}</div></div>`:'<div class="meta" style="margin-top:6px">等待小姐回覆</div>'}</div>`).join(''):'';
+}
+window.replyShortage=async function(id){
+  if(!currentUser)return;
+  const x=shortageReports.find(r=>r.id===id);if(!x)return;
+  const text=prompt('回覆現場：',x.reply_text||'');if(text===null)return;
+  const reply=text.trim();if(!reply)return alert('請輸入回覆內容');
+  const now=new Date().toISOString();
+  const {error}=await sb.from('shortage_reports').update({reply_text:reply,replied_by:currentUser.id,replied_by_name:currentProfile?.display_name||'',replied_at:now,updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||'',updated_at:now}).eq('id',id);
+  if(error)return alert('回覆失敗：'+error.message+'\n請先執行「現場回覆結案_SQL.sql」');
+  loadShortageReports();
+};
 window.setShortageStatus=async function(id,status){
   if(!currentUser)return;
   const patch={status,updated_at:new Date().toISOString(),updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||''};
