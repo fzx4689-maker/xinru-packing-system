@@ -463,12 +463,10 @@ body.wall-focus .wallBackBtn{display:block}
         </div>
         <div id="packingQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap">
           <input id="queryDate" class="input" type="date" style="max-width:220px">
-          <button id="queryDateBtn" class="btn primary">查詢日期</button>
         </div>
         <div id="deliveryQueryControls" style="margin:12px 0;display:none">
           <div class="actions" style="flex-wrap:wrap">
             <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
-            <button id="deliveryQueryDateBtn" type="button" class="btn primary">查詢日期</button>
           </div>
           <div id="deliveryQueryDriverFilters" class="queryDriverFilters"></div>
         </div>
@@ -1845,13 +1843,10 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
   }
   loadDelivery();
 }).subscribe();
-$('#queryDateBtn').onclick=()=>{try{localStorage.setItem('xinru_query_date',$('#queryDate').value)}catch(e){}renderToday()};
 $('#queryDate').onchange=()=>{try{localStorage.setItem('xinru_query_date',$('#queryDate').value)}catch(e){}renderToday()};
 $('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';try{localStorage.setItem('xinru_order_query_mode','packing')}catch(e){}renderToday()};
 $('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';deliveryRecordMode='date';try{localStorage.setItem('xinru_order_query_mode','delivery')}catch(e){}renderToday()};
-$('#deliveryQueryDateBtn').onclick=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
 $('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
-$('#deliveryQueryDateBtn').onclick=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
 $('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
 // 帳務功能測試版：只存本機 localStorage，不寫入 Supabase 正式資料。
 let acctDraftItems=[];
@@ -2184,6 +2179,54 @@ window.XR_CORE_ARCHITECTURE = Object.freeze({
       deletableFromNormalUI: false,
       compactFrontDisplay: true,
       keepHistoryAfterPersonDeactivation: true
+    }
+  },
+
+  // 現場手機端：只顯示本人需要完成的工作，不為了單一任務開整個管理頁。
+  fieldMobileUI: {
+    mobileFirst: true,
+    principles: ['少頁面','大按鍵','少輸入','能自動帶就自動帶','3～5個動作完成'],
+    packing: {
+      visibleWorkspace: '包裝部',
+      quickActions: ['寄車收貨'],
+      hiddenManagementModules: ['帳務中心','完整貨運中心','系統設定']
+    },
+    driver: {
+      visibleWorkspace: '自己的貨運／配送頁',
+      quickActions: ['寄車收貨'],
+      hiddenManagementModules: ['帳務中心','包裝管理','系統設定']
+    },
+    office: {
+      desktopFirst: true,
+      responsibilities: ['派工','寄車管理','待計運費','帳務','查詢','報表','權限']
+    }
+  },
+
+  // 寄車／代配送：貨運中心主控；誰實際收貨，誰建立收貨紀錄。
+  rideShareDelivery: {
+    moduleOwner: 'freight',
+    inventoryImpact: false,
+    entryPoints: {
+      packing: '包裝部 → ＋寄車收貨',
+      driver: '司機頁 → ＋寄車收貨',
+      office: '貨運中心 → 寄車／代配送'
+    },
+    receivers: ['packing','driver','office'],
+    fields: ['customer','route_or_destination','item_name','quantity','unit','weight_mode','kg_per_unit','actual_weight_kg','total_weight_kg','received_by','reported_by','reported_at','freight_amount','freight_confirmed_by'],
+    weightModes: {
+      fixed_spec: '固定規格：件數 × 每件KG自動計算',
+      actual_weight: '不固定規格／零售重量：實際秤重'
+    },
+    statuses: ['待收貨','待重量','重量已確認／待計運費','運費已確認','已完成'],
+    rules: {
+      itemNameRequiredForCountCheck: true,
+      receiverCreatesRecord: true,
+      fixedSpecAutoCalculatesWeight: true,
+      actualWeightOnlyWhenNeeded: true,
+      packingDoesNotNeedFreightPagePermission: true,
+      driverDoesNotNeedPackingOrManagementPermission: true,
+      officeHandlesFreightAndAccounting: true,
+      doesNotEnterXinruInventory: true
     }
   },
 
