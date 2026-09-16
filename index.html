@@ -2373,7 +2373,7 @@ async function loadStage9(){
   if(!q.error){fieldQuestions=q.data||[];renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');updateStage9Badges();}
   else {const b=document.getElementById('fieldQuestionOfficeList');if(b)b.innerHTML='<div class="empty">現場詢問讀取失敗：'+esc(q.error.message||'')+'</div>';}
   const m=await sb.from('field_question_messages').select('*').order('created_at',{ascending:true}).limit(2000);
-  if(!m.error){fieldQuestionMessages=m.data||[];renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');}
+  if(!m.error){fieldQuestionMessages=m.data||[];renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');updateStage9Badges();}
   const f=await sb.from('freight_receipts').select('*').order('created_at',{ascending:false}).limit(1000);
   if(!f.error){freightReceipts=f.data||[];renderFreightOffice();}
   else {const b=document.getElementById('freightOfficeList');if(b)b.innerHTML='<div class="empty">寄車公斤讀取失敗：'+esc(f.error.message||'')+'</div>';}
@@ -2401,7 +2401,21 @@ window.renderConversationHistory=function(){const box=document.getElementById('c
 ['historyKeyword','historyDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',()=>window.renderConversationHistory())});
 {const el=document.getElementById('historyType');if(el)el.addEventListener('change',()=>window.renderConversationHistory())}
 
-function updateStage9Badges(){if(!currentUser)return;const uid=String(currentUser.id);const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;const p=document.getElementById('procurementNoticeBadge');if(p){const base=shortageReports.filter(x=>x.status!=='arrived').length;setShortageBadge('procurementNoticeBadge',base+officeOpen)}setShortageBadge('packingNoticeBadge',Math.max(Number(document.getElementById('packingNoticeBadge')?.textContent)||0,mine('packing')));setShortageBadge('deliveryNoticeBadge',Math.max(Number(document.getElementById('deliveryNoticeBadge')?.textContent)||0,mine('delivery')))}
+function updateStage9Badges(){
+  if(!currentUser)return;
+  const uid=String(currentUser.id);
+  const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status!=='closed').filter(x=>{
+    const ms=questionThread(x.id),last=ms[ms.length-1];
+    return !!last&&last.message_type==='office_reply';
+  }).length;
+  const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;
+  const p=document.getElementById('procurementNoticeBadge');
+  if(p){const base=shortageReports.filter(x=>x.status!=='arrived').length;setShortageBadge('procurementNoticeBadge',base+officeOpen)}
+  const shortagePacking=shortageReports.filter(x=>x.status!=='arrived'&&x.source==='packing'&&String(x.reported_by)===uid).filter(x=>{const ms=shortageThread(x.id),last=ms[ms.length-1];return !!last&&(last.message_type==='office_reply'||last.message_type==='status'||last.actor_role==='總部回應')}).length;
+  const shortageDelivery=shortageReports.filter(x=>x.status!=='arrived'&&x.source==='delivery'&&String(x.reported_by)===uid).filter(x=>{const ms=shortageThread(x.id),last=ms[ms.length-1];return !!last&&(last.message_type==='office_reply'||last.message_type==='status'||last.actor_role==='總部回應')}).length;
+  setShortageBadge('packingNoticeBadge',shortagePacking+mine('packing'));
+  setShortageBadge('deliveryNoticeBadge',shortageDelivery+mine('delivery'));
+}
 // 第十一階段：iPhone / PWA 下拉更新，只重新抓資料，不重載頁面、不登出。
 let xrPullStartY=0,xrPullReady=false,xrPullBusy=false;
 const xrPullEl=()=>document.getElementById('iosPullRefresh');
