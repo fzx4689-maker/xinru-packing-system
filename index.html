@@ -283,6 +283,18 @@ body.wall-focus #wall>.card>.helper{display:none}
 /* 欣儒系統 2.0：七大主頁導覽（只調整主導覽，不碰登入與既有功能） */
 .tabs.mainTabs7{grid-template-columns:repeat(7,minmax(110px,1fr));}
 @media(max-width:760px){.tabs.mainTabs7{display:flex;overflow-x:auto;gap:5px}.tabs.mainTabs7 .tab{min-width:105px;flex:0 0 auto}}
+
+/* 帳務中心手機版：先顯示三個入口，再展開功能 */
+.acctMobileGroups{display:none}
+@media(max-width:760px){
+  #accounting .acctSubTabs{display:none}
+  .acctMobileGroups{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:4px 0 10px}
+  .acctMobileGroupBtn{border:1px solid #dfe3e8;background:#fff;border-radius:12px;padding:10px 5px;font-weight:900;font-size:13px}
+  .acctMobileGroupBtn.active{background:#dbeeff;border-color:#9cccf5;color:#1e5f94}
+  .acctMobileMenu{display:none;grid-column:1/-1;grid-template-columns:repeat(2,1fr);gap:6px;padding-top:2px}
+  .acctMobileMenu.active{display:grid}
+  .acctMobileMenu .acctSubTab{width:100%;border-radius:10px;padding:9px 5px;font-size:13px}
+}
 </style>
 
 
@@ -449,6 +461,27 @@ body.wall-focus #wall>.card>.helper{display:none}
           <button class="acctSubTab" data-acct-page="middleman">中盤帳</button>
           <button class="acctSubTab" data-acct-page="vendor">廠商帳</button>
           <button class="acctSubTab" data-acct-page="liuhe">六禾調撥</button>
+          <button class="acctSubTab" data-acct-page="enterprise">企業合約</button>
+        </div>
+        <div class="acctMobileGroups" id="acctMobileGroups">
+          <button class="acctMobileGroupBtn active" type="button" data-acct-group="daily">日常帳務</button>
+          <button class="acctMobileGroupBtn" type="button" data-acct-group="accounts">往來帳務</button>
+          <button class="acctMobileGroupBtn" type="button" data-acct-group="special">專用帳務</button>
+          <div class="acctMobileMenu active" data-acct-menu="daily">
+            <button class="acctSubTab active" type="button" data-acct-page="quick">快速登帳</button>
+            <button class="acctSubTab" type="button" data-acct-page="payment">收款中心</button>
+            <button class="acctSubTab" type="button" data-acct-page="ledger">客戶帳本</button>
+            <button class="acctSubTab" type="button" data-acct-page="settlement">結帳管理</button>
+          </div>
+          <div class="acctMobileMenu" data-acct-menu="accounts">
+            <button class="acctSubTab" type="button" data-acct-page="farmer">產農帳</button>
+            <button class="acctSubTab" type="button" data-acct-page="middleman">中盤帳</button>
+            <button class="acctSubTab" type="button" data-acct-page="vendor">廠商帳</button>
+          </div>
+          <div class="acctMobileMenu" data-acct-menu="special">
+            <button class="acctSubTab" type="button" data-acct-page="liuhe">六禾調撥</button>
+            <button class="acctSubTab" type="button" data-acct-page="enterprise">企業合約</button>
+          </div>
         </div>
         <div class="acctSubPage active" data-acct-page-panel="quick">
           <div class="helper">依照收銀貓訂單快速登帳｜Enter 連續輸入｜F2 完成本筆</div>
@@ -464,7 +497,7 @@ body.wall-focus #wall>.card>.helper{display:none}
             <div class="field"><label class="label">訂單日期</label><input id="acctDate" class="input" type="date"></div>
             <div class="field customerField"><label class="label">車牌／人名／超市</label><input id="acctCustomer" class="input" list="acctCustomerList" autocomplete="off"><datalist id="acctCustomerList"></datalist></div>
             <div class="field"><label class="label">交易內容</label><select id="acctTxnType" class="input"><option value="sale">本店商品</option><option value="mixed">本店商品＋外店商品</option><option value="freight">只有外店商品</option><option value="repayment">收回舊欠款</option><option value="deposit">儲值入金</option></select></div>
-            <div class="field"><label class="label">客戶類型</label><select id="acctCustomerType" class="input"><option>車牌客戶</option><option>個人</option><option>超市</option><option>中盤</option><option>產農</option><option>其他</option></select></div>
+            <div class="field"><label class="label">客戶類型</label><select id="acctCustomerType" class="input"><option>車牌客戶</option><option>個人</option><option>超市</option><option>中盤</option><option>產農</option><option>企業合約客戶</option><option>其他</option></select></div>
             <div class="field"><label class="label">付款方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>儲值扣款</option><option>3日結</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
           </div>
           <div class="accountItemGrid">
@@ -533,6 +566,7 @@ body.wall-focus #wall>.card>.helper{display:none}
         <div class="acctSubPage" data-acct-page-panel="middleman"><div class="acctComing">🔄 中盤帳<br><small>進貨、出貨、付款、收款分開保留。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="vendor"><div class="acctComing">🏭 廠商帳<br><small>叫貨、到貨、對帳、付款與退換貨。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="liuhe"><div class="acctComing">🥬 六禾調撥<br><small>欣儒 → 六禾內部調撥帳。</small></div></div>
+        <div class="acctSubPage" data-acct-page-panel="enterprise"><div class="acctComing">🏢 企業合約客戶<br><small>訂購重量／出貨重量／驗收重量、月結與合約計價。</small></div></div>
       </div>
     </section>
   </div>
@@ -1934,6 +1968,23 @@ setInterval(()=>{if(currentUser&&currentProfile?.role==='admin'&&document.visibi
 document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();loadAccountingCloud();enforceActiveSession();}});
 window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery();loadAccountingCloud();enforceActiveSession();}});
 
+
+// 帳務中心第二層切換：桌機分頁／手機三入口共用
+document.addEventListener('click', function(e){
+  const groupBtn=e.target.closest('.acctMobileGroupBtn');
+  if(groupBtn){
+    const group=groupBtn.dataset.acctGroup;
+    document.querySelectorAll('.acctMobileGroupBtn').forEach(b=>b.classList.toggle('active',b===groupBtn));
+    document.querySelectorAll('.acctMobileMenu').forEach(m=>m.classList.toggle('active',m.dataset.acctMenu===group));
+    return;
+  }
+  const tab=e.target.closest('.acctSubTab');
+  if(!tab) return;
+  const page=tab.dataset.acctPage;
+  if(!page) return;
+  document.querySelectorAll('.acctSubTab').forEach(b=>b.classList.toggle('active',b.dataset.acctPage===page));
+  document.querySelectorAll('.acctSubPage').forEach(p=>p.classList.toggle('active',p.dataset.acctPagePanel===page));
+});
 </script>
 
 <div id="workPickOverlay" class="workPickOverlay"><div class="workPickBox"><h2 id="workPickTitle">工作職能</h2><div id="workPickName" class="workPickName"></div><div id="workPickChoices" class="workPickChoices"><label class="workPickChoice"><input type="checkbox" value="stall"> 🧾 攤位</label><label class="workPickChoice"><input type="checkbox" value="packing"> 📦 包裝</label><label class="workPickChoice"><input type="checkbox" value="driver"> 🚚 司機</label><label class="workPickChoice"><input type="checkbox" value="accounting"> 💰 帳務</label></div><div id="workPickError" class="employeeMsg err"></div><div class="workPickActions"><button id="workPickCancel" type="button" class="btn gray">取消</button><button id="workPickConfirm" type="button" class="btn primary">確定</button></div></div></div>
