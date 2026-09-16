@@ -309,6 +309,10 @@ body.wall-focus #wall>.card>.helper{display:none}
  [data-acct-page-panel="quick"] .accountItemGrid .field:nth-child(4),[data-acct-page-panel="quick"] .accountItemGrid .field:nth-child(5),[data-acct-page-panel="quick"] .accountItemGrid .field:nth-child(6){grid-column:auto}
  [data-acct-page-panel="quick"] .freightBox{grid-template-columns:1fr 1fr}
 }
+
+/* 2.0 客戶資料 / 自訂結帳規則 */
+.crmWrap,.crmEditor{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;margin-top:8px}.crmHead{display:flex;justify-content:space-between;align-items:center;gap:8px}.crmHead h3,.crmEditor h3{margin:0}.crmSearch{display:grid;grid-template-columns:1fr 180px;gap:7px;margin:10px 0}.crmTabs{display:flex;gap:6px;margin-bottom:8px}.crmTab{border:1px solid var(--line);background:#f6f8fa;border-radius:9px;padding:8px 12px;font-weight:900}.crmTab.active{background:#1f6f4a;color:#fff}.crmList{display:grid;gap:6px}.crmRow{display:grid;grid-template-columns:minmax(150px,1.3fr) 100px minmax(150px,1fr) minmax(150px,1fr) auto;gap:7px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:9px}.crmRow .muted{font-size:12px;color:var(--muted)}.crmRuleBadge{font-weight:900}.crmGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}.crmEmpty{text-align:center;padding:20px;color:var(--muted)}
+@media(max-width:760px){.crmSearch{grid-template-columns:1fr}.crmRow{grid-template-columns:1fr 1fr}.crmRow .crmNameCell{grid-column:1/-1}.crmRow .crmEditCell{text-align:right}.crmGrid{grid-template-columns:1fr 1fr}.crmHead{align-items:flex-start}.crmHead .btn{white-space:nowrap}}
 </style>
 
 
@@ -575,7 +579,30 @@ body.wall-focus #wall>.card>.helper{display:none}
         </div>
         <h3 style="margin:12px 0 5px">最近帳務紀錄</h3><div id="acctRecords" class="accountRecords"></div>
         </div>
-        <div class="acctSubPage" data-acct-page-panel="settlement"><div class="acctComing">🧾 結帳管理<br><small>3日結／週結／月結。</small></div></div>
+        <div class="acctSubPage" data-acct-page-panel="settlement">
+  <div class="crmWrap">
+    <div class="crmHead"><h3>🧾 結帳管理</h3><button id="crmAddBtn" class="btn blue" type="button">＋ 新增客戶資料</button></div>
+    <div class="crmSearch"><input id="crmSearch" class="input" placeholder="搜尋客戶／公司／電話／代號"><select id="crmTypeFilter" class="input"><option value="">全部分類</option><option>超市</option><option>一般客戶</option><option>企業合約客戶</option><option>廠商</option><option>產農</option><option>中盤</option><option>六禾</option></select></div>
+    <div class="crmTabs"><button class="crmTab active" data-crm-view="customer">按客戶分類</button><button class="crmTab" data-crm-view="rule">按結帳方式</button></div>
+    <div id="crmList" class="crmList"></div>
+  </div>
+  <div id="crmEditor" class="crmEditor" style="display:none">
+    <h3 id="crmEditorTitle">新增客戶資料</h3>
+    <input id="crmId" type="hidden">
+    <div class="crmGrid">
+      <div class="field"><label class="label">名稱／公司</label><input id="crmName" class="input"></div>
+      <div class="field"><label class="label">客戶分類</label><select id="crmType" class="input"><option>超市</option><option>一般客戶</option><option>企業合約客戶</option><option>廠商</option><option>產農</option><option>中盤</option><option>六禾</option></select></div>
+      <div class="field"><label class="label">電話</label><input id="crmPhone" class="input"></div>
+      <div class="field"><label class="label">代號</label><input id="crmCode" class="input"></div>
+      <div class="field"><label class="label">結帳規則</label><select id="crmRule" class="input"><option>當日現結</option><option>下趟結上趟</option><option>固定星期結</option><option>3日結</option><option>週結</option><option>月結</option><option>多分店統一結帳</option><option>自訂</option></select></div>
+      <div class="field"><label class="label">固定結帳日／說明</label><input id="crmSchedule" class="input" placeholder="例：星期三、六"></div>
+      <div class="field"><label class="label">統一付款主店</label><input id="crmParent" class="input" placeholder="例：安中"></div>
+      <div class="field"><label class="label">收款方式</label><select id="crmCollect" class="input"><option>司機收款</option><option>現場收款</option><option>匯款</option><option>辦公室收款</option><option>其他</option></select></div>
+    </div>
+    <div class="field"><label class="label">備註</label><input id="crmNote" class="input" placeholder="特殊結帳方式可寫這裡"></div>
+    <div class="actions"><button id="crmCancel" class="btn gray" type="button">取消</button><button id="crmSave" class="btn primary" type="button">儲存資料</button></div>
+  </div>
+</div>
         <div class="acctSubPage" data-acct-page-panel="farmer"><div class="acctComing">🌱 產農帳<br><small>週一～週六、待報價、週結與付款單。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="middleman"><div class="acctComing">🔄 中盤帳<br><small>進貨、出貨、付款、收款分開保留。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="vendor"><div class="acctComing">🏭 廠商帳<br><small>叫貨、到貨、對帳、付款與退換貨。</small></div></div>
@@ -1905,6 +1932,51 @@ $('#acctExportExcel').onclick=()=>{
   const csv='\ufeff'+lines.map(row=>row.map(acctCsvCell).join(',')).join('\r\n');acctDownload(new Blob([csv],{type:'text/csv;charset=utf-8'}),acctSafeName(d.customer)+'_客戶帳本.csv')
 };
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
+<script>
+(function(){
+  const KEY='xinru_customer_profiles_v1';
+  const seed=[
+    {id:'minxiong',name:'民雄',type:'超市',phone:'',code:'',rule:'下趟結上趟',schedule:'下一趟配送時收上趟貨款',parent:'',collect:'司機收款',note:''},
+    {id:'anzhong',name:'安中',type:'超市',phone:'',code:'',rule:'多分店統一結帳',schedule:'星期三、六付之前帳款',parent:'安中',collect:'司機收款',note:'與仁和同一位老闆，統一由安中付款'},
+    {id:'renhe',name:'仁和',type:'超市',phone:'',code:'',rule:'多分店統一結帳',schedule:'星期三、六付之前帳款',parent:'安中',collect:'司機收款',note:'帳本獨立，結帳併入安中'}
+  ];
+  let view='customer';
+  function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');if(Array.isArray(x))return x}catch(e){} localStorage.setItem(KEY,JSON.stringify(seed));return seed.slice()}
+  function save(x){localStorage.setItem(KEY,JSON.stringify(x))}
+  function esc(v){return String(v||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function render(){
+    const box=document.getElementById('crmList'); if(!box)return;
+    const q=(document.getElementById('crmSearch').value||'').trim().toLowerCase(), typ=document.getElementById('crmTypeFilter').value;
+    let rows=load().filter(x=>(!typ||x.type===typ)&&(!q||[x.name,x.phone,x.code,x.rule,x.parent].join(' ').toLowerCase().includes(q)));
+    rows.sort((a,b)=>view==='rule'?String(a.rule).localeCompare(String(b.rule),'zh-Hant'):String(a.name).localeCompare(String(b.name),'zh-Hant'));
+    if(!rows.length){box.innerHTML='<div class="crmEmpty">找不到資料</div>';return}
+    box.innerHTML=rows.map(x=>`<div class="crmRow"><div class="crmNameCell"><b>${esc(x.name)}</b><div class="muted">${esc(x.phone||x.code||'')}</div></div><div>${esc(x.type)}</div><div><span class="crmRuleBadge">${esc(x.rule)}</span><div class="muted">${esc(x.schedule)}</div></div><div>${x.parent?('統一付款：'+esc(x.parent)):esc(x.collect)}</div><div class="crmEditCell"><button class="btn gray crmEdit" type="button" data-id="${esc(x.id)}">查看／編輯</button></div></div>`).join('');
+    box.querySelectorAll('.crmEdit').forEach(b=>b.onclick=()=>openEditor(b.dataset.id));
+  }
+  function openEditor(id){
+    const x=id?load().find(a=>a.id===id):null;
+    document.getElementById('crmEditor').style.display='block';document.getElementById('crmEditorTitle').textContent=x?'編輯往來資料':'新增往來資料';
+    const vals={crmId:x?.id||'',crmName:x?.name||'',crmType:x?.type||'超市',crmPhone:x?.phone||'',crmCode:x?.code||'',crmRule:x?.rule||'當日現結',crmSchedule:x?.schedule||'',crmParent:x?.parent||'',crmCollect:x?.collect||'司機收款',crmNote:x?.note||''};
+    Object.entries(vals).forEach(([k,v])=>{const e=document.getElementById(k);if(e)e.value=v});
+    document.getElementById('crmEditor').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  function closeEditor(){document.getElementById('crmEditor').style.display='none'}
+  function saveEditor(){
+    const name=document.getElementById('crmName').value.trim();if(!name){alert('請輸入名稱／公司');return}
+    let a=load(),id=document.getElementById('crmId').value||('c'+Date.now());
+    const x={id,name,type:document.getElementById('crmType').value,phone:document.getElementById('crmPhone').value.trim(),code:document.getElementById('crmCode').value.trim(),rule:document.getElementById('crmRule').value,schedule:document.getElementById('crmSchedule').value.trim(),parent:document.getElementById('crmParent').value.trim(),collect:document.getElementById('crmCollect').value,note:document.getElementById('crmNote').value.trim()};
+    const i=a.findIndex(v=>v.id===id);if(i>=0)a[i]=x;else a.push(x);save(a);closeEditor();render();
+  }
+  function init(){
+    if(!document.getElementById('crmList'))return;
+    document.getElementById('crmSearch').addEventListener('input',render);document.getElementById('crmTypeFilter').addEventListener('change',render);
+    document.getElementById('crmAddBtn').onclick=()=>openEditor();document.getElementById('crmCancel').onclick=closeEditor;document.getElementById('crmSave').onclick=saveEditor;
+    document.querySelectorAll('.crmTab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.crmTab').forEach(x=>x.classList.remove('active'));b.classList.add('active');view=b.dataset.crmView;render()});
+    render();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
 </body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){if(d.isSupermarket)return acctSupermarketCanvas(d);const width=1800,margin=24,top=150,rowH=31,per=28,colW=(width-margin*2)/3,height=top+per*rowH+75,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,width,height);g.fillStyle='#111';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('欣儒農產行　0900-767-577',width/2,42);g.textAlign='left';g.font='bold 22px sans-serif';g.fillText('客戶：'+d.customer,margin,82);g.font='19px sans-serif';g.fillText(`貨款餘額 ${acctMoney(Math.max(0,d.balance))}　欠籃 ${d.baskets}個　儲值餘額 ${acctMoney(Math.max(0,d.deposit-d.storedUsed))}`,margin,115);const headers=['日期','序','品名／內容','金額'];for(let col=0;col<3;col++){const x=margin+col*colW,widths=[90,45,colW-230,95];let xx=x;g.font='bold 16px sans-serif';headers.forEach((h,i)=>{g.strokeStyle='#333';g.strokeRect(xx,top-28,widths[i],28);g.fillText(h,xx+5,top-8);xx+=widths[i]});for(let i=0;i<per;i++){const r=d.rows[col*per+i],y=top+i*rowH;xx=x;widths.forEach(w=>{g.strokeRect(xx,y,w,rowH);xx+=w});g.font='15px sans-serif';g.fillStyle='#111';if(r){g.fillText(r.date.slice(5),x+4,y+21);g.fillText(String(col*per+i+1),x+94,y+21);const detail=(r.details||r.type);g.fillText(detail.length>35?detail.slice(0,35)+'…':detail,x+139,y+21);g.fillStyle=(r.charge-r.payment)<0?'#c22':'#2457a6';g.fillText(String(r.charge-r.payment||''),x+colW-88,y+21)}}}g.fillStyle='#111';g.textAlign='right';g.font='bold 22px sans-serif';g.fillText('合計：'+acctMoney(d.balance),width-margin,height-25);return c}
