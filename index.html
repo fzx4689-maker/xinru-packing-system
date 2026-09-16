@@ -393,7 +393,7 @@ body.field-single-role .wrap{padding-top:8px}
       <div class="card"><h2>⚠️ 缺貨／催貨</h2><div class="helper">包裝或司機回報後集中在這裡。無法確認到貨時間時，不需要填預計時間。</div><div id="shortageManageList" class="shortageList"><div class="empty">讀取中…</div></div></div>
       <div class="card"><h2>💬 現場詢問／📡 總部回應</h2><div class="helper">包裝或司機的問題集中在這裡；總部回應只回到原發問人的手機。</div><div id="fieldQuestionOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
       <div class="card"><h2>📦 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      <div class="card"><h2>📚 歷史對話</h2><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
+      <div class="card"><h2>📚 歷史對話</h2><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option><option value="freight">寄車公斤</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
     </section>
 
     <section id="stall" class="panel">
@@ -2368,7 +2368,7 @@ document.addEventListener('click',e=>{if(e.target?.dataset?.tab==='procurement')
 </script>
 
 <script>
-/* 第十一階段：現場可結束對話、寄車多品項、歷史即時關鍵字、iPhone下拉更新。登入核心未修改。 */
+/* 第十三階段：修通現場→總部收件、寄車待確認/完成/歷史、統一紅點。登入核心未修改。 */
 let fieldQuestions=[],fieldQuestionMessages=[],freightReceipts=[];
 function stage9Time(v){return v?new Date(v).toLocaleString('zh-TW',{hour12:false}):''}
 function stage9Role(source){return source==='packing'?'包裝部':'司機／貨運'}
@@ -2380,13 +2380,28 @@ async function loadStage9(){
   const m=await sb.from('field_question_messages').select('*').order('created_at',{ascending:true}).limit(2000);
   if(!m.error){fieldQuestionMessages=m.data||[];renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');}
   const f=await sb.from('freight_receipts').select('*').order('created_at',{ascending:false}).limit(1000);
-  if(!f.error){freightReceipts=f.data||[];renderFreightOffice();}
+  if(!f.error){freightReceipts=f.data||[];renderFreightOffice();updateStage9Badges();}
   else {const b=document.getElementById('freightOfficeList');if(b)b.innerHTML='<div class="empty">寄車公斤讀取失敗：'+esc(f.error.message||'')+'</div>';}
   renderConversationHistory();
 }
 function questionThread(id){return fieldQuestionMessages.filter(m=>Number(m.question_id)===Number(id))}
 function questionThreadHtml(id){const ms=questionThread(id);return '<details style="margin-top:7px"><summary style="cursor:pointer;font-weight:900">💬 對話紀錄 ('+ms.length+')</summary><div style="margin-top:7px;border-left:3px solid #dbe5ef;padding-left:9px">'+(ms.length?ms.map(m=>'<div style="padding:6px 0;border-bottom:1px solid #edf0f2"><b>'+esc(m.actor_role||'')+'－'+esc(m.actor_name||'')+'</b>：'+esc(m.message||'')+'<div class="meta">'+stage9Time(m.created_at)+'</div></div>').join(''):'<div class="meta">尚無對話</div>')+'</div></details>'}
-window.submitFieldQuestion=async function(source){if(!currentUser)return alert('請先登入');const p=source==='packing'?'packing':'delivery';const subject=document.getElementById(p+'QuestionSubject')?.value.trim()||'';const text=document.getElementById(p+'QuestionText')?.value.trim()||'';if(!text)return alert('請輸入要問總部的內容');const now=new Date().toISOString();const {data,error}=await sb.from('field_questions').insert({subject:subject||null,question_text:text,source,source_label:stage9Role(source),asked_by:currentUser.id,asked_by_name:currentProfile?.display_name||'',status:'open',created_at:now,updated_at:now}).select('id').single();if(error)return alert('送出失敗：'+error.message);const msg=await sb.from('field_question_messages').insert({question_id:data.id,message:text,message_type:'question',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:stage9Role(source)});if(msg.error)console.warn('question message insert:',msg.error.message);document.getElementById(p+'QuestionSubject').value='';document.getElementById(p+'QuestionText').value='';await loadStage9();alert('已送到總部')};
+window.submitFieldQuestion=async function(source){
+  if(!currentUser)return alert('請先登入');
+  const p=source==='packing'?'packing':'delivery';
+  const subject=document.getElementById(p+'QuestionSubject')?.value.trim()||'';
+  const text=document.getElementById(p+'QuestionText')?.value.trim()||'';
+  if(!text)return alert('請輸入要問總部的內容');
+  const now=new Date().toISOString();
+  // 穩定送件：問題本體直接存在 field_questions，不依賴 INSERT 後 SELECT 回傳 id。
+  // 這樣現場帳號只要有 INSERT 權限，就不會因回傳讀取限制而誤判失敗。
+  const {error}=await sb.from('field_questions').insert({subject:subject||null,question_text:text,source,source_label:stage9Role(source),asked_by:currentUser.id,asked_by_name:currentProfile?.display_name||'',status:'open',created_at:now,updated_at:now});
+  if(error)return alert('送出失敗：'+error.message);
+  document.getElementById(p+'QuestionSubject').value='';
+  document.getElementById(p+'QuestionText').value='';
+  await loadStage9();
+  alert('已送到總部');
+}
 function renderFieldQuestionOffice(){const box=document.getElementById('fieldQuestionOfficeList');if(!box)return;const arr=fieldQuestions.filter(x=>x.status!=='closed');box.innerHTML=arr.length?arr.map(x=>'<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(x.subject||'現場詢問')+'</b>｜'+esc(x.question_text||'')+'</div><span class="shortageStatus">'+(x.status==='replied'?'已回應':'待回應')+'</span></div><div class="meta">'+esc(x.source_label||'')+'－'+esc(x.asked_by_name||'')+'｜'+stage9Time(x.created_at)+'</div>'+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="replyFieldQuestion('+x.id+')">📡 總部回應</button><button class="btn gray" onclick="closeFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>').join(''):'<div class="empty">目前沒有待回應的現場詢問</div>'}
 function renderFieldQuestionsFor(source){const box=document.getElementById(source==='packing'?'packingQuestionReplies':'deliveryQuestionReplies');if(!box||!currentUser)return;const uid=String(currentUser.id);const arr=fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status!=='closed');box.innerHTML=arr.length?arr.map(x=>{const ms=questionThread(x.id),last=ms[ms.length-1];return '<div class="shortageRow"><div class="shortageTop"><b>'+esc(x.subject||'現場詢問')+'</b><span class="shortageStatus">'+(x.status==='replied'?'📡 有總部回應':'等待回應')+'</span></div><div style="margin-top:6px">'+esc(x.question_text||'')+'</div>'+(last&&last.message_type==='office_reply'?'<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>📡 總部回應：</b>'+esc(last.message||'')+'<div class="meta">'+esc(last.actor_name||'')+'｜'+stage9Time(last.created_at)+'</div></div>':'')+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="fieldReplyQuestion('+x.id+')">💬 繼續回覆</button><button class="btn gray" onclick="closeMyFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>'}).join(''):''}
 window.replyFieldQuestion=async function(id){const t=prompt('📡 總部回應：');if(t===null||!t.trim())return;const now=new Date().toISOString();const {error}=await sb.from('field_question_messages').insert({question_id:id,message:t.trim(),message_type:'office_reply',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:'總部回應'});if(error)return alert('回應失敗：'+error.message);await sb.from('field_questions').update({status:'replied',updated_at:now}).eq('id',id);await loadStage9()};
@@ -2400,13 +2415,91 @@ window.updateFreightDraft=function(source,i,key,val){if(!freightDraft[source][i]
 function renderFreightDraft(source){const box=document.getElementById(source+'FreightItems');if(!box)return;if(!freightDraft[source].length)freightDraft[source].push({item:'',qty:'',kg:''});box.innerHTML=freightDraft[source].map((r,i)=>'<div style="display:grid;grid-template-columns:minmax(120px,1.5fr) .55fr .65fr auto;gap:6px;align-items:end;margin:6px 0"><div><label class="label">品項</label><input class="input" value="'+esc(r.item)+'" oninput="updateFreightDraft(\''+source+'\','+i+',\'item\',this.value)" placeholder="品項"></div><div><label class="label">件數</label><input class="input" type="number" inputmode="numeric" min="1" value="'+esc(r.qty)+'" oninput="updateFreightDraft(\''+source+'\','+i+',\'qty\',this.value)"></div><div><label class="label">每件KG</label><input class="input" type="number" inputmode="decimal" step="0.01" value="'+esc(r.kg)+'" oninput="updateFreightDraft(\''+source+'\','+i+',\'kg\',this.value)"></div><button class="btn red" type="button" onclick="removeFreightItemRow(\''+source+'\','+i+')">刪</button></div>').join('');renderFreightSummary(source)}
 function renderFreightSummary(source){const b=document.getElementById(source+'FreightSummary');if(!b)return;const valid=freightDraft[source].filter(r=>r.item.trim()&&Number(r.qty)>0&&Number(r.kg)>0);const pieces=valid.reduce((a,r)=>a+Number(r.qty),0);const kg=valid.reduce((a,r)=>a+Number(r.qty)*Number(r.kg),0);b.textContent='共 '+valid.length+' 個品項｜'+pieces+' 件｜總重量 '+(Math.round(kg*100)/100)+' KG'}
 window.submitFreightWeight=async function(source){const customer=document.getElementById(source+'FreightCustomer')?.value.trim()||'';const items=freightDraft[source].filter(r=>r.item.trim()&&Number(r.qty)>0&&Number(r.kg)>0);if(!customer||!items.length)return alert('請填客戶，並至少完成一個品項的品名、件數、每件 KG');const batch='FR-'+Date.now()+'-'+String(currentUser.id).slice(0,8);const rows=items.map(r=>({customer,item_text:r.item.trim(),qty:Number(r.qty),piece_kg:Number(r.kg),total_kg:Math.round(Number(r.qty)*Number(r.kg)*100)/100,source,source_label:stage9Role(source),reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',status:'reported',batch_id:batch}));const {error}=await sb.from('freight_receipts').insert(rows);if(error)return alert('回報失敗：'+error.message);document.getElementById(source+'FreightCustomer').value='';freightDraft[source]=[{item:'',qty:'',kg:''}];renderFreightDraft(source);await loadStage9();const total=rows.reduce((a,r)=>a+r.total_kg,0);alert('已整張回報總部｜'+rows.length+' 個品項｜總公斤 '+Math.round(total*100)/100+' KG')};
-function renderFreightOffice(){const box=document.getElementById('freightOfficeList');if(!box)return;const groups={};freightReceipts.forEach(x=>{const k=x.batch_id||('old-'+x.id);(groups[k]||(groups[k]=[])).push(x)});const batches=Object.values(groups).sort((a,b)=>String(b[0]?.created_at||'').localeCompare(String(a[0]?.created_at||'')));box.innerHTML=batches.length?batches.map(arr=>{const h=arr[0],pieces=arr.reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0);return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge green">'+Math.round(kg*100)/100+' KG</span></div>'+arr.map(x=>'<div style="padding:5px 0;border-bottom:1px dashed #e5e8ec">'+esc(x.item_text||'')+'｜'+Number(x.qty||0)+' 件 × '+Number(x.piece_kg||0)+' KG ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>').join('')+'<div style="margin-top:6px;font-weight:900">總件數 '+pieces+' 件｜總重量 '+Math.round(kg*100)/100+' KG</div><div class="meta">'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div></div>'}).join(''):'<div class="empty">尚無寄車公斤回報</div>'}
-window.renderConversationHistory=function(){const box=document.getElementById('conversationHistoryList');if(!box)return;const date=document.getElementById('historyDate')?.value||'';const kw=(document.getElementById('historyKeyword')?.value||'').trim().toLowerCase();const type=document.getElementById('historyType')?.value||'all';let rows=[];if(type==='all'||type==='shortage')shortageReports.forEach(x=>{const text=[x.customer,x.item_text,x.reported_by_name,...shortageThread(x.id).map(m=>m.message)].join(' ').toLowerCase();const d=(x.reported_at||x.created_at||'').slice(0,10);if((!date||d===date)&&(!kw||text.includes(kw)))rows.push({time:x.reported_at||x.created_at,type:'⚠️ 缺貨／催貨',title:(x.customer||'')+'｜'+(x.item_text||''),html:shortageThreadHtml(x.id)})});if(type==='all'||type==='question')fieldQuestions.forEach(x=>{const text=[x.subject,x.question_text,x.asked_by_name,...questionThread(x.id).map(m=>m.message)].join(' ').toLowerCase();const d=(x.created_at||'').slice(0,10);if((!date||d===date)&&(!kw||text.includes(kw)))rows.push({time:x.created_at,type:'💬 現場詢問',title:(x.asked_by_name||'')+'｜'+(x.subject||x.question_text||''),html:questionThreadHtml(x.id)})});rows.sort((a,b)=>String(b.time).localeCompare(String(a.time)));box.innerHTML=rows.length?rows.map(r=>'<div class="shortageRow"><div class="shortageTop"><b>'+r.type+'｜'+esc(r.title)+'</b><span class="meta">'+stage9Time(r.time)+'</span></div>'+r.html+'</div>').join(''):'<div class="empty">查無歷史對話</div>'};
+function freightGroups(){
+  const groups={};
+  freightReceipts.forEach(x=>{const k=x.batch_id||('old-'+x.id);(groups[k]||(groups[k]=[])).push(x)});
+  return Object.entries(groups).map(([batch,rows])=>({batch,rows})).sort((a,b)=>String(b.rows[0]?.created_at||'').localeCompare(String(a.rows[0]?.created_at||'')));
+}
+function freightBatchCard(group,completed=false){
+  const arr=group.rows,h=arr[0],pieces=arr.reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0);
+  const confirmer=h.confirmed_by_name||'', confirmedAt=h.confirmed_at||'';
+  return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(completed?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
+    arr.map(x=>'<div style="padding:5px 0;border-bottom:1px dashed #e5e8ec">'+esc(x.item_text||'')+'｜'+Number(x.qty||0)+' 件 × '+Number(x.piece_kg||0)+' KG ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>').join('')+
+    '<div style="margin-top:6px;font-weight:900">總件數 '+pieces+' 件｜總重量 '+Math.round(kg*100)/100+' KG</div>'+
+    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+
+    (completed?'<div class="meta" style="color:#18703c;font-weight:900">✅ 總部確認：'+esc(confirmer||'')+'｜'+stage9Time(confirmedAt)+'</div>':'<div class="shortageActions"><button class="btn primary freight-confirm-btn" data-batch="'+esc(group.batch)+'">✅ 確認完成</button></div>')+
+    '</div>';
+}
+function renderFreightOffice(){
+  const box=document.getElementById('freightOfficeList');if(!box)return;
+  const groups=freightGroups();
+  const pending=groups.filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed'));
+  const completed=groups.filter(g=>g.rows.every(x=>x.status==='confirmed'));
+  const activeHtml=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">目前沒有待確認的寄車公斤回報</div>';
+  const history='<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:900">📚 已完成寄車紀錄（'+completed.length+'）</summary><div class="shortageList">'+(completed.length?completed.map(g=>freightBatchCard(g,true)).join(''):'<div class="empty">尚無已完成紀錄</div>')+'</div></details>';
+  box.innerHTML=activeHtml+history;
+}
+window.confirmFreightBatch=async function(batch){
+  if(!currentUser)return alert('請先登入');
+  if(!confirm('確認這張寄車公斤回報已處理完成？完成後會移到歷史紀錄。'))return;
+  const now=new Date().toISOString();
+  let q=sb.from('freight_receipts').update({status:'confirmed',confirmed_at:now,confirmed_by:currentUser.id,confirmed_by_name:currentProfile?.display_name||''});
+  q=String(batch).startsWith('old-')?q.eq('id',Number(String(batch).slice(4))):q.eq('batch_id',batch);
+  const {error}=await q;if(error)return alert('確認失敗：'+error.message);
+  await loadStage9();
+};
+
+document.addEventListener('click',e=>{const b=e.target.closest?.('.freight-confirm-btn');if(b)confirmFreightBatch(b.dataset.batch)});
+window.renderConversationHistory=function(){
+  const box=document.getElementById('conversationHistoryList');if(!box)return;
+  const date=document.getElementById('historyDate')?.value||'';
+  const kw=(document.getElementById('historyKeyword')?.value||'').trim().toLowerCase();
+  const type=document.getElementById('historyType')?.value||'all';
+  let rows=[];
+  if(type==='all'||type==='shortage'){
+    shortageReports.forEach(x=>{
+      const text=[x.customer,x.item_text,x.reported_by_name,...shortageThread(x.id).map(m=>m.message)].join(' ').toLowerCase();
+      const d=(x.reported_at||x.created_at||'').slice(0,10);
+      if((!date||d===date)&&(!kw||text.includes(kw)))rows.push({time:x.reported_at||x.created_at,type:'⚠️ 缺貨／催貨',title:(x.customer||'')+'｜'+(x.item_text||''),html:shortageThreadHtml(x.id)});
+    });
+  }
+  if(type==='all'||type==='question'){
+    fieldQuestions.forEach(x=>{
+      const text=[x.subject,x.question_text,x.asked_by_name,...questionThread(x.id).map(m=>m.message)].join(' ').toLowerCase();
+      const d=(x.created_at||'').slice(0,10);
+      if((!date||d===date)&&(!kw||text.includes(kw)))rows.push({time:x.created_at,type:'💬 現場詢問',title:(x.asked_by_name||'')+'｜'+(x.subject||x.question_text||''),html:questionThreadHtml(x.id)});
+    });
+  }
+  if(type==='all'||type==='freight'){
+    freightGroups().forEach(g=>{
+      const h=g.rows[0]||{};
+      const text=[h.customer,h.reported_by_name,h.confirmed_by_name,...g.rows.map(x=>x.item_text)].join(' ').toLowerCase();
+      const d=(h.created_at||'').slice(0,10);
+      if((!date||d===date)&&(!kw||text.includes(kw))){
+        const pieces=g.rows.reduce((a,x)=>a+Number(x.qty||0),0);
+        const kg=g.rows.reduce((a,x)=>a+Number(x.total_kg||0),0);
+        rows.push({time:h.created_at,type:'📦 寄車公斤',title:(h.customer||'')+'｜'+g.rows.length+'品項｜'+pieces+'件｜'+Math.round(kg*100)/100+'KG',html:'<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+(h.status==='confirmed'?'<div class="meta" style="color:#18703c;font-weight:900">✅ 總部確認：'+esc(h.confirmed_by_name||'')+'｜'+stage9Time(h.confirmed_at)+'</div>':'<div class="meta">待總部確認</div>')});
+      }
+    });
+  }
+  rows.sort((a,b)=>String(b.time).localeCompare(String(a.time)));
+  box.innerHTML=rows.length?rows.map(r=>'<div class="shortageRow"><div class="shortageTop"><b>'+r.type+'｜'+esc(r.title)+'</b><span class="meta">'+stage9Time(r.time)+'</span></div>'+r.html+'</div>').join(''):'<div class="empty">查無歷史對話</div>';
+};
 // 第十一階段：歷史對話關鍵字即時篩選，不需按查詢。
 ['historyKeyword','historyDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',()=>window.renderConversationHistory())});
 {const el=document.getElementById('historyType');if(el)el.addEventListener('change',()=>window.renderConversationHistory())}
 
-function updateStage9Badges(){if(!currentUser)return;const uid=String(currentUser.id);const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;const p=document.getElementById('procurementNoticeBadge');if(p){const base=shortageReports.filter(x=>x.status!=='arrived').length;setShortageBadge('procurementNoticeBadge',base+officeOpen)}setShortageBadge('packingNoticeBadge',Math.max(Number(document.getElementById('packingNoticeBadge')?.textContent)||0,mine('packing')));setShortageBadge('deliveryNoticeBadge',Math.max(Number(document.getElementById('deliveryNoticeBadge')?.textContent)||0,mine('delivery')))}
+function updateStage9Badges(){
+  if(!currentUser)return;
+  const uid=String(currentUser.id);
+  const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;
+  const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;
+  const freightPending=freightGroups().filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed')).length;
+  const shortageOpen=shortageReports.filter(x=>x.status!=='arrived').length;
+  setShortageBadge('procurementNoticeBadge',shortageOpen+officeOpen+freightPending);
+  setShortageBadge('packingNoticeBadge',mine('packing'));
+  setShortageBadge('deliveryNoticeBadge',mine('delivery'));
+}
 // 第十一階段：iPhone / PWA 下拉更新，只重新抓資料，不重載頁面、不登出。
 let xrPullStartY=0,xrPullReady=false,xrPullBusy=false;
 const xrPullEl=()=>document.getElementById('iosPullRefresh');
