@@ -2310,9 +2310,14 @@ window.submitShortageReport=async function(source){
   const customer=document.getElementById(p+'ShortCustomer')?.value.trim(),item=document.getElementById(p+'ShortItem')?.value.trim(),qty=document.getElementById(p+'ShortQty')?.value.trim();
   if(!customer||!item)return alert('請填客戶與缺的品項');const now=new Date().toISOString();
   const payload={customer,item_text:item,qty_note:qty||null,source,source_label:source==='packing'?'包裝部':'司機／貨運',status:'waiting',reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',reported_at:now};
-  const {data,error}=await sb.from('shortage_reports').insert(payload).select('id').single();if(error)return alert('回報失敗：'+error.message);
-  try{await sb.from('shortage_messages').insert({report_id:data.id,message:`缺貨回報：${item}${qty?'｜'+qty:''}`,message_type:'report',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:source==='packing'?'包裝部':'司機／貨運'});}catch(e){}
-  document.getElementById(p+'ShortCustomer').value='';document.getElementById(p+'ShortItem').value='';document.getElementById(p+'ShortQty').value='';alert('已回報給總部');loadShortageReports();
+  // 穩定版：缺貨回報只做 INSERT，不要求 INSERT 後再 SELECT。
+  // 某些現場帳號可新增但不可讀取新增列；若使用 .select().single() 會被誤判成「送出失敗」。
+  const {error}=await sb.from('shortage_reports').insert(payload);if(error)return alert('回報失敗：'+error.message);
+  document.getElementById(p+'ShortCustomer').value='';document.getElementById(p+'ShortItem').value='';document.getElementById(p+'ShortQty').value='';
+  alert('已回報給總部');
+  // 現場與總部都重新抓最新資料；總部叫貨／採購紅點由未結案缺貨數計算。
+  await loadShortageReports();
+  if(typeof loadStage9Data==='function')loadStage9Data();
 };
 function shortageTime(v){return v?new Date(v).toLocaleString('zh-TW',{hour12:false}):''}
 function shortageThread(id){return shortageMessages.filter(m=>Number(m.report_id)===Number(id))}
@@ -2373,7 +2378,7 @@ async function loadStage9(){
   if(!q.error){fieldQuestions=q.data||[];renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');updateStage9Badges();}
   else {const b=document.getElementById('fieldQuestionOfficeList');if(b)b.innerHTML='<div class="empty">現場詢問讀取失敗：'+esc(q.error.message||'')+'</div>';}
   const m=await sb.from('field_question_messages').select('*').order('created_at',{ascending:true}).limit(2000);
-  if(!m.error){fieldQuestionMessages=m.data||[];renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');updateStage9Badges();}
+  if(!m.error){fieldQuestionMessages=m.data||[];renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');}
   const f=await sb.from('freight_receipts').select('*').order('created_at',{ascending:false}).limit(1000);
   if(!f.error){freightReceipts=f.data||[];renderFreightOffice();}
   else {const b=document.getElementById('freightOfficeList');if(b)b.innerHTML='<div class="empty">寄車公斤讀取失敗：'+esc(f.error.message||'')+'</div>';}
@@ -2401,21 +2406,7 @@ window.renderConversationHistory=function(){const box=document.getElementById('c
 ['historyKeyword','historyDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',()=>window.renderConversationHistory())});
 {const el=document.getElementById('historyType');if(el)el.addEventListener('change',()=>window.renderConversationHistory())}
 
-function updateStage9Badges(){
-  if(!currentUser)return;
-  const uid=String(currentUser.id);
-  const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status!=='closed').filter(x=>{
-    const ms=questionThread(x.id),last=ms[ms.length-1];
-    return !!last&&last.message_type==='office_reply';
-  }).length;
-  const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;
-  const p=document.getElementById('procurementNoticeBadge');
-  if(p){const base=shortageReports.filter(x=>x.status!=='arrived').length;setShortageBadge('procurementNoticeBadge',base+officeOpen)}
-  const shortagePacking=shortageReports.filter(x=>x.status!=='arrived'&&x.source==='packing'&&String(x.reported_by)===uid).filter(x=>{const ms=shortageThread(x.id),last=ms[ms.length-1];return !!last&&(last.message_type==='office_reply'||last.message_type==='status'||last.actor_role==='總部回應')}).length;
-  const shortageDelivery=shortageReports.filter(x=>x.status!=='arrived'&&x.source==='delivery'&&String(x.reported_by)===uid).filter(x=>{const ms=shortageThread(x.id),last=ms[ms.length-1];return !!last&&(last.message_type==='office_reply'||last.message_type==='status'||last.actor_role==='總部回應')}).length;
-  setShortageBadge('packingNoticeBadge',shortagePacking+mine('packing'));
-  setShortageBadge('deliveryNoticeBadge',shortageDelivery+mine('delivery'));
-}
+function updateStage9Badges(){if(!currentUser)return;const uid=String(currentUser.id);const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;const p=document.getElementById('procurementNoticeBadge');if(p){const base=shortageReports.filter(x=>x.status!=='arrived').length;setShortageBadge('procurementNoticeBadge',base+officeOpen)}setShortageBadge('packingNoticeBadge',Math.max(Number(document.getElementById('packingNoticeBadge')?.textContent)||0,mine('packing')));setShortageBadge('deliveryNoticeBadge',Math.max(Number(document.getElementById('deliveryNoticeBadge')?.textContent)||0,mine('delivery')))}
 // 第十一階段：iPhone / PWA 下拉更新，只重新抓資料，不重載頁面、不登出。
 let xrPullStartY=0,xrPullReady=false,xrPullBusy=false;
 const xrPullEl=()=>document.getElementById('iosPullRefresh');
