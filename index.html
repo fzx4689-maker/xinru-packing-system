@@ -2083,6 +2083,35 @@ document.addEventListener('click', function(e){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 
+/* ============================================================
+   欣儒系統 2.0 核心架構基準（第一階段）
+   重要：這一區只定義架構，不接管既有登入 / Supabase / 包裝流程。
+   後續新功能應掛到 module / permission，不直接修改登入核心。
+   ============================================================ */
+window.XR_CORE_ARCHITECTURE = Object.freeze({
+  version: '2.0',
+  employeeMaster: {
+    sharedEmployeeId: true,
+    fields: ['employee_id','display_name','department','job_role','employment_status'],
+    futureHR: ['attendance','shift','leave','overtime','payroll','allowance','deduction','payslip']
+  },
+  departments: ['老闆/管理','辦公室','帳務','攤位','包裝','貨運'],
+  jobRoles: ['admin','supervisor','office','packing','driver'],
+  modules: {
+    home: '首頁', accounting: '帳務中心', purchasing: '叫貨/採購',
+    inventory: '庫存管理', dispatch: '派工', packing: '包裝部',
+    freight: '貨運中心', tvwall: '電視牆', settings: '系統設定', hr: '人事管理'
+  },
+  permissionActions: ['view','create','edit','complete','export','delete'],
+  highRiskActions: ['delete','edit_completed','edit_closed_accounting','manage_employee','manage_role','manage_permission'],
+  separationRules: {
+    operationPermissionSeparateFromHR: true,
+    notificationSeparateFromPermission: true,
+    loginCoreMustNotDependOnFeatureModules: true,
+    hrUsesSameEmployeeIdButSeparatePermissions: true
+  }
+});
+
 // 電視牆返回選項：只切回首頁，不重新整理、不登出。
 document.getElementById('wallBackBtn')?.addEventListener('click',()=>activateTab('home',{save:true}));
 </script>
