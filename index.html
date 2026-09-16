@@ -1718,7 +1718,17 @@ async function refreshPendingEmployeeBadge(){
   if(currentProfile?.role!=='admin')return;
   try{const data=await callEmployeeManager('list');updatePendingEmployeeBadge(data.employees||[]);}catch(e){}
 }
-async function loadEmployees(){if(currentProfile?.role!=='admin')return;$('#employeeList').innerHTML='<div class="empty">讀取中…</div>';try{const data=await callEmployeeManager('list');const hr=await loadHRProfiles();const hm=new Map((hr||[]).map(x=>[x.user_id,x]));const employees=(data.employees||[]).map(e=>Object.assign({},e,hm.get(e.user_id)||{}));updatePendingEmployeeBadge(employees);renderEmployeeList(employees);}catch(e){$('#employeeList').innerHTML=`<div class="empty" style="color:#b4232c">${esc(e.message)}</div>`;}}
+/* 第二十二階段：重新讀取人員資料時保留人員管理視窗的捲動位置，避免每次儲存跳回最上方。 */
+async function loadEmployees(){
+ if(currentProfile?.role!=='admin')return;
+ const listEl=$('#employeeList'),scrollBox=listEl?.closest('.employeeBox');
+ const keepScroll=scrollBox?scrollBox.scrollTop:0;
+ if(listEl)listEl.innerHTML='<div class="empty">讀取中…</div>';
+ try{
+  const data=await callEmployeeManager('list');const hr=await loadHRProfiles();const hm=new Map((hr||[]).map(x=>[x.user_id,x]));const employees=(data.employees||[]).map(e=>Object.assign({},e,hm.get(e.user_id)||{}));updatePendingEmployeeBadge(employees);renderEmployeeList(employees);
+  if(scrollBox)requestAnimationFrame(()=>{scrollBox.scrollTop=keepScroll;});
+ }catch(e){if(listEl)listEl.innerHTML=`<div class="empty" style="color:#b4232c">${esc(e.message)}</div>`;if(scrollBox)requestAnimationFrame(()=>{scrollBox.scrollTop=keepScroll;});}
+}
 $('#employeeManageBtn').onclick=async()=>{if(currentProfile?.role!=='admin')return;setEmployeeMsg('');$('#employeeModal').classList.add('show');$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';await loadEmployees();};
 $('#closeEmployeeModal').onclick=()=>$('#employeeModal').classList.remove('show');
 $('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';await loadEmployees();};
