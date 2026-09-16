@@ -358,6 +358,9 @@ body.field-single-role .wrap{padding-top:8px}
 [data-acct-page-panel="quick"] .accountItemLine{grid-template-columns:minmax(220px,1fr) 90px 120px 120px 42px}
 .acctLedgerTable td.basketMark{color:#e00000!important;font-weight:700}
 @media(max-width:760px){[data-acct-page-panel="quick"] .accountItemGrid{grid-template-columns:1.6fr .55fr .65fr!important}[data-acct-page-panel="quick"] .accountItemGrid .basketEntry{grid-column:1/2}[data-acct-page-panel="quick"] .accountItemGrid .subtotalEntry{grid-column:2/3}}
+
+/* 第36階段：三大骨架定型。只調整首頁／帳務中心／叫貨採購導覽，不碰登入與既有作業模組。 */
+.homeSkeletonGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.homeSkeletonCard{border:1px solid #d9e2ec;background:#fff;border-radius:14px;padding:16px;text-align:left;cursor:pointer;min-height:92px}.homeSkeletonCard b{display:block;font-size:18px;margin-bottom:8px}.homeSkeletonCard span{display:block;color:#667085;font-size:13px;line-height:1.45}.homeSkeletonCard:hover{box-shadow:0 4px 14px rgba(0,0,0,.08)}@media(max-width:850px){.homeSkeletonGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.homeSkeletonGrid{grid-template-columns:1fr}.homeSkeletonCard{min-height:76px}}
 </style>
 
 
@@ -391,8 +394,8 @@ body.field-single-role .wrap{padding-top:8px}
     <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7">
       <button class="tab active" data-tab="home">🏠 首頁<div class="th">今日待辦</div></button>
-      <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">登帳・收款・帳本</div></button>
-      <button class="tab" data-tab="procurement">🛒 叫貨／採購<span id="procurementNoticeBadge" class="navNoticeBadge"></span><div class="th">超市・產農・廠商</div></button>
+      <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">做帳・收款・查帳</div></button>
+      <button class="tab" data-tab="procurement">🛒 叫貨／採購<span id="procurementNoticeBadge" class="navNoticeBadge"></span><div class="th">叫貨・到貨・現場回報</div></button>
       <button class="tab" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
       <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">包裝作業</div></button>
       <button class="tab" data-tab="delivery">🚚 貨運中心<span id="deliveryNoticeBadge" class="navNoticeBadge"></span><div class="th">配送作業</div></button>
@@ -403,27 +406,30 @@ body.field-single-role .wrap{padding-top:8px}
   <div class="wrap">
     <section id="home" class="panel active">
       <div class="card">
-        <h2>🏠 首頁</h2>
-        <div class="helper">今日待辦、異常提醒集中在這裡。</div>
-        <div class="actions" style="margin-top:12px;flex-wrap:wrap">
-          <button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button>
+        <h2>🏠 首頁｜今日工作總覽</h2>
+        <div class="helper">只顯示今天需要處理的事情；首頁不重複輸入資料，點卡片直接進原功能頁。</div>
+        <div class="homeSkeletonGrid">
+          <button type="button" class="homeSkeletonCard" data-home-target="accounting" onclick="document.querySelector('.tab[data-tab=accounting]').click()"><b>💰 帳務待辦</b><span>待收款・週結／月結・待處理帳務</span></button>
+          <button type="button" class="homeSkeletonCard" data-home-target="procurement" onclick="document.querySelector('.tab[data-tab=procurement]').click()"><b>📡 現場回報</b><span>缺貨催貨・現場詢問・寄車公斤</span></button>
+          <button type="button" class="homeSkeletonCard" data-home-target="procurement" onclick="document.querySelector('.tab[data-tab=procurement]').click()"><b>🛒 採購待辦</b><span>待到貨・驗收・退換貨異常</span></button>
+          <button type="button" class="homeSkeletonCard" data-home-target="stall" onclick="document.querySelector('.tab[data-tab=stall]').click()"><b>📋 作業狀態</b><span>派工・包裝・貨運的今日狀態</span></button>
         </div>
+        <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button></div>
       </div>
     </section>
 
     <section id="procurement" class="panel">
       <div class="card procurementShell">
         <h2>🛒 叫貨／採購</h2>
-        <div class="helper">叫貨、到貨、驗收、庫存與異常集中管理。</div>
+        <div class="helper">櫃台採購工作區｜叫貨、到貨、庫存與現場回報集中處理；帳款不在這裡重複輸入。</div>
         <div class="procurementSubTabs" id="procurementSubTabs">
           <button type="button" class="procSubTab active" data-proc-view="orders">📋 叫貨單</button>
           <button type="button" class="procSubTab" data-proc-view="pending">🚚 待到貨</button>
           <button type="button" class="procSubTab" data-proc-view="receiving">✅ 到貨驗收</button>
           <button type="button" class="procSubTab" data-proc-view="inventory">📦 庫存管理</button>
-          <button type="button" class="procSubTab" data-proc-view="shortage">⚠️ 缺貨／催貨</button>
-          <button type="button" class="procSubTab" data-proc-view="freight">⚖️ 寄車公斤</button>
+          <button type="button" class="procSubTab" data-proc-view="field">📡 現場回報</button>
           <button type="button" class="procSubTab" data-proc-view="returns">↩️ 退換貨／異常</button>
-          <button type="button" class="procSubTab" data-proc-view="history">📚 紀錄查詢</button>
+          <button type="button" class="procSubTab" data-proc-view="history">📚 採購紀錄</button>
         </div>
       </div>
 
@@ -458,18 +464,16 @@ body.field-single-role .wrap{padding-top:8px}
       <div class="procurementView" data-proc-panel="inventory">
         <div class="card"><h2>📦 庫存管理</h2><div class="helper">庫存數量、入出庫、盤點與低庫存提醒集中在這裡。</div><div class="empty">庫存管理功能接下來建立</div></div>
       </div>
-      <div class="procurementView" data-proc-panel="shortage">
+      <div class="procurementView" data-proc-panel="field">
         <div class="card"><h2>⚠️ 缺貨／催貨</h2><div class="helper">包裝或司機回報後集中在這裡。無法確認到貨時間時，不需要填預計時間。</div><div id="shortageManageList" class="shortageList"><div class="empty">讀取中…</div></div></div>
         <div class="card"><h2>💬 現場詢問／📡 總部回應</h2><div class="helper">包裝或司機的問題集中在這裡；總部回應只回到原發問人的手機。</div><div id="fieldQuestionOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-      </div>
-      <div class="procurementView" data-proc-panel="freight">
-        <div class="card"><h2>⚖️ 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+        <div class="card"><h2>📦 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
       </div>
       <div class="procurementView" data-proc-panel="returns">
         <div class="card"><h2>↩️ 退換貨／異常</h2><div class="helper">記錄到貨短少、品質異常、退貨與換貨處理。</div><div class="empty">退換貨／異常功能接下來建立</div></div>
       </div>
       <div class="procurementView" data-proc-panel="history">
-        <div class="card"><h2>📚 紀錄查詢</h2><div class="helper">目前先保留既有缺貨、現場詢問與寄車公斤歷史紀錄。</div><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option><option value="freight">寄車公斤</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
+        <div class="card"><h2>📚 採購紀錄</h2><div class="helper">採購與現場處理的歷史紀錄集中查詢；細部功能後續再建立。</div><div class="actions" style="flex-wrap:wrap"><input id="historyDate" class="input" type="date" style="max-width:170px"><input id="historyKeyword" class="input" placeholder="發問人／客戶／品項／內容" style="min-width:220px;flex:1"><select id="historyType" class="input" style="max-width:170px"><option value="all">全部類型</option><option value="shortage">缺貨／催貨</option><option value="question">現場詢問</option><option value="freight">寄車公斤</option></select></div><div id="conversationHistoryList" class="shortageList"></div></div>
       </div>
     </section>
 
@@ -575,33 +579,28 @@ body.field-single-role .wrap{padding-top:8px}
         <h2>💰 帳務中心</h2>
         <div class="acctSubTabs" id="acctSubTabs">
           <button class="acctSubTab active" data-acct-page="quick">👥 客戶帳本</button>
-          <button class="acctSubTab" data-acct-page="payment">收款中心</button>
-          <button class="acctSubTab" data-acct-page="ledger">📚 帳本查詢</button>
-          <button class="acctSubTab" data-acct-page="settlement">結帳管理</button>
-          <button class="acctSubTab" data-acct-page="farmer">產農帳</button>
-          <button class="acctSubTab" data-acct-page="middleman">中盤帳</button>
-          <button class="acctSubTab" data-acct-page="vendor">廠商帳</button>
-          <button class="acctSubTab" data-acct-page="liuhe">六禾調撥</button>
-          <button class="acctSubTab" data-acct-page="enterprise">企業合約</button>
+          <button class="acctSubTab" data-acct-page="payment">💰 收款中心</button>
+          <button class="acctSubTab" data-acct-page="ledger">🔎 帳本查詢</button>
+          <button class="acctSubTab" data-acct-page="supermarket">🏪 超市帳</button>
+          <button class="acctSubTab" data-acct-page="farmer">🌱 產農帳</button>
+          <button class="acctSubTab" data-acct-page="middleman">🧾 中盤帳</button>
+          <button class="acctSubTab" data-acct-page="vendor">🏭 廠商帳</button>
+          <button class="acctSubTab" data-acct-page="settlement">📚 帳務管理</button>
         </div>
         <div class="acctMobileGroups" id="acctMobileGroups">
           <button class="acctMobileGroupBtn active" type="button" data-acct-group="daily">日常帳務</button>
-          <button class="acctMobileGroupBtn" type="button" data-acct-group="accounts">往來帳務</button>
-          <button class="acctMobileGroupBtn" type="button" data-acct-group="special">專用帳務</button>
+          <button class="acctMobileGroupBtn" type="button" data-acct-group="accounts">專用／往來帳</button>
           <div class="acctMobileMenu active" data-acct-menu="daily">
             <button class="acctSubTab active" type="button" data-acct-page="quick">👥 客戶帳本</button>
-            <button class="acctSubTab" type="button" data-acct-page="payment">收款中心</button>
-            <button class="acctSubTab" type="button" data-acct-page="ledger">📚 帳本查詢</button>
-            <button class="acctSubTab" type="button" data-acct-page="settlement">結帳管理</button>
+            <button class="acctSubTab" type="button" data-acct-page="payment">💰 收款中心</button>
+            <button class="acctSubTab" type="button" data-acct-page="ledger">🔎 帳本查詢</button>
+            <button class="acctSubTab" type="button" data-acct-page="settlement">📚 帳務管理</button>
           </div>
           <div class="acctMobileMenu" data-acct-menu="accounts">
-            <button class="acctSubTab" type="button" data-acct-page="farmer">產農帳</button>
-            <button class="acctSubTab" type="button" data-acct-page="middleman">中盤帳</button>
-            <button class="acctSubTab" type="button" data-acct-page="vendor">廠商帳</button>
-          </div>
-          <div class="acctMobileMenu" data-acct-menu="special">
-            <button class="acctSubTab" type="button" data-acct-page="liuhe">六禾調撥</button>
-            <button class="acctSubTab" type="button" data-acct-page="enterprise">企業合約</button>
+            <button class="acctSubTab" type="button" data-acct-page="supermarket">🏪 超市帳</button>
+            <button class="acctSubTab" type="button" data-acct-page="farmer">🌱 產農帳</button>
+            <button class="acctSubTab" type="button" data-acct-page="middleman">🧾 中盤帳</button>
+            <button class="acctSubTab" type="button" data-acct-page="vendor">🏭 廠商帳</button>
           </div>
         </div>
         <div class="acctSubPage active" data-acct-page-panel="quick">
@@ -677,9 +676,10 @@ body.field-single-role .wrap{padding-top:8px}
     <div class="actions"><button id="crmCancel" class="btn gray" type="button">取消</button><button id="crmSave" class="btn primary" type="button">儲存資料</button></div>
   </div>
 </div>
+        <div class="acctSubPage" data-acct-page-panel="supermarket"><div class="acctComing">🏪 超市帳<br><small>出車專用帳務｜件數、重量、單價、運費；功能後續建立。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="farmer"><div class="acctComing">🌱 產農帳<br><small>週一～週六、待報價、週結與付款單。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="middleman"><div class="acctComing">🔄 中盤帳<br><small>進貨、出貨、付款、收款分開保留。</small></div></div>
-        <div class="acctSubPage" data-acct-page-panel="vendor"><div class="acctComing">🏭 廠商帳<br><small>叫貨、到貨、對帳、付款與退換貨。</small></div></div>
+        <div class="acctSubPage" data-acct-page-panel="vendor"><div class="acctComing">🏭 廠商帳<br><small>查看採購形成的應付帳款、對帳與付款；不重複 KEY 採購資料。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="liuhe"><div class="acctComing">🥬 六禾調撥<br><small>欣儒 → 六禾內部調撥帳。</small></div></div>
         <div class="acctSubPage" data-acct-page-panel="enterprise"><div class="acctComing">🏢 企業合約客戶<br><small>訂購重量／出貨重量／驗收重量、月結與合約計價。</small></div></div>
       </div>
@@ -2147,7 +2147,8 @@ function acctLedgerSheetHtml(d){
 function acctSafeName(s){return (s||'客戶').replace(/[\\/:*?"<>|]/g,'_')}
 function acctDownload(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
-$('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}</div></body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
+$('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}</div>
+</body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
