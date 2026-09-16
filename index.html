@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒農產行｜內部作業系統</title>
+<title>【第33階段 客戶帳本】欣儒農產行｜內部作業系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -565,9 +565,9 @@ body.field-single-role .wrap{padding-top:8px}
       <div class="card">
         <h2>💰 帳務中心</h2>
         <div class="acctSubTabs" id="acctSubTabs">
-          <button class="acctSubTab active" data-acct-page="quick">快速登帳</button>
+          <button class="acctSubTab active" data-acct-page="quick">👥 客戶帳本</button>
           <button class="acctSubTab" data-acct-page="payment">收款中心</button>
-          <button class="acctSubTab" data-acct-page="ledger">客戶帳本</button>
+          <button class="acctSubTab" data-acct-page="ledger">📚 帳本查詢</button>
           <button class="acctSubTab" data-acct-page="settlement">結帳管理</button>
           <button class="acctSubTab" data-acct-page="farmer">產農帳</button>
           <button class="acctSubTab" data-acct-page="middleman">中盤帳</button>
@@ -580,9 +580,9 @@ body.field-single-role .wrap{padding-top:8px}
           <button class="acctMobileGroupBtn" type="button" data-acct-group="accounts">往來帳務</button>
           <button class="acctMobileGroupBtn" type="button" data-acct-group="special">專用帳務</button>
           <div class="acctMobileMenu active" data-acct-menu="daily">
-            <button class="acctSubTab active" type="button" data-acct-page="quick">快速登帳</button>
+            <button class="acctSubTab active" type="button" data-acct-page="quick">👥 客戶帳本</button>
             <button class="acctSubTab" type="button" data-acct-page="payment">收款中心</button>
-            <button class="acctSubTab" type="button" data-acct-page="ledger">客戶帳本</button>
+            <button class="acctSubTab" type="button" data-acct-page="ledger">📚 帳本查詢</button>
             <button class="acctSubTab" type="button" data-acct-page="settlement">結帳管理</button>
           </div>
           <div class="acctMobileMenu" data-acct-menu="accounts">
@@ -596,7 +596,7 @@ body.field-single-role .wrap{padding-top:8px}
           </div>
         </div>
         <div class="acctSubPage active" data-acct-page-panel="quick">
-          <div class="helper">快速登帳｜Enter 連續輸入｜F2 完成本筆</div>
+          <div class="helper">照收銀貓明細快速輸入｜商品 → 數量 → 單價｜Enter 連續輸入｜F2 完成本筆</div>
         <div class="accountSummary acctQuickHidden" style="display:none">
           <div class="accountStat"><div class="name">今日／目前訂單</div><div id="testOrderCount" class="amount">0</div></div>
           <div class="accountStat"><div class="name">已收</div><div id="testPaidSum" class="amount" style="color:#18703c">$0</div></div>
@@ -665,11 +665,11 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div class="acctSubPage" data-acct-page-panel="ledger">
         <div class="acctQueryBox">
-          <h3 style="margin:0 0 7px">🔎 客戶帳本</h3>
-          <div class="acctQueryHead"><input id="acctQueryCustomer" class="input" list="acctCustomerList" placeholder="輸入車牌、人名或超市"><button id="acctQueryBtn" class="btn blue" type="button">查詢</button></div>
+          <h3 style="margin:0 0 7px">🔎 帳本查詢／分享</h3>
+          <div class="acctQueryHead" style="grid-template-columns:1fr"><input id="acctQueryCustomer" class="input" list="acctCustomerList" placeholder="輸入客戶名稱，立即查詢"><button id="acctQueryBtn" class="btn blue" type="button" style="display:none">查詢</button></div>
           <div class="acctQueryTabs"><button class="acctQueryTab active" data-acct-filter="all">全部</button><button class="acctQueryTab" data-acct-filter="money">貨款</button><button class="acctQueryTab" data-acct-filter="payment">收款／儲值</button><button class="acctQueryTab" data-acct-filter="basket">籃子</button><button class="acctQueryTab" data-acct-filter="freight">貨運</button></div>
           <div id="acctExportBar" class="acctExportBar" style="display:none"><button id="acctExportExcel" class="btn green" type="button">匯出 Excel</button><button id="acctExportPdf" class="btn gray" type="button">匯出 PDF</button><button id="acctShareLine" class="btn blue" type="button">手機分享 LINE</button><button id="acctCopyLine" class="btn blue" type="button">電腦複製帳單圖片</button></div>
-          <div id="acctQueryResult"><div class="empty" style="padding:14px">輸入客戶後查詢</div></div>
+          <div id="acctQueryResult"><div class="empty" style="padding:14px">輸入客戶名稱即可查帳</div></div>
         </div>
         <h3 style="margin:12px 0 5px">最近帳務紀錄</h3><div id="acctRecords" class="accountRecords"></div>
         </div>
@@ -2183,7 +2183,11 @@ $('#acctCopyLine').onclick=()=>{const d=acctLedgerData(),c=acctLedgerCanvas(d);c
 async function runAcctCustomerQuery(){await loadAccountingCloud();renderAcctCustomerQuery()}
 $('#acctQueryBtn').onclick=runAcctCustomerQuery;
 $('#acctQueryCustomer').addEventListener('change',renderAcctCustomerQuery);
-$('#acctQueryCustomer').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runAcctCustomerQuery();e.target.blur()}});
+let acctQueryComposing=false;
+$('#acctQueryCustomer').addEventListener('compositionstart',()=>acctQueryComposing=true);
+$('#acctQueryCustomer').addEventListener('compositionend',()=>{acctQueryComposing=false;renderAcctCustomerQuery()});
+$('#acctQueryCustomer').addEventListener('input',()=>{if(!acctQueryComposing)renderAcctCustomerQuery()});
+$('#acctQueryCustomer').addEventListener('keydown',e=>{if(e.key==='Enter'&&!acctQueryComposing){e.preventDefault();runAcctCustomerQuery();e.target.blur()}});
 $$('.acctQueryTab').forEach(btn=>btn.onclick=()=>{acctQueryFilter=btn.dataset.acctFilter;$$('.acctQueryTab').forEach(x=>x.classList.toggle('active',x===btn));renderAcctCustomerQuery()});
 $('#acctAddItem').onclick=()=>{
   const name=$('#acctProduct').value.trim(),qty=Number($('#acctQty').value),price=Number($('#acctPrice').value),unit=$('#acctUnit').value,kgEach=Math.max(0,Number($('#acctItemKg').value)||0);
