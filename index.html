@@ -1974,7 +1974,7 @@ $('#acctExportExcel').onclick=()=>{
 };
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'9px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:A4 landscape;margin:7mm}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
-\n<script>\n/* 第六階段：缺貨／催貨。獨立資料表，不改登入與既有訂單流程。 */\nlet shortageReports=[];\nconst shortageStatusText={waiting:'待催貨',contacted:'已催廠商',shipping:'配送中／時間未知',arrived:'已到貨'};\nasync function loadShortageReports(){\n  if(!window.sb && typeof sb==='undefined')return;\n  try{\n    const {data,error}=await sb.from('shortage_reports').select('*').order('created_at',{ascending:false}).limit(200);\n    if(error)throw error; shortageReports=data||[]; renderShortageManage();\n  }catch(e){\n    const box=document.getElementById('shortageManageList');\n    if(box)box.innerHTML='<div class="empty">缺貨回報資料表尚未啟用</div>';\n  }\n}\nwindow.submitShortageReport=async function(source){\n  if(!currentUser)return alert('請先登入');\n  const p=source==='packing'?'packing':'delivery';\n  const customer=document.getElementById(p+'ShortCustomer')?.value.trim();\n  const item=document.getElementById(p+'ShortItem')?.value.trim();\n  const qty=document.getElementById(p+'ShortQty')?.value.trim();\n  if(!customer||!item)return alert('請填客戶與缺的品項');\n  const payload={customer,item_text:item,qty_note:qty||null,source,source_label:source==='packing'?'包裝部':'司機／貨運',status:'waiting',reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',reported_at:new Date().toISOString()};\n  const {error}=await sb.from('shortage_reports').insert(payload);\n  if(error)return alert('回報失敗：'+error.message+'\n請先確認缺貨回報資料表已建立');\n  document.getElementById(p+'ShortCustomer').value='';document.getElementById(p+'ShortItem').value='';document.getElementById(p+'ShortQty').value='';\n  alert('已回報給小姐'); loadShortageReports();\n};\nfunction renderShortageManage(){\n  const box=document.getElementById('shortageManageList');if(!box)return;\n  const arr=shortageReports.filter(x=>x.status!=='arrived');\n  box.innerHTML=arr.length?arr.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${x.reported_at?new Date(x.reported_at).toLocaleString('zh-TW',{hour12:false}):''}</div><div class="shortageActions"><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button><button class="btn primary" onclick="setShortageStatus(${x.id},'arrived')">✓ 已到貨</button></div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';\n}\nwindow.setShortageStatus=async function(id,status){\n  if(!currentUser)return;\n  const patch={status,updated_at:new Date().toISOString(),updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||''};\n  if(status==='arrived')patch.arrived_at=new Date().toISOString();\n  const {error}=await sb.from('shortage_reports').update(patch).eq('id',id);\n  if(error)return alert('更新失敗：'+error.message);loadShortageReports();\n};\nwindow.addEventListener('load',()=>{setTimeout(loadShortageReports,1800)});\ndocument.addEventListener('click',e=>{if(e.target?.dataset?.tab==='procurement')setTimeout(loadShortageReports,100)});\n</script>\n</body></html>`}
+\n</body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){if(d.isSupermarket)return acctSupermarketCanvas(d);const width=1800,margin=24,top=150,rowH=31,per=28,colW=(width-margin*2)/3,height=top+per*rowH+75,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,width,height);g.fillStyle='#111';g.textAlign='center';g.font='bold 30px sans-serif';g.fillText('欣儒農產行　0900-767-577',width/2,42);g.textAlign='left';g.font='bold 22px sans-serif';g.fillText('客戶：'+d.customer,margin,82);g.font='19px sans-serif';g.fillText(`貨款餘額 ${acctMoney(Math.max(0,d.balance))}　欠籃 ${d.baskets}個　儲值餘額 ${acctMoney(Math.max(0,d.deposit-d.storedUsed))}`,margin,115);const headers=['日期','序','品名／內容','金額'];for(let col=0;col<3;col++){const x=margin+col*colW,widths=[90,45,colW-230,95];let xx=x;g.font='bold 16px sans-serif';headers.forEach((h,i)=>{g.strokeStyle='#333';g.strokeRect(xx,top-28,widths[i],28);g.fillText(h,xx+5,top-8);xx+=widths[i]});for(let i=0;i<per;i++){const r=d.rows[col*per+i],y=top+i*rowH;xx=x;widths.forEach(w=>{g.strokeRect(xx,y,w,rowH);xx+=w});g.font='15px sans-serif';g.fillStyle='#111';if(r){g.fillText(r.date.slice(5),x+4,y+21);g.fillText(String(col*per+i+1),x+94,y+21);const detail=(r.details||r.type);g.fillText(detail.length>35?detail.slice(0,35)+'…':detail,x+139,y+21);g.fillStyle=(r.charge-r.payment)<0?'#c22':'#2457a6';g.fillText(String(r.charge-r.payment||''),x+colW-88,y+21)}}}g.fillStyle='#111';g.textAlign='right';g.font='bold 22px sans-serif';g.fillText('合計：'+acctMoney(d.balance),width-margin,height-25);return c}
 function acctSupermarketCanvas(d){
@@ -2280,4 +2280,47 @@ document.getElementById('wallBackBtn')?.addEventListener('click',()=>activateTab
 </script>
 
 <div id="workPickOverlay" class="workPickOverlay"><div class="workPickBox"><h2 id="workPickTitle">工作職能</h2><div id="workPickName" class="workPickName"></div><div id="workPickChoices" class="workPickChoices"><label class="workPickChoice"><input type="checkbox" value="stall"> 🧾 攤位</label><label class="workPickChoice"><input type="checkbox" value="packing"> 📦 包裝</label><label class="workPickChoice"><input type="checkbox" value="driver"> 🚚 司機</label><label class="workPickChoice"><input type="checkbox" value="accounting"> 💰 帳務</label></div><div id="workPickError" class="employeeMsg err"></div><div class="workPickActions"><button id="workPickCancel" type="button" class="btn gray">取消</button><button id="workPickConfirm" type="button" class="btn primary">確定</button></div></div></div>
+
+<script>
+/* 第六階段：缺貨／催貨。獨立資料表，不改登入與既有訂單流程。 */
+let shortageReports=[];
+const shortageStatusText={waiting:'待催貨',contacted:'已催廠商',shipping:'配送中／時間未知',arrived:'已到貨'};
+async function loadShortageReports(){
+  if(!window.sb && typeof sb==='undefined')return;
+  try{
+    const {data,error}=await sb.from('shortage_reports').select('*').order('created_at',{ascending:false}).limit(200);
+    if(error)throw error; shortageReports=data||[]; renderShortageManage();
+  }catch(e){
+    const box=document.getElementById('shortageManageList');
+    if(box)box.innerHTML='<div class="empty">缺貨回報資料表尚未啟用</div>';
+  }
+}
+window.submitShortageReport=async function(source){
+  if(!currentUser)return alert('請先登入');
+  const p=source==='packing'?'packing':'delivery';
+  const customer=document.getElementById(p+'ShortCustomer')?.value.trim();
+  const item=document.getElementById(p+'ShortItem')?.value.trim();
+  const qty=document.getElementById(p+'ShortQty')?.value.trim();
+  if(!customer||!item)return alert('請填客戶與缺的品項');
+  const payload={customer,item_text:item,qty_note:qty||null,source,source_label:source==='packing'?'包裝部':'司機／貨運',status:'waiting',reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',reported_at:new Date().toISOString()};
+  const {error}=await sb.from('shortage_reports').insert(payload);
+  if(error)return alert('回報失敗：'+error.message+'\n請先確認缺貨回報資料表已建立');
+  document.getElementById(p+'ShortCustomer').value='';document.getElementById(p+'ShortItem').value='';document.getElementById(p+'ShortQty').value='';
+  alert('已回報給小姐'); loadShortageReports();
+};
+function renderShortageManage(){
+  const box=document.getElementById('shortageManageList');if(!box)return;
+  const arr=shortageReports.filter(x=>x.status!=='arrived');
+  box.innerHTML=arr.length?arr.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${x.reported_at?new Date(x.reported_at).toLocaleString('zh-TW',{hour12:false}):''}</div><div class="shortageActions"><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button><button class="btn primary" onclick="setShortageStatus(${x.id},'arrived')">✓ 已到貨</button></div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';
+}
+window.setShortageStatus=async function(id,status){
+  if(!currentUser)return;
+  const patch={status,updated_at:new Date().toISOString(),updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||''};
+  if(status==='arrived')patch.arrived_at=new Date().toISOString();
+  const {error}=await sb.from('shortage_reports').update(patch).eq('id',id);
+  if(error)return alert('更新失敗：'+error.message);loadShortageReports();
+};
+window.addEventListener('load',()=>{setTimeout(loadShortageReports,1800)});
+document.addEventListener('click',e=>{if(e.target?.dataset?.tab==='procurement')setTimeout(loadShortageReports,100)});
+</script>
 </body></html>
