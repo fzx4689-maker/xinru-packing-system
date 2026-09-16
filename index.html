@@ -1672,7 +1672,7 @@ async function callEmployeeManager(action,payload={}){
   return result;
 }
 function setEmployeeMsg(msg='',ok=false){const el=$('#employeeMsg');el.textContent=msg;el.className='employeeMsg '+(msg?(ok?'ok':'err'):'');}
-const WORK_LABEL={stall:'工作區',packing:'包裝',driver:'司機',accounting:'帳務'};
+const WORK_LABEL={stall:'總部',packing:'包裝部',driver:'貨運',accounting:'帳務區'};
 const FEATURE_LABEL={stall_order:'派工',packing:'包裝部',delivery:'貨運部',accounting:'帳務'};
 const NOTIFICATION_LABEL={packing:'包裝',delivery:'貨運',accounting:'帳務'};
 function featureBadges(list=[]){return list.length?list.map(r=>`<span class="miniRole">${FEATURE_LABEL[r]||r}</span>`).join(''):'<span class="meta">無額外功能</span>';}
