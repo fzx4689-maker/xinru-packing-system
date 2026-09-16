@@ -330,7 +330,7 @@ body.field-single-role .wrap{padding-top:8px}
 @media(max-width:700px){body.field-single-role .top{position:sticky;top:0;z-index:20}body.field-single-role .compactUserBar{margin-bottom:0}.stallModeBar .btn{flex:1;min-width:0}}
 
 /* 第六階段：現場缺貨／催貨回報 */
-.shortageQuick{border:1px solid #f4c36a;background:#fffaf0;border-radius:14px;padding:10px;margin:8px 0}.shortageQuick summary{font-weight:900;cursor:pointer}.shortageGrid{display:grid;grid-template-columns:1fr 1.4fr .65fr auto;gap:6px;align-items:end;margin-top:8px}.shortageList{display:grid;gap:7px;margin-top:10px}.shortageRow{border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.shortageTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.shortageStatus{font-size:12px;font-weight:900;border-radius:999px;padding:4px 8px;background:#fff0c9;color:#805d00}.shortageActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.shortageActions .btn{padding:7px 9px;font-size:12px}@media(max-width:760px){.shortageGrid{grid-template-columns:1fr 1fr}.shortageGrid .shortageItem{grid-column:1/-1}.shortageGrid .btn{width:100%}}
+.shortageQuick{border:1px solid #f4c36a;background:#fffaf0;border-radius:14px;padding:10px;margin:8px 0}.shortageQuick summary{font-weight:900;cursor:pointer}.shortageGrid{display:grid;grid-template-columns:1fr 1.4fr .65fr auto;gap:6px;align-items:end;margin-top:8px}.shortageList{display:grid;gap:7px;margin-top:10px}.shortageRow{border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.shortageTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.shortageStatus{font-size:12px;font-weight:900;border-radius:999px;padding:4px 8px;background:#fff0c9;color:#805d00}.shortageActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.shortageActions .btn{padding:7px 9px;font-size:12px}.navNoticeBadge{display:none;min-width:18px;height:18px;padding:0 5px;margin-left:4px;border-radius:999px;background:#e1192d;color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:900;vertical-align:1px}.navNoticeBadge.show{display:inline-block}@media(max-width:760px){.shortageGrid{grid-template-columns:1fr 1fr}.shortageGrid .shortageItem{grid-column:1/-1}.shortageGrid .btn{width:100%}}
 </style>
 
 
@@ -365,10 +365,10 @@ body.field-single-role .wrap{padding-top:8px}
     <div class="tabs mainTabs7">
       <button class="tab active" data-tab="home">🏠 首頁<div class="th">今日待辦</div></button>
       <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">登帳・收款・帳本</div></button>
-      <button class="tab" data-tab="procurement">🛒 叫貨／採購<div class="th">超市・產農・廠商</div></button>
+      <button class="tab" data-tab="procurement">🛒 叫貨／採購<span id="procurementNoticeBadge" class="navNoticeBadge"></span><div class="th">超市・產農・廠商</div></button>
       <button class="tab" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
-      <button class="tab" data-tab="packing">📦 包裝部<div class="th">包裝作業</div></button>
-      <button class="tab" data-tab="delivery">🚚 貨運中心<div class="th">配送作業</div></button>
+      <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">包裝作業</div></button>
+      <button class="tab" data-tab="delivery">🚚 貨運中心<span id="deliveryNoticeBadge" class="navNoticeBadge"></span><div class="th">配送作業</div></button>
       <button class="tab" data-tab="wall">📺 電視牆<div class="th">即時看板</div></button>
     </div>
   </div>
@@ -2282,61 +2282,78 @@ document.getElementById('wallBackBtn')?.addEventListener('click',()=>activateTab
 <div id="workPickOverlay" class="workPickOverlay"><div class="workPickBox"><h2 id="workPickTitle">工作職能</h2><div id="workPickName" class="workPickName"></div><div id="workPickChoices" class="workPickChoices"><label class="workPickChoice"><input type="checkbox" value="stall"> 🧾 攤位</label><label class="workPickChoice"><input type="checkbox" value="packing"> 📦 包裝</label><label class="workPickChoice"><input type="checkbox" value="driver"> 🚚 司機</label><label class="workPickChoice"><input type="checkbox" value="accounting"> 💰 帳務</label></div><div id="workPickError" class="employeeMsg err"></div><div class="workPickActions"><button id="workPickCancel" type="button" class="btn gray">取消</button><button id="workPickConfirm" type="button" class="btn primary">確定</button></div></div></div>
 
 <script>
-/* 第六階段：缺貨／催貨。獨立資料表，不改登入與既有訂單流程。 */
-let shortageReports=[];
+/* 第七階段：缺貨／催貨雙向對話。獨立資料表，不改登入與既有訂單流程。 */
+let shortageReports=[],shortageMessages=[];
 const shortageStatusText={waiting:'待催貨',contacted:'已催廠商',shipping:'配送中／時間未知',arrived:'已到貨'};
 async function loadShortageReports(){
   if(!window.sb && typeof sb==='undefined')return;
   try{
-    const {data,error}=await sb.from('shortage_reports').select('*').order('created_at',{ascending:false}).limit(200);
-    if(error)throw error; shortageReports=data||[]; renderShortageManage(); renderShortageSource('packing'); renderShortageSource('delivery');
-  }catch(e){
-    const box=document.getElementById('shortageManageList');
-    if(box)box.innerHTML='<div class="empty">缺貨回報資料表尚未啟用</div>';
-  }
+    const [{data,error},{data:msgs,error:msgErr}]=await Promise.all([
+      sb.from('shortage_reports').select('*').order('created_at',{ascending:false}).limit(300),
+      sb.from('shortage_messages').select('*').order('created_at',{ascending:true}).limit(1200)
+    ]);
+    if(error)throw error;if(msgErr)throw msgErr;shortageReports=data||[];shortageMessages=msgs||[];
+    renderShortageManage();renderShortageSource('packing');renderShortageSource('delivery');updateShortageBadges();
+  }catch(e){const box=document.getElementById('shortageManageList');if(box)box.innerHTML='<div class="empty">缺貨／催貨資料表尚未完成升級，請先執行第七階段 SQL</div>';}
+}
+function shortageActorRole(source){return source==='packing'?'包裝部':'司機／貨運'}
+async function addShortageMessage(reportId,message,messageType='message'){
+  const {error}=await sb.from('shortage_messages').insert({report_id:reportId,message,message_type:messageType,actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:shortageActorRole(shortageReports.find(x=>x.id===reportId)?.source)});if(error)throw error;
 }
 window.submitShortageReport=async function(source){
-  if(!currentUser)return alert('請先登入');
-  const p=source==='packing'?'packing':'delivery';
-  const customer=document.getElementById(p+'ShortCustomer')?.value.trim();
-  const item=document.getElementById(p+'ShortItem')?.value.trim();
-  const qty=document.getElementById(p+'ShortQty')?.value.trim();
-  if(!customer||!item)return alert('請填客戶與缺的品項');
-  const payload={customer,item_text:item,qty_note:qty||null,source,source_label:source==='packing'?'包裝部':'司機／貨運',status:'waiting',reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',reported_at:new Date().toISOString()};
-  const {error}=await sb.from('shortage_reports').insert(payload);
-  if(error)return alert('回報失敗：'+error.message+'\n請先確認缺貨回報資料表已建立');
-  document.getElementById(p+'ShortCustomer').value='';document.getElementById(p+'ShortItem').value='';document.getElementById(p+'ShortQty').value='';
-  alert('已回報給小姐'); loadShortageReports();
+  if(!currentUser)return alert('請先登入');const p=source==='packing'?'packing':'delivery';
+  const customer=document.getElementById(p+'ShortCustomer')?.value.trim(),item=document.getElementById(p+'ShortItem')?.value.trim(),qty=document.getElementById(p+'ShortQty')?.value.trim();
+  if(!customer||!item)return alert('請填客戶與缺的品項');const now=new Date().toISOString();
+  const payload={customer,item_text:item,qty_note:qty||null,source,source_label:source==='packing'?'包裝部':'司機／貨運',status:'waiting',reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',reported_at:now};
+  const {data,error}=await sb.from('shortage_reports').insert(payload).select('id').single();if(error)return alert('回報失敗：'+error.message);
+  try{await sb.from('shortage_messages').insert({report_id:data.id,message:`缺貨回報：${item}${qty?'｜'+qty:''}`,message_type:'report',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:source==='packing'?'包裝部':'司機／貨運'});}catch(e){}
+  document.getElementById(p+'ShortCustomer').value='';document.getElementById(p+'ShortItem').value='';document.getElementById(p+'ShortQty').value='';alert('已回報給總部');loadShortageReports();
 };
 function shortageTime(v){return v?new Date(v).toLocaleString('zh-TW',{hour12:false}):''}
+function shortageThread(id){return shortageMessages.filter(m=>Number(m.report_id)===Number(id))}
+function shortageThreadHtml(id){const ms=shortageThread(id);return `<details style="margin-top:7px"><summary style="cursor:pointer;font-weight:900">💬 對話紀錄 ${ms.length?`(${ms.length})`:''}</summary><div style="margin-top:7px;border-left:3px solid #dbe5ef;padding-left:9px">${ms.length?ms.map(m=>`<div style="padding:6px 0;border-bottom:1px solid #edf0f2"><b>${esc(m.actor_role||'現場')}－${esc(m.actor_name||'')}</b>：${esc(m.message||'')}<div class="meta">${shortageTime(m.created_at)}</div></div>`).join(''):'<div class="meta">尚無對話</div>'}</div></details>`}
 function renderShortageManage(){
-  const box=document.getElementById('shortageManageList');if(!box)return;
-  const arr=shortageReports.filter(x=>x.status!=='arrived');
-  box.innerHTML=arr.length?arr.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${shortageTime(x.reported_at)}</div>${x.reply_text?`<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>💬 已回覆現場：</b>${esc(x.reply_text)}<div class="meta">${esc(x.replied_by_name||'')}｜${shortageTime(x.replied_at)}</div></div>`:''}<div class="shortageActions"><button class="btn blue" onclick="replyShortage(${x.id})">💬 回覆現場</button><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button><button class="btn primary" onclick="setShortageStatus(${x.id},'arrived')">✓ 已到貨結案</button></div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';
+  const box=document.getElementById('shortageManageList');if(!box)return;const active=shortageReports.filter(x=>x.status!=='arrived'),closed=shortageReports.filter(x=>x.status==='arrived');
+  const activeHtml=active.length?active.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${shortageTime(x.reported_at)}</div>${shortageThreadHtml(x.id)}<div class="shortageActions"><button class="btn blue" onclick="replyShortage(${x.id})">💬 回覆現場</button><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button></div><div class="meta" style="margin-top:6px">※ 已到貨由包裝／司機現場確認結案</div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';
+  const closedHtml=`<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:900">📁 已結案紀錄（${closed.length}）</summary><div class="shortageList">${closed.length?closed.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')}</div><span class="badge green">已到貨</span></div><div class="meta">現場確認：${esc(x.arrived_by_name||x.updated_by_name||'')}｜${shortageTime(x.arrived_at)}</div>${shortageThreadHtml(x.id)}</div>`).join(''):'<div class="empty">尚無已結案紀錄</div>'}</div></details>`;
+  box.innerHTML=activeHtml+closedHtml;
 }
 function renderShortageSource(source){
   const box=document.getElementById(source==='packing'?'packingShortageReplies':'deliveryShortageReplies');if(!box||!currentUser)return;
   const arr=shortageReports.filter(x=>x.source===source&&x.reported_by===currentUser.id&&x.status!=='arrived');
-  box.innerHTML=arr.length?arr.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div>${x.reply_text?`<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>💬 小姐回覆：</b>${esc(x.reply_text)}<div class="meta">回覆人：${esc(x.replied_by_name||'')}｜${shortageTime(x.replied_at)}</div></div>`:'<div class="meta" style="margin-top:6px">等待小姐回覆</div>'}</div>`).join(''):'';
+  box.innerHTML=arr.length?arr.map(x=>{const ms=shortageThread(x.id),last=ms[ms.length-1];return `<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div>${last?`<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>最新：</b>${esc(last.message||'')}<div class="meta">${esc(last.actor_role||'')}－${esc(last.actor_name||'')}｜${shortageTime(last.created_at)}</div></div>`:'<div class="meta">等待📡總部回應</div>'}${shortageThreadHtml(x.id)}<div class="shortageActions"><button class="btn blue" onclick="fieldReplyShortage(${x.id})">💬 回覆</button><button class="btn primary" onclick="confirmShortageArrived(${x.id})">✓ 已到貨</button></div></div>`}).join(''):'';
 }
-window.replyShortage=async function(id){
-  if(!currentUser)return;
-  const x=shortageReports.find(r=>r.id===id);if(!x)return;
-  const text=prompt('回覆現場：',x.reply_text||'');if(text===null)return;
-  const reply=text.trim();if(!reply)return alert('請輸入回覆內容');
-  const now=new Date().toISOString();
-  const {error}=await sb.from('shortage_reports').update({reply_text:reply,replied_by:currentUser.id,replied_by_name:currentProfile?.display_name||'',replied_at:now,updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||'',updated_at:now}).eq('id',id);
-  if(error)return alert('回覆失敗：'+error.message+'\n請先執行「現場回覆結案_SQL.sql」');
-  loadShortageReports();
-};
-window.setShortageStatus=async function(id,status){
-  if(!currentUser)return;
-  const patch={status,updated_at:new Date().toISOString(),updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||''};
-  if(status==='arrived')patch.arrived_at=new Date().toISOString();
-  const {error}=await sb.from('shortage_reports').update(patch).eq('id',id);
-  if(error)return alert('更新失敗：'+error.message);loadShortageReports();
-};
-window.addEventListener('load',()=>{setTimeout(loadShortageReports,1800)});
+window.replyShortage=async function(id){if(!currentUser)return;const text=prompt('回覆現場：');if(text===null)return;const reply=text.trim();if(!reply)return alert('請輸入回覆內容');try{await sb.from('shortage_messages').insert({report_id:id,message:reply,message_type:'office_reply',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:'總部回應'});await sb.from('shortage_reports').update({replied_by:currentUser.id,replied_by_name:currentProfile?.display_name||'',replied_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);loadShortageReports()}catch(e){alert('回覆失敗：'+e.message)}};
+window.fieldReplyShortage=async function(id){if(!currentUser)return;const text=prompt('回覆總部：');if(text===null)return;const reply=text.trim();if(!reply)return;try{await sb.from('shortage_messages').insert({report_id:id,message:reply,message_type:'field_reply',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:shortageActorRole(shortageReports.find(x=>x.id===id)?.source)});loadShortageReports()}catch(e){alert('回覆失敗：'+e.message)}};
+window.confirmShortageArrived=async function(id){if(!currentUser)return;if(!confirm('現場已實際收到貨？確認後案件會結案。'))return;const x=shortageReports.find(r=>r.id===id);if(!x||x.reported_by!==currentUser.id)return alert('只有原回報的現場人員可以確認到貨');const now=new Date().toISOString();try{await sb.from('shortage_messages').insert({report_id:id,message:'已實際收到貨，確認結案',message_type:'arrived',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:shortageActorRole(x.source)});const {error}=await sb.from('shortage_reports').update({status:'arrived',arrived_at:now,arrived_by:currentUser.id,arrived_by_name:currentProfile?.display_name||'',updated_at:now,updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||''}).eq('id',id);if(error)throw error;loadShortageReports()}catch(e){alert('結案失敗：'+e.message)}};
+window.setShortageStatus=async function(id,status){if(!currentUser||status==='arrived')return;const now=new Date().toISOString(),label=shortageStatusText[status]||status;const {error}=await sb.from('shortage_reports').update({status,updated_at:now,updated_by:currentUser.id,updated_by_name:currentProfile?.display_name||''}).eq('id',id);if(error)return alert('更新失敗：'+error.message);try{await sb.from('shortage_messages').insert({report_id:id,message:label,message_type:'status',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:'總部回應'})}catch(e){}loadShortageReports();};
+function setShortageBadge(id,count){const el=document.getElementById(id);if(!el)return;const n=Math.max(0,Number(count)||0);el.textContent=n>99?'99+':String(n);el.classList.toggle('show',n>0)}
+function updateShortageBadges(){
+  const active=shortageReports.filter(x=>x.status!=='arrived');
+  // 辦公室：所有未結案缺貨／催貨都要看得到紅點。
+  setShortageBadge('procurementNoticeBadge',active.length);
+  if(!currentUser){setShortageBadge('packingNoticeBadge',0);setShortageBadge('deliveryNoticeBadge',0);return;}
+  const uid=String(currentUser.id);
+  const fieldCount=(source)=>active.filter(x=>x.source===source&&String(x.reported_by)===uid).filter(x=>{
+    const ms=shortageThread(x.id);const last=ms[ms.length-1];
+    return !!last && (last.message_type==='office_reply'||last.message_type==='status'||last.actor_role==='總部回應');
+  }).length;
+  setShortageBadge('packingNoticeBadge',fieldCount('packing'));
+  setShortageBadge('deliveryNoticeBadge',fieldCount('delivery'));
+}
+let shortageRealtimeChannel=null;
+function startShortageRealtime(){
+  if(!currentUser||shortageRealtimeChannel)return;
+  shortageRealtimeChannel=sb.channel('xinru-shortage-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'shortage_reports'},()=>loadShortageReports())
+    .on('postgres_changes',{event:'*',schema:'public',table:'shortage_messages'},()=>loadShortageReports())
+    .subscribe();
+}
+function refreshShortageOnReturn(){if(currentUser){startShortageRealtime();loadShortageReports();}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshShortageOnReturn()});
+window.addEventListener('focus',refreshShortageOnReturn);
+setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadShortageReports()},10000);
+window.addEventListener('load',()=>{setTimeout(()=>{loadShortageReports();startShortageRealtime()},1800)});
 document.addEventListener('click',e=>{if(e.target?.dataset?.tab==='procurement')setTimeout(loadShortageReports,100)});
 </script>
 </body></html>
