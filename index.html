@@ -295,6 +295,20 @@ body.wall-focus #wall>.card>.helper{display:none}
   .acctMobileMenu.active{display:grid}
   .acctMobileMenu .acctSubTab{width:100%;border-radius:10px;padding:9px 5px;font-size:13px}
 }
+
+/* 2.0 快速登帳精簡版：只整理快速登帳，不碰登入與其他模組 */
+[data-acct-page-panel="quick"] .accountEntry{padding:10px}
+[data-acct-page-panel="quick"] .accountFormGrid{grid-template-columns:150px minmax(220px,1.5fr) 160px 160px;gap:8px}
+[data-acct-page-panel="quick"] .accountItemGrid{grid-template-columns:minmax(220px,2fr) 90px 100px 105px 105px 105px 48px;gap:7px;align-items:end}
+[data-acct-page-panel="quick"] .freightBox{grid-template-columns:130px 120px 130px 130px;gap:8px}
+[data-acct-page-panel="quick"] .accountTotals{grid-template-columns:repeat(2,minmax(150px,1fr));gap:8px}
+[data-acct-page-panel="quick"] .accountTotalBox{padding:8px 10px}
+@media(max-width:760px){
+ [data-acct-page-panel="quick"] .accountFormGrid{grid-template-columns:1fr 1fr}
+ [data-acct-page-panel="quick"] .accountItemGrid{grid-template-columns:2fr 1fr 1fr}
+ [data-acct-page-panel="quick"] .accountItemGrid .field:nth-child(4),[data-acct-page-panel="quick"] .accountItemGrid .field:nth-child(5),[data-acct-page-panel="quick"] .accountItemGrid .field:nth-child(6){grid-column:auto}
+ [data-acct-page-panel="quick"] .freightBox{grid-template-columns:1fr 1fr}
+}
 </style>
 
 
@@ -484,8 +498,8 @@ body.wall-focus #wall>.card>.helper{display:none}
           </div>
         </div>
         <div class="acctSubPage active" data-acct-page-panel="quick">
-          <div class="helper">依照收銀貓訂單快速登帳｜Enter 連續輸入｜F2 完成本筆</div>
-        <div class="accountSummary">
+          <div class="helper">快速登帳｜Enter 連續輸入｜F2 完成本筆</div>
+        <div class="accountSummary acctQuickHidden" style="display:none">
           <div class="accountStat"><div class="name">今日／目前訂單</div><div id="testOrderCount" class="amount">0</div></div>
           <div class="accountStat"><div class="name">已收</div><div id="testPaidSum" class="amount" style="color:#18703c">$0</div></div>
           <div class="accountStat"><div class="name">未收</div><div id="testDueSum" class="amount" style="color:#b4232c">$0</div></div>
@@ -495,8 +509,8 @@ body.wall-focus #wall>.card>.helper{display:none}
         <div class="accountEntry">
           <div class="accountFormGrid">
             <div class="field"><label class="label">訂單日期</label><input id="acctDate" class="input" type="date"></div>
-            <div class="field customerField"><label class="label">車牌／人名／超市</label><input id="acctCustomer" class="input" list="acctCustomerList" autocomplete="off"><datalist id="acctCustomerList"></datalist></div>
-            <div class="field"><label class="label">交易內容</label><select id="acctTxnType" class="input"><option value="sale">本店商品</option><option value="mixed">本店商品＋外店商品</option><option value="freight">只有外店商品</option><option value="repayment">收回舊欠款</option><option value="deposit">儲值入金</option></select></div>
+            <div class="field customerField"><label class="label">客戶</label><input id="acctCustomer" class="input" list="acctCustomerList" autocomplete="off"><datalist id="acctCustomerList"></datalist></div>
+            <div class="field acctLegacyTxn" style="display:none"><label class="label">交易內容</label><select id="acctTxnType" class="input"><option value="sale">本店商品</option><option value="mixed">本店商品＋外店商品</option><option value="freight">只有外店商品</option><option value="repayment">收回舊欠款</option><option value="deposit">儲值入金</option></select></div>
             <div class="field"><label class="label">客戶類型</label><select id="acctCustomerType" class="input"><option>車牌客戶</option><option>個人</option><option>超市</option><option>中盤</option><option>產農</option><option>企業合約客戶</option><option>其他</option></select></div>
             <div class="field"><label class="label">付款方式</label><select id="acctPayment" class="input"><option>現金</option><option>匯款</option><option>儲值扣款</option><option>3日結</option><option>週結</option><option>月結</option><option>下次付款</option><option>部分付款</option></select></div>
           </div>
@@ -510,39 +524,39 @@ body.wall-focus #wall>.card>.helper{display:none}
             <button id="acctAddItem" class="btn blue" type="button">＋</button>
           </div>
           <div id="acctItems" class="accountItems"><div class="empty" style="padding:12px">尚未加入商品</div></div>
-          <div class="externalItemGrid">
+          <div class="externalItemGrid acctQuickHidden" style="display:none">
             <div class="field"><label class="label">外店商品</label><input id="acctExternalProduct" class="input" lang="zh-Hant" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例如：高麗菜"></div>
             <div class="field"><label class="label">每件公斤</label><input id="acctExternalKgEach" class="input" type="text" lang="zh-Hant" autocomplete="off" value="" placeholder="30"></div>
             <div class="field"><label class="label">件數</label><input id="acctExternalQty" class="input" type="text" lang="zh-Hant" autocomplete="off" value="1"></div>
             <div class="field"><label class="label">代墊／件</label><input id="acctExternalAdvance" class="input" type="text" lang="zh-Hant" autocomplete="off" value="0"></div>
             <button id="acctAddExternalItem" class="btn blue" type="button">＋</button>
           </div>
-          <div class="meta" style="margin-top:4px">未代墊就填0元；有代客人付款才輸入每件金額。</div>
-          <div id="acctExternalItems" class="externalItems"><div class="empty" style="padding:10px">尚未加入外店商品</div></div>
+          <div class="meta acctQuickHidden" style="display:none;margin-top:4px">未代墊就填0元；有代客人付款才輸入每件金額。</div>
+          <div id="acctExternalItems" class="externalItems acctQuickHidden" style="display:none"><div class="empty" style="padding:10px">尚未加入外店商品</div></div>
           <div class="freightBox mixedFreight">
             <div class="field"><label class="label">配送方式</label><select id="acctRoute" class="input"><option value="none">不配送</option><option value="north">北部線</option><option value="south">南部線</option></select></div>
-            <div class="field"><label class="label">本店商品公斤</label><input id="acctOwnKg" class="input" type="number" min="0" step="0.1" value="0"></div>
-            <div class="field"><label class="label">外店商品公斤</label><div id="acctExternalKg" class="input" style="font-weight:900">0 kg</div></div>
-            <div class="field"><label class="label">合計公斤</label><div id="acctTotalKg" class="input" style="font-weight:900">0 kg</div></div>
+            <div class="field acctQuickHidden" style="display:none"><label class="label">本店商品公斤</label><input id="acctOwnKg" class="input" type="number" min="0" step="0.1" value="0"></div>
+            <div class="field acctQuickHidden" style="display:none"><label class="label">外店商品公斤</label><div id="acctExternalKg" class="input" style="font-weight:900">0 kg</div></div>
+            <div class="field"><label class="label">總公斤</label><div id="acctTotalKg" class="input" style="font-weight:900">0 kg</div></div>
             <div class="field"><label class="label">每公斤運費</label><input id="acctFreightRate" class="input" type="number" min="0" step="0.1" value="2"></div>
             <div class="field"><label class="label">運費</label><div id="acctFreight" class="input" style="font-weight:900">$0</div></div>
           </div>
-          <div class="basketBox">
+          <div class="basketBox acctQuickHidden" style="display:none">
             <div class="field"><label class="label">本次帶出籃子</label><input id="acctBasketOut" class="input" type="number" min="0" step="1" value="0"></div>
             <div class="field"><label class="label">本次歸還籃子</label><input id="acctBasketBack" class="input" type="number" min="0" step="1" value="0"></div>
             <div class="field"><label class="label">本次增加欠籃</label><div id="acctBasketDiff" class="input" style="font-weight:900">0個</div></div>
             <div class="field"><label class="label">客戶累計欠籃</label><div id="acctBasketBalance" class="input" style="font-weight:900">0個</div></div>
           </div>
           <div class="accountTotals">
-            <div class="accountTotalBox">本店菜款<b id="acctGoodsTotal">$0</b></div>
-            <div class="accountTotalBox">外店代墊款<b id="acctAdvanceTotal">$0</b></div>
+            <div class="accountTotalBox acctQuickHidden" style="display:none">本店菜款<b id="acctGoodsTotal">$0</b></div>
+            <div class="accountTotalBox acctQuickHidden" style="display:none">外店代墊款<b id="acctAdvanceTotal">$0</b></div>
             <div class="accountTotalBox">配送運費<b id="acctFreightTotal">$0</b></div>
             <div class="accountTotalBox">本次應收<b id="acctTotal">$0</b></div>
-            <div class="accountTotalBox">本次實收（可含舊欠款）<input id="acctPaid" class="input" type="number" min="0" value="0" style="padding:5px;margin-top:3px"></div>
-            <div class="accountTotalBox">本次未收<b id="acctDue" style="color:#b4232c">$0</b></div>
+            <div class="accountTotalBox acctQuickHidden" style="display:none">本次實收（可含舊欠款）<input id="acctPaid" class="input" type="number" min="0" value="0" style="padding:5px;margin-top:3px"></div>
+            <div class="accountTotalBox acctQuickHidden" style="display:none">本次未收<b id="acctDue" style="color:#b4232c">$0</b></div>
           </div>
           <div class="grid2">
-            <label style="font-weight:800"><input id="acctTwoCopy" type="checkbox"> 需要二聯單</label>
+            <label class="acctQuickHidden" style="display:none;font-weight:800"><input id="acctTwoCopy" type="checkbox"> 需要二聯單</label>
             <input id="acctNote" class="input" placeholder="備註（可不填）">
           </div>
           <div class="actions" style="margin-top:8px"><button id="acctSaveTest" class="btn primary" type="button" style="flex:1">F2 完成本筆</button><button id="acctClear" class="btn gray" type="button">清空</button></div>
