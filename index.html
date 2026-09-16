@@ -680,9 +680,9 @@ body.field-single-role .wrap{padding-top:8px}
 
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
-    <div class="employeeHead"><h2>👥 員工管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
+    <div class="employeeHead"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
     <div class="actions" style="margin:8px 0 12px;gap:8px">
-      <button id="employeeTabBtn" class="btn blue">👥 員工</button>
+      <button id="employeeTabBtn" class="btn blue">👥 人員</button>
       <button id="permissionTabBtn" class="btn gray">🔐 權限</button>
     </div>
 
@@ -727,7 +727,7 @@ body.field-single-role .wrap{padding-top:8px}
       <div style="display:grid;gap:10px;font-size:14px;line-height:1.6;padding:4px 2px">
         <div><b>老闆</b>：全部功能，可管理員工、設定權限、停用與刪除帳號，並可修改及刪除所有資料。</div>
         <div><b>主管</b>：可操作自己職務的工作；額外功能頁面只能查看。不能管理員工、改權限、停用或刪除帳號。</div>
-        <div><b>一般員工</b>：可執行自己職務的固定工作，例如包裝打勾／回覆／整單完成，或司機接單／回覆／配送完成；不能修改原始訂單或刪除資料。</div><div><b>職務</b>：決定可操作的工作頁面與身分；只有「司機」會出現在司機指派名單。</div><div><b>額外功能</b>：只加開查看頁面，不會增加操作權限，也不會改變職務。</div><div><b>通知</b>：獨立決定要收到哪些工作通知，不會改變職務，也不會增加頁面。</div><div><b>電視牆、訂單查詢</b>：所有啟用員工固定可查看。</div>
+        <div><b>一般員工</b>：可執行自己職務的固定工作，例如包裝打勾／回覆／整單完成，或司機接單／回覆／配送完成；不能修改原始訂單或刪除資料。</div><div><b>職務／部門</b>：決定主要工作身分與工作區；目前沿用攤位、包裝、司機、帳務四種既有職務，不改登入核心。</div><div><b>額外功能</b>：只加開查看頁面，不會增加操作權限，也不會改變職務。</div><div><b>通知</b>：獨立決定要收到哪些工作通知，不會改變職務，也不會增加頁面。</div><div><b>電視牆、訂單查詢</b>：所有啟用員工固定可查看。</div>
       </div>
     </div>
   </div>
@@ -1654,6 +1654,7 @@ function renderEmployeeList(list=[]){
   box.innerHTML=list.map(e=>`<div class="employeeCompact">
     <div class="employeeCompactTop"><div><b style="font-size:16px">${esc(e.display_name||'未命名')}</b><div class="empAccount">帳號：${e.login_name?esc(e.login_name):'尚未設定'}</div><div class="empAccount"><b>權限：</b>${ROLE_LABEL[e.role]||e.role}</div><div class="rolesCell"><span class="miniRole">職務</span>${workRoleBadges(e.work_roles||[])}</div><div class="rolesCell"><span class="miniRole">額外功能</span>${featureBadges(e.feature_permissions||[])}</div><div class="rolesCell"><span class="miniRole">通知</span>${notificationBadges(e.notification_permissions||[])}</div></div><div class="employeeStatus ${e.is_active?'on':'off'}">${e.is_active?'● 使用中':(e.registration_status==='pending'?'● 待審核':'● 已停用')}</div></div>
     <div class="empMiniActions">
+      <button class="btn gray emp-name" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">✏️ 姓名</button>
       <button class="btn gray emp-account" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-login="${esc(e.login_name||'')}">帳號</button>
       <button class="btn blue emp-work" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-roles="${esc((e.work_roles||[]).join(','))}">職務</button>
       <button class="btn gray emp-feature" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-features="${esc((e.feature_permissions||[]).join(','))}">功能</button>
@@ -1664,6 +1665,7 @@ function renderEmployeeList(list=[]){
       <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>刪除</button>
     </div>
   </div>`).join('');
+  box.querySelectorAll('.emp-name').forEach(el=>el.onclick=async()=>{const v=prompt(`修改「${el.dataset.name}」的顯示姓名`,el.dataset.name||'');if(v===null)return;const display_name=v.trim();if(!display_name){setEmployeeMsg('姓名不能空白');return;}if(display_name===el.dataset.name)return;try{await callEmployeeManager('set_display_name',{user_id:el.dataset.id,display_name});setEmployeeMsg(`姓名已更新：${display_name}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-account').forEach(el=>el.onclick=async()=>{const v=prompt(`設定「${el.dataset.name}」的員工帳號`,el.dataset.login||'');if(v===null)return;const login_name=v.trim().toLowerCase();if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號格式不正確');return;}try{await callEmployeeManager('set_login_name',{user_id:el.dataset.id,login_name});setEmployeeMsg('帳號已更新',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-work').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.roles||'').split(',').filter(Boolean);const roles=await chooseWorkRoles(el.dataset.name,cur,'設定職務',async(selected)=>{await callEmployeeManager('set_work_roles',{user_id:el.dataset.id,work_roles:selected});});if(roles===null)return;setEmployeeMsg('職務已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
   box.querySelectorAll('.emp-feature').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.features||'').split(',').filter(Boolean);const features=await chooseFeatures(el.dataset.name,cur,async(selected)=>{await callEmployeeManager('set_feature_permissions',{user_id:el.dataset.id,feature_permissions:selected});});if(features===null)return;setEmployeeMsg('額外功能已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
