@@ -2608,12 +2608,19 @@ function invRows(){try{return JSON.parse(localStorage.getItem(INV_KEY)||'[]')}ca
 function invSave(rows){localStorage.setItem(INV_KEY,JSON.stringify(rows.slice(0,5000)))}
 function invBalance(name){return invRows().filter(x=>x.name===name).reduce((n,x)=>n+Number(x.qty||0),0)}
 async function pmLoad(){
+ let loadError=null;
  try{
-  const {data,error}=await sb.from('product_master').select('*').order('name',{ascending:true});
+  const {data,error}=await sb.from('product_master').select('id,name,category,spec,unit,today_price,is_active').order('name',{ascending:true});
   if(error)throw error;
   pmSave((data||[]).map(x=>({id:x.id,name:x.name,category:x.category||'',spec:x.spec||'',unit:x.unit||'件',price:Number(x.today_price||0),active:x.is_active!==false})));
- }catch(e){console.warn('商品主檔讀取失敗，保留本機快取',e)}
+ }catch(e){loadError=e;console.warn('商品主檔讀取失敗，保留本機快取',e)}
  renderProductMaster();renderInventory();renderPosProducts();
+ const stage=document.getElementById('posProductStage');
+ if(stage&&!pmRows().length){
+  stage.innerHTML=loadError
+   ? '<div class="empty"><b>商品主檔讀取失敗</b><br>請先確認 Supabase 的 product_master 商品主檔。</div>'
+   : '<div class="empty"><b>商品主檔目前 0 筆</b><br>請到「商品／庫存 → 商品管理」新增商品；新增後會自動出現在 POS。</div>';
+ }
 }
 
 // 第74階段：POS 正式商品按鍵，直接使用既有 product_master；不改登入／包裝／派工／電視牆。
