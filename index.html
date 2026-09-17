@@ -375,6 +375,20 @@ body.field-single-role .wrap{padding-top:8px}
 /* 第48階段：開單／收銀＋現場回報畫面壓縮。電視牆、登入/Auth不動。 */
 #sales>.card:first-child{padding:12px 16px;margin-bottom:8px}#sales>.card:first-child h2{margin:0 0 3px;font-size:21px}#sales>.card:first-child>.helper{font-size:12px}.salesSubTabs{margin-top:8px;gap:6px;flex-wrap:nowrap}.salesSubTab{padding:7px 13px;border-radius:8px;white-space:nowrap}.salesView>.card{margin-top:0}.salesView h2{font-size:20px;margin:0 0 8px}.fieldReportCard{padding:12px 14px;background:#eef3f8}.fieldReportHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.fieldReportHead h2{margin:0}.fieldReportTabs{display:flex;gap:6px;flex-wrap:nowrap}.fieldReportTab{border:1px solid #c7d2df;background:#fff;border-radius:8px;padding:7px 12px;font-weight:900;cursor:pointer;white-space:nowrap}.fieldReportTab.active{background:#173f67;color:#fff;border-color:#173f67}.fieldReportBody{margin-top:10px}.fieldReportPanel{display:none}.fieldReportPanel.active{display:block}.fieldReportGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}.fieldReportGrid>.empty{grid-column:1/-1;background:#fff;border:1px dashed #c5d0dc}.fieldMessageCard,.fieldReportGrid>.shortageRow{margin:0;background:#fff;border:1px solid #cbd6e2;box-shadow:0 1px 2px rgba(20,45,70,.06)}.fieldReportGrid .shortageTop{gap:10px}.fieldReportGrid details{background:#f7fafc;border-radius:8px;padding:5px 8px}.fieldReportGrid .shortageActions{margin-top:8px}.quickOrderText{min-height:120px}.quickOrderFooter{margin-top:8px}
 @media(max-width:850px){.fieldReportGrid{grid-template-columns:1fr}.fieldReportHead{align-items:flex-start;flex-direction:column}.fieldReportTabs{width:100%}.fieldReportTab{flex:1}.salesSubTabs{overflow-x:auto}.salesSubTab{flex:0 0 auto}}
+
+/* 第49階段：包裝部三功能真正縮成同一排；只改版型，不改功能 */
+#packing.packingCompactPanel .packingMainCard{padding:12px 14px}
+#packing .packingCompactHead{display:flex;align-items:center;margin:0 0 8px}
+#packing .packingCompactHead h2{margin:0;font-size:22px}
+#packing .packingQuickTools{display:grid;grid-template-columns:repeat(3,max-content);gap:8px;align-items:start;margin:0 0 10px}
+#packing .packingQuickTools>.shortageQuick{margin:0;padding:0;border:0;background:transparent;border-radius:0;min-width:0}
+#packing .packingQuickTools>.shortageQuick>summary{list-style:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:38px;padding:7px 13px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:14px;font-weight:900;cursor:pointer;white-space:nowrap}
+#packing .packingQuickTools>.shortageQuick>summary::-webkit-details-marker{display:none}
+#packing .packingQuickTools>.shortageQuick[open]{grid-column:1/-1;width:100%;border:1px solid #d8dee7;border-radius:12px;background:#fff;padding:0 10px 10px}
+#packing .packingQuickTools>.shortageQuick[open]>summary{width:max-content;margin:8px 0;border-color:#b9c8da;background:#eef5ff}
+#packing .packingToolBody{margin-top:4px}
+#packing #packingOrders{margin-top:2px}
+@media(max-width:700px){#packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#packing .packingQuickTools>.shortageQuick>summary{width:100%;min-height:36px;padding:6px 5px;font-size:12px;white-space:normal;text-align:center}#packing .packingCompactHead h2{font-size:20px}}
 </style>
 
 
@@ -573,7 +587,15 @@ body.field-single-role .wrap{padding-top:8px}
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
-      <div class="card"><div class="packingCompactHead"><h2>包裝部</h2><div class="packingQuickHint">點選功能才展開</div></div><div class="packingQuickTools"><details class="shortageQuick"><summary>💬 現場詢問</summary><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div></details><div id="packingQuestionReplies" class="shortageList"></div><details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></details><details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div></details></div><div id="packingShortageReplies" class="shortageList"></div><details class="packingHelp"><summary>ℹ️ 包裝操作說明</summary><div class="helper">急單置頂。單個品項完成就 ☑️；未完成訂單隔天會繼續顯示。可用「包裝回覆」回報進度，例如：已檢30件，待20件。</div></details><div id="packingOrders"></div></div>
+      <div class="card packingMainCard">
+        <div class="packingCompactHead"><h2>包裝部</h2></div>
+        <div class="packingQuickTools">
+          <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
+          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
+        </div>
+        <div id="packingOrders"></div>
+      </div>
     </section>
 
     <section id="wall" class="panel">
@@ -2224,22 +2246,6 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 .productMasterForm{display:grid;grid-template-columns:1.2fr 1fr .7fr .8fr auto;gap:7px;align-items:end;margin-top:10px}.pmTable,.invTable{width:100%;border-collapse:collapse}.pmTable th,.pmTable td,.invTable th,.invTable td{padding:8px 6px;border-bottom:1px solid #e3e8ef;text-align:left}.stockGood{font-weight:900}.stockLow{font-weight:900;color:#b42318}.invAdjust{display:flex;gap:5px;align-items:center}.invAdjust input{width:86px}@media(max-width:760px){.productMasterForm{grid-template-columns:1fr 1fr}.productMasterForm #pmName{grid-column:1/-1}.productMasterForm #pmAddBtn{grid-column:1/-1}.pmTable,.invTable{font-size:13px}.pmTable th,.pmTable td,.invTable th,.invTable td{padding:7px 3px}.invAdjust{flex-wrap:wrap}.invAdjust input{width:70px}}
 /* 第42階段：快速開單 */
 .quickOrderTop{display:grid;grid-template-columns:1.1fr .8fr 1.4fr;gap:8px}.quickOrderText{min-height:150px;resize:vertical;font-size:18px;line-height:1.55}.quickOrderTable{width:100%;border-collapse:collapse}.quickOrderTable th,.quickOrderTable td{border-bottom:1px solid #e3e8ef;padding:8px 6px;text-align:left}.quickOrderTable th{font-size:13px;color:#536273}.quickOrderTable input[type=checkbox]{width:20px;height:20px}.quickOrderBad{background:#fff2f2;color:#b42318;border:1px solid #ffc9c9;border-radius:8px;padding:9px;margin:5px 0}.quickOrderFooter{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:12px;font-size:20px}.quickOrderFooter #quickOrderTotal{font-weight:900;color:#1458b0}@media(max-width:760px){.quickOrderTop{grid-template-columns:1fr 1fr}.quickOrderTop .field:last-child{grid-column:1/-1}.quickOrderText{min-height:180px}.quickOrderTable{font-size:13px}.quickOrderTable th,.quickOrderTable td{padding:7px 3px}.quickOrderFooter{position:sticky;bottom:0;background:#fff;padding:9px 0;z-index:3}}
-
-/* 第49階段：包裝部三功能保留、縮成單排可收合入口 */
-#packing.packingCompactPanel>.card{padding:12px 14px}
-#packing .packingCompactHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
-#packing .packingCompactHead h2{margin:0;font-size:22px}
-#packing .packingQuickHint{font-size:12px;color:#777;font-weight:700}
-#packing .packingQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 8px}
-#packing .packingQuickTools>.shortageQuick{margin:0;border:1px solid #d9dde5;border-radius:9px;background:#fff;overflow:visible}
-#packing .packingQuickTools>.shortageQuick>summary{padding:8px 10px;font-size:14px;font-weight:900;min-height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap}
-#packing .packingQuickTools>.shortageQuick[open]{grid-column:1/-1;padding-bottom:9px}
-#packing .packingQuickTools>.shortageQuick[open]>summary{justify-content:flex-start;border-bottom:1px solid #eceff3;margin-bottom:8px}
-#packing .packingQuickTools>.shortageQuick[open]>*:not(summary){margin-left:10px;margin-right:10px}
-#packing .packingHelp{margin:5px 0 8px;border:0;background:transparent}
-#packing .packingHelp>summary{font-size:12px;color:#777;font-weight:800;cursor:pointer}
-#packing .packingHelp .helper{margin:5px 0 0;padding:7px 9px;font-size:12px}
-@media(max-width:700px){#packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}#packing .packingQuickTools>.shortageQuick>summary{font-size:12px;padding:7px 4px;white-space:normal;text-align:center}#packing .packingCompactHead h2{font-size:20px}#packing .packingQuickHint{display:none}}
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
