@@ -1427,7 +1427,7 @@ $('#submitOrder').onclick=async()=>{
       if(error)throw error;
       if(lines.length){const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;}
       await loadOrders();
-      await sendXinruPush({targetRole:'packing',title:urgent?'🚨 包裝急單':'📦 包裝新單',body:`${customer}${pickup?`｜取貨 ${pickup}`:''}`,url:'./#packing',tag:`packing-${order.id}`,kind:'packing',urgent});
+      await sendXinruPush({targetRole:'packing',title:urgent?'🚨 包裝急單':'📦 包裝新單',body:`${customer}${pickup?`｜取貨 ${pickup}`:''}`,url:'https://fzx4689-maker.github.io/xinru-packing-system/#packing',tag:`packing-${order.id}`,kind:'packing',urgent});
       alert('已送到包裝部與電視牆');
     }else{
       const uid=$('#stallDeliveryDriver')?.value||'';
@@ -2413,7 +2413,7 @@ async function quickOrderSendPacking(order){
   const {error:itemErr}=await sb.from('order_items').insert(rows);
   if(itemErr){await sb.from('orders').delete().eq('id',packingOrder.id);throw itemErr;}
   await loadOrders();
-  try{await sendXinruPush({targetRole:'packing',title:'📦 快速開單待包裝',body:`${order.customer}｜${packingItems.length}項`,url:'./#packing',tag:`quick-packing-${packingOrder.id}`,kind:'packing',urgent:false});}catch(e){console.warn('包裝推播失敗',e)}
+  try{await sendXinruPush({targetRole:'packing',title:'📦 快速開單待包裝',body:`${order.customer}｜${packingItems.length}項`,url:'https://fzx4689-maker.github.io/xinru-packing-system/#packing',tag:`quick-packing-${packingOrder.id}`,kind:'packing',urgent:false});}catch(e){console.warn('包裝推播失敗',e)}
   return packingOrder.id;
 }
 async function quickOrderSendDelivery(order){
