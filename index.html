@@ -281,7 +281,8 @@ body.wall-focus #wall>.card>.helper{display:none}
 }
 
 /* 欣儒系統 2.0：七大主頁導覽（只調整主導覽，不碰登入與既有功能） */
-.tabs.mainTabs7{grid-template-columns:repeat(7,minmax(110px,1fr));}
+/* 第40階段：桌機主選單 8 個功能固定同一排；手機版維持原本橫向滑動。 */
+.tabs.mainTabs7{grid-template-columns:repeat(8,minmax(0,1fr));}
 @media(max-width:760px){.tabs.mainTabs7{display:flex;overflow-x:auto;gap:5px}.tabs.mainTabs7 .tab{min-width:105px;flex:0 0 auto}}
 
 /* 帳務中心手機版：先顯示三個入口，再展開功能 */
@@ -2868,4 +2869,5 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 
 </script>
 <!-- 第39階段：開單／收銀骨架＋現場回報雙層紅點；未修改登入/Auth核心 -->
+<!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 </body></html>
