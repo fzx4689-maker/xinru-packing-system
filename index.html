@@ -994,13 +994,14 @@ function translitLine(line){
   return out;
 }
 function thaiForItem(x){
-  // 一律以人工固定字庫為準，不再使用舊的自動音譯結果。
+  // 第63階段：未完成派工單永遠套用最新人工泰文詞庫；已完成單保留建立/完成當時已存的泰文紀錄。
+  if(x?._order_status==='done' && x?.thai_phonetic) return x.thai_phonetic;
   return translitLine(x?.item_name||'');
 }
 
 function statusBadge(s){return s==='waiting'?'<span class="badge yellow">待接單</span>':s==='packing'?'<span class="badge green">包裝中</span>':'<span class="badge gray">已完成</span>'}
 function makeOrderNo(){const d=new Date();const y=String(d.getFullYear()).slice(2),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'),h=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0'),s=String(d.getSeconds()).padStart(2,'0'),r=Math.floor(Math.random()*90+10);return `${y}${m}${day}-${h}${mi}${s}${r}`}
-function normalized(row){return {...row,items:(row.order_items||[]).sort((a,b)=>a.id-b.id)}}
+function normalized(row){return {...row,items:(row.order_items||[]).sort((a,b)=>a.id-b.id).map(x=>({...x,_order_status:row.status}))}}
 let orderBaselineReady=false;
 async function loadOrders(){
   const {data,error}=await sb.from('orders').select('*, order_items(*)').order('is_urgent',{ascending:false}).order('created_at',{ascending:true});
