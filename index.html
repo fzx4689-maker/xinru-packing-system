@@ -553,7 +553,7 @@ body.field-single-role .wrap{padding-top:8px}
       </div>
 
       <div class="procurementView active" data-proc-panel="products">
-        <div class="card"><h2>🏷️ 商品管理</h2><div class="helper">商品主檔集中在這裡。下一階段再整理成正式商品建檔畫面。</div><div class="productMasterForm"><input id="pmName" class="input" placeholder="商品名稱"><input id="pmSpec" class="input" placeholder="規格，例如20K"><select id="pmUnit" class="input"><option>件</option><option>公斤</option><option>台斤</option><option>包</option><option>顆</option><option>把</option></select><input id="pmPrice" class="input" type="number" min="0" step="0.01" placeholder="售價"><button id="pmAddBtn" type="button" class="btn primary">＋ 新增商品</button></div><div id="pmList" style="margin-top:12px"></div></div>
+        <div class="card"><h2>🏷️ 商品管理</h2><div class="helper">建立一次商品主檔，之後開單直接搜尋商品並帶入今日價格。</div><div class="productMasterForm"><input id="pmName" class="input" placeholder="商品名稱"><input id="pmCategory" class="input" placeholder="分類，例如：葉菜／根莖"><input id="pmSpec" class="input" placeholder="規格，例如20K"><select id="pmUnit" class="input"><option>件</option><option>公斤</option><option>台斤</option><option>包</option><option>顆</option><option>把</option></select><input id="pmPrice" class="input" type="number" min="0" step="0.01" placeholder="今日價格"><button id="pmAddBtn" type="button" class="btn primary">＋ 新增商品</button></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap"><input id="pmSearch" class="input" style="max-width:360px" placeholder="🔎 搜尋商品／分類"><select id="pmStatusFilter" class="input" style="max-width:150px"><option value="active">啟用中</option><option value="all">全部</option><option value="inactive">已停用</option></select><button id="pmReloadBtn" type="button" class="btn gray">↻ 更新</button></div><div id="pmList" style="margin-top:12px"></div></div>
       </div>
       <div class="procurementView" data-proc-panel="farmer">
         <div class="card"><h2>🌱 產農入庫</h2><div class="helper">產農送貨直接驗收後入庫；正式流程下一階段逐步建立。</div><div class="empty">產農入庫功能接下來建立</div></div>
@@ -2487,33 +2487,52 @@ document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{
 document.getElementById('salesQuerySalesBtn')?.addEventListener('click',()=>{const h=document.getElementById('salesQueryHint');if(h)h.textContent='銷售部訂單明細會接新的銷售訂單資料；目前不拿派工資料冒充銷售帳。'});
 
 
-// 第44階段：商品主檔＋共享庫存（localStorage；不修改登入/Auth/Supabase核心）。
+// 第66階段：正式商品主檔（Supabase）；不修改登入/Auth核心。
 const PM_KEY='xinru_product_master_v44', INV_KEY='xinru_inventory_movements_v44';
-function pmRows(){try{return JSON.parse(localStorage.getItem(PM_KEY)||'[]')}catch(e){return []}}
-function pmSave(rows){localStorage.setItem(PM_KEY,JSON.stringify(rows))}
+let pmCache=[];
+function pmRows(){return pmCache.length?pmCache:(()=>{try{return JSON.parse(localStorage.getItem(PM_KEY)||'[]')}catch(e){return []}})()}
+function pmSave(rows){pmCache=rows;localStorage.setItem(PM_KEY,JSON.stringify(rows))}
 function invRows(){try{return JSON.parse(localStorage.getItem(INV_KEY)||'[]')}catch(e){return []}}
 function invSave(rows){localStorage.setItem(INV_KEY,JSON.stringify(rows.slice(0,5000)))}
 function invBalance(name){return invRows().filter(x=>x.name===name).reduce((n,x)=>n+Number(x.qty||0),0)}
+async function pmLoad(){
+ try{
+  const {data,error}=await sb.from('product_master').select('*').order('name',{ascending:true});
+  if(error)throw error;
+  pmSave((data||[]).map(x=>({id:x.id,name:x.name,category:x.category||'',spec:x.spec||'',unit:x.unit||'件',price:Number(x.today_price||0),active:x.is_active!==false})));
+ }catch(e){console.warn('商品主檔讀取失敗，保留本機快取',e)}
+ renderProductMaster();renderInventory();
+}
 function renderProductMaster(){
- const box=document.getElementById('pmList');if(!box)return;const rows=pmRows();
- if(!rows.length){box.innerHTML='<div class="empty">尚未建立商品。先新增常用商品即可。</div>';return}
- box.innerHTML='<table class="pmTable"><thead><tr><th>商品</th><th>規格</th><th>單位</th><th>售價</th><th></th></tr></thead><tbody>'+rows.map((x,i)=>`<tr><td><b>${quickOrderEsc(x.name)}</b></td><td>${quickOrderEsc(x.spec||'')}</td><td>${quickOrderEsc(x.unit||'件')}</td><td>$${Number(x.price||0).toLocaleString()}</td><td><button class="btn gray" type="button" data-pmdel="${i}">刪除</button></td></tr>`).join('')+'</tbody></table>';
+ const box=document.getElementById('pmList');if(!box)return;
+ const q=(document.getElementById('pmSearch')?.value||'').trim().toLowerCase(),filter=document.getElementById('pmStatusFilter')?.value||'active';
+ const rows=pmRows().filter(x=>(filter==='all'||(filter==='active'?x.active!==false:x.active===false))&&(!q||`${x.name} ${x.category||''} ${x.spec||''}`.toLowerCase().includes(q)));
+ if(!rows.length){box.innerHTML='<div class="empty">沒有符合的商品。</div>';return}
+ box.innerHTML='<table class="pmTable"><thead><tr><th>商品</th><th>分類</th><th>規格</th><th>單位</th><th>今日價格</th><th>狀態</th><th></th></tr></thead><tbody>'+rows.map(x=>`<tr><td><b>${quickOrderEsc(x.name)}</b></td><td>${quickOrderEsc(x.category||'')}</td><td>${quickOrderEsc(x.spec||'')}</td><td>${quickOrderEsc(x.unit||'件')}</td><td>$${Number(x.price||0).toLocaleString()}</td><td>${x.active===false?'停用':'啟用'}</td><td><button class="btn gray" type="button" data-pmedit="${x.id||''}" data-pmname="${quickOrderEsc(x.name)}">修改</button> <button class="btn ${x.active===false?'blue':'gray'}" type="button" data-pmtoggle="${x.id||''}" data-pmname="${quickOrderEsc(x.name)}">${x.active===false?'啟用':'停用'}</button></td></tr>`).join('')+'</tbody></table>';
 }
 function renderInventory(){
- const box=document.getElementById('inventoryList');if(!box)return;const rows=pmRows();
+ const box=document.getElementById('inventoryList');if(!box)return;const rows=pmRows().filter(x=>x.active!==false);
  if(!rows.length){box.innerHTML='<div class="empty">請先到「商品管理」建立商品。</div>';return}
  box.innerHTML='<table class="invTable"><thead><tr><th>商品</th><th>目前庫存</th><th>調整</th></tr></thead><tbody>'+rows.map((x,i)=>{const b=invBalance(x.name);return `<tr><td><b>${quickOrderEsc(x.name)}</b><div class="helper">${quickOrderEsc(x.spec||'')} ${quickOrderEsc(x.unit||'件')}</div></td><td class="${b<=10?'stockLow':'stockGood'}">${b.toLocaleString()} ${quickOrderEsc(x.unit||'件')}</td><td><div class="invAdjust"><input class="input" type="number" step="0.01" placeholder="數量" data-invqty="${i}"><button class="btn blue" type="button" data-invadd="${i}">＋入庫</button><button class="btn gray" type="button" data-invsub="${i}">－調整</button></div></td></tr>`}).join('')+'</tbody></table>';
 }
 function addInventoryMovement(name,qty,reason,ref=''){const rows=invRows();rows.unshift({id:Date.now()+Math.random(),name,qty:Number(qty),reason,ref,created_at:new Date().toISOString(),by:(currentProfile?.nickname||currentProfile?.display_name||'')});invSave(rows)}
-function deductInventoryForOrder(order){
- const products=pmRows(),known=new Set(products.map(x=>x.name)),missing=[];
- for(const item of (order.items||[])){if(known.has(item.name))addInventoryMovement(item.name,-Number(item.qty||0),'銷售',order.id);else missing.push(item.name)}
- renderInventory();return missing;
-}
-document.getElementById('pmAddBtn')?.addEventListener('click',()=>{const name=document.getElementById('pmName').value.trim(),spec=document.getElementById('pmSpec').value.trim(),unit=document.getElementById('pmUnit').value,price=Number(document.getElementById('pmPrice').value||0);if(!name){alert('請輸入商品名稱');return}const rows=pmRows();if(rows.some(x=>x.name===name)){alert('這個商品已經建立');return}rows.push({name,spec,unit,price});pmSave(rows);document.getElementById('pmName').value='';document.getElementById('pmSpec').value='';document.getElementById('pmPrice').value='';renderProductMaster();renderInventory()});
-document.getElementById('pmList')?.addEventListener('click',e=>{const b=e.target.closest('[data-pmdel]');if(!b)return;const i=Number(b.dataset.pmdel),rows=pmRows();if(!rows[i])return;if(!confirm(`刪除商品主檔「${rows[i].name}」？\n庫存異動紀錄會保留。`))return;rows.splice(i,1);pmSave(rows);renderProductMaster();renderInventory()});
-document.getElementById('inventoryList')?.addEventListener('click',e=>{const add=e.target.closest('[data-invadd]'),sub=e.target.closest('[data-invsub]'),b=add||sub;if(!b)return;const i=Number(b.dataset.invadd??b.dataset.invsub),p=pmRows()[i],input=document.querySelector(`[data-invqty="${i}"]`),qty=Number(input?.value||0);if(!p||!(qty>0)){alert('請輸入大於 0 的數量');return}addInventoryMovement(p.name,add?qty:-qty,add?'入庫':'盤點／人工調整');if(input)input.value='';renderInventory()});
-renderProductMaster();renderInventory();
+function deductInventoryForOrder(order){const products=pmRows(),known=new Set(products.filter(x=>x.active!==false).map(x=>x.name)),missing=[];for(const item of (order.items||[])){if(known.has(item.name))addInventoryMovement(item.name,-Number(item.qty||0),'銷售',order.id);else missing.push(item.name)}renderInventory();return missing}
+document.getElementById('pmAddBtn')?.addEventListener('click',async()=>{
+ const name=document.getElementById('pmName').value.trim(),category=document.getElementById('pmCategory').value.trim(),spec=document.getElementById('pmSpec').value.trim(),unit=document.getElementById('pmUnit').value,price=Number(document.getElementById('pmPrice').value||0);
+ if(!name){alert('請輸入商品名稱');return}if(pmRows().some(x=>x.name===name)){alert('這個商品已經建立');return}
+ try{const {error}=await sb.from('product_master').insert({name,category,spec,unit,today_price:price,is_active:true});if(error)throw error;['pmName','pmCategory','pmSpec','pmPrice'].forEach(id=>document.getElementById(id).value='');await pmLoad()}catch(e){alert('新增商品失敗：'+(e.message||e))}
+});
+document.getElementById('pmList')?.addEventListener('click',async e=>{
+ const edit=e.target.closest('[data-pmedit]'),toggle=e.target.closest('[data-pmtoggle]'),b=edit||toggle;if(!b)return;const row=pmRows().find(x=>String(x.id)===String(b.dataset.pmedit||b.dataset.pmtoggle));if(!row)return;
+ try{
+  if(edit){const name=prompt('商品名稱',row.name);if(name===null)return;const category=prompt('分類',row.category||'');if(category===null)return;const spec=prompt('規格',row.spec||'');if(spec===null)return;const unit=prompt('單位',row.unit||'件');if(unit===null)return;const price=prompt('今日價格',String(row.price||0));if(price===null)return;const {error}=await sb.from('product_master').update({name:name.trim(),category:category.trim(),spec:spec.trim(),unit:unit.trim()||'件',today_price:Number(price||0),updated_at:new Date().toISOString()}).eq('id',row.id);if(error)throw error}
+  else{const {error}=await sb.from('product_master').update({is_active:row.active===false,updated_at:new Date().toISOString()}).eq('id',row.id);if(error)throw error}
+  await pmLoad();
+ }catch(err){alert('商品修改失敗：'+(err.message||err))}
+});
+document.getElementById('pmSearch')?.addEventListener('input',renderProductMaster);document.getElementById('pmStatusFilter')?.addEventListener('change',renderProductMaster);document.getElementById('pmReloadBtn')?.addEventListener('click',pmLoad);
+document.getElementById('inventoryList')?.addEventListener('click',e=>{const add=e.target.closest('[data-invadd]'),sub=e.target.closest('[data-invsub]'),b=add||sub;if(!b)return;const i=Number(b.dataset.invadd??b.dataset.invsub),p=pmRows().filter(x=>x.active!==false)[i],input=document.querySelector(`[data-invqty="${i}"]`),qty=Number(input?.value||0);if(!p||!(qty>0)){alert('請輸入大於 0 的數量');return}addInventoryMovement(p.name,add?qty:-qty,add?'入庫':'盤點／人工調整');if(input)input.value='';renderInventory()});
+pmLoad();
 
 // 第42階段：快速開單（第43接帳務；第44接共享庫存；包裝／貨運仍未寫入）。
 let quickOrderItems=[];
