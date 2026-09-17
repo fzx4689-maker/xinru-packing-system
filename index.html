@@ -415,6 +415,25 @@ body.field-single-role .wrap{padding-top:8px}
   #packing .packingToolBody .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
   #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn,#packing .packingToolBody .shortageList{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
 }
+
+/* 第55階段：貨運中心套用第54包裝部的手機三鍵＋單一滿版內容。 */
+#delivery .deliveryMobileTabs{display:none}
+#delivery .deliveryQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:start;margin:0 0 10px}
+#delivery .deliveryQuickTools>details.shortageQuick{margin:0;min-width:0}
+#delivery .deliveryToolBody{margin-top:4px}
+@media(max-width:700px){
+  #delivery .deliveryMobileTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;margin:0 0 7px}
+  #delivery .deliveryMobileTab{min-width:0;min-height:48px;padding:6px 3px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:12px;font-weight:900;line-height:1.25;text-align:center}
+  #delivery .deliveryMobileTab.active{background:#eef5ff;border-color:#9eb8d8}
+  #delivery .deliveryQuickTools{display:block!important;width:100%!important;margin:0 0 10px!important}
+  #delivery .deliveryQuickTools>details.shortageQuick{display:none!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important}
+  #delivery .deliveryQuickTools>details.shortageQuick.mobileActive{display:block!important}
+  #delivery .deliveryQuickTools>details.shortageQuick>summary{display:none!important}
+  #delivery .deliveryQuickTools>details.shortageQuick>.deliveryToolBody{display:block!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;margin:0!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:12px!important;background:#fff!important}
+  #delivery .deliveryToolBody .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
+  #delivery .deliveryToolBody .field,#delivery .deliveryToolBody .input,#delivery .deliveryToolBody .actions,#delivery .deliveryToolBody .btn,#delivery .deliveryToolBody .shortageList{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+}
+
 </style>
 
 
@@ -643,7 +662,17 @@ body.field-single-role .wrap{padding-top:8px}
           <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
           <button id="refreshDeliveryBtn" type="button" class="btn gray">重新整理</button>
         </div>
-        <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div></details><div id="deliveryQuestionReplies" class="shortageList"></div><details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="deliveryFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('delivery')">＋ 新增品項</button></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></details><details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div></details><div id="deliveryShortageReplies" class="shortageList"></div><div id="driverFilters" class="driverFilters"></div>
+        <div class="deliveryMobileTabs" aria-label="貨運中心手機功能">
+          <button type="button" class="deliveryMobileTab" data-delivery-mobile="0">💬 現場詢問</button>
+          <button type="button" class="deliveryMobileTab" data-delivery-mobile="1">📦 寄車收貨／回報公斤</button>
+          <button type="button" class="deliveryMobileTab" data-delivery-mobile="2">⚠️ 缺貨回報／催貨</button>
+        </div>
+        <div class="deliveryQuickTools">
+          <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></details>
+          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="deliveryFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('delivery')">＋ 新增品項</button></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div><div id="deliveryShortageReplies" class="shortageList"></div></div></details>
+        </div>
+        <div id="driverFilters" class="driverFilters"></div>
         <div id="deliveryBody"></div>
       </div>
 
@@ -2405,6 +2434,17 @@ function setPackingMobileTool(index){
 }
 document.querySelectorAll('#packing .packingMobileTab').forEach((b,i)=>b.addEventListener('click',()=>setPackingMobileTool(i)));
 if(window.innerWidth<=700)setPackingMobileTool(0);
+
+// 第55階段：貨運中心桌機保留 details；手機同步包裝部三鍵切換單一滿版內容。
+const deliveryToolDetails=[...document.querySelectorAll('#delivery .deliveryQuickTools > details.shortageQuick')];
+deliveryToolDetails.forEach(d=>d.addEventListener('toggle',()=>{if(window.innerWidth<=700)return;if(!d.open)return;deliveryToolDetails.forEach(x=>{if(x!==d)x.open=false})}));
+function setDeliveryMobileTool(index){
+  deliveryToolDetails.forEach((d,i)=>{const on=i===index;d.classList.toggle('mobileActive',on);d.open=on});
+  document.querySelectorAll('#delivery .deliveryMobileTab').forEach((b,i)=>b.classList.toggle('active',i===index));
+}
+document.querySelectorAll('#delivery .deliveryMobileTab').forEach((b,i)=>b.addEventListener('click',()=>setDeliveryMobileTool(i)));
+if(window.innerWidth<=700)setDeliveryMobileTool(0);
+
 document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQuerySalesBtn')?.addEventListener('click',()=>{const h=document.getElementById('salesQueryHint');if(h)h.textContent='銷售部訂單明細會接新的銷售訂單資料；目前不拿派工資料冒充銷售帳。'});
