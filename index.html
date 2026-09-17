@@ -1046,10 +1046,18 @@ function formatOrderChangeDiff(oldOrder,newData,oldLines,newLines){
   return d.join('\n');
 }
 async function createPackingChangeNotice(orderId,diffText){
-  if(!changeNoticeTableReady||!diffText)return;
+  if(!diffText)return false;
+  // 不再被先前的讀取失敗旗標擋住；每次修改都實際嘗試寫入 Supabase。
   const payload={order_id:orderId,target:'packing',change_type:'modified',diff_text:diffText,changed_by:currentUser?.id||null,changed_by_name:currentProfile?.display_name||'',created_at:new Date().toISOString(),is_acknowledged:false};
-  const {error}=await sb.from('order_change_notices').insert(payload);
-  if(error){console.warn('修改提醒寫入失敗：',error.message);alert('訂單已修改，但包裝修改提醒未建立。請先執行第69階段 SQL。');}
+  const {data,error}=await sb.from('order_change_notices').insert(payload).select('id').single();
+  if(error){
+    console.error('修改提醒寫入失敗：',error);
+    alert('訂單內容已修改，但「包裝修改提醒」寫入失敗：'+error.message);
+    return false;
+  }
+  changeNoticeTableReady=true;
+  await loadPackingChangeNotices();
+  return !!data?.id;
 }
 window.ackPackingChange=async id=>{
   if(!canPackingWork())return;
@@ -1507,7 +1515,7 @@ window.deleteOrder=async id=>{if(!isAdmin())return;const o=orders.find(x=>x.id==
 window.openEdit=id=>{if(!requireStallWork())return;const o=orders.find(x=>x.id===id);if(!o||o.status==='done')return;$('#editOrderId').value=o.id;$('#editCustomer').value=o.customer||'';$('#editPickupTime').value=o.pickup_time||'';$('#editOrderDate').value=o.order_date||taipeiDate();$('#editItems').value=o.items.map(x=>x.item_name).join('\n');$('#editNote').value=o.note||'';editUrgent=!!o.is_urgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent);$('#editModal').classList.add('show')};
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
-$('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const oldOrder=orders.find(x=>x.id===id);if(!oldOrder)return;const oldLines=oldOrder.items.map(x=>x.item_name);const newData={customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent};const diffText=formatOrderChangeDiff(oldOrder,newData,oldLines,lines);if(!diffText){$('#editModal').classList.remove('show');alert('內容沒有變更');return;}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({...newData,...actorFields('updated')}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;await createPackingChangeNotice(id,diffText);$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改，包裝部需確認新版內容');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
+$('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const oldOrder=orders.find(x=>x.id===id);if(!oldOrder)return;const oldLines=oldOrder.items.map(x=>x.item_name);const newData={customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent};const diffText=formatOrderChangeDiff(oldOrder,newData,oldLines,lines);if(!diffText){$('#editModal').classList.remove('show');alert('內容沒有變更');return;}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({...newData,...actorFields('updated')}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;const noticeSaved=await createPackingChangeNotice(id,diffText);$('#editModal').classList.remove('show');await loadOrders();if(noticeSaved){alert('訂單已修改，包裝部需確認新版內容');}}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
 const VALID_TABS=['home','sales','accounting','procurement','stall','packing','delivery','wall','today'];
 function activateTab(tabName,{save=true}={}){
   if(!VALID_TABS.includes(tabName))tabName='home';
