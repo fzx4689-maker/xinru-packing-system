@@ -401,7 +401,7 @@ body.field-single-role .wrap{padding-top:8px}
 </div>
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
-    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
+    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7">
       <button class="tab active" data-tab="home">🏠 首頁<div class="th">今日待辦</div></button>
       <button class="tab" data-tab="sales">🧾 開單／收銀<span id="salesNoticeBadge" class="navNoticeBadge"></span><div class="th">開單・商品・庫存</div></button>
@@ -1924,8 +1924,28 @@ async function enforceActiveSession(){
 // 貨運單已改由攤位下單統一建立。
 $('#refreshDeliveryBtn').onclick=()=>loadDelivery();
 
+// 第四十一階段：恢復「自己的小暱稱」功能（沿用既有 set_my_nickname RPC）
+$('#myNicknameBtn').onclick=async()=>{
+  if(!currentUser||!currentProfile)return;
+  const current=(currentProfile.nickname||'').trim();
+  const v=prompt('修改自己的暱稱\n\n留空＝取消暱稱，畫面恢復顯示正式姓名。',current);
+  if(v===null)return;
+  const nickname=v.trim();
+  if(nickname.length>20){alert('暱稱最多 20 個字');return;}
+  try{
+    const {error}=await sb.rpc('set_my_nickname',{new_nickname:nickname||null});
+    if(error)throw error;
+    currentProfile=await loadMyProfile(currentUser);
+    showApp();
+    alert(nickname?`暱稱已更新：${nickname}`:'暱稱已取消');
+  }catch(e){
+    console.error(e);
+    alert('暱稱修改失敗：'+(e?.message||e));
+  }
+};
+
 async function loadMyProfile(user){
-  const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,role,is_active,login_name,work_roles,feature_permissions,notification_permissions').eq('user_id',user.id).maybeSingle();
+  const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,nickname,role,is_active,login_name,work_roles,feature_permissions,notification_permissions').eq('user_id',user.id).maybeSingle();
   if(error)throw error;
   if(!data)throw new Error('這個登入帳號尚未建立員工權限');
   if(!data.is_active)throw new Error('這個員工帳號已停用');
@@ -1934,7 +1954,7 @@ async function loadMyProfile(user){
 function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
-  const shownName=currentProfile.display_name;
+  const shownName=(currentProfile.nickname||'').trim()||currentProfile.display_name;
   const workText=(currentProfile.work_roles||[]).map(r=>WORK_LABEL[r]||r).join('／')||'未設定';
   $('#currentUserName').textContent=`👤 ${shownName}`;
   $('#currentUserRole').textContent=`｜職務：${workText}`;
