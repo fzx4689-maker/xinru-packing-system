@@ -399,6 +399,22 @@ body.field-single-role .wrap{padding-top:8px}
 #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn{max-width:none;width:100%;box-sizing:border-box}
 #packing .packingCompactHead h2{font-size:20px}
 }
+
+/* 第54階段：只修手機包裝部。桌機沿用第53版；手機改為獨立三鍵＋單一滿版內容，避開 iPhone Safari details/display:contents 三欄問題。 */
+#packing .packingMobileTabs{display:none}
+@media(max-width:700px){
+  #packing .packingMobileTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;margin:0 0 7px}
+  #packing .packingMobileTab{min-width:0;min-height:48px;padding:6px 3px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:12px;font-weight:900;line-height:1.25;text-align:center}
+  #packing .packingMobileTab.active{background:#eef5ff;border-color:#9eb8d8}
+  #packing .packingQuickTools{display:block!important;width:100%!important;margin:0 0 10px!important}
+  #packing .packingQuickTools>details.shortageQuick{display:none!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important}
+  #packing .packingQuickTools>details.shortageQuick.mobileActive{display:block!important}
+  #packing .packingQuickTools>details.shortageQuick>summary{display:none!important}
+  #packing .packingQuickTools>details.shortageQuick>.packingToolBody{display:block!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;margin:0!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:12px!important;background:#fff!important}
+  #packing .packingQuickTools>details.shortageQuick.mobileActive>.packingToolBody{display:block!important}
+  #packing .packingToolBody .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
+  #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn,#packing .packingToolBody .shortageList{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+}
 </style>
 
 
@@ -599,6 +615,11 @@ body.field-single-role .wrap{padding-top:8px}
     <section id="packing" class="panel packingCompactPanel">
       <div class="card packingMainCard">
         <div class="packingCompactHead"><h2>包裝部</h2></div>
+        <div class="packingMobileTabs" aria-label="包裝部手機功能">
+          <button type="button" class="packingMobileTab" data-packing-mobile="0">💬 現場詢問</button>
+          <button type="button" class="packingMobileTab" data-packing-mobile="1">📦 寄車收貨／回報公斤</button>
+          <button type="button" class="packingMobileTab" data-packing-mobile="2">⚠️ 缺貨回報／催貨</button>
+        </div>
         <div class="packingQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
           <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
@@ -2375,8 +2396,15 @@ function refreshSalesFieldMirror(){
   if(typeof loadStage9==='function')loadStage9();
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.fieldReportTab');if(!b)return;const view=b.dataset.fieldView;document.querySelectorAll('.fieldReportTab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.fieldReportPanel').forEach(x=>x.classList.toggle('active',x.dataset.fieldPanel===view));});
-// 第53階段：包裝部三個功能鍵一次只展開一個；只作用於包裝部，不碰登入/Auth。
-document.querySelectorAll('#packing .packingQuickTools > details.shortageQuick').forEach(d=>d.addEventListener('toggle',()=>{if(!d.open)return;document.querySelectorAll('#packing .packingQuickTools > details.shortageQuick').forEach(x=>{if(x!==d)x.open=false})}));
+// 第54階段：包裝部桌機保留 details；手機用獨立三鍵切換單一滿版內容。只作用於包裝部，不碰登入/Auth/Supabase。
+const packingToolDetails=[...document.querySelectorAll('#packing .packingQuickTools > details.shortageQuick')];
+packingToolDetails.forEach(d=>d.addEventListener('toggle',()=>{if(window.innerWidth<=700)return;if(!d.open)return;packingToolDetails.forEach(x=>{if(x!==d)x.open=false})}));
+function setPackingMobileTool(index){
+  packingToolDetails.forEach((d,i)=>{const on=i===index;d.classList.toggle('mobileActive',on);d.open=on});
+  document.querySelectorAll('#packing .packingMobileTab').forEach((b,i)=>b.classList.toggle('active',i===index));
+}
+document.querySelectorAll('#packing .packingMobileTab').forEach((b,i)=>b.addEventListener('click',()=>setPackingMobileTool(i)));
+if(window.innerWidth<=700)setPackingMobileTool(0);
 document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQuerySalesBtn')?.addEventListener('click',()=>{const h=document.getElementById('salesQueryHint');if(h)h.textContent='銷售部訂單明細會接新的銷售訂單資料；目前不拿派工資料冒充銷售帳。'});
