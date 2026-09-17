@@ -380,12 +380,12 @@ body.field-single-role .wrap{padding-top:8px}
 #packing.packingCompactPanel .packingMainCard{padding:12px 14px}
 #packing .packingCompactHead{display:flex;align-items:center;margin:0 0 8px}
 #packing .packingCompactHead h2{margin:0;font-size:22px}
-#packing .packingQuickTools{display:grid;grid-template-columns:repeat(3,max-content);gap:8px;align-items:start;margin:0 0 10px}
+#packing .packingQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:start;margin:0 0 10px}
 #packing .packingQuickTools>.shortageQuick{margin:0;padding:0;border:0;background:transparent;border-radius:0;min-width:0}
-#packing .packingQuickTools>.shortageQuick>summary{list-style:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:38px;padding:7px 13px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:14px;font-weight:900;cursor:pointer;white-space:nowrap}
+#packing .packingQuickTools>.shortageQuick>summary{list-style:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:38px;padding:7px 8px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:14px;font-weight:900;cursor:pointer;white-space:nowrap}
 #packing .packingQuickTools>.shortageQuick>summary::-webkit-details-marker{display:none}
-#packing .packingQuickTools>.shortageQuick[open]{grid-column:1/-1;width:100%;border:1px solid #d8dee7;border-radius:12px;background:#fff;padding:0 10px 10px}
-#packing .packingQuickTools>.shortageQuick[open]>summary{width:max-content;margin:8px 0;border-color:#b9c8da;background:#eef5ff}
+#packing .packingQuickTools>.shortageQuick[open]{width:auto;border:1px solid #d8dee7;border-radius:12px;background:#fff;padding:0 8px 8px}
+#packing .packingQuickTools>.shortageQuick[open]>summary{width:100%;margin:8px 0;border-color:#b9c8da;background:#eef5ff}
 #packing .packingToolBody{margin-top:4px}
 #packing #packingOrders{margin-top:2px}
 @media(max-width:700px){#packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#packing .packingQuickTools>.shortageQuick>summary{width:100%;min-height:36px;padding:6px 5px;font-size:12px;white-space:normal;text-align:center}#packing .packingCompactHead h2{font-size:20px}}
