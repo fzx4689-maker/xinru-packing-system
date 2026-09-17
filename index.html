@@ -1035,6 +1035,26 @@ async function loadPackingChangeNotices(){
   packingChangeNotices=data||[];
 }
 function packingChangeNoticeFor(orderId){return packingChangeNotices.find(n=>Number(n.order_id)===Number(orderId));}
+function changeItemKey(text){
+  const s=String(text||'').trim();
+  // 只拿品名當比對鍵：去掉最後面的數量／重量，例如「紅椒6K」→「紅椒」。
+  return s.replace(/\s*[0-9０-９]+(?:\.[0-9０-９]+)?\s*(?:KG|Kg|kg|K|k|公斤|台斤|斤|件|顆|包|盒|袋|把|束|箱|籃|粒|支|條|瓶|罐|組|份)\s*$/u,'').trim()||s;
+}
+function formatChangedItemsOnly(oldLines,newLines){
+  const oldMap=new Map(),newMap=new Map();
+  oldLines.forEach(x=>oldMap.set(changeItemKey(x),String(x||'').trim()));
+  newLines.forEach(x=>newMap.set(changeItemKey(x),String(x||'').trim()));
+  const keys=[...new Set([...oldMap.keys(),...newMap.keys()])];
+  const out=[];
+  keys.forEach(k=>{
+    const before=oldMap.get(k),after=newMap.get(k);
+    if(before===after)return;
+    if(before&&!after)out.push(`－ ${before}`);
+    else if(!before&&after)out.push(`＋ ${after}`);
+    else out.push(`${k}：${before.slice(k.length).trim()||before} → ${after.slice(k.length).trim()||after}`);
+  });
+  return out;
+}
 function formatOrderChangeDiff(oldOrder,newData,oldLines,newLines){
   const d=[];
   if((oldOrder.customer||'')!==(newData.customer||''))d.push(`客戶：${oldOrder.customer||'空白'} → ${newData.customer||'空白'}`);
@@ -1042,7 +1062,7 @@ function formatOrderChangeDiff(oldOrder,newData,oldLines,newLines){
   if((oldOrder.pickup_time||'')!==(newData.pickup_time||''))d.push(`取貨時間：${oldOrder.pickup_time||'空白'} → ${newData.pickup_time||'空白'}`);
   if((oldOrder.note||'')!==(newData.note||''))d.push(`備註：${oldOrder.note||'空白'} → ${newData.note||'空白'}`);
   if(!!oldOrder.is_urgent!==!!newData.is_urgent)d.push(`急單：${oldOrder.is_urgent?'是':'否'} → ${newData.is_urgent?'是':'否'}`);
-  if(JSON.stringify(oldLines)!==JSON.stringify(newLines))d.push(`需求內容：\n原：${oldLines.join('、')||'空白'}\n新：${newLines.join('、')||'空白'}`);
+  d.push(...formatChangedItemsOnly(oldLines,newLines));
   return d.join('\n');
 }
 async function createPackingChangeNotice(orderId,diffText){
