@@ -2319,6 +2319,23 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 .productMasterForm{display:grid;grid-template-columns:1.2fr 1fr .7fr .8fr auto;gap:7px;align-items:end;margin-top:10px}.pmTable,.invTable{width:100%;border-collapse:collapse}.pmTable th,.pmTable td,.invTable th,.invTable td{padding:8px 6px;border-bottom:1px solid #e3e8ef;text-align:left}.stockGood{font-weight:900}.stockLow{font-weight:900;color:#b42318}.invAdjust{display:flex;gap:5px;align-items:center}.invAdjust input{width:86px}@media(max-width:760px){.productMasterForm{grid-template-columns:1fr 1fr}.productMasterForm #pmName{grid-column:1/-1}.productMasterForm #pmAddBtn{grid-column:1/-1}.pmTable,.invTable{font-size:13px}.pmTable th,.pmTable td,.invTable th,.invTable td{padding:7px 3px}.invAdjust{flex-wrap:wrap}.invAdjust input{width:70px}}
 /* 第42階段：快速開單 */
 .quickOrderTop{display:grid;grid-template-columns:1.1fr .8fr 1.4fr;gap:8px}.quickOrderText{min-height:150px;resize:vertical;font-size:18px;line-height:1.55}.quickOrderTable{width:100%;border-collapse:collapse}.quickOrderTable th,.quickOrderTable td{border-bottom:1px solid #e3e8ef;padding:8px 6px;text-align:left}.quickOrderTable th{font-size:13px;color:#536273}.quickOrderTable input[type=checkbox]{width:20px;height:20px}.quickOrderBad{background:#fff2f2;color:#b42318;border:1px solid #ffc9c9;border-radius:8px;padding:9px;margin:5px 0}.quickOrderFooter{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:12px;font-size:20px}.quickOrderFooter #quickOrderTotal{font-weight:900;color:#1458b0}@media(max-width:760px){.quickOrderTop{grid-template-columns:1fr 1fr}.quickOrderTop .field:last-child{grid-column:1/-1}.quickOrderText{min-height:180px}.quickOrderTable{font-size:13px}.quickOrderTable th,.quickOrderTable td{padding:7px 3px}.quickOrderFooter{position:sticky;bottom:0;background:#fff;padding:9px 0;z-index:3}}
+
+/* 第59階段：只整理開單／收銀桌機版＋徹底取消商品／庫存現場回報紅點 */
+@media (min-width:851px){
+  #sales>.card:first-child{padding:8px 14px!important;margin-bottom:6px!important;min-height:0!important}
+  #sales>.card:first-child h2{font-size:20px!important;line-height:1.15!important;margin:0 0 2px!important}
+  #sales>.card:first-child>.helper{font-size:11px!important;line-height:1.25!important;margin:0!important}
+  #sales>.card:first-child .salesSubTabs{margin-top:6px!important;gap:6px!important}
+  #sales>.card:first-child .salesSubTab{padding:6px 12px!important;min-height:0!important;line-height:1.2!important}
+  #sales .fieldReportCard{padding:10px 12px!important}
+  #sales .fieldReportHead{margin-bottom:6px!important}
+  #sales .fieldReportHead h2{font-size:19px!important;margin:0!important}
+  #sales .fieldReportHead .helper{font-size:11px!important;line-height:1.25!important}
+  #sales .fieldReportBody.fieldReportThreeRows{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-items:start!important;margin-top:6px!important}
+  #sales .fieldReportThreeRows>.fieldReportRow{min-width:0!important;height:auto!important;padding:9px!important}
+  #sales .fieldReportThreeRows>.fieldReportRow>h3{font-size:16px!important;margin:0 0 7px!important;white-space:nowrap!important}
+}
+#procurementNoticeBadge{display:none!important}
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
@@ -2892,7 +2909,7 @@ function setShortageBadge(id,count){const el=document.getElementById(id);if(!el)
 function updateShortageBadges(){
   const active=shortageReports.filter(x=>x.status!=='arrived');
   // 辦公室：所有未結案缺貨／催貨都要看得到紅點。
-  setShortageBadge('procurementNoticeBadge',active.length);
+  setShortageBadge('procurementNoticeBadge',0);
   if(!currentUser){setShortageBadge('packingNoticeBadge',0);setShortageBadge('deliveryNoticeBadge',0);return;}
   const uid=String(currentUser.id);
   const fieldCount=(source)=>active.filter(x=>x.source===source&&String(x.reported_by)===uid).filter(x=>{
