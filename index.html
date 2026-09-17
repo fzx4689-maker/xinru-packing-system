@@ -439,6 +439,10 @@ body.field-single-role .wrap{padding-top:8px}
 </style>
 
 
+
+<style id="v58-home-todo-style">
+.homeTodoCard{border:1px solid #d9e2ec;border-radius:14px;padding:12px 14px;margin-bottom:8px;background:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.homeTodoMain{min-width:0}.homeTodoTitle{font-size:17px;font-weight:900;line-height:1.45}.homeTodoMeta{font-size:12px;color:#667085;margin-top:5px}.homeTodoDept{display:inline-block;border-radius:999px;background:#eef4ff;padding:3px 8px;margin-right:6px;font-weight:800}.homeTodoComplete{flex:0 0 auto}.homeTodoDone{background:#f7f8fa}.homeTodoDone .homeTodoTitle{text-decoration:none;color:#475467}@media(max-width:600px){.homeTodoCard{align-items:stretch;flex-direction:column}.homeTodoComplete{width:100%}}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -483,12 +487,14 @@ body.field-single-role .wrap{padding-top:8px}
     <section id="home" class="panel active">
       <div class="card">
         <h2>🏠 首頁｜今日工作總覽</h2>
-        <div class="helper">老闆／主管交代事項公告板｜指定日期當天顯示，隔天自動不顯示；不做完成打勾與逾期追蹤。</div>
+        <div class="helper">主管／管理員可建立待辦；所有登入員工都可以完成。未完成事項跨日保留，完成後留下完成者與時間。</div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
-          <h3 style="margin:0">📌 今日交代事項</h3>
-          <button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增交代事項</button>
+          <h3 style="margin:0">📌 待辦事項</h3>
+          <div class="actions" style="margin:0;flex-wrap:wrap"><button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增待辦</button><button type="button" class="btn gray" id="homeDoneToggleBtn">✅ 完成紀錄</button></div>
         </div>
-        <div id="homeNoticeList" style="margin-top:10px"><div class="empty">今天尚無交代事項</div></div>
+        <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
+        <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
+        <div id="homeDoneWrap" style="display:none;margin-top:14px"><h3 style="margin:0 0 8px">✅ 完成紀錄</h3><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
         <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button></div>
       </div>
     </section>
@@ -3182,6 +3188,46 @@ function initProcurementV30(){const d=document.getElementById('procOrderDate');i
 document.addEventListener('DOMContentLoaded',initProcurementV30);
 
 </script>
+\n<script>
+/* 第58階段：首頁待辦。主管/管理員建立；所有登入員工可完成；完成者與時間保留。 */
+(function(){
+let homeTasksV58=[],homeDoneV58=[];
+const homeDeptLabelsV58={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuho:'🥬 六禾'};
+function homeCanCreateV58(){return !!currentProfile && (currentProfile.role==='admin'||currentProfile.role==='operator');}
+function homeMsgV58(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
+function homeFmtV58(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
+function homeRenderV58(){
+ const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
+ box.innerHTML=homeTasksV58.length?homeTasksV58.map(x=>`<div class="homeTodoCard"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${homeDeptLabelsV58[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">日期：${esc(x.due_date||'')}｜建立：${esc(x.created_by_name||'')} ${homeFmtV58(x.created_at)}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div><button type="button" class="btn primary homeTodoComplete" data-id="${esc(String(x.id))}">✓ 完成</button></div>`).join(''):'<div class="empty">目前沒有待辦事項</div>';
+ done.innerHTML=homeDoneV58.length?homeDoneV58.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${homeDeptLabelsV58[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">完成：${esc(x.completed_by_name||'')}｜${homeFmtV58(x.completed_at)}｜原日期 ${esc(x.due_date||'')}</div></div></div>`).join(''):'<div class="empty">目前沒有完成紀錄</div>';
+ box.querySelectorAll('.homeTodoComplete').forEach(b=>b.onclick=()=>homeCompleteV58(b.dataset.id,b));
+}
+async function homeLoadV58(){
+ if(!currentUser)return;const box=document.getElementById('homeNoticeList');if(box&&!homeTasksV58.length)box.innerHTML='<div class="empty">讀取中…</div>';
+ try{
+  const today=typeof taipeiDate==='function'?taipeiDate():new Date().toISOString().slice(0,10);
+  const [a,b]=await Promise.all([sb.from('home_tasks').select('*').eq('is_completed',false).lte('due_date',today).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').eq('is_completed',true).order('completed_at',{ascending:false}).limit(100)]);
+  if(a.error)throw a.error;if(b.error)throw b.error;homeTasksV58=a.data||[];homeDoneV58=b.data||[];homeMsgV58('');homeRenderV58();
+ }catch(e){console.warn('首頁待辦讀取失敗：',e?.message||e);if(!homeTasksV58.length&&box)box.innerHTML='<div class="empty">首頁待辦尚未啟用，請先執行第58階段 SQL。</div>';homeMsgV58('待辦讀取失敗：'+(e?.message||e),true);}
+}
+async function homeCreateV58(){
+ if(!homeCanCreateV58())return alert('只有主管或管理員可以建立待辦');
+ const title=prompt('待辦內容');if(title===null)return;if(!title.trim())return alert('請輸入待辦內容');
+ const dept=prompt(`工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾`,'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuho'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
+ const def=typeof taipeiDate==='function'?taipeiDate():new Date().toISOString().slice(0,10);const due=prompt('顯示日期（YYYY-MM-DD）',def);if(due===null)return;if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
+ const note=prompt('備註（可留空）','');if(note===null)return;
+ try{const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)throw error;await homeLoadV58();}catch(e){alert('建立待辦失敗：'+(e?.message||e));}
+}
+async function homeCompleteV58(id,btn){
+ if(!currentUser)return;if(!confirm(`確定完成這項待辦？\n系統會記錄完成者與時間。`))return;btn.disabled=true;
+ try{const now=new Date().toISOString();const {error}=await sb.from('home_tasks').update({is_completed:true,completed_at:now,completed_by:currentUser.id,completed_by_name:currentProfile?.display_name||''}).eq('id',id).eq('is_completed',false);if(error)throw error;await homeLoadV58();}catch(e){alert('完成待辦失敗：'+(e?.message||e));btn.disabled=false;}
+}
+function homeInitV58(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn');if(add){add.style.display=homeCanCreateV58()?'inline-flex':'none';add.onclick=homeCreateV58;}if(tog)tog.onclick=()=>{const w=document.getElementById('homeDoneWrap');w.style.display=w.style.display==='none'?'block':'none';};homeLoadV58();}
+document.addEventListener('DOMContentLoaded',()=>setTimeout(homeInitV58,500));
+document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(homeLoadV58,0);});
+window.homeLoadV58=homeLoadV58;
+})();
+</script>\n
 <!-- 第48階段：開單／收銀＋現場回報版面壓縮；只顯示當日現場訊息；未修改登入/Auth核心 -->
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 </body></html>
