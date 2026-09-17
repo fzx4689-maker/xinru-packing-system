@@ -404,9 +404,9 @@ body.field-single-role .wrap{padding-top:8px}
     <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7">
       <button class="tab active" data-tab="home">🏠 首頁<div class="th">今日待辦</div></button>
-      <button class="tab" data-tab="sales">🧾 開單／收銀<span id="salesNoticeBadge" class="navNoticeBadge"></span><div class="th">開單・商品・庫存</div></button>
+      <button class="tab" data-tab="sales">🧾 開單／收銀<span id="salesNoticeBadge" class="navNoticeBadge"></span><div class="th">開單・現場・查詢</div></button>
       <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">做帳・收款・查帳</div></button>
-      <button class="tab" data-tab="procurement">🛒 叫貨／採購<span id="procurementNoticeBadge" class="navNoticeBadge"></span><div class="th">叫貨・到貨・現場回報</div></button>
+      <button class="tab" data-tab="procurement">📦 商品／庫存<span id="procurementNoticeBadge" class="navNoticeBadge"></span><div class="th">商品・進貨・庫存</div></button>
       <button class="tab" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
       <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">包裝作業</div></button>
       <button class="tab" data-tab="delivery">🚚 貨運中心<span id="deliveryNoticeBadge" class="navNoticeBadge"></span><div class="th">配送作業</div></button>
@@ -434,8 +434,6 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="helper">銷售工作區｜開單一次，後續銜接商品、庫存、包裝、貨運與帳務。</div>
         <div class="salesSubTabs" id="salesSubTabs">
           <button type="button" class="salesSubTab active" data-sales-view="quick">＋ 快速開單</button>
-          <button type="button" class="salesSubTab" data-sales-view="products">🏷️ 商品管理</button>
-          <button type="button" class="salesSubTab" data-sales-view="inventory">📊 庫存管理</button>
           <button type="button" class="salesSubTab" data-sales-view="field">📡 現場回報<span id="salesFieldBadge" class="navNoticeBadge"></span></button>
           <button type="button" class="salesSubTab" data-sales-view="query">🔎 訂單查詢</button>
         </div>
@@ -453,32 +451,37 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="quickOrderFooter"><div><b>合計：</b><span id="quickOrderTotal">$0</span></div><button type="button" id="quickOrderF2Btn" class="btn primary">F2 完成開單</button></div>
         <div id="quickOrderDonePanel" class="quickOrderDonePanel" style="display:none"><div><b>✅ 開單完成</b><div id="quickOrderDoneText" class="helper" style="margin-top:3px"></div></div><div class="actions" style="margin-top:8px;flex-wrap:wrap"><button type="button" id="quickDoneClose" class="btn gray">完成關閉</button><button type="button" id="quickDonePrint" class="btn blue">🖨️ 列印</button><button type="button" id="quickDoneLine" class="btn blue">💚 LINE帳單</button><button type="button" id="quickDoneCopy" class="btn blue">📋 複製帳單圖片</button></div></div>
       </div></div>
-      <div class="salesView" data-sales-panel="products"><div class="card"><h2>🏷️ 商品管理</h2><div class="helper">商品主檔只建一次，之後快速開單與庫存共用。</div><div class="productMasterForm"><input id="pmName" class="input" placeholder="商品名稱"><input id="pmSpec" class="input" placeholder="規格，例如20K"><select id="pmUnit" class="input"><option>件</option><option>公斤</option><option>台斤</option><option>包</option><option>顆</option><option>把</option></select><input id="pmPrice" class="input" type="number" min="0" step="0.01" placeholder="售價"><button id="pmAddBtn" type="button" class="btn primary">＋ 新增商品</button></div><div id="pmList" style="margin-top:12px"></div></div></div>
-      <div class="salesView" data-sales-panel="inventory"><div class="card"><h2>📊 庫存管理</h2><div class="helper">同一份共享庫存。快速開單 F2 後，已建立商品主檔的品項會自動扣庫存。</div><div id="inventoryList" style="margin-top:10px"></div></div></div>
       <div class="salesView" data-sales-panel="field"><div class="card"><h2>📡 現場回報</h2><div class="helper">新對話／待處理回報會同步顯示數字紅點。</div><div id="salesFieldMirror" style="margin-top:12px"></div></div></div>
       <div class="salesView" data-sales-panel="query"><div class="card"><h2>🔎 訂單查詢</h2><div class="helper">同一張訂單分成銷售部、包裝部、貨運部三種查看方式。</div><div class="actions" style="margin-top:12px;flex-wrap:wrap"><button type="button" class="btn blue" id="salesQuerySalesBtn">🧾 銷售部</button><button type="button" class="btn gray" id="salesQueryPackingBtn">📦 包裝部</button><button type="button" class="btn gray" id="salesQueryDeliveryBtn">🚚 貨運部</button></div><div id="salesQueryHint" class="salesPlaceholder" style="margin-top:12px">銷售部訂單明細將由新的銷售訂單資料接入；目前包裝／貨運歷史查詢維持原功能。</div></div></div>
     </section>
 
     <section id="procurement" class="panel">
       <div class="card procurementShell">
-        <h2>🛒 叫貨／採購</h2>
-        <div class="helper">櫃台採購工作區｜叫貨、到貨、庫存與現場回報集中處理；帳款不在這裡重複輸入。</div>
+        <h2>📦 商品／庫存</h2>
+        <div class="helper">管貨工作區｜商品建檔、庫存、產農入庫、採購、驗收入庫與進出紀錄集中在這裡。</div>
         <div class="procurementSubTabs" id="procurementSubTabs">
-          <button type="button" class="procSubTab active" data-proc-view="orders">📋 叫貨單</button>
-          <button type="button" class="procSubTab" data-proc-view="pending">🚚 待到貨</button>
-          <button type="button" class="procSubTab" data-proc-view="receiving">✅ 到貨驗收</button>
+          <button type="button" class="procSubTab active" data-proc-view="products">🏷️ 商品管理</button>
           <button type="button" class="procSubTab" data-proc-view="inventory">📦 庫存管理</button>
-          <button type="button" class="procSubTab" data-proc-view="field">📡 現場回報</button>
+          <button type="button" class="procSubTab" data-proc-view="farmer">🌱 產農入庫</button>
+          <button type="button" class="procSubTab" data-proc-view="orders">🛒 採購下單</button>
+          <button type="button" class="procSubTab" data-proc-view="pending">🚚 待到貨</button>
+          <button type="button" class="procSubTab" data-proc-view="receiving">✅ 入庫驗收</button>
           <button type="button" class="procSubTab" data-proc-view="returns">↩️ 退換貨／異常</button>
-          <button type="button" class="procSubTab" data-proc-view="history">📚 採購紀錄</button>
+          <button type="button" class="procSubTab" data-proc-view="history">📚 進出紀錄</button>
         </div>
       </div>
 
-      <div class="procurementView active" data-proc-panel="orders">
+      <div class="procurementView active" data-proc-panel="products">
+        <div class="card"><h2>🏷️ 商品管理</h2><div class="helper">商品主檔集中在這裡。下一階段再整理成正式商品建檔畫面。</div><div class="productMasterForm"><input id="pmName" class="input" placeholder="商品名稱"><input id="pmSpec" class="input" placeholder="規格，例如20K"><select id="pmUnit" class="input"><option>件</option><option>公斤</option><option>台斤</option><option>包</option><option>顆</option><option>把</option></select><input id="pmPrice" class="input" type="number" min="0" step="0.01" placeholder="售價"><button id="pmAddBtn" type="button" class="btn primary">＋ 新增商品</button></div><div id="pmList" style="margin-top:12px"></div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="farmer">
+        <div class="card"><h2>🌱 產農入庫</h2><div class="helper">產農送貨直接驗收後入庫；正式流程下一階段逐步建立。</div><div class="empty">產農入庫功能接下來建立</div></div>
+      </div>
+      <div class="procurementView" data-proc-panel="orders">
         <div class="card">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
-            <div><h2 style="margin-bottom:4px">📋 叫貨單</h2><div class="helper">建立超市、產農、廠商叫貨；一張叫貨單可輸入多個品項。</div></div>
-            <button type="button" class="btn primary" id="procNewOrderBtn">＋ 新增叫貨單</button>
+            <div><h2 style="margin-bottom:4px">🛒 採購下單</h2><div class="helper">向廠商／供應來源建立採購單；一張採購單可輸入多個品項。</div></div>
+            <button type="button" class="btn primary" id="procNewOrderBtn">＋ 新增採購單</button>
           </div>
           <div id="procOrderForm" style="display:none;margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px">
             <div class="procFormGrid">
@@ -494,27 +497,22 @@ body.field-single-role .wrap{padding-top:8px}
             <div class="actions" style="margin-top:12px"><button type="button" class="btn primary" id="procSaveOrderBtn">💾 建立叫貨單</button><button type="button" class="btn gray" id="procCancelOrderBtn">取消</button></div>
           </div>
         </div>
-        <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 style="margin:0">目前叫貨單</h2><button type="button" class="btn gray" id="procReloadBtn">↻ 更新</button></div><div id="procOrderList" style="margin-top:12px"><div class="empty">讀取中…</div></div></div>
+        <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 style="margin:0">目前採購單</h2><button type="button" class="btn gray" id="procReloadBtn">↻ 更新</button></div><div id="procOrderList" style="margin-top:12px"><div class="empty">讀取中…</div></div></div>
       </div>
       <div class="procurementView" data-proc-panel="pending">
         <div class="card"><h2>🚚 待到貨</h2><div class="helper">查看已叫貨、尚未完成到貨的品項。</div><div class="empty">待到貨功能接下來建立</div></div>
       </div>
       <div class="procurementView" data-proc-panel="receiving">
-        <div class="card"><h2>✅ 到貨驗收</h2><div class="helper">確認實際到貨數量與異常；完成驗收後再銜接庫存。</div><div class="empty">到貨驗收功能接下來建立</div></div>
+        <div class="card"><h2>✅ 入庫驗收</h2><div class="helper">核對實際到貨數量與單價；正式的「確認入庫 → 庫存＋帳務」流程後續逐步建立。</div><div class="empty">入庫驗收功能接下來建立</div></div>
       </div>
       <div class="procurementView" data-proc-panel="inventory">
-        <div class="card"><h2>📦 庫存管理</h2><div class="helper">庫存數量、入出庫、盤點與低庫存提醒集中在這裡。</div><div class="empty">庫存管理功能接下來建立</div></div>
-      </div>
-      <div class="procurementView" data-proc-panel="field">
-        <div class="card"><h2>⚠️ 缺貨／催貨</h2><div class="helper">包裝或司機回報後集中在這裡。無法確認到貨時間時，不需要填預計時間。</div><div id="shortageManageList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-        <div class="card"><h2>💬 現場詢問／📡 總部回應</h2><div class="helper">包裝或司機的問題集中在這裡；總部回應只回到原發問人的手機。</div><div id="fieldQuestionOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
-        <div class="card"><h2>📦 寄車公斤回報</h2><div class="helper">現場回報件數與公斤後，總部可直接查看總公斤。</div><div id="freightOfficeList" class="shortageList"><div class="empty">讀取中…</div></div></div>
+        <div class="card"><h2>📦 庫存管理</h2><div class="helper">目前先沿用既有共享庫存資料；正式入庫／出庫／盤點流程下一階段逐步整理。</div><div id="inventoryList" style="margin-top:10px"></div></div>
       </div>
       <div class="procurementView" data-proc-panel="returns">
         <div class="card"><h2>↩️ 退換貨／異常</h2><div class="helper">記錄到貨短少、品質異常、退貨與換貨處理。</div><div class="empty">退換貨／異常功能接下來建立</div></div>
       </div>
       <div class="procurementView" data-proc-panel="history">
-        <div class="card"><h2>📚 採購紀錄</h2><div class="helper">只查真正的叫貨、到貨、驗收、退換貨等採購紀錄；現場詢問、缺貨催貨對話、寄車公斤回報不放在這裡。</div><div class="empty">採購紀錄功能後續建立</div><div style="display:none"><input id="historyDate" type="date"><input id="historyKeyword"><select id="historyType"><option value="all">全部類型</option></select><div id="conversationHistoryList"></div></div></div>
+        <div class="card"><h2>📚 進出紀錄</h2><div class="helper">後續集中查採購、到貨、入庫、出庫、盤點與退換貨紀錄。</div><div class="empty">進出紀錄功能後續建立</div><div style="display:none"><input id="historyDate" type="date"><input id="historyKeyword"><select id="historyType"><option value="all">全部類型</option></select><div id="conversationHistoryList"></div></div></div>
       </div>
     </section>
 
@@ -2574,7 +2572,7 @@ window.XR_CORE_ARCHITECTURE = Object.freeze({
   // 七大主頁固定；庫存屬於叫貨／採購內的功能模組，不增加第八個日常主頁。
   mainPages: ['home','sales','accounting','purchasing','dispatch','packing','freight','tvwall'],
   modules: {
-    home: '首頁', sales: '開單／收銀', accounting: '帳務中心', purchasing: '叫貨／採購',
+    home: '首頁', sales: '開單／收銀', accounting: '帳務中心', purchasing: '商品／庫存',
     inventory: '庫存管理', dispatch: '派工', packing: '包裝部',
     freight: '貨運中心', tvwall: '電視牆', settings: '系統設定', hr: '人事管理'
   },
@@ -2936,13 +2934,13 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 <script>
 /* 第十七階段：頁面權限＋功能權限。獨立權限表，不修改登入/Auth 核心。 */
 const V17_PAGE_OPTIONS=[
- ['home','🏠 首頁'],['sales','🧾 開單／收銀'],['accounting','💰 帳務中心'],['procurement','🛒 叫貨／採購'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
+ ['home','🏠 首頁'],['sales','🧾 開單／收銀'],['accounting','💰 帳務中心'],['procurement','📦 商品／庫存'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
 ];
 const V17_FUNC_OPTIONS=[
  ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],
  ['packing.work','包裝｜勾選／回覆／完成'],['delivery.work','貨運｜配送作業'],
  ['accounting.entry','帳務｜登帳／收款'],['accounting.export','帳務｜匯出／列印'],
- ['procurement.work','叫貨｜採購作業']
+ ['procurement.work','商品｜庫存作業']
 ];
 let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
 const v17Has=(k)=>!v17Perm.configured||v17Perm.funcs.includes(k);
