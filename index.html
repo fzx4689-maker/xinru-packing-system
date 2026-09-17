@@ -680,6 +680,11 @@ body.field-single-role .wrap{padding-top:8px}
           <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
           <button id="refreshDeliveryBtn" type="button" class="btn gray">重新整理</button>
         </div>
+        <div class="deliveryLevelNav" id="deliveryLevelNav">
+          <button type="button" class="deliveryLevelBtn active" data-delivery-level="local"><b>🚚 西螺配送</b><span>POS／一般客戶配送・派單給現場司機</span></button>
+          <button type="button" class="deliveryLevelBtn" data-delivery-level="route"><b>🛣️ 北／南線出車</b><span>超市路線・以一次出車為單位</span></button>
+        </div>
+        <div class="deliveryLevelPanel active" data-delivery-level-panel="local">
         <div class="deliveryMobileTabs" aria-label="貨運中心手機功能">
           <button type="button" class="deliveryMobileTab" data-delivery-mobile="0">💬 現場詢問</button>
           <button type="button" class="deliveryMobileTab" data-delivery-mobile="1">📦 寄車收貨／回報公斤</button>
@@ -692,6 +697,15 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div id="driverFilters" class="driverFilters"></div>
         <div id="deliveryBody"></div>
+        </div>
+        <div class="deliveryLevelPanel" data-delivery-level-panel="route">
+          <div class="deliveryRouteShell">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">🛣️ 今日北／南線</h3><div class="helper" style="margin-top:4px">不預設出車時間；司機疊好貨、實際按出車後才記錄時間。</div></div></div>
+            <div class="deliveryRouteCard"><div class="routeTop"><div><div class="routeName">南線</div><div class="deliveryRouteStops">客戶訂單會隨當日開單持續累加，出車時才鎖定當次版本。</div></div><span class="badge wait">待集貨</span></div></div>
+            <div class="deliveryRouteCard"><div class="routeTop"><div><div class="routeName">北線</div><div class="deliveryRouteStops">點進路線後再看客戶；點客戶後才看完整貨品明細。</div></div><span class="badge wait">待集貨</span></div></div>
+            <div class="helper" style="margin-top:10px">此階段先完成貨運中心的多層級入口與三裝置版面；正式車趟、客戶累加、出車鎖單資料下一階段接入，避免改動既有正式配送資料。</div>
+          </div>
+        </div>
       </div>
 
     </section>
@@ -2347,6 +2361,18 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
   #sales .fieldReportThreeRows>.fieldReportRow>h3{font-size:16px!important;margin:0 0 7px!important;white-space:nowrap!important}
 }
 #procurementNoticeBadge{display:none!important}
+
+/* 第68階段：貨運中心多層級第一階段。只重整貨運入口，不動登入/Auth、派工、包裝、電視牆與既有配送資料流程。 */
+.deliveryLevelNav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0 16px}
+.deliveryLevelBtn{border:1px solid var(--line);background:#fff;border-radius:16px;padding:16px;text-align:left;cursor:pointer;font:inherit;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.deliveryLevelBtn b{display:block;font-size:18px;margin-bottom:4px}.deliveryLevelBtn span{font-size:12px;color:#667085;font-weight:700}
+.deliveryLevelBtn.active{background:#eaf4ff;border-color:#9dcfff;color:#185f96}
+.deliveryLevelPanel{display:none}.deliveryLevelPanel.active{display:block}
+.deliveryRouteShell{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fafbfc}
+.deliveryRouteCard{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;margin-top:10px}
+.deliveryRouteCard .routeTop{display:flex;justify-content:space-between;gap:10px;align-items:center}.deliveryRouteCard .routeName{font-size:18px;font-weight:900}
+.deliveryRouteStops{font-size:13px;color:#667085;margin-top:6px}
+@media(max-width:760px){.deliveryLevelNav{grid-template-columns:1fr 1fr;gap:7px}.deliveryLevelBtn{padding:11px 9px;border-radius:12px}.deliveryLevelBtn b{font-size:14px}.deliveryLevelBtn span{display:none}}
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
@@ -3276,6 +3302,15 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(homeInitV58,500));
 document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(homeLoadV58,0);});
 window.homeLoadV58=homeLoadV58;
 })();
+
+// 第68階段：貨運中心第一層切換（只切畫面，不改既有配送資料）。
+document.querySelectorAll('[data-delivery-level]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const level=btn.dataset.deliveryLevel;
+    document.querySelectorAll('[data-delivery-level]').forEach(x=>x.classList.toggle('active',x===btn));
+    document.querySelectorAll('[data-delivery-level-panel]').forEach(x=>x.classList.toggle('active',x.dataset.deliveryLevelPanel===level));
+  });
+});
 </script>\n
 <!-- 第48階段：開單／收銀＋現場回報版面壓縮；只顯示當日現場訊息；未修改登入/Auth核心 -->
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
