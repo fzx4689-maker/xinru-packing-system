@@ -388,21 +388,16 @@ body.field-single-role .wrap{padding-top:8px}
 #packing .packingQuickTools>.shortageQuick[open]>summary{width:100%;margin:8px 0;border-color:#b9c8da;background:#eef5ff}
 #packing .packingToolBody{margin-top:4px}
 #packing #packingOrders{margin-top:2px}
-@media(max-width:700px){#packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#packing .packingQuickTools>.shortageQuick>summary{width:100%;min-height:36px;padding:6px 5px;font-size:12px;white-space:normal;text-align:center}#packing .packingCompactHead h2{font-size:20px}}
-
-/* 第52階段：包裝部結構修正。三顆功能固定同排，展開內容統一滿版；不修改任何 JS。 */
-#packing .packingQuickTools{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;align-items:start!important}
-#packing .packingQuickTools>.shortageQuick{display:contents!important}
-#packing .packingQuickTools>.shortageQuick>summary{grid-row:1!important;min-width:0!important;width:100%!important;margin:0!important;box-sizing:border-box!important}
-#packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1!important;grid-row:2!important;margin:2px 0 0!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:10px!important;background:#fff!important;min-width:0!important}
-#packing .packingQuickTools>.shortageQuick[open]>summary{margin:0!important;border-color:#b9c8da!important;background:#eef5ff!important}
 @media(max-width:700px){
-  #packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important}
-  #packing .packingQuickTools>.shortageQuick>summary{min-height:34px!important;padding:5px 3px!important;font-size:11px!important;line-height:1.15!important;white-space:normal!important;text-align:center!important}
-  #packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1!important;width:auto!important;padding:9px 7px!important}
-  #packing .packingToolBody .shortageGrid{grid-template-columns:1fr!important}
-  #packing .packingToolBody .field,#packing .packingToolBody .shortageItem{grid-column:1/-1!important;min-width:0!important}
-  #packing .packingToolBody .input,#packing .packingToolBody .textarea,#packing .packingToolBody .btn{max-width:100%!important;box-sizing:border-box!important}
+#packing .packingQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;align-items:start}
+#packing .packingQuickTools>.shortageQuick{display:contents!important}
+#packing .packingQuickTools>.shortageQuick>summary{grid-row:1;width:100%;min-width:0;min-height:44px;padding:6px 4px;font-size:12px;white-space:normal;text-align:center;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb}
+#packing .packingQuickTools>.shortageQuick[open]>summary{margin:0!important;background:#eef5ff;border-color:#9eb8d8}
+#packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1;grid-row:2;width:100%;min-width:0;box-sizing:border-box;margin-top:4px;padding:10px;border:1px solid #d8dee7;border-radius:12px;background:#fff}
+#packing .packingQuickTools>.shortageQuick:not([open])>.packingToolBody{display:none!important}
+#packing .packingToolBody .shortageGrid{grid-template-columns:1fr!important}
+#packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn{max-width:none;width:100%;box-sizing:border-box}
+#packing .packingCompactHead h2{font-size:20px}
 }
 </style>
 
@@ -605,9 +600,9 @@ body.field-single-role .wrap{padding-top:8px}
       <div class="card packingMainCard">
         <div class="packingCompactHead"><h2>包裝部</h2></div>
         <div class="packingQuickTools">
-          <details class="shortageQuick" name="packingQuickTool"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick" name="packingQuickTool"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
-          <details class="shortageQuick" name="packingQuickTool"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
+          <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
+          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="packingOrders"></div>
       </div>
@@ -956,7 +951,11 @@ async function loadOrders(){
       playOrderSound(hasUrgent);
     }
   }
-  orders=fresh;$('#syncState').textContent='● 已連線｜即時同步中';renderAll();
+  const prevSnapshot=JSON.stringify(orders);
+  const nextSnapshot=JSON.stringify(fresh);
+  orders=fresh;$('#syncState').textContent='● 已連線｜即時同步中';
+  // 資料沒有變化時不要整頁重畫，避免手機每 10 秒畫面跳動、輸入框失焦。
+  if(prevSnapshot!==nextSnapshot)renderAll();
 }
 // 包裝回覆草稿：只要正在輸入或尚未儲存，包裝部就暫停整區重畫，避免手機游標/鍵盤跳掉。
 const packingReplyDirty=new Set();
@@ -2376,6 +2375,8 @@ function refreshSalesFieldMirror(){
   if(typeof loadStage9==='function')loadStage9();
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.fieldReportTab');if(!b)return;const view=b.dataset.fieldView;document.querySelectorAll('.fieldReportTab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.fieldReportPanel').forEach(x=>x.classList.toggle('active',x.dataset.fieldPanel===view));});
+// 第53階段：包裝部三個功能鍵一次只展開一個；只作用於包裝部，不碰登入/Auth。
+document.querySelectorAll('#packing .packingQuickTools > details.shortageQuick').forEach(d=>d.addEventListener('toggle',()=>{if(!d.open)return;document.querySelectorAll('#packing .packingQuickTools > details.shortageQuick').forEach(x=>{if(x!==d)x.open=false})}));
 document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQuerySalesBtn')?.addEventListener('click',()=>{const h=document.getElementById('salesQueryHint');if(h)h.textContent='銷售部訂單明細會接新的銷售訂單資料；目前不拿派工資料冒充銷售帳。'});
@@ -2945,7 +2946,7 @@ function updateStage9Badges(){
   const freightPending=freightGroups().filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed')).length;
   const shortageOpen=shortageReports.filter(x=>x.status!=='arrived').length;
   const salesFieldCount=shortageOpen+officeOpen+freightPending;
-  setShortageBadge('procurementNoticeBadge',salesFieldCount);
+  setShortageBadge('procurementNoticeBadge',0);
   setShortageBadge('salesNoticeBadge',salesFieldCount);
   setShortageBadge('salesFieldBadge',salesFieldCount);
   if(document.querySelector('[data-sales-panel="field"]')?.classList.contains('active'))refreshSalesFieldMirror();
