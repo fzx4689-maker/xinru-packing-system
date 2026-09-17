@@ -884,7 +884,7 @@ body.field-single-role .wrap{padding-top:8px}
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="packing" checked> 📦 包裝部</label>
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="driver"> 🚚 貨運</label>
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="accounting"> 💰 帳務區</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="liuho"> 🥬 六禾</label>
+          <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="liuhe"> 🥬 六禾</label>
         </div>
         <div class="helper" style="margin-top:8px"><b>額外加開功能</b>（不會改變職務，可不勾）</div>
         <div class="workRoles">
@@ -1790,7 +1790,7 @@ async function callEmployeeManager(action,payload={}){
   return result;
 }
 function setEmployeeMsg(msg='',ok=false){const el=$('#employeeMsg');el.textContent=msg;el.className='employeeMsg '+(msg?(ok?'ok':'err'):'');}
-const WORK_LABEL={stall:'總部',packing:'包裝部',driver:'貨運',accounting:'帳務區',liuho:'六禾'};
+const WORK_LABEL={stall:'總部',packing:'包裝部',driver:'貨運',accounting:'帳務區',liuhe:'六禾'};
 const FEATURE_LABEL={stall_order:'派工',packing:'包裝部',delivery:'貨運部',accounting:'帳務'};
 const NOTIFICATION_LABEL={packing:'包裝',delivery:'貨運',accounting:'帳務'};
 function featureBadges(list=[]){return list.length?list.map(r=>`<span class="miniRole">${FEATURE_LABEL[r]||r}</span>`).join(''):'<span class="meta">無額外功能</span>';}
@@ -1825,7 +1825,7 @@ function chooseWorkRoles(name,currentRoles=[],title='設定工作區',onConfirm=
     {value:'packing',label:'📦 包裝部'},
     {value:'driver',label:'🚚 貨運'},
     {value:'accounting',label:'💰 帳務區'},
-    {value:'liuho',label:'🥬 六禾'}
+    {value:'liuhe',label:'🥬 六禾'}
   ],true,onConfirm);
 }
 function chooseFeatures(name,currentFeatures=[],onConfirm=null){
@@ -2009,7 +2009,7 @@ $('#createEmployeeBtn').onclick=async()=>{
   if(!display_name||!login_name||!password){setEmployeeMsg('姓名、員工帳號、密碼都要填寫');return;}
   if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號請用英文字母、數字、點、底線或減號，2～30字');return;}
   const btn=$('#createEmployeeBtn');btn.disabled=true;btn.textContent='建立中…';
-  try{const core_work_roles=work_roles.filter(r=>r!=='liuho');const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles:core_work_roles,feature_permissions,notification_permissions});if(work_roles.includes('liuho')&&created?.user_id){await setEmployeeWorkRolesV32(created.user_id,work_roles);}$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='operator';$$('.new-work-role').forEach(x=>x.checked=['stall','packing'].includes(x.value));$$('.new-feature').forEach(x=>x.checked=false);$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
+  try{const core_work_roles=work_roles.filter(r=>r!=='liuhe');const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles:core_work_roles,feature_permissions,notification_permissions});if(work_roles.includes('liuhe')&&created?.user_id){await setEmployeeWorkRolesV32(created.user_id,work_roles);}$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='operator';$$('.new-work-role').forEach(x=>x.checked=['stall','packing'].includes(x.value));$$('.new-feature').forEach(x=>x.checked=false);$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
 };
 
 async function enforceActiveSession(){
@@ -3209,7 +3209,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 /* 第58階段：首頁待辦。主管/管理員建立；所有登入員工可完成；完成者與時間保留。 */
 (function(){
 let homeTasksV58=[],homeDoneV58=[];
-const homeDeptLabelsV58={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuho:'🥬 六禾'};
+const homeDeptLabelsV58={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
 function homeCanCreateV58(){return !!currentProfile && (currentProfile.role==='admin'||currentProfile.role==='operator');}
 function homeMsgV58(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
 function homeFmtV58(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
@@ -3230,7 +3230,7 @@ async function homeLoadV58(){
 async function homeCreateV58(){
  if(!homeCanCreateV58())return alert('只有主管或管理員可以建立待辦');
  const title=prompt('待辦內容');if(title===null)return;if(!title.trim())return alert('請輸入待辦內容');
- const dept=prompt(`工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾`,'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuho'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
+ const dept=prompt(`工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾`,'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
  const def=typeof taipeiDate==='function'?taipeiDate():new Date().toISOString().slice(0,10);const due=prompt('顯示日期（YYYY-MM-DD）',def);if(due===null)return;if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
  const note=prompt('備註（可留空）','');if(note===null)return;
  try{const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)throw error;await homeLoadV58();}catch(e){alert('建立待辦失敗：'+(e?.message||e));}
