@@ -389,6 +389,18 @@ body.field-single-role .wrap{padding-top:8px}
 #packing .packingToolBody{margin-top:4px}
 #packing #packingOrders{margin-top:2px}
 @media(max-width:700px){#packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#packing .packingQuickTools>.shortageQuick>summary{width:100%;min-height:36px;padding:6px 5px;font-size:12px;white-space:normal;text-align:center}#packing .packingCompactHead h2{font-size:20px}}
+
+/* 第49修正版：三顆按鈕永遠固定橫排；電腦內容左右、手機內容上下 */
+#packing .packingToolBar{display:grid;grid-template-columns:repeat(3,max-content);gap:8px;align-items:center;margin:0 0 8px}
+#packing .packingToolBtn{min-height:38px;padding:7px 13px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:14px;font-weight:900;cursor:pointer;white-space:nowrap}
+#packing .packingToolBtn.active{background:#eef5ff;border-color:#9dbce2;color:#173f67}
+#packing .packingToolPanels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start;margin-bottom:8px}
+#packing .packingToolPanel{display:none;border:1px solid #d8dee7;border-radius:12px;background:#fff;padding:10px;min-width:0}
+#packing .packingToolPanel.open{display:block}
+#packing .packingQuestionPanel{grid-column:1/-1}
+#packing .packingFreightPanel{grid-column:1}
+#packing .packingShortagePanel{grid-column:2}
+@media(max-width:700px){#packing .packingToolBar{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow:visible}#packing .packingToolBtn{width:100%;min-height:36px;padding:6px 4px;font-size:11px;white-space:normal;line-height:1.2}#packing .packingToolPanels{grid-template-columns:1fr}#packing .packingQuestionPanel,#packing .packingFreightPanel,#packing .packingShortagePanel{grid-column:1}}
 </style>
 
 
@@ -589,10 +601,15 @@ body.field-single-role .wrap{padding-top:8px}
     <section id="packing" class="panel packingCompactPanel">
       <div class="card packingMainCard">
         <div class="packingCompactHead"><h2>包裝部</h2></div>
-        <div class="packingQuickTools">
-          <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
-          <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
+        <div class="packingToolBar">
+          <button class="packingToolBtn" type="button" onclick="togglePackingTool('question',this)">💬 現場詢問</button>
+          <button class="packingToolBtn" type="button" onclick="togglePackingTool('freight',this)">📦 寄車收貨／回報公斤</button>
+          <button class="packingToolBtn" type="button" onclick="togglePackingTool('shortage',this)">⚠️ 缺貨回報／催貨</button>
+        </div>
+        <div class="packingToolPanels">
+          <div class="packingToolPanel packingQuestionPanel" data-packing-tool="question"><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></div>
+          <div class="packingToolPanel packingFreightPanel" data-packing-tool="freight"><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></div>
+          <div class="packingToolPanel packingShortagePanel" data-packing-tool="shortage"><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></div>
         </div>
         <div id="packingOrders"></div>
       </div>
@@ -2237,6 +2254,16 @@ function acctDownload(blob,name){const a=document.createElement('a');a.href=URL.
 function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
 $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
+
+<script>
+window.togglePackingTool=function(name,btn){
+  const panel=document.querySelector('#packing [data-packing-tool="'+name+'"]');
+  if(!panel)return;
+  const willOpen=!panel.classList.contains('open');
+  panel.classList.toggle('open',willOpen);
+  if(btn)btn.classList.toggle('active',willOpen);
+};
+</script>
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
