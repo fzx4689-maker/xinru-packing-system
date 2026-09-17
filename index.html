@@ -3236,7 +3236,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 
 </script>
 \n<script>
-/* 第65階段：首頁待辦沿用第58階段規則；完成紀錄增加日期/工作區/完成者/內容查詢。無週期選項。 */
+/* 第67階段：修復首頁新增待辦日期驗證。原第65版正規表示式多了一層跳脫，導致任何 YYYY-MM-DD 都被判定錯誤。其餘待辦規則不變。 */
 (function(){
 let homeTasksV58=[],homeDoneV58=[];
 const homeDeptLabelsV58={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
@@ -3263,7 +3263,7 @@ async function homeCreateV58(){
  if(!homeCanCreateV58())return alert('只有主管或管理員可以建立待辦');
  const title=prompt('待辦內容');if(title===null)return;if(!title.trim())return alert('請輸入待辦內容');
  const dept=prompt(`工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾`,'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
- const def=typeof taipeiDate==='function'?taipeiDate():new Date().toISOString().slice(0,10);const due=prompt('顯示日期（YYYY-MM-DD）',def);if(due===null)return;if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
+ const def=typeof taipeiDate==='function'?taipeiDate():new Date().toISOString().slice(0,10);const due=prompt('顯示日期（YYYY-MM-DD）',def);if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
  const note=prompt('備註（可留空）','');if(note===null)return;
  try{const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)throw error;await homeLoadV58();}catch(e){alert('建立待辦失敗：'+(e?.message||e));}
 }
