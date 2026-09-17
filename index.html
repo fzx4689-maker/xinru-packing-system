@@ -390,17 +390,19 @@ body.field-single-role .wrap{padding-top:8px}
 #packing #packingOrders{margin-top:2px}
 @media(max-width:700px){#packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#packing .packingQuickTools>.shortageQuick>summary{width:100%;min-height:36px;padding:6px 5px;font-size:12px;white-space:normal;text-align:center}#packing .packingCompactHead h2{font-size:20px}}
 
-/* 第51階段：包裝部手機版－按鈕固定橫排，內容一次一個並滿版 */
+/* 第52階段：包裝部結構修正。三顆功能固定同排，展開內容統一滿版；不修改任何 JS。 */
+#packing .packingQuickTools{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;align-items:start!important}
+#packing .packingQuickTools>.shortageQuick{display:contents!important}
+#packing .packingQuickTools>.shortageQuick>summary{grid-row:1!important;min-width:0!important;width:100%!important;margin:0!important;box-sizing:border-box!important}
+#packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1!important;grid-row:2!important;margin:2px 0 0!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:10px!important;background:#fff!important;min-width:0!important}
+#packing .packingQuickTools>.shortageQuick[open]>summary{margin:0!important;border-color:#b9c8da!important;background:#eef5ff!important}
 @media(max-width:700px){
-  #packing .packingQuickTools{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;align-items:start!important}
-  #packing .packingQuickTools>.shortageQuick{display:contents!important}
-  #packing .packingQuickTools>.shortageQuick>summary{grid-row:1!important;width:100%!important;min-width:0!important;min-height:40px!important;padding:6px 4px!important;font-size:11px!important;line-height:1.25!important;white-space:normal!important;text-align:center!important}
-  #packing .packingQuickTools>.shortageQuick:nth-child(1)>summary{grid-column:1!important}
-  #packing .packingQuickTools>.shortageQuick:nth-child(2)>summary{grid-column:2!important}
-  #packing .packingQuickTools>.shortageQuick:nth-child(3)>summary{grid-column:3!important}
-  #packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1!important;grid-row:2!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;margin-top:5px!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:10px!important;background:#fff!important}
+  #packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important}
+  #packing .packingQuickTools>.shortageQuick>summary{min-height:34px!important;padding:5px 3px!important;font-size:11px!important;line-height:1.15!important;white-space:normal!important;text-align:center!important}
+  #packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1!important;width:auto!important;padding:9px 7px!important}
   #packing .packingToolBody .shortageGrid{grid-template-columns:1fr!important}
-  #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody button{min-width:0;max-width:100%}
+  #packing .packingToolBody .field,#packing .packingToolBody .shortageItem{grid-column:1/-1!important;min-width:0!important}
+  #packing .packingToolBody .input,#packing .packingToolBody .textarea,#packing .packingToolBody .btn{max-width:100%!important;box-sizing:border-box!important}
 }
 </style>
 
