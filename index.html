@@ -440,7 +440,17 @@ body.field-single-role .wrap{padding-top:8px}
           <button type="button" class="salesSubTab" data-sales-view="query">🔎 訂單查詢</button>
         </div>
       </div>
-      <div class="salesView active" data-sales-panel="quick"><div class="card"><h2>＋ 快速開單</h2><div class="salesPlaceholder"><b>快速開單工作區已建立</b><div class="helper" style="margin-top:6px">下一步接：客戶、貨運／配送、大文字框、每品項包裝選項、F2 完成。</div></div></div></div>
+      <div class="salesView active" data-sales-panel="quick"><div class="card"><h2>＋ 快速開單</h2>
+        <div class="quickOrderTop">
+          <div class="field"><label class="label">客戶</label><input id="quickOrderCustomer" class="input" list="quickOrderCustomerList" autocomplete="off" placeholder="輸入或選擇客戶"><datalist id="quickOrderCustomerList"></datalist></div>
+          <div class="field"><label class="label">配送方式</label><select id="quickOrderDelivery" class="input"><option value="自取">自取</option><option value="欣儒配送">欣儒配送</option><option value="寄車">寄車</option><option value="其他">其他</option></select></div>
+          <div class="field"><label class="label">配送／交代</label><input id="quickOrderNote" class="input" autocomplete="off" placeholder="例如：送二下"></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label class="label">快速輸入</label><textarea id="quickOrderText" class="input quickOrderText" rows="7" placeholder="一行一個商品，例如：&#10;20K青江2*800&#10;18K花瓜特1*700"></textarea></div>
+        <div class="actions" style="margin-top:8px"><button type="button" id="quickOrderParseBtn" class="btn blue">解析商品</button><span class="helper">先確認解析結果，再按 F2 完成開單。</span></div>
+        <div id="quickOrderParsed" style="margin-top:10px"><div class="empty">尚未解析商品</div></div>
+        <div class="quickOrderFooter"><div><b>合計：</b><span id="quickOrderTotal">$0</span></div><button type="button" id="quickOrderF2Btn" class="btn primary">F2 完成開單</button></div>
+      </div></div>
       <div class="salesView" data-sales-panel="products"><div class="card"><h2>🏷️ 商品管理</h2><div class="salesPlaceholder">商品名稱、規格、單位、售價將共用同一份商品主檔。</div></div></div>
       <div class="salesView" data-sales-panel="inventory"><div class="card"><h2>📊 庫存管理</h2><div class="salesPlaceholder">此入口預留連到同一套共享庫存，不建立第二份庫存資料。</div></div></div>
       <div class="salesView" data-sales-panel="field"><div class="card"><h2>📡 現場回報</h2><div class="helper">新對話／待處理回報會同步顯示數字紅點。</div><div id="salesFieldMirror" style="margin-top:12px"></div></div></div>
@@ -2201,7 +2211,10 @@ function acctDownload(blob,name){const a=document.createElement('a');a.href=URL.
 function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
 $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
-function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
+function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
+/* 第42階段：快速開單 */
+.quickOrderTop{display:grid;grid-template-columns:1.1fr .8fr 1.4fr;gap:8px}.quickOrderText{min-height:150px;resize:vertical;font-size:18px;line-height:1.55}.quickOrderTable{width:100%;border-collapse:collapse}.quickOrderTable th,.quickOrderTable td{border-bottom:1px solid #e3e8ef;padding:8px 6px;text-align:left}.quickOrderTable th{font-size:13px;color:#536273}.quickOrderTable input[type=checkbox]{width:20px;height:20px}.quickOrderBad{background:#fff2f2;color:#b42318;border:1px solid #ffc9c9;border-radius:8px;padding:9px;margin:5px 0}.quickOrderFooter{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:12px;font-size:20px}.quickOrderFooter #quickOrderTotal{font-weight:900;color:#1458b0}@media(max-width:760px){.quickOrderTop{grid-template-columns:1fr 1fr}.quickOrderTop .field:last-child{grid-column:1/-1}.quickOrderText{min-height:180px}.quickOrderTable{font-size:13px}.quickOrderTable th,.quickOrderTable td{padding:7px 3px}.quickOrderFooter{position:sticky;bottom:0;background:#fff;padding:9px 0;z-index:3}}
+</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
 <div id="iosPullRefresh" style="position:fixed;left:50%;top:8px;transform:translate(-50%,-70px);z-index:99999;background:#fff;border:1px solid #dbe2ea;border-radius:999px;padding:8px 14px;box-shadow:0 4px 18px #0002;font-weight:900;transition:transform .16s ease;pointer-events:none">↓ 下拉更新</div>
@@ -2300,6 +2313,7 @@ function setSalesView(view='quick'){
   document.querySelectorAll('.salesSubTab').forEach(b=>b.classList.toggle('active',b.dataset.salesView===view));
   document.querySelectorAll('.salesView').forEach(p=>p.classList.toggle('active',p.dataset.salesPanel===view));
   if(view==='field')refreshSalesFieldMirror();
+  if(view==='quick')quickOrderSyncCustomers();
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.salesSubTab');if(b)setSalesView(b.dataset.salesView)});
 function refreshSalesFieldMirror(){
@@ -2312,6 +2326,40 @@ function refreshSalesFieldMirror(){
 document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQuerySalesBtn')?.addEventListener('click',()=>{const h=document.getElementById('salesQueryHint');if(h)h.textContent='銷售部訂單明細會接新的銷售訂單資料；目前不拿派工資料冒充銷售帳。'});
+
+// 第42階段：快速開單（先建立銷售訂單，不接帳務／庫存／包裝／貨運寫入）。
+let quickOrderItems=[];
+function quickOrderEsc(v){return String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]))}
+function quickOrderSyncCustomers(){const src=document.getElementById('acctCustomerList'),dst=document.getElementById('quickOrderCustomerList');if(src&&dst)dst.innerHTML=src.innerHTML}
+function quickOrderParseLine(line){
+  const raw=String(line||'').trim();if(!raw)return null;
+  const m=raw.match(/^(.+?)(\d+(?:\.\d+)?)\s*[\*xX×]\s*(\d+(?:\.\d+)?)\s*$/);
+  if(!m)return {raw,error:'格式無法辨識，請用「商品數量*單價」'};
+  const name=m[1].trim(),qty=Number(m[2]),price=Number(m[3]);
+  if(!name||!(qty>0)||!Number.isFinite(price))return {raw,error:'商品、數量或單價不正確'};
+  return {raw,name,qty,price,amount:qty*price,packing:false};
+}
+function quickOrderRender(){
+  const box=document.getElementById('quickOrderParsed'),totalEl=document.getElementById('quickOrderTotal');if(!box)return;
+  if(!quickOrderItems.length){box.innerHTML='<div class="empty">尚未解析商品</div>';if(totalEl)totalEl.textContent='$0';return}
+  const good=quickOrderItems.filter(x=>!x.error),bad=quickOrderItems.filter(x=>x.error);
+  let html='';if(good.length)html='<table class="quickOrderTable"><thead><tr><th>品名</th><th>數量</th><th>單價</th><th>金額</th><th>包裝</th></tr></thead><tbody>'+good.map((x,i)=>`<tr><td><b>${quickOrderEsc(x.name)}</b></td><td>${x.qty}</td><td>$${x.price.toLocaleString()}</td><td>$${x.amount.toLocaleString()}</td><td><input type="checkbox" data-qpack="${quickOrderItems.indexOf(x)}" ${x.packing?'checked':''}></td></tr>`).join('')+'</tbody></table>';
+  html+=bad.map(x=>`<div class="quickOrderBad"><b>${quickOrderEsc(x.raw)}</b><br>${quickOrderEsc(x.error)}</div>`).join('');box.innerHTML=html;
+  const total=good.reduce((n,x)=>n+x.amount,0);if(totalEl)totalEl.textContent='$'+total.toLocaleString();
+}
+function quickOrderParse(){const text=document.getElementById('quickOrderText')?.value||'';quickOrderItems=text.split(/\r?\n/).map(quickOrderParseLine).filter(Boolean);quickOrderRender()}
+document.getElementById('quickOrderParseBtn')?.addEventListener('click',quickOrderParse);
+document.getElementById('quickOrderParsed')?.addEventListener('change',e=>{const i=Number(e.target?.dataset?.qpack);if(Number.isInteger(i)&&quickOrderItems[i])quickOrderItems[i].packing=!!e.target.checked});
+document.getElementById('quickOrderF2Btn')?.addEventListener('click',()=>{
+  const customer=document.getElementById('quickOrderCustomer')?.value.trim()||'';if(!customer){alert('請先輸入客戶');return}
+  quickOrderParse();if(!quickOrderItems.length){alert('請先輸入商品');return}if(quickOrderItems.some(x=>x.error)){alert('有商品格式無法辨識，請先修正紅色項目');return}
+  const order={id:'SO'+Date.now(),created_at:new Date().toISOString(),customer,delivery:document.getElementById('quickOrderDelivery')?.value||'',note:document.getElementById('quickOrderNote')?.value.trim()||'',items:quickOrderItems.map(x=>({...x})),total:quickOrderItems.reduce((n,x)=>n+x.amount,0),created_by:(currentProfile?.nickname||currentProfile?.display_name||'')};
+  const rows=JSON.parse(localStorage.getItem('xinru_sales_orders_v42')||'[]');rows.unshift(order);localStorage.setItem('xinru_sales_orders_v42',JSON.stringify(rows.slice(0,500)));
+  alert(`開單完成\n${customer}\n合計 $${order.total.toLocaleString()}\n\n本階段先建立銷售訂單；帳務、庫存、包裝、貨運會在後續階段接入。`);
+  document.getElementById('quickOrderText').value='';document.getElementById('quickOrderNote').value='';quickOrderItems=[];quickOrderRender();
+});
+document.addEventListener('keydown',e=>{if(e.key==='F2'&&activeTab==='sales'&&document.querySelector('[data-sales-panel="quick"]')?.classList.contains('active')){e.preventDefault();document.getElementById('quickOrderF2Btn')?.click()}});
+setTimeout(quickOrderSyncCustomers,800);
 
 // 帳務中心第二層切換：桌機分頁／手機三入口共用
 document.addEventListener('click', function(e){
