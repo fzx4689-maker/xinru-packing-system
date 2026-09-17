@@ -366,6 +366,10 @@ body.field-single-role .wrap{padding-top:8px}
 [data-acct-page-panel="quick"] .acctProductRow,[data-acct-page-panel="quick"] .acctBasketFixedRow{grid-template-columns:minmax(220px,2fr) 90px 100px 120px 48px!important;gap:7px;align-items:end}
 [data-acct-page-panel="quick"] .acctBasketFixedRow{margin-top:5px}
 @media(max-width:700px){[data-acct-page-panel="quick"] .acctProductRow,[data-acct-page-panel="quick"] .acctBasketFixedRow{grid-template-columns:1.5fr .7fr .8fr .9fr 44px!important}}
+
+/* 第39階段：開單／收銀工作區。獨立新增，不修改登入/Auth與既有派工、包裝、貨運流程。 */
+.salesSubTabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.salesSubTab{border:1px solid #d6dde6;background:#fff;border-radius:10px;padding:10px 12px;font-weight:900;cursor:pointer}.salesSubTab.active{background:#1f6feb;color:#fff;border-color:#1f6feb}.salesView{display:none}.salesView.active{display:block}.salesMenuGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.salesPlaceholder{padding:18px;border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc}.navNoticeBadge{margin-left:4px}
+@media(max-width:700px){.salesSubTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.salesSubTab{padding:10px 6px}.salesMenuGrid{grid-template-columns:1fr}}
 </style>
 
 
@@ -399,6 +403,7 @@ body.field-single-role .wrap{padding-top:8px}
     <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7">
       <button class="tab active" data-tab="home">🏠 首頁<div class="th">今日待辦</div></button>
+      <button class="tab" data-tab="sales">🧾 開單／收銀<span id="salesNoticeBadge" class="navNoticeBadge"></span><div class="th">開單・商品・庫存</div></button>
       <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">做帳・收款・查帳</div></button>
       <button class="tab" data-tab="procurement">🛒 叫貨／採購<span id="procurementNoticeBadge" class="navNoticeBadge"></span><div class="th">叫貨・到貨・現場回報</div></button>
       <button class="tab" data-tab="stall">📋 派工<div class="th">建立作業</div></button>
@@ -420,6 +425,25 @@ body.field-single-role .wrap{padding-top:8px}
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">今天尚無交代事項</div></div>
         <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button></div>
       </div>
+    </section>
+
+    <section id="sales" class="panel">
+      <div class="card">
+        <h2>🧾 開單／收銀</h2>
+        <div class="helper">銷售工作區｜開單一次，後續銜接商品、庫存、包裝、貨運與帳務。</div>
+        <div class="salesSubTabs" id="salesSubTabs">
+          <button type="button" class="salesSubTab active" data-sales-view="quick">＋ 快速開單</button>
+          <button type="button" class="salesSubTab" data-sales-view="products">🏷️ 商品管理</button>
+          <button type="button" class="salesSubTab" data-sales-view="inventory">📊 庫存管理</button>
+          <button type="button" class="salesSubTab" data-sales-view="field">📡 現場回報<span id="salesFieldBadge" class="navNoticeBadge"></span></button>
+          <button type="button" class="salesSubTab" data-sales-view="query">🔎 訂單查詢</button>
+        </div>
+      </div>
+      <div class="salesView active" data-sales-panel="quick"><div class="card"><h2>＋ 快速開單</h2><div class="salesPlaceholder"><b>快速開單工作區已建立</b><div class="helper" style="margin-top:6px">下一步接：客戶、貨運／配送、大文字框、每品項包裝選項、F2 完成。</div></div></div></div>
+      <div class="salesView" data-sales-panel="products"><div class="card"><h2>🏷️ 商品管理</h2><div class="salesPlaceholder">商品名稱、規格、單位、售價將共用同一份商品主檔。</div></div></div>
+      <div class="salesView" data-sales-panel="inventory"><div class="card"><h2>📊 庫存管理</h2><div class="salesPlaceholder">此入口預留連到同一套共享庫存，不建立第二份庫存資料。</div></div></div>
+      <div class="salesView" data-sales-panel="field"><div class="card"><h2>📡 現場回報</h2><div class="helper">新對話／待處理回報會同步顯示數字紅點。</div><div id="salesFieldMirror" style="margin-top:12px"></div></div></div>
+      <div class="salesView" data-sales-panel="query"><div class="card"><h2>🔎 訂單查詢</h2><div class="helper">同一張訂單分成銷售部、包裝部、貨運部三種查看方式。</div><div class="actions" style="margin-top:12px;flex-wrap:wrap"><button type="button" class="btn blue" id="salesQuerySalesBtn">🧾 銷售部</button><button type="button" class="btn gray" id="salesQueryPackingBtn">📦 包裝部</button><button type="button" class="btn gray" id="salesQueryDeliveryBtn">🚚 貨運部</button></div><div id="salesQueryHint" class="salesPlaceholder" style="margin-top:12px">銷售部訂單明細將由新的銷售訂單資料接入；目前包裝／貨運歷史查詢維持原功能。</div></div></div>
     </section>
 
     <section id="procurement" class="panel">
@@ -907,6 +931,7 @@ function canSeeTab(tab){
   if(isPackingOnly())return tab==='packing';
   if(isDriverOnly())return tab==='delivery';
   if(tab==='home'||tab==='wall'||tab==='today')return true; // 一般辦公室角色保留共用查看頁
+  if(tab==='sales')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
   if(tab==='procurement')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
   if(tab==='stall')return hasWorkRole('stall')||hasFeature('stall_order');
   if(tab==='packing')return hasWorkRole('packing')||hasFeature('packing');
@@ -914,7 +939,7 @@ function canSeeTab(tab){
   if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
   return false;
 }
-function firstVisibleTab(){if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
+function firstVisibleTab(){if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
   document.body.classList.toggle('field-single-role',isPackingOnly()||isDriverOnly());
@@ -1305,7 +1330,7 @@ window.openEdit=id=>{if(!requireStallWork())return;const o=orders.find(x=>x.id==
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
 $('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent,...actorFields('updated')}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;$('#editModal').classList.remove('show');await loadOrders();alert('訂單已修改');}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
-const VALID_TABS=['home','accounting','procurement','stall','packing','delivery','wall','today'];
+const VALID_TABS=['home','sales','accounting','procurement','stall','packing','delivery','wall','today'];
 function activateTab(tabName,{save=true}={}){
   if(!VALID_TABS.includes(tabName))tabName='home';
   // 訂單查詢每次進入都預設為台灣當天日期；使用者仍可手動改查歷史日期。
@@ -1342,7 +1367,7 @@ $('#stallManageModeBtn')?.addEventListener('click',()=>setStallMode('manage'));
 $('#stallQueryModeBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
 setStallMode('create');
 $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
-$('#homeOrderQueryBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
+$('#homeOrderQueryBtn')?.addEventListener('click',()=>{activateTab('sales',{save:true});setSalesView('query')});
 function getRememberedTab(){
   const hashTab=(location.hash||'').replace(/^#/,'');
   if(VALID_TABS.includes(hashTab)) return hashTab;
@@ -1738,9 +1763,9 @@ async function applyMergedJobPermissionTemplates(userId,jobTitles){
 const PAY_TYPE_LABEL={monthly:'月薪',daily:'日薪',hourly:'時薪',per_trip:'按趟',piece:'計件',other:'其他'};
 /* 第二十一階段：職位預設權限模板。只在修改職位時套用；套用後仍可個別調整。 */
 const JOB_PERMISSION_TEMPLATE={
- owner:{pages:['home','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.create','order.edit','packing.work','delivery.work','accounting.entry','accounting.export','procurement.work'],notify:['packing','delivery','accounting']},
- supervisor:{pages:['home','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.create','order.edit','packing.work','delivery.work','accounting.entry','accounting.export','procurement.work'],notify:['packing','delivery','accounting']},
- counter:{pages:['home','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.create','order.edit','accounting.entry','accounting.export','procurement.work'],notify:['packing','delivery','accounting']},
+ owner:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.create','order.edit','packing.work','delivery.work','accounting.entry','accounting.export','procurement.work'],notify:['packing','delivery','accounting']},
+ supervisor:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.create','order.edit','packing.work','delivery.work','accounting.entry','accounting.export','procurement.work'],notify:['packing','delivery','accounting']},
+ counter:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.create','order.edit','accounting.entry','accounting.export','procurement.work'],notify:['packing','delivery','accounting']},
  packing:{pages:['home','packing','wall'],funcs:['packing.work'],notify:['packing']},
  driver:{pages:['home','delivery','wall'],funcs:['delivery.work'],notify:['delivery']},
  temporary:{pages:['home'],funcs:[],notify:[]},
@@ -2249,6 +2274,24 @@ document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visib
 window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery();loadAccountingCloud();enforceActiveSession();}});
 
 
+// 第39階段：開單／收銀子頁切換。
+function setSalesView(view='quick'){
+  document.querySelectorAll('.salesSubTab').forEach(b=>b.classList.toggle('active',b.dataset.salesView===view));
+  document.querySelectorAll('.salesView').forEach(p=>p.classList.toggle('active',p.dataset.salesPanel===view));
+  if(view==='field')refreshSalesFieldMirror();
+}
+document.addEventListener('click',e=>{const b=e.target.closest('.salesSubTab');if(b)setSalesView(b.dataset.salesView)});
+function refreshSalesFieldMirror(){
+  const out=document.getElementById('salesFieldMirror');if(!out)return;
+  const src=document.querySelector('[data-proc-panel="field"]');
+  if(!src){out.innerHTML='<div class="empty">現場回報讀取中…</div>';return}
+  out.innerHTML=src.innerHTML;
+  out.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+}
+document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
+document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
+document.getElementById('salesQuerySalesBtn')?.addEventListener('click',()=>{const h=document.getElementById('salesQueryHint');if(h)h.textContent='銷售部訂單明細會接新的銷售訂單資料；目前不拿派工資料冒充銷售帳。'});
+
 // 帳務中心第二層切換：桌機分頁／手機三入口共用
 document.addEventListener('click', function(e){
   const groupBtn=e.target.closest('.acctMobileGroupBtn');
@@ -2350,9 +2393,9 @@ window.XR_CORE_ARCHITECTURE = Object.freeze({
   jobRoles: ['admin','supervisor','office','packing','driver','partner_driver'],
 
   // 七大主頁固定；庫存屬於叫貨／採購內的功能模組，不增加第八個日常主頁。
-  mainPages: ['home','accounting','purchasing','dispatch','packing','freight','tvwall'],
+  mainPages: ['home','sales','accounting','purchasing','dispatch','packing','freight','tvwall'],
   modules: {
-    home: '首頁', accounting: '帳務中心', purchasing: '叫貨／採購',
+    home: '首頁', sales: '開單／收銀', accounting: '帳務中心', purchasing: '叫貨／採購',
     inventory: '庫存管理', dispatch: '派工', packing: '包裝部',
     freight: '貨運中心', tvwall: '電視牆', settings: '系統設定', hr: '人事管理'
   },
@@ -2688,7 +2731,11 @@ function updateStage9Badges(){
   const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;
   const freightPending=freightGroups().filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed')).length;
   const shortageOpen=shortageReports.filter(x=>x.status!=='arrived').length;
-  setShortageBadge('procurementNoticeBadge',shortageOpen+officeOpen+freightPending);
+  const salesFieldCount=shortageOpen+officeOpen+freightPending;
+  setShortageBadge('procurementNoticeBadge',salesFieldCount);
+  setShortageBadge('salesNoticeBadge',salesFieldCount);
+  setShortageBadge('salesFieldBadge',salesFieldCount);
+  if(document.querySelector('[data-sales-panel="field"]')?.classList.contains('active'))refreshSalesFieldMirror();
   setShortageBadge('packingNoticeBadge',mine('packing'));
   setShortageBadge('deliveryNoticeBadge',mine('delivery'));
 }
@@ -2710,7 +2757,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 <script>
 /* 第十七階段：頁面權限＋功能權限。獨立權限表，不修改登入/Auth 核心。 */
 const V17_PAGE_OPTIONS=[
- ['home','🏠 首頁'],['accounting','💰 帳務中心'],['procurement','🛒 叫貨／採購'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
+ ['home','🏠 首頁'],['sales','🧾 開單／收銀'],['accounting','💰 帳務中心'],['procurement','🛒 叫貨／採購'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
 ];
 const V17_FUNC_OPTIONS=[
  ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],
@@ -2820,4 +2867,5 @@ function initProcurementV30(){const d=document.getElementById('procOrderDate');i
 document.addEventListener('DOMContentLoaded',initProcurementV30);
 
 </script>
+<!-- 第39階段：開單／收銀骨架＋現場回報雙層紅點；未修改登入/Auth核心 -->
 </body></html>
