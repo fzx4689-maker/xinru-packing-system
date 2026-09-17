@@ -389,6 +389,19 @@ body.field-single-role .wrap{padding-top:8px}
 #packing .packingToolBody{margin-top:4px}
 #packing #packingOrders{margin-top:2px}
 @media(max-width:700px){#packing .packingQuickTools{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#packing .packingQuickTools>.shortageQuick>summary{width:100%;min-height:36px;padding:6px 5px;font-size:12px;white-space:normal;text-align:center}#packing .packingCompactHead h2{font-size:20px}}
+
+/* 第51階段：包裝部手機版－按鈕固定橫排，內容一次一個並滿版 */
+@media(max-width:700px){
+  #packing .packingQuickTools{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;align-items:start!important}
+  #packing .packingQuickTools>.shortageQuick{display:contents!important}
+  #packing .packingQuickTools>.shortageQuick>summary{grid-row:1!important;width:100%!important;min-width:0!important;min-height:40px!important;padding:6px 4px!important;font-size:11px!important;line-height:1.25!important;white-space:normal!important;text-align:center!important}
+  #packing .packingQuickTools>.shortageQuick:nth-child(1)>summary{grid-column:1!important}
+  #packing .packingQuickTools>.shortageQuick:nth-child(2)>summary{grid-column:2!important}
+  #packing .packingQuickTools>.shortageQuick:nth-child(3)>summary{grid-column:3!important}
+  #packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1!important;grid-row:2!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;margin-top:5px!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:10px!important;background:#fff!important}
+  #packing .packingToolBody .shortageGrid{grid-template-columns:1fr!important}
+  #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody button{min-width:0;max-width:100%}
+}
 </style>
 
 
@@ -590,9 +603,9 @@ body.field-single-role .wrap{padding-top:8px}
       <div class="card packingMainCard">
         <div class="packingCompactHead"><h2>包裝部</h2></div>
         <div class="packingQuickTools">
-          <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
-          <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
+          <details class="shortageQuick" name="packingQuickTool"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
+          <details class="shortageQuick" name="packingQuickTool"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick" name="packingQuickTool"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="packingOrders"></div>
       </div>
