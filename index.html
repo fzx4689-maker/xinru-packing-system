@@ -1076,10 +1076,13 @@ async function loadOrders(){
   }
   const prevSnapshot=JSON.stringify(orders);
   const nextSnapshot=JSON.stringify(fresh);
+  const prevNoticeSnapshot=JSON.stringify(packingChangeNotices);
   orders=fresh;$('#syncState').textContent='● 已連線｜即時同步中';
   await loadPackingChangeNotices();
-  // 資料沒有變化時不要整頁重畫，避免手機每 10 秒畫面跳動、輸入框失焦。
+  const nextNoticeSnapshot=JSON.stringify(packingChangeNotices);
+  // 訂單內容有變才重畫全部；若只有「修改提醒」晚一步寫入，只重畫包裝部，避免提醒被漏掉。
   if(prevSnapshot!==nextSnapshot)renderAll();
+  else if(prevNoticeSnapshot!==nextNoticeSnapshot && !isEditingPackingReply())renderPacking();
 }
 // 包裝回覆草稿：只要正在輸入或尚未儲存，包裝部就暫停整區重畫，避免手機游標/鍵盤跳掉。
 const packingReplyDirty=new Set();
