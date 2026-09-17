@@ -371,6 +371,10 @@ body.field-single-role .wrap{padding-top:8px}
 /* 第39階段：開單／收銀工作區。獨立新增，不修改登入/Auth與既有派工、包裝、貨運流程。 */
 .salesSubTabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.salesSubTab{border:1px solid #d6dde6;background:#fff;border-radius:10px;padding:10px 12px;font-weight:900;cursor:pointer}.salesSubTab.active{background:#1f6feb;color:#fff;border-color:#1f6feb}.salesView{display:none}.salesView.active{display:block}.salesMenuGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.salesPlaceholder{padding:18px;border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc}.navNoticeBadge{margin-left:4px}
 @media(max-width:700px){.salesSubTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.salesSubTab{padding:10px 6px}.salesMenuGrid{grid-template-columns:1fr}}
+
+/* 第48階段：開單／收銀＋現場回報畫面壓縮。電視牆、登入/Auth不動。 */
+#sales>.card:first-child{padding:12px 16px;margin-bottom:8px}#sales>.card:first-child h2{margin:0 0 3px;font-size:21px}#sales>.card:first-child>.helper{font-size:12px}.salesSubTabs{margin-top:8px;gap:6px;flex-wrap:nowrap}.salesSubTab{padding:7px 13px;border-radius:8px;white-space:nowrap}.salesView>.card{margin-top:0}.salesView h2{font-size:20px;margin:0 0 8px}.fieldReportCard{padding:12px 14px;background:#eef3f8}.fieldReportHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.fieldReportHead h2{margin:0}.fieldReportTabs{display:flex;gap:6px;flex-wrap:nowrap}.fieldReportTab{border:1px solid #c7d2df;background:#fff;border-radius:8px;padding:7px 12px;font-weight:900;cursor:pointer;white-space:nowrap}.fieldReportTab.active{background:#173f67;color:#fff;border-color:#173f67}.fieldReportBody{margin-top:10px}.fieldReportPanel{display:none}.fieldReportPanel.active{display:block}.fieldReportGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}.fieldReportGrid>.empty{grid-column:1/-1;background:#fff;border:1px dashed #c5d0dc}.fieldMessageCard,.fieldReportGrid>.shortageRow{margin:0;background:#fff;border:1px solid #cbd6e2;box-shadow:0 1px 2px rgba(20,45,70,.06)}.fieldReportGrid .shortageTop{gap:10px}.fieldReportGrid details{background:#f7fafc;border-radius:8px;padding:5px 8px}.fieldReportGrid .shortageActions{margin-top:8px}.quickOrderText{min-height:120px}.quickOrderFooter{margin-top:8px}
+@media(max-width:850px){.fieldReportGrid{grid-template-columns:1fr}.fieldReportHead{align-items:flex-start;flex-direction:column}.fieldReportTabs{width:100%}.fieldReportTab{flex:1}.salesSubTabs{overflow-x:auto}.salesSubTab{flex:0 0 auto}}
 </style>
 
 
@@ -451,7 +455,7 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="quickOrderFooter"><div><b>合計：</b><span id="quickOrderTotal">$0</span></div><button type="button" id="quickOrderF2Btn" class="btn primary">F2 完成開單</button></div>
         <div id="quickOrderDonePanel" class="quickOrderDonePanel" style="display:none"><div><b>✅ 開單完成</b><div id="quickOrderDoneText" class="helper" style="margin-top:3px"></div></div><div class="actions" style="margin-top:8px;flex-wrap:wrap"><button type="button" id="quickDoneClose" class="btn gray">完成關閉</button><button type="button" id="quickDonePrint" class="btn blue">🖨️ 列印</button><button type="button" id="quickDoneLine" class="btn blue">💚 LINE帳單</button><button type="button" id="quickDoneCopy" class="btn blue">📋 複製帳單圖片</button></div></div>
       </div></div>
-      <div class="salesView" data-sales-panel="field"><div class="card"><h2>📡 現場回報</h2><div class="helper">新對話／待處理回報會同步顯示數字紅點。</div><div id="salesFieldMirror" style="margin-top:12px"></div></div></div>
+      <div class="salesView" data-sales-panel="field"><div class="card fieldReportCard"><div class="fieldReportHead"><div><h2>📡 現場回報</h2><div class="helper">只顯示今天的訊息，避免市場現場誤判。</div></div><div class="fieldReportTabs"><button type="button" class="fieldReportTab active" data-field-view="shortage">⚠️ 缺貨</button><button type="button" class="fieldReportTab" data-field-view="question">💬 詢問</button><button type="button" class="fieldReportTab" data-field-view="freight">📦 寄車</button></div></div><div class="fieldReportBody"><div class="fieldReportPanel active" data-field-panel="shortage"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div><div class="fieldReportPanel" data-field-panel="question"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div><div class="fieldReportPanel" data-field-panel="freight"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></div></div></div>
       <div class="salesView" data-sales-panel="query"><div class="card"><h2>🔎 訂單查詢</h2><div class="helper">同一張訂單分成銷售部、包裝部、貨運部三種查看方式。</div><div class="actions" style="margin-top:12px;flex-wrap:wrap"><button type="button" class="btn blue" id="salesQuerySalesBtn">🧾 銷售部</button><button type="button" class="btn gray" id="salesQueryPackingBtn">📦 包裝部</button><button type="button" class="btn gray" id="salesQueryDeliveryBtn">🚚 貨運部</button></div><div id="salesQueryHint" class="salesPlaceholder" style="margin-top:12px">銷售部訂單明細將由新的銷售訂單資料接入；目前包裝／貨運歷史查詢維持原功能。</div></div></div>
     </section>
 
@@ -2331,12 +2335,10 @@ function setSalesView(view='quick'){
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.salesSubTab');if(b)setSalesView(b.dataset.salesView)});
 function refreshSalesFieldMirror(){
-  const out=document.getElementById('salesFieldMirror');if(!out)return;
-  const src=document.querySelector('[data-proc-panel="field"]');
-  if(!src){out.innerHTML='<div class="empty">現場回報讀取中…</div>';return}
-  out.innerHTML=src.innerHTML;
-  out.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+  if(typeof loadShortageReports==='function')loadShortageReports();
+  if(typeof loadStage9==='function')loadStage9();
 }
+document.addEventListener('click',e=>{const b=e.target.closest('.fieldReportTab');if(!b)return;const view=b.dataset.fieldView;document.querySelectorAll('.fieldReportTab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.fieldReportPanel').forEach(x=>x.classList.toggle('active',x.dataset.fieldPanel===view));});
 document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQuerySalesBtn')?.addEventListener('click',()=>{const h=document.getElementById('salesQueryHint');if(h)h.textContent='銷售部訂單明細會接新的銷售訂單資料；目前不拿派工資料冒充銷售帳。'});
@@ -2734,11 +2736,11 @@ window.submitShortageReport=async function(source){
 function shortageTime(v){return v?new Date(v).toLocaleString('zh-TW',{hour12:false}):''}
 function shortageThread(id){return shortageMessages.filter(m=>Number(m.report_id)===Number(id))}
 function shortageThreadHtml(id){const ms=shortageThread(id);return `<details style="margin-top:7px"><summary style="cursor:pointer;font-weight:900">💬 對話紀錄 ${ms.length?`(${ms.length})`:''}</summary><div style="margin-top:7px;border-left:3px solid #dbe5ef;padding-left:9px">${ms.length?ms.map(m=>`<div style="padding:6px 0;border-bottom:1px solid #edf0f2"><b>${esc(m.actor_role||'現場')}－${esc(m.actor_name||'')}</b>：${esc(m.message||'')}<div class="meta">${shortageTime(m.created_at)}</div></div>`).join(''):'<div class="meta">尚無對話</div>'}</div></details>`}
+function fieldIsToday(v){if(!v)return false;try{return new Date(v).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'})===taipeiDate()}catch(e){return false}}
 function renderShortageManage(){
-  const box=document.getElementById('shortageManageList');if(!box)return;const active=shortageReports.filter(x=>x.status!=='arrived'),closed=shortageReports.filter(x=>x.status==='arrived');
-  const activeHtml=active.length?active.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${shortageTime(x.reported_at)}</div>${shortageThreadHtml(x.id)}<div class="shortageActions"><button class="btn blue" onclick="replyShortage(${x.id})">💬 回覆現場</button><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button></div><div class="meta" style="margin-top:6px">※ 已到貨由包裝／司機現場確認結案</div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';
-  const closedHtml=`<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:900">📁 已結案紀錄（${closed.length}）</summary><div class="shortageList">${closed.length?closed.map(x=>`<div class="shortageRow"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')}</div><span class="badge green">已到貨</span></div><div class="meta">現場確認：${esc(x.arrived_by_name||x.updated_by_name||'')}｜${shortageTime(x.arrived_at)}</div>${shortageThreadHtml(x.id)}</div>`).join(''):'<div class="empty">尚無已結案紀錄</div>'}</div></details>`;
-  box.innerHTML=activeHtml+closedHtml;
+  const box=document.getElementById('shortageManageList');if(!box)return;
+  const active=shortageReports.filter(x=>x.status!=='arrived'&&fieldIsToday(x.reported_at||x.created_at));
+  box.innerHTML=active.length?active.map(x=>`<div class="shortageRow fieldMessageCard"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${shortageTime(x.reported_at)}</div>${shortageThreadHtml(x.id)}<div class="shortageActions"><button class="btn blue" onclick="replyShortage(${x.id})">💬 回覆現場</button><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button></div></div>`).join(''):'<div class="empty">今天目前沒有待處理缺貨／催貨</div>';
 }
 function renderShortageSource(source){
   const box=document.getElementById(source==='packing'?'packingShortageReplies':'deliveryShortageReplies');if(!box||!currentUser)return;
@@ -2814,7 +2816,7 @@ window.submitFieldQuestion=async function(source){
   await loadStage9();
   alert('已送到總部');
 }
-function renderFieldQuestionOffice(){const box=document.getElementById('fieldQuestionOfficeList');if(!box)return;const arr=fieldQuestions.filter(x=>x.status!=='closed');box.innerHTML=arr.length?arr.map(x=>'<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(x.subject||'現場詢問')+'</b>｜'+esc(x.question_text||'')+'</div><span class="shortageStatus">'+(x.status==='replied'?'已回應':'待回應')+'</span></div><div class="meta">'+esc(x.source_label||'')+'－'+esc(x.asked_by_name||'')+'｜'+stage9Time(x.created_at)+'</div>'+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="replyFieldQuestion('+x.id+')">📡 總部回應</button><button class="btn gray" onclick="closeFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>').join(''):'<div class="empty">目前沒有待回應的現場詢問</div>'}
+function renderFieldQuestionOffice(){const box=document.getElementById('fieldQuestionOfficeList');if(!box)return;const arr=fieldQuestions.filter(x=>x.status!=='closed'&&fieldIsToday(x.created_at));box.innerHTML=arr.length?arr.map(x=>'<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(x.subject||'現場詢問')+'</b>｜'+esc(x.question_text||'')+'</div><span class="shortageStatus">'+(x.status==='replied'?'已回應':'待回應')+'</span></div><div class="meta">'+esc(x.source_label||'')+'－'+esc(x.asked_by_name||'')+'｜'+stage9Time(x.created_at)+'</div>'+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="replyFieldQuestion('+x.id+')">📡 總部回應</button><button class="btn gray" onclick="closeFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>').join(''):'<div class="empty">目前沒有待回應的現場詢問</div>'}
 function renderFieldQuestionsFor(source){const box=document.getElementById(source==='packing'?'packingQuestionReplies':'deliveryQuestionReplies');if(!box||!currentUser)return;const uid=String(currentUser.id);const arr=fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status!=='closed');box.innerHTML=arr.length?arr.map(x=>{const ms=questionThread(x.id),last=ms[ms.length-1];return '<div class="shortageRow"><div class="shortageTop"><b>'+esc(x.subject||'現場詢問')+'</b><span class="shortageStatus">'+(x.status==='replied'?'📡 有總部回應':'等待回應')+'</span></div><div style="margin-top:6px">'+esc(x.question_text||'')+'</div>'+(last&&last.message_type==='office_reply'?'<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>📡 總部回應：</b>'+esc(last.message||'')+'<div class="meta">'+esc(last.actor_name||'')+'｜'+stage9Time(last.created_at)+'</div></div>':'')+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="fieldReplyQuestion('+x.id+')">💬 繼續回覆</button><button class="btn gray" onclick="closeMyFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>'}).join(''):''}
 window.replyFieldQuestion=async function(id){const t=prompt('📡 總部回應：');if(t===null||!t.trim())return;const now=new Date().toISOString();const {error}=await sb.from('field_question_messages').insert({question_id:id,message:t.trim(),message_type:'office_reply',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:'總部回應'});if(error)return alert('回應失敗：'+error.message);await sb.from('field_questions').update({status:'replied',updated_at:now}).eq('id',id);await loadStage9()};
 window.fieldReplyQuestion=async function(id){const x=fieldQuestions.find(q=>q.id===id);if(!x||String(x.asked_by)!==String(currentUser.id))return alert('這不是你的對話');const t=prompt('回覆總部：');if(t===null||!t.trim())return;const r=await sb.from('field_question_messages').insert({question_id:id,message:t.trim(),message_type:'field_reply',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:stage9Role(x.source)});if(r.error)return alert('回覆失敗：'+r.error.message);await sb.from('field_questions').update({status:'open',updated_at:new Date().toISOString()}).eq('id',id);await loadStage9()};
@@ -2844,12 +2846,9 @@ function freightBatchCard(group,completed=false){
 }
 function renderFreightOffice(){
   const box=document.getElementById('freightOfficeList');if(!box)return;
-  const groups=freightGroups();
+  const groups=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at));
   const pending=groups.filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed'));
-  const completed=groups.filter(g=>g.rows.every(x=>x.status==='confirmed'));
-  const activeHtml=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">目前沒有待確認的寄車公斤回報</div>';
-  const history='<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:900">📚 已完成寄車紀錄（'+completed.length+'）</summary><div class="shortageList">'+(completed.length?completed.map(g=>freightBatchCard(g,true)).join(''):'<div class="empty">尚無已完成紀錄</div>')+'</div></details>';
-  box.innerHTML=activeHtml+history;
+  box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">今天目前沒有待確認的寄車公斤回報</div>';
 }
 window.confirmFreightBatch=async function(batch){
   if(!currentUser)return alert('請先登入');
@@ -3044,6 +3043,6 @@ function initProcurementV30(){const d=document.getElementById('procOrderDate');i
 document.addEventListener('DOMContentLoaded',initProcurementV30);
 
 </script>
-<!-- 第39階段：開單／收銀骨架＋現場回報雙層紅點；未修改登入/Auth核心 -->
+<!-- 第48階段：開單／收銀＋現場回報版面壓縮；只顯示當日現場訊息；未修改登入/Auth核心 -->
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 </body></html>
