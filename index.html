@@ -826,6 +826,89 @@ body.field-single-role .wrap{padding-top:8px}
 #homeNoticeAddBtn[data-no-announcement-permission="1"]{display:none!important}
 </style>
 
+
+<style id="stage90-announcement-query-only">
+/* 第90階段：只整理公告查詢第二層 */
+#homeDoneWrap .homeQueryHead{
+  display:flex!important;
+  align-items:center!important;
+  margin:0 0 8px!important;
+}
+#homeDoneBackBtn{
+  height:40px!important;
+  min-height:40px!important;
+  padding:0 13px!important;
+  border-radius:9px!important;
+  font-size:14px!important;
+  font-weight:900!important;
+}
+#homeDoneWrap .homeDoneSearchRow{
+  display:grid!important;
+  grid-template-columns:180px minmax(220px,1fr) 64px!important;
+  gap:7px!important;
+  align-items:center!important;
+  width:100%!important;
+  flex-wrap:nowrap!important;
+}
+#homeDoneDateFilter,#homeDoneTextFilter,#homeDoneClearFilter{
+  box-sizing:border-box!important;
+  height:40px!important;
+  min-height:40px!important;
+  margin:0!important;
+  border-radius:9px!important;
+}
+#homeDoneDateFilter,#homeDoneTextFilter{width:100%!important;max-width:none!important}
+#homeDoneClearFilter{width:64px!important;min-width:64px!important;padding:0 8px!important}
+.homeDoneResultCard{
+  padding:12px 14px!important;
+  margin:8px 0!important;
+  border:1px solid #d9e1ea!important;
+  border-radius:11px!important;
+  background:#fff!important;
+}
+.homeDoneResultTitle{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  flex-wrap:wrap!important;
+  font-size:15px!important;
+  font-weight:900!important;
+  line-height:1.45!important;
+}
+.homeDoneResultMeta{
+  margin-top:6px!important;
+  color:#667085!important;
+  font-size:12px!important;
+  line-height:1.4!important;
+}
+.homeDoneResultNote{
+  margin-top:5px!important;
+  color:#667085!important;
+  font-size:12px!important;
+}
+@media(max-width:600px){
+ #homeDoneWrap .homeDoneSearchRow{
+   grid-template-columns:112px minmax(0,1fr) 48px!important;
+   gap:4px!important;
+ }
+ #homeDoneDateFilter{
+   width:112px!important;min-width:112px!important;max-width:112px!important;
+   padding:5px 3px!important;font-size:10.5px!important;
+ }
+ #homeDoneTextFilter{
+   min-width:0!important;padding:5px 7px!important;font-size:12px!important;
+ }
+ #homeDoneClearFilter{
+   width:48px!important;min-width:48px!important;max-width:48px!important;
+   padding:0 3px!important;font-size:12px!important;
+ }
+ #homeDoneBackBtn{height:38px!important;min-height:38px!important;font-size:13px!important}
+ .homeDoneResultCard{padding:10px 11px!important;margin:6px 0!important}
+ .homeDoneResultTitle{font-size:14px!important;gap:5px!important}
+ .homeDoneResultMeta{font-size:11px!important}
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -873,7 +956,7 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
-        <div id="homeDoneWrap" style="display:none;margin-top:0"><div class="homeQueryHead"><button type="button" class="btn gray" id="homeDoneBackBtn">← 返回公告</button><h3 style="margin:0">🔎 公告查詢</h3></div><div class="actions" style="margin:10px 0;flex-wrap:wrap"><input id="homeDoneDateFilter" class="input" type="date" style="max-width:190px"><input id="homeDoneTextFilter" class="input" placeholder="關鍵字搜尋" style="max-width:300px"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
+        <div id="homeDoneWrap" style="display:none;margin-top:0"><div class="homeQueryHead"><button type="button" class="btn gray" id="homeDoneBackBtn">← 返回公告</button></div><div class="actions homeDoneSearchRow" style="margin:10px 0"><input id="homeDoneDateFilter" class="input" type="date"><input id="homeDoneTextFilter" class="input" placeholder="關鍵字搜尋"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
         
       </div>
     </section>
@@ -3809,7 +3892,7 @@ function render(){
  box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
  const filtered=homeDoneV79.filter(x=>{return(!df||dueKey(x)===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>dueKey(b).localeCompare(dueKey(a))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
- done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(dueKey(x))}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
+ done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeDoneResultCard"><div class="homeDoneResultTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span></div><div class="homeDoneResultMeta">公告日期：${esc(dueKey(x))}${x.completed_at?`｜結束：${esc(x.completed_by_name||'')} ${fmt(x.completed_at)}`:''}</div>${x.note?`<div class="homeDoneResultNote">${esc(x.note)}</div>`:''}</div>`).join(''):'<div class="empty">沒有符合條件的公告</div>';
  box.querySelectorAll('[data-read]').forEach(b=>b.onclick=()=>markRead(b.dataset.read,b));
  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit));
  box.querySelectorAll('[data-end]').forEach(b=>b.onclick=()=>endTask(b.dataset.end,b));
@@ -3853,7 +3936,7 @@ function showReaders(id){if(!canManage())return;const reads=readRows(id),readIds
 function setHomeQueryMode(on){
  const w=document.getElementById('homeDoneWrap'),list=document.getElementById('homeNoticeList'),msgEl=document.getElementById('homeNoticeMsg');
  const top=document.querySelector('#home .homeNoticeTopActions'),title=document.querySelector('#home h3');
- if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.display=on?'none':'grid';if(title)title.style.display=on?'none':'block';
+ if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.setProperty('display',on?'none':'flex','important');if(title)title.style.display=on?'none':'block';
 }
 function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.style.setProperty('display',ok?'flex':'none','important');add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
 document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
