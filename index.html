@@ -501,8 +501,8 @@ body.field-single-role .wrap{padding-top:8px}
   #stallFieldCard{background:#eef3f8}
 }
 
-/* 第78階段：超市帳電腦高速輸入介面；不修改登入/Auth。 */
-.superFast{background:#fff;border:1px solid #dbe3ec;border-radius:14px;padding:12px}.superFastTop{display:grid;grid-template-columns:160px minmax(220px,1fr) 150px 120px;gap:7px;align-items:end}.superFastWrap{overflow:auto}.superFastTable{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed;min-width:760px}.superFastTable th,.superFastTable td{border:1px solid #d9dee5;padding:4px}.superFastTable th{background:#f1f5f9;font-size:12px}.superFastTable input{width:100%;border:0;background:transparent;padding:7px 6px;font-size:14px;outline:none}.superFastTable input:focus{background:#fff9d9;box-shadow:inset 0 0 0 2px #e3b341}.sfSeq{width:52px;text-align:center;font-weight:900}.sfName{width:30%}.sfKg,.sfQty{width:90px}.sfPrice{width:105px}.sfAmount,.sfFreight{width:115px;text-align:right;font-weight:900;background:#fafafa}.superFastFoot{display:flex;justify-content:flex-end;gap:18px;align-items:center;margin-top:9px}.superFastFoot b{font-size:18px}.superFastActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.superFastStatus{margin-right:auto;font-size:12px;font-weight:800;color:#18703c}@media(max-width:760px){.superFastTop{grid-template-columns:1fr 1fr}.superFastFoot{justify-content:flex-start;flex-wrap:wrap}}
+/* 第79階段：首頁公告已讀／日期排序／管理修改 */
+.homeTodoActions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.homeReadBtn{background:#eef1f4}.homeReadBtn.read{background:#dcfce7;color:#18703c}.homeUnreadBadge{display:inline-block;background:#ffe8e9;color:#b4232c;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:900;margin-left:6px}.homeReadStat{display:inline-block;background:#eef4ff;color:#1e5f94;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:900;margin-left:6px}.homeTodoEdit{background:#fff3cd;color:#805d00}.homeTodoEnd{background:#ffe8e9;color:#b4232c}@media(max-width:600px){.homeTodoActions{justify-content:stretch}.homeTodoActions .btn{flex:1}}
 </style>
 
 
@@ -552,14 +552,14 @@ body.field-single-role .wrap{padding-top:8px}
     <section id="home" class="panel active">
       <div class="card">
         <h2>🏠 首頁｜今日工作總覽</h2>
-        <div class="helper">主管／管理員可建立待辦；所有登入員工都可以完成。未完成事項跨日保留，完成後留下完成者與時間。</div>
+        <div class="helper">公告依事件日期由近到遠排列；每位員工各自確認已讀，不會影響其他人。主管／管理員可修改或提前結束公告。</div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
           <h3 style="margin:0">📌 待辦事項</h3>
-          <div class="actions" style="margin:0;flex-wrap:wrap"><button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增待辦</button><button type="button" class="btn gray" id="homeDoneToggleBtn">✅ 完成紀錄</button></div>
+          <div class="actions" style="margin:0;flex-wrap:wrap"><button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增公告</button><button type="button" class="btn gray" id="homeDoneToggleBtn">📁 已結束公告</button></div>
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
-        <div id="homeDoneWrap" style="display:none;margin-top:14px"><h3 style="margin:0 0 8px">✅ 完成紀錄</h3><div class="actions" style="margin:8px 0;flex-wrap:wrap"><input id="homeDoneDateFilter" class="input" type="date" style="max-width:170px"><select id="homeDoneDeptFilter" class="input" style="max-width:180px"><option value="">全部工作區</option><option value="hq">總部</option><option value="packing">包裝部</option><option value="delivery">貨運部</option><option value="accounting">帳務中心</option><option value="liuhe">六禾</option></select><input id="homeDonePersonFilter" class="input" placeholder="完成者" style="max-width:170px"><input id="homeDoneTextFilter" class="input" placeholder="搜尋待辦內容" style="max-width:220px"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
+        <div id="homeDoneWrap" style="display:none;margin-top:14px"><h3 style="margin:0 0 8px">📁 已結束公告</h3><div class="actions" style="margin:8px 0;flex-wrap:wrap"><input id="homeDoneDateFilter" class="input" type="date" style="max-width:170px"><select id="homeDoneDeptFilter" class="input" style="max-width:180px"><option value="">全部工作區</option><option value="hq">總部</option><option value="packing">包裝部</option><option value="delivery">貨運部</option><option value="accounting">帳務中心</option><option value="liuhe">六禾</option></select><input id="homeDonePersonFilter" class="input" placeholder="完成者" style="max-width:170px"><input id="homeDoneTextFilter" class="input" placeholder="搜尋待辦內容" style="max-width:220px"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
         <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button></div>
       </div>
     </section>
@@ -800,19 +800,7 @@ body.field-single-role .wrap{padding-top:8px}
           <button type="button" class="acctManagementBtn" data-acct-manage="vehicle"><b>🚚 車輛管理</b><span>車輛資料、加油、保養、維修、保險、驗車</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="report"><b>📊 管理報表</b><span>後續由帳務資料自動彙整，不重複輸入</span></button>
         </div>
-        <div id="acctManagementStage" class="acctManagementStage">
-  <div id="acctFastHome"><b>✍️ 快速做帳</b><div class="helper" style="margin-top:5px">選擇要快速輸入的帳別。</div><div class="actions"><button type="button" class="btn blue" id="openSuperFast">🏪 超市帳高速輸入</button></div></div>
-  <div id="superFastPanel" style="display:none">
-    <div class="actions" style="justify-content:space-between;align-items:center"><button type="button" class="btn gray" id="sfBack">← 返回</button><b>🏪 超市帳｜電腦高速輸入</b></div>
-    <div class="superFast">
-      <div class="superFastTop"><div class="field"><label class="label">日期</label><input id="sfDate" class="input" type="date"></div><div class="field"><label class="label">超市／客戶</label><input id="sfCustomer" class="input" autocomplete="off" placeholder="輸入客戶名稱"></div><div class="field"><label class="label">運費／KG</label><input id="sfRate" class="input" type="number" value="2" step="0.1"></div><div class="field"><label class="label">輸入列數</label><select id="sfRowCount" class="input"><option>20</option><option selected>40</option><option>60</option><option>80</option></select></div></div>
-      <div class="superFastWrap"><table class="superFastTable"><thead><tr><th class="sfSeq">序</th><th class="sfName">品名</th><th class="sfKg">每件KG</th><th class="sfQty">件數</th><th class="sfPrice">單價</th><th class="sfAmount">金額</th><th class="sfFreight">運費</th></tr></thead><tbody id="sfBody"></tbody></table></div>
-      <div class="superFastFoot"><span>貨款 <b id="sfGoods">$0</b></span><span>運費 <b id="sfFreightTotal">$0</b></span><span>合計 <b id="sfGrand">$0</b></span></div>
-      <div class="superFastActions"><span id="sfStatus" class="superFastStatus"></span><button type="button" class="btn gray" id="sfClear">清空</button><button type="button" class="btn blue" id="sfPrint">列印本日帳單</button><button type="button" class="btn primary" id="sfDraft">暫存</button></div>
-      <div class="helper" style="margin-top:7px">Enter 依序：品名 → 每件KG → 件數 → 單價 → 下一筆品名。目前只做本機草稿，不寫入正式帳務資料。</div>
-    </div>
-  </div>
-</div>
+        <div id="acctManagementStage" class="acctManagementStage"><div><b>✍️ 快速做帳</b><div class="helper" style="margin-top:5px">下一階段先做「超市帳」電腦高速輸入介面。</div></div></div>
       </div>
       <div class="card acctLegacyArea" style="display:none">
         <h2>💰 舊帳務介面</h2>
@@ -3454,45 +3442,53 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 
 </script>
 \n<script>
-/* 第67階段：修復首頁新增待辦日期驗證。原第65版正規表示式多了一層跳脫，導致任何 YYYY-MM-DD 都被判定錯誤。其餘待辦規則不變。 */
+/* 第79階段：首頁公告＝事件日期排序＋每人已讀＋主管修改／提前結束。登入/Auth 不修改。 */
 (function(){
-let homeTasksV58=[],homeDoneV58=[];
-const homeDeptLabelsV58={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
-function homeCanCreateV58(){return !!currentProfile && (currentProfile.role==='admin'||currentProfile.role==='operator');}
-function homeMsgV58(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
-function homeFmtV58(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
-function homeRenderV58(){
+let homeTasksV79=[],homeDoneV79=[],homeReadsV79=[],homeEmployeesV79=[];
+const deptLabels={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
+function canManage(){return !!currentProfile&&(currentProfile.role==='admin'||currentProfile.role==='operator');}
+function msg(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
+function fmt(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
+function today(){return typeof taipeiDate==='function'?taipeiDate():new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date());}
+function readRows(id){return homeReadsV79.filter(r=>String(r.task_id)===String(id));}
+function myRead(id){return readRows(id).some(r=>String(r.user_id)===String(currentUser?.id));}
+function readStatHtml(x){if(!canManage())return '';const n=readRows(x.id).length,total=homeEmployeesV79.length;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
+function render(){
  const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
- box.innerHTML=homeTasksV58.length?homeTasksV58.map(x=>`<div class="homeTodoCard"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${homeDeptLabelsV58[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">日期：${esc(x.due_date||'')}｜建立：${esc(x.created_by_name||'')} ${homeFmtV58(x.created_at)}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div><button type="button" class="btn primary homeTodoComplete" data-id="${esc(String(x.id))}">✓ 完成</button></div>`).join(''):'<div class="empty">目前沒有待辦事項</div>';
+ const rows=[...homeTasksV79].sort((a,b)=>String(a.due_date||'').localeCompare(String(b.due_date||''))||new Date(a.created_at)-new Date(b.created_at));
+ box.innerHTML=rows.length?rows.map(x=>{const rd=myRead(x.id);return `<div class="homeTodoCard"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}</div><div class="homeTodoMeta">公告日期：${esc(x.due_date||'')}｜建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div><div class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 確認已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束公告</button>`:''}</div></div>`}).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',dep=document.getElementById('homeDoneDeptFilter')?.value||'',person=(document.getElementById('homeDonePersonFilter')?.value||'').trim().toLowerCase(),text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
- const filteredDone=homeDoneV58.filter(x=>{const completedDate=x.completed_at?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(x.completed_at)):'';return (!df||completedDate===df)&&(!dep||x.department===dep)&&(!person||String(x.completed_by_name||'').toLowerCase().includes(person))&&(!text||(String(x.title||'')+' '+String(x.note||'')).toLowerCase().includes(text));});
- done.innerHTML=filteredDone.length?filteredDone.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${homeDeptLabelsV58[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">完成：${esc(x.completed_by_name||'')}｜${homeFmtV58(x.completed_at)}｜原日期 ${esc(x.due_date||'')}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的完成紀錄</div>';
- box.querySelectorAll('.homeTodoComplete').forEach(b=>b.onclick=()=>homeCompleteV58(b.dataset.id,b));
+ const filtered=homeDoneV79.filter(x=>{const d=x.completed_at?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date(x.completed_at)):'';return(!df||d===df)&&(!dep||x.department===dep)&&(!person||String(x.completed_by_name||'').toLowerCase().includes(person))&&(!text||(String(x.title||'')+' '+String(x.note||'')).toLowerCase().includes(text));});
+ done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(x.due_date||'')}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
+ box.querySelectorAll('[data-read]').forEach(b=>b.onclick=()=>markRead(b.dataset.read,b));
+ box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit));
+ box.querySelectorAll('[data-end]').forEach(b=>b.onclick=()=>endTask(b.dataset.end,b));
+ box.querySelectorAll('[data-read-stat]').forEach(b=>b.onclick=()=>showReaders(b.dataset.readStat));
 }
-async function homeLoadV58(){
- if(!currentUser)return;const box=document.getElementById('homeNoticeList');if(box&&!homeTasksV58.length)box.innerHTML='<div class="empty">讀取中…</div>';
+async function load(){
+ if(!currentUser)return;const box=document.getElementById('homeNoticeList');if(box)box.innerHTML='<div class="empty">讀取中…</div>';
  try{
-  const today=typeof taipeiDate==='function'?taipeiDate():new Date().toISOString().slice(0,10);
-  const [a,b]=await Promise.all([sb.from('home_tasks').select('*').eq('is_completed',false).lte('due_date',today).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').eq('is_completed',true).order('completed_at',{ascending:false}).limit(100)]);
-  if(a.error)throw a.error;if(b.error)throw b.error;homeTasksV58=a.data||[];homeDoneV58=b.data||[];homeMsgV58('');homeRenderV58();
- }catch(e){console.warn('首頁待辦讀取失敗：',e?.message||e);if(!homeTasksV58.length&&box)box.innerHTML='<div class="empty">首頁待辦尚未啟用，請先執行第58階段 SQL。</div>';homeMsgV58('待辦讀取失敗：'+(e?.message||e),true);}
+  const t=today();
+  const calls=[sb.from('home_tasks').select('*').eq('is_completed',false).gte('due_date',t).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').eq('is_completed',true).order('completed_at',{ascending:false}).limit(100),sb.from('home_task_reads').select('*')];
+  if(canManage())calls.push(sb.from('employee_profiles').select('user_id,display_name,is_active').eq('is_active',true));
+  const res=await Promise.all(calls);if(res[0].error)throw res[0].error;if(res[1].error)throw res[1].error;if(res[2].error)throw new Error('已讀資料表尚未建立：'+res[2].error.message);
+  homeTasksV79=res[0].data||[];homeDoneV79=res[1].data||[];homeReadsV79=res[2].data||[];homeEmployeesV79=(res[3]?.data||[]);msg('');render();
+ }catch(e){console.warn('首頁公告讀取失敗：',e?.message||e);if(box)box.innerHTML='<div class="empty">首頁公告讀取失敗</div>';msg(e?.message||String(e),true);}
 }
-async function homeCreateV58(){
- if(!homeCanCreateV58())return alert('只有主管或管理員可以建立待辦');
- const title=prompt('待辦內容');if(title===null)return;if(!title.trim())return alert('請輸入待辦內容');
- const dept=prompt(`工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾`,'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
- const def=typeof taipeiDate==='function'?taipeiDate():new Date().toISOString().slice(0,10);const due=prompt('顯示日期（YYYY-MM-DD）',def);if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
+async function createTask(){
+ if(!canManage())return alert('只有主管或管理員可以建立公告');
+ const title=prompt('公告內容');if(title===null||!title.trim())return;
+ const dept=prompt('工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾','1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
+ const due=prompt('公告日期／顯示到哪一天（YYYY-MM-DD）',today());if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
  const note=prompt('備註（可留空）','');if(note===null)return;
- try{const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)throw error;await homeLoadV58();}catch(e){alert('建立待辦失敗：'+(e?.message||e));}
+ const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)return alert('建立公告失敗：'+error.message);await load();
 }
-async function homeCompleteV58(id,btn){
- if(!currentUser)return;if(!confirm(`確定完成這項待辦？\n系統會記錄完成者與時間。`))return;btn.disabled=true;
- try{const now=new Date().toISOString();const {error}=await sb.from('home_tasks').update({is_completed:true,completed_at:now,completed_by:currentUser.id,completed_by_name:currentProfile?.display_name||''}).eq('id',id).eq('is_completed',false);if(error)throw error;await homeLoadV58();}catch(e){alert('完成待辦失敗：'+(e?.message||e));btn.disabled=false;}
-}
-function homeInitV58(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn');if(add){add.style.display=homeCanCreateV58()?'inline-flex':'none';add.onclick=homeCreateV58;}if(tog)tog.onclick=()=>{const w=document.getElementById('homeDoneWrap');w.style.display=w.style.display==='none'?'block':'none';};['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',homeRenderV58);el.addEventListener('change',homeRenderV58);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});homeRenderV58();};homeLoadV58();}
-document.addEventListener('DOMContentLoaded',()=>setTimeout(homeInitV58,500));
-document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(homeLoadV58,0);});
-window.homeLoadV58=homeLoadV58;
+async function markRead(id,btn){if(!currentUser)return;btn.disabled=true;const {error}=await sb.from('home_task_reads').upsert({task_id:id,user_id:currentUser.id,user_name:currentProfile?.display_name||'',read_at:new Date().toISOString()},{onConflict:'task_id,user_id'});if(error){alert('已讀失敗：'+error.message);btn.disabled=false;return;}await load();}
+async function editTask(id){if(!canManage())return;const x=homeTasksV79.find(v=>String(v.id)===String(id));if(!x)return;const title=prompt('修改公告內容',x.title||'');if(title===null||!title.trim())return;const dept=prompt('工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾',({hq:'1',packing:'2',delivery:'3',accounting:'4',liuhe:'5'})[x.department]||'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');const due=prompt('公告日期／顯示到哪一天（YYYY-MM-DD）',x.due_date||today());if(due===null||!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');const note=prompt('備註（可留空）',x.note||'');if(note===null)return;const {error}=await sb.from('home_tasks').update({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null}).eq('id',id);if(error)return alert('修改失敗：'+error.message);await load();}
+async function endTask(id,btn){if(!canManage())return;if(!confirm('確定提前結束這則公告？'))return;btn.disabled=true;const {error}=await sb.from('home_tasks').update({is_completed:true,completed_at:new Date().toISOString(),completed_by:currentUser.id,completed_by_name:currentProfile?.display_name||''}).eq('id',id).eq('is_completed',false);if(error){alert('結束公告失敗：'+error.message);btn.disabled=false;return;}await load();}
+function showReaders(id){if(!canManage())return;const reads=readRows(id),readIds=new Set(reads.map(r=>String(r.user_id)));const yes=reads.map(r=>r.user_name||r.user_id).join('、')||'無';const no=homeEmployeesV79.filter(e=>!readIds.has(String(e.user_id))).map(e=>e.display_name||e.user_id).join('、')||'無';alert('已讀：\n'+yes+'\n\n未讀：\n'+no);}
+function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn');if(add){add.style.display=canManage()?'inline-flex':'none';add.onclick=createTask;}if(tog)tog.onclick=()=>{const w=document.getElementById('homeDoneWrap');w.style.display=w.style.display==='none'?'block':'none';};['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
+document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
 })();
 
 // 第68階段：貨運中心第一層切換（只切畫面，不改既有配送資料）。
@@ -3526,4 +3522,4 @@ document.querySelectorAll('[data-delivery-level]').forEach(btn=>{
   }));
 })();
 </script>
-\n<script>\n// 第78階段：超市帳高速輸入；前端草稿 localStorage，不改登入/Auth。\n(function(){\n const g=id=>document.getElementById(id), key='xinru_super_fast_draft_v1';\n function today(){const d=new Date(),z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())}\n function money(n){return '$'+Math.round(Number(n)||0).toLocaleString('zh-TW')}\n function rs(){return [...document.querySelectorAll('#sfBody tr')]}\n function calc(){let goods=0,freight=0;rs().forEach(tr=>{const a=tr.querySelectorAll('input'),kg=+a[1].value||0,q=+a[2].value||0,p=+a[3].value||0,amt=q*p,fr=kg*q*(+g('sfRate').value||0);tr.querySelector('.sfAmount').textContent=amt?money(amt):'';tr.querySelector('.sfFreight').textContent=fr?money(fr):'';goods+=amt;freight+=fr});g('sfGoods').textContent=money(goods);g('sfFreightTotal').textContent=money(freight);g('sfGrand').textContent=money(goods+freight)}\n function build(n,data=[]){const b=g('sfBody');if(!b)return;b.innerHTML='';for(let i=0;i<n;i++){const d=data[i]||{},tr=document.createElement('tr');tr.innerHTML='<td class="sfSeq">'+(i+1)+'</td><td><input data-col="0" placeholder="品名"></td><td><input data-col="1" type="number" step="0.01"></td><td><input data-col="2" type="number" step="0.01"></td><td><input data-col="3" type="number" step="0.01"></td><td class="sfAmount"></td><td class="sfFreight"></td>';const a=tr.querySelectorAll('input');a[0].value=d.name||'';a[1].value=d.kg||'';a[2].value=d.qty||'';a[3].value=d.price||'';b.appendChild(tr)}calc()}\n function grab(){return {date:g('sfDate').value,customer:g('sfCustomer').value.trim(),rate:g('sfRate').value,count:+g('sfRowCount').value,rows:rs().map(tr=>{const a=tr.querySelectorAll('input');return {name:a[0].value.trim(),kg:a[1].value,qty:a[2].value,price:a[3].value}})}}\n function open(){g('acctFastHome').style.display='none';g('superFastPanel').style.display='block';if(!g('sfBody').children.length){let d=null;try{d=JSON.parse(localStorage.getItem(key)||'null')}catch(e){};g('sfDate').value=d?.date||today();g('sfCustomer').value=d?.customer||'';g('sfRate').value=d?.rate||2;g('sfRowCount').value=String(d?.count||40);build(d?.count||40,d?.rows||[])}setTimeout(()=>g('sfCustomer').focus(),30)}\n g('openSuperFast')?.addEventListener('click',open);g('sfBack')?.addEventListener('click',()=>{g('superFastPanel').style.display='none';g('acctFastHome').style.display='block'});g('sfRowCount')?.addEventListener('change',()=>{const d=grab();build(+g('sfRowCount').value,d.rows)});g('sfRate')?.addEventListener('input',calc);g('sfBody')?.addEventListener('input',calc);\n g('sfBody')?.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();const inp=e.target.closest('input');if(!inp)return;const tr=inp.closest('tr'),all=rs(),ri=all.indexOf(tr),ci=+inp.dataset.col;if(ci<3)tr.querySelector('input[data-col="'+(ci+1)+'"]').focus();else if(ri<all.length-1)all[ri+1].querySelector('input[data-col="0"]').focus()});\n g('sfDraft')?.addEventListener('click',()=>{localStorage.setItem(key,JSON.stringify(grab()));g('sfStatus').textContent='已暫存 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})});\n g('sfClear')?.addEventListener('click',()=>{if(!confirm('確定清空目前超市帳輸入內容？'))return;localStorage.removeItem(key);g('sfCustomer').value='';g('sfDate').value=today();build(+g('sfRowCount').value);g('sfStatus').textContent='已清空'});\n g('sfPrint')?.addEventListener('click',()=>window.print());\n})();\n</script>\n</body></html>
+</body></html>
