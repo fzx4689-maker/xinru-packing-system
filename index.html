@@ -953,6 +953,18 @@ body.field-single-role .wrap{padding-top:8px}
 }
 </style>
 
+
+<style id="stage95-integrated-delivery-query">
+/* 第95階段：貨運查詢整合到共用日期／關鍵字列 */
+#today #deliveryQueryControls{display:none!important}
+</style>
+
+
+<style id="stage96-delivery-query-single-row">
+/* 電腦版＋手機版：徹底隱藏貨運第二組日期／搜尋／司機篩選 */
+#deliveryQueryControls{display:none!important}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -2060,11 +2072,15 @@ function renderToday(){
   const pc=$('#packingQueryControls'),dc=$('#deliveryQueryControls');
   if(pb)pb.className='btn '+(orderQueryMode==='packing'?'primary':'gray');
   if(db)db.className='btn '+(orderQueryMode==='delivery'?'primary':'gray');
-  if(pc)pc.style.display=orderQueryMode==='packing'?'flex':'none';
-  if(dc)dc.style.display=orderQueryMode==='delivery'?'flex':'none';
+  // 第95階段：包裝／貨運共用同一組「日期＋關鍵字」查詢列。
+  // 舊貨運查詢控制項保留在 DOM 但永遠隱藏，避免影響既有初始化與登入流程。
+  if(pc)pc.style.display='flex';
+  if(dc)dc.style.setProperty('display','none','important');
   if(orderQueryMode==='delivery'){
-    const tq=$('#deliveryQueryDate')?.value||taipeiDate();
-    const kw=($('#deliveryQueryKeyword')?.value||'').trim().toLowerCase();
+    const tq=$('#queryDate')?.value||taipeiDate();
+    const kw=($('#orderQueryKeyword')?.value||'').trim().toLowerCase();
+    // 管理端整合後不再套用舊的司機篩選；司機帳號仍維持只能查自己的貨運紀錄。
+    if(canManageFreight())deliveryQueryDriverFilter='all';
     const arr=deliveryJobs.filter(j=>j.delivery_date===tq).filter(j=>!kw||[j.customer,j.delivery_no,j.request_text,j.assigned_driver_name,j.driver_reply,j.note].join(' ').toLowerCase().includes(kw));
     deliveryRecordTable(arr,`🚚 ${tq}`);
     return;
