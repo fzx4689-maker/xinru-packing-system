@@ -3988,9 +3988,9 @@ async function load(){
 }
 async function createTask(){
  if(!canManage())return alert('只有主管或管理員可以建立公告');
- const title=prompt('公告內容');if(title===null||!title.trim())return;
- const dept=prompt('工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾','1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
- const due=prompt('顯示日期（YYYY-MM-DD）',today());if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
+ const due=prompt('📅 執行日期（YYYY-MM-DD）',today());if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
+ const dept=prompt('📣 通知部門：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾','1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
+ const title=prompt('📝 公告內容');if(title===null||!title.trim())return;
  const note=prompt('備註（可留空）','');if(note===null)return;
  const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)return alert('建立公告失敗：'+error.message);await load();
 }
