@@ -537,6 +537,77 @@ body.field-single-role .wrap{padding-top:8px}
 #todayBackHomeBtn{flex:0 0 auto}
 @media(max-width:600px){.homeQueryHead{align-items:flex-start}.homeQueryHead h3{font-size:19px}#orderQueryKeyword,#deliveryQueryKeyword{max-width:none!important;flex:1 1 180px}}
 
+
+/* 第85階段：本輪需求完整整理 */
+#home .homeNoticeTopActions:has(#homeNoticeAddBtn[style*="display: none"]),
+#home .homeNoticeTopActions:has(#homeNoticeAddBtn[style*="display:none"]){grid-template-columns:repeat(2,minmax(120px,1fr))!important}
+
+/* 派工單第二層：返回／標題／部門按鈕視覺尺寸統一 */
+#todayBackHomeBtn,
+#today .queryModeBtn{
+  box-sizing:border-box!important;
+  min-height:46px!important;
+  height:46px!important;
+  border-radius:12px!important;
+  padding:0 14px!important;
+  font-size:15px!important;
+  font-weight:900!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  line-height:1!important;
+}
+#today .queryToolbar h2{
+  min-height:46px!important;
+  margin:0!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  line-height:1!important;
+}
+
+/* 公告查詢：桌機也保持乾淨 */
+#homeDoneWrap>.actions{display:flex!important;align-items:center!important;gap:8px!important}
+#homeDoneDateFilter{flex:0 0 190px!important}
+#homeDoneTextFilter{flex:1 1 260px!important}
+
+/* 手機公告查詢：日期／搜尋／清除固定同一排 */
+@media(max-width:600px){
+ #homeDoneWrap>.actions{
+   display:grid!important;
+   grid-template-columns:minmax(112px,34%) minmax(0,1fr) auto!important;
+   gap:5px!important;
+   width:100%!important;
+   flex-wrap:nowrap!important;
+ }
+ #homeDoneDateFilter{
+   width:100%!important;
+   max-width:none!important;
+   min-width:0!important;
+   padding-left:7px!important;
+   padding-right:5px!important;
+   font-size:12px!important;
+ }
+ #homeDoneTextFilter{
+   width:100%!important;
+   max-width:none!important;
+   min-width:0!important;
+   padding-left:8px!important;
+   padding-right:6px!important;
+   font-size:12px!important;
+ }
+ #homeDoneClearFilter{
+   width:auto!important;
+   min-width:48px!important;
+   padding:0 8px!important;
+   white-space:nowrap!important;
+ }
+ #todayBackHomeBtn,#today .queryModeBtn{
+   min-height:42px!important;height:42px!important;padding:0 10px!important;font-size:13px!important;border-radius:11px!important
+ }
+ #today .queryToolbar h2{min-height:42px!important;font-size:20px!important}
+}
+
 </style>
 
 
@@ -3493,12 +3564,13 @@ function myRead(id){return readRows(id).some(r=>String(r.user_id)===String(curre
 function readStatHtml(x){if(!canManage())return '';const n=readRows(x.id).length,total=homeEmployeesV79.length;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
 function render(){
  const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
- const rows=[...homeTasksV79].sort((a,b)=>String(a.due_date||'').localeCompare(String(b.due_date||''))||new Date(a.created_at)-new Date(b.created_at));
- const groups={};rows.forEach(x=>{const k=String(x.due_date||'未設定');(groups[k]||(groups[k]=[])).push(x);});
+ const dueKey=x=>{const v=String(x?.due_date||'').trim();const m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[1]}-${m[2]}-${m[3]}`:(v||'未設定');};
+ const rows=[...homeTasksV79].sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||((Date.parse(a.created_at)||0)-(Date.parse(b.created_at)||0)));
+ const groups={};rows.forEach(x=>{const k=dueKey(x);(groups[k]||(groups[k]=[])).push(x);});
  box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
- const filtered=homeDoneV79.filter(x=>{return(!df||String(x.due_date||'')===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>String(b.due_date||'').localeCompare(String(a.due_date||''))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
- done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(x.due_date||'')}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
+ const filtered=homeDoneV79.filter(x=>{return(!df||String(x.due_date||'').slice(0,10)===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>String(b.due_date||'').localeCompare(String(a.due_date||''))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
+ done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(String(x.due_date||'').slice(0,10))}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
  box.querySelectorAll('[data-read]').forEach(b=>b.onclick=()=>markRead(b.dataset.read,b));
  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit));
  box.querySelectorAll('[data-end]').forEach(b=>b.onclick=()=>endTask(b.dataset.end,b));
