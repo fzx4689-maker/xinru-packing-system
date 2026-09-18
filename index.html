@@ -3647,7 +3647,7 @@ async function loadShortageReports(){
     ]);
     if(error)throw error;if(msgErr)throw msgErr;
     shortageReports=data||[];shortageMessages=msgs||[];
-    renderShortageManage();renderShortageSource('packing');renderShortageSource('delivery');updateShortageBadges();
+    renderShortageManage();renderShortageSource('packing');renderShortageSource('delivery');updateShortageBadges();if(typeof updateStage9Badges==='function')updateStage9Badges();
   }catch(e){console.warn('缺貨／催貨暫時讀取失敗，保留上一個正常畫面',e);}
   finally{loadShortageReports.busy=false;}
 }
