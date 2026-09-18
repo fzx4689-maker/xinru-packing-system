@@ -1123,8 +1123,46 @@ function formatOrderChangeDiff(oldOrder,newData,oldLines,newLines){
   if((oldOrder.pickup_time||'')!==(newData.pickup_time||''))d.push(`取貨時間：${oldOrder.pickup_time||'空白'} → ${newData.pickup_time||'空白'}`);
   if((oldOrder.note||'')!==(newData.note||''))d.push(`備註：${oldOrder.note||'空白'} → ${newData.note||'空白'}`);
   if(!!oldOrder.is_urgent!==!!newData.is_urgent)d.push(`急單：${oldOrder.is_urgent?'是':'否'} → ${newData.is_urgent?'是':'否'}`);
-  d.push(...formatChangedItemsOnly(oldLines,newLines));
+  const oldMap=new Map((oldOrder.items||[]).map(x=>[changeItemKey(x.item_name),x]));
+  const newMap=new Map(newLines.map(x=>[changeItemKey(x),String(x||'').trim()]));
+  const keys=[...new Set([...oldMap.keys(),...newMap.keys()])];
+  keys.forEach(k=>{
+    const oldItem=oldMap.get(k),before=oldItem?String(oldItem.item_name||'').trim():null,after=newMap.get(k);
+    if(before===after)return;
+    if(before&&!after){
+      d.push(oldItem?.is_completed?`⚠️ ${before} 已取消叫貨`:`－ ${before}`);
+    }else if(!before&&after){
+      d.push(`＋ ${after}`);
+    }else{
+      const change=`${k}：${before.slice(k.length).trim()||before} → ${after.slice(k.length).trim()||after}`;
+      d.push(oldItem?.is_completed?`⚠️ ${change}`:change);
+    }
+  });
   return d.join('\n');
+}
+async function syncEditedOrderItems(orderId,oldItems,newLines){
+  const oldMap=new Map((oldItems||[]).map(x=>[changeItemKey(x.item_name),x]));
+  const newMap=new Map(newLines.map(x=>[changeItemKey(x),String(x||'').trim()]));
+  for(const [key,oldItem] of oldMap){
+    const after=newMap.get(key);
+    if(!after){
+      const {error}=await sb.from('order_items').delete().eq('id',oldItem.id);
+      if(error)throw error;
+      continue;
+    }
+    if(String(oldItem.item_name||'').trim()!==after){
+      const {error}=await sb.from('order_items').update({item_name:after,thai_phonetic:translitLine(after),is_completed:false}).eq('id',oldItem.id);
+      if(error)throw error;
+    }
+  }
+  const added=[];
+  for(const [key,after] of newMap){
+    if(!oldMap.has(key))added.push({order_id:orderId,item_name:after,quantity:null,thai_phonetic:translitLine(after),is_completed:false});
+  }
+  if(added.length){
+    const {error}=await sb.from('order_items').insert(added);
+    if(error)throw error;
+  }
 }
 async function createPackingChangeNotice(orderId,diffText){
   if(!diffText)return false;
@@ -1596,7 +1634,7 @@ window.deleteOrder=async id=>{if(!isAdmin())return;const o=orders.find(x=>x.id==
 window.openEdit=id=>{if(!requireStallWork())return;const o=orders.find(x=>x.id===id);if(!o||o.status==='done')return;$('#editOrderId').value=o.id;$('#editCustomer').value=o.customer||'';$('#editPickupTime').value=o.pickup_time||'';$('#editOrderDate').value=o.order_date||taipeiDate();$('#editItems').value=o.items.map(x=>x.item_name).join('\n');$('#editNote').value=o.note||'';editUrgent=!!o.is_urgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent);$('#editModal').classList.add('show')};
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
-$('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const oldOrder=orders.find(x=>x.id===id);if(!oldOrder)return;const oldLines=oldOrder.items.map(x=>x.item_name);const newData={customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent};const diffText=formatOrderChangeDiff(oldOrder,newData,oldLines,lines);if(!diffText){$('#editModal').classList.remove('show');alert('內容沒有變更');return;}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({...newData,...actorFields('updated')}).eq('id',id);if(error)throw error;const {error:delErr}=await sb.from('order_items').delete().eq('order_id',id);if(delErr)throw delErr;const items=lines.map(text=>({order_id:id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;const noticeSaved=await createPackingChangeNotice(id,diffText);$('#editModal').classList.remove('show');await loadOrders();if(noticeSaved){alert('訂單已修改，包裝部需確認新版內容');}}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
+$('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const oldOrder=orders.find(x=>x.id===id);if(!oldOrder)return;const oldLines=oldOrder.items.map(x=>x.item_name);const newData={customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent};const diffText=formatOrderChangeDiff(oldOrder,newData,oldLines,lines);if(!diffText){$('#editModal').classList.remove('show');alert('內容沒有變更');return;}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({...newData,...actorFields('updated')}).eq('id',id);if(error)throw error;await syncEditedOrderItems(id,oldOrder.items,lines);const noticeSaved=await createPackingChangeNotice(id,diffText);$('#editModal').classList.remove('show');await loadOrders();if(noticeSaved){alert('訂單已修改，包裝部需確認新版內容');}}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
 const VALID_TABS=['home','sales','accounting','procurement','stall','packing','delivery','wall','today'];
 function activateTab(tabName,{save=true}={}){
   if(!VALID_TABS.includes(tabName))tabName='home';
