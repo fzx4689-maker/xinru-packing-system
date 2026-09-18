@@ -503,6 +503,21 @@ body.field-single-role .wrap{padding-top:8px}
 
 /* 第79階段：首頁公告已讀／日期排序／管理修改 */
 .homeTodoActions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.homeReadBtn{background:#eef1f4}.homeReadBtn.read{background:#dcfce7;color:#18703c}.homeUnreadBadge{display:inline-block;background:#ffe8e9;color:#b4232c;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:900;margin-left:6px}.homeReadStat{display:inline-block;background:#eef4ff;color:#1e5f94;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:900;margin-left:6px}.homeTodoEdit{background:#fff3cd;color:#805d00}.homeTodoEnd{background:#ffe8e9;color:#b4232c}@media(max-width:600px){.homeTodoActions{justify-content:stretch}.homeTodoActions .btn{flex:1}}
+
+/* 第80階段：首頁公告精簡。手機/桌機按鈕跟在內容後方，不再佔整排。 */
+.homeTodoCard{display:block!important;padding:10px 14px!important}
+.homeTodoHead{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:17px;font-weight:900;line-height:1.35}
+.homeTodoContent{margin-top:5px;font-size:17px;font-weight:900;line-height:1.45;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.homeTodoActions{display:inline-flex!important;gap:5px!important;flex-wrap:wrap!important;justify-content:flex-start!important;vertical-align:middle}
+.homeTodoActions .btn{flex:0 0 auto!important;width:auto!important;min-height:30px!important;padding:5px 9px!important;border-radius:10px!important;font-size:12px!important}
+.homeTodoMeta{font-size:11px!important;margin-top:4px!important}
+.homeTodoDept{margin-right:0!important}
+@media(max-width:600px){
+ .homeTodoCard{padding:9px 10px!important;margin-bottom:7px!important}
+ .homeTodoHead,.homeTodoContent{font-size:15px!important}
+ .homeTodoActions .btn{font-size:11px!important;padding:4px 7px!important;min-height:28px!important}
+ .homeTodoMeta{font-size:10px!important}
+}
 </style>
 
 
@@ -539,28 +554,27 @@ body.field-single-role .wrap{padding-top:8px}
   <div class="top">
     <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7 managementMainTabs">
-      <button class="tab active" data-tab="home">🏠 首頁<div class="th">待辦・公告・查詢</div></button>
-      <button class="tab" data-tab="accounting">💰 帳務中心<div class="th">做帳・查帳・收付款</div></button>
-      <button class="tab" data-tab="stall">📋 派工<span id="stallNoticeBadge" class="navNoticeBadge"></span><div class="th">建立・管理・現場回報</div></button>
-      <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">包裝作業</div></button>
-      <button class="tab" data-tab="delivery">🚚 貨運中心<span id="deliveryNoticeBadge" class="navNoticeBadge"></span><div class="th">配送作業</div></button>
-      <button class="tab" data-tab="wall">📺 電視牆<div class="th">即時看板</div></button>
+      <button class="tab active" data-tab="home">📢 公告<div class="th">กงเก้า</div></button>
+      <button class="tab" data-tab="accounting">💰 帳務中心</button>
+      <button class="tab" data-tab="stall">📋 派工<span id="stallNoticeBadge" class="navNoticeBadge"></span></button>
+      <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">เปาจวงปู้</div></button>
+      <button class="tab" data-tab="delivery">🚚 貨運中心<span id="deliveryNoticeBadge" class="navNoticeBadge"></span></button>
+      <button class="tab" data-tab="wall">📺 電視牆<div class="th">เตี้ยนซื่อเฉียง</div></button>
     </div>
   </div>
 
   <div class="wrap">
     <section id="home" class="panel active">
       <div class="card">
-        <h2>🏠 首頁｜今日工作總覽</h2>
-        <div class="helper">公告依事件日期由近到遠排列；每位員工各自確認已讀，不會影響其他人。主管／管理員可修改或提前結束公告。</div>
+        <h2>📢 公告</h2>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
           <h3 style="margin:0">📌 待辦事項</h3>
-          <div class="actions" style="margin:0;flex-wrap:wrap"><button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增公告</button><button type="button" class="btn gray" id="homeDoneToggleBtn">📁 已結束公告</button></div>
+          <div class="actions" style="margin:0;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 派工單<div class="th">พ่ายกงตัน</div></button><button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增公告</button><button type="button" class="btn gray" id="homeDoneToggleBtn">📁 已結束公告</button></div>
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
         <div id="homeDoneWrap" style="display:none;margin-top:14px"><h3 style="margin:0 0 8px">📁 已結束公告</h3><div class="actions" style="margin:8px 0;flex-wrap:wrap"><input id="homeDoneDateFilter" class="input" type="date" style="max-width:170px"><select id="homeDoneDeptFilter" class="input" style="max-width:180px"><option value="">全部工作區</option><option value="hq">總部</option><option value="packing">包裝部</option><option value="delivery">貨運部</option><option value="accounting">帳務中心</option><option value="liuhe">六禾</option></select><input id="homeDonePersonFilter" class="input" placeholder="完成者" style="max-width:170px"><input id="homeDoneTextFilter" class="input" placeholder="搜尋待辦內容" style="max-width:220px"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
-        <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 訂單查詢</button></div>
+        
       </div>
     </section>
 
@@ -768,8 +782,7 @@ body.field-single-role .wrap{padding-top:8px}
 
     <section id="today" class="panel">
       <div class="queryToolbar">
-        <h2>訂單查詢</h2>
-        <div class="helper">選擇要查包裝部或貨運部，歷史與未來紀錄都集中在這裡。</div>
+        <h2>🔎 派工單 <span class="th" style="display:inline-block;margin-left:6px">พ่ายกงตัน</span></h2>
         <div class="actions" style="margin:12px 0;flex-wrap:wrap">
           <button id="queryPackingBtn" class="btn primary">📦 包裝部</button>
           <button id="queryDeliveryBtn" class="btn gray">🚚 貨運部</button>
@@ -3450,13 +3463,14 @@ function canManage(){return !!currentProfile&&(currentProfile.role==='admin'||cu
 function msg(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
 function fmt(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
 function today(){return typeof taipeiDate==='function'?taipeiDate():new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date());}
+function eventDateLabel(v){if(!v)return '';const p=String(v).split('-').map(Number);if(p.length!==3||!p[0]||!p[1]||!p[2])return esc(v);const d=new Date(Date.UTC(p[0],p[1]-1,p[2],12));const wk=['日','一','二','三','四','五','六'][d.getUTCDay()];return `${String(p[0]).padStart(4,'0')}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}（${wk}）`; }
 function readRows(id){return homeReadsV79.filter(r=>String(r.task_id)===String(id));}
 function myRead(id){return readRows(id).some(r=>String(r.user_id)===String(currentUser?.id));}
 function readStatHtml(x){if(!canManage())return '';const n=readRows(x.id).length,total=homeEmployeesV79.length;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
 function render(){
  const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
  const rows=[...homeTasksV79].sort((a,b)=>String(a.due_date||'').localeCompare(String(b.due_date||''))||new Date(a.created_at)-new Date(b.created_at));
- box.innerHTML=rows.length?rows.map(x=>{const rd=myRead(x.id);return `<div class="homeTodoCard"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}</div><div class="homeTodoMeta">公告日期：${esc(x.due_date||'')}｜建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div><div class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 確認已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束公告</button>`:''}</div></div>`}).join(''):'<div class="empty">目前沒有公告</div>';
+ box.innerHTML=rows.length?rows.map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoHead"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${eventDateLabel(x.due_date)}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}</div><div class="homeTodoContent"><span>${esc(x.title||'')}</span>${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',dep=document.getElementById('homeDoneDeptFilter')?.value||'',person=(document.getElementById('homeDonePersonFilter')?.value||'').trim().toLowerCase(),text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
  const filtered=homeDoneV79.filter(x=>{const d=x.completed_at?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date(x.completed_at)):'';return(!df||d===df)&&(!dep||x.department===dep)&&(!person||String(x.completed_by_name||'').toLowerCase().includes(person))&&(!text||(String(x.title||'')+' '+String(x.note||'')).toLowerCase().includes(text));});
  done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(x.due_date||'')}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
@@ -3479,12 +3493,12 @@ async function createTask(){
  if(!canManage())return alert('只有主管或管理員可以建立公告');
  const title=prompt('公告內容');if(title===null||!title.trim())return;
  const dept=prompt('工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾','1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
- const due=prompt('公告日期／顯示到哪一天（YYYY-MM-DD）',today());if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
+ const due=prompt('顯示日期（YYYY-MM-DD）',today());if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
  const note=prompt('備註（可留空）','');if(note===null)return;
  const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)return alert('建立公告失敗：'+error.message);await load();
 }
 async function markRead(id,btn){if(!currentUser)return;btn.disabled=true;const {error}=await sb.from('home_task_reads').upsert({task_id:id,user_id:currentUser.id,user_name:currentProfile?.display_name||'',read_at:new Date().toISOString()},{onConflict:'task_id,user_id'});if(error){alert('已讀失敗：'+error.message);btn.disabled=false;return;}await load();}
-async function editTask(id){if(!canManage())return;const x=homeTasksV79.find(v=>String(v.id)===String(id));if(!x)return;const title=prompt('修改公告內容',x.title||'');if(title===null||!title.trim())return;const dept=prompt('工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾',({hq:'1',packing:'2',delivery:'3',accounting:'4',liuhe:'5'})[x.department]||'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');const due=prompt('公告日期／顯示到哪一天（YYYY-MM-DD）',x.due_date||today());if(due===null||!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');const note=prompt('備註（可留空）',x.note||'');if(note===null)return;const {error}=await sb.from('home_tasks').update({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null}).eq('id',id);if(error)return alert('修改失敗：'+error.message);await load();}
+async function editTask(id){if(!canManage())return;const x=homeTasksV79.find(v=>String(v.id)===String(id));if(!x)return;const title=prompt('修改公告內容',x.title||'');if(title===null||!title.trim())return;const dept=prompt('工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾',({hq:'1',packing:'2',delivery:'3',accounting:'4',liuhe:'5'})[x.department]||'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');const due=prompt('顯示日期（YYYY-MM-DD）',x.due_date||today());if(due===null||!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');const note=prompt('備註（可留空）',x.note||'');if(note===null)return;const {error}=await sb.from('home_tasks').update({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null}).eq('id',id);if(error)return alert('修改失敗：'+error.message);await load();}
 async function endTask(id,btn){if(!canManage())return;if(!confirm('確定提前結束這則公告？'))return;btn.disabled=true;const {error}=await sb.from('home_tasks').update({is_completed:true,completed_at:new Date().toISOString(),completed_by:currentUser.id,completed_by_name:currentProfile?.display_name||''}).eq('id',id).eq('is_completed',false);if(error){alert('結束公告失敗：'+error.message);btn.disabled=false;return;}await load();}
 function showReaders(id){if(!canManage())return;const reads=readRows(id),readIds=new Set(reads.map(r=>String(r.user_id)));const yes=reads.map(r=>r.user_name||r.user_id).join('、')||'無';const no=homeEmployeesV79.filter(e=>!readIds.has(String(e.user_id))).map(e=>e.display_name||e.user_id).join('、')||'無';alert('已讀：\n'+yes+'\n\n未讀：\n'+no);}
 function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn');if(add){add.style.display=canManage()?'inline-flex':'none';add.onclick=createTask;}if(tog)tog.onclick=()=>{const w=document.getElementById('homeDoneWrap');w.style.display=w.style.display==='none'?'block':'none';};['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
