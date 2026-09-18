@@ -984,6 +984,23 @@ body.field-single-role .wrap{padding-top:8px}
 #homeNoticeAddBtn[data-no-announcement-permission="0"]{display:inline-flex!important}
 </style>
 
+
+<style id="stage106-notice-compact-actions">
+/* 公告：已讀後面只留一顆管理鍵，修改/結束/刪除收進管理選單 */
+.noticeManageWrap{position:relative;display:inline-flex;vertical-align:middle}
+.noticeManageToggle{white-space:nowrap}
+.noticeManageMenu{
+ display:none;position:absolute;z-index:40;right:0;top:calc(100% + 6px);
+ gap:6px;padding:8px;background:#fff;border:1px solid #d7e0ea;
+ border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.16);white-space:nowrap
+}
+.noticeManageWrap.open .noticeManageMenu{display:flex}
+.noticeManageMenu .btn{margin:0!important;white-space:nowrap}
+@media(max-width:700px){
+ .noticeManageMenu{right:0;max-width:calc(100vw - 40px)}
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -3968,7 +3985,11 @@ function render(){
  };
  const rows=[...homeTasksV79].sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||((Date.parse(a.created_at)||0)-(Date.parse(b.created_at)||0)));
  const groups={};rows.forEach(x=>{const k=dueKey(x);(groups[k]||(groups[k]=[])).push(x);});
- box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
+ box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>
+${canManage()?`<span class="noticeManageWrap">
+<button type="button" class="btn noticeManageToggle" onclick="event.stopPropagation();this.parentElement.classList.toggle('open')">⚙️ 管理</button>
+<span class="noticeManageMenu" onclick="event.stopPropagation()"><button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button></span>
+</span>`:''}`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
  const filtered=homeDoneV79.filter(x=>{return(!df||dueKey(x)===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>dueKey(b).localeCompare(dueKey(a))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
  const visibleDone=filtered.slice(0,homeDoneVisibleCount);
