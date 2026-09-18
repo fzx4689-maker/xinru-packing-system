@@ -2229,8 +2229,10 @@ function setStallMode(mode='create'){
   if(t)t.style.display=create?'block':'none';
   if(m)m.style.display=manage?'block':'none';
   if(f)f.style.display=field?'block':'none';
-  if(field){
-    try{setFieldReportHistoryLevel(localStorage.getItem('xinru_field_report_level')==='history')}catch(e){setFieldReportHistoryLevel(false)}
+  if(field && typeof window.setFieldReportHistoryLevel==='function'){
+    let openHistory=false;
+    try{openHistory=localStorage.getItem('xinru_field_report_level')==='history'}catch(e){}
+    window.setFieldReportHistoryLevel(openHistory);
   }
   const cb=$('#stallCreateModeBtn'),mb=$('#stallManageModeBtn'),fb=$('#stallFieldModeBtn');
   if(cb)cb.className='btn '+(create?'primary':'gray');
@@ -3883,6 +3885,11 @@ window.setFieldReportHistoryLevel=function(open){
   try{localStorage.setItem('xinru_field_report_level',open?'history':'main')}catch(e){}
   if(open)renderFreightHistory();
 };
+try{
+  if(localStorage.getItem('xinru_stall_mode')==='field'){
+    window.setFieldReportHistoryLevel(localStorage.getItem('xinru_field_report_level')==='history');
+  }
+}catch(e){}
 window.toggleFreightHistory=function(){setFieldReportHistoryLevel(true)};
 window.clearFreightHistory=function(){const d=document.getElementById('freightHistoryDate'),k=document.getElementById('freightHistoryKeyword');if(d)d.value='';if(k)k.value='';renderFreightHistory()};
 window.renderFreightHistory=function(){
