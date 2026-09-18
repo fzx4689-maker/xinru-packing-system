@@ -994,6 +994,13 @@ body.field-single-role .wrap{padding-top:8px}
 @media(max-width:700px){.homeManagePanel{right:0;left:auto}}
 </style>
 
+
+<style id="stage111-freight-bulk">
+.freightBulkText{min-height:150px!important;resize:vertical;line-height:1.65;font-size:16px}
+.freightConfirmItem{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #e5e8ec}
+@media(max-width:700px){.freightBulkText{min-height:170px!important}.freightConfirmItem{align-items:flex-start}.freightConfirmItem .btn{flex:0 0 auto}}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1197,7 +1204,7 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div class="packingQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="packingFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('packing')">＋ 新增品項</button></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="30K高麗菜*3&#10;10K全紅*2" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
           <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="packingOrders"></div>
@@ -1230,7 +1237,7 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div class="deliveryQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div id="deliveryFreightItems"></div><div class="actions" style="margin-top:7px"><button class="btn gray" type="button" onclick="addFreightItemRow('delivery')">＋ 新增品項</button></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="30K高麗菜*3&#10;10K全紅*2" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></div></details>
           <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div><div id="deliveryShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="driverFilters" class="driverFilters"></div>
@@ -3712,12 +3719,46 @@ window.fieldReplyQuestion=async function(id){const x=fieldQuestions.find(q=>q.id
 window.closeFieldQuestion=async function(id){if(!confirm('結束這筆對話？歷史紀錄仍會保留。'))return;await sb.from('field_questions').update({status:'closed',closed_at:new Date().toISOString(),closed_by:currentUser.id,closed_by_name:currentProfile?.display_name||'',updated_at:new Date().toISOString()}).eq('id',id);await loadStage9()};
 window.closeMyFieldQuestion=async function(id){const x=fieldQuestions.find(q=>Number(q.id)===Number(id));if(!x||String(x.asked_by)!==String(currentUser?.id))return alert('這不是你的對話');if(!confirm('確定結束這筆對話？歷史紀錄仍會保留。'))return;const now=new Date().toISOString();const {error}=await sb.from('field_questions').update({status:'closed',closed_at:now,closed_by:currentUser.id,closed_by_name:currentProfile?.display_name||'',updated_at:now}).eq('id',id).eq('asked_by',currentUser.id);if(error)return alert('結束對話失敗：'+error.message);await loadStage9()};
 const freightDraft={packing:[],delivery:[]};
-window.addFreightItemRow=function(source,item={}){freightDraft[source].push({item:item.item||'',qty:item.qty||'',kg:item.kg||''});renderFreightDraft(source)};
-window.removeFreightItemRow=function(source,i){freightDraft[source].splice(i,1);if(!freightDraft[source].length)freightDraft[source].push({item:'',qty:'',kg:''});renderFreightDraft(source)};
-window.updateFreightDraft=function(source,i,key,val){if(!freightDraft[source][i])return;freightDraft[source][i][key]=val;renderFreightSummary(source)};
-function renderFreightDraft(source){const box=document.getElementById(source+'FreightItems');if(!box)return;if(!freightDraft[source].length)freightDraft[source].push({item:'',qty:'',kg:''});box.innerHTML=freightDraft[source].map((r,i)=>'<div style="display:grid;grid-template-columns:minmax(120px,1.5fr) .55fr .65fr auto;gap:6px;align-items:end;margin:6px 0"><div><label class="label">品項</label><input class="input" value="'+esc(r.item)+'" oninput="updateFreightDraft(\''+source+'\','+i+',\'item\',this.value)" placeholder="品項"></div><div><label class="label">件數</label><input class="input" type="number" inputmode="numeric" min="1" value="'+esc(r.qty)+'" oninput="updateFreightDraft(\''+source+'\','+i+',\'qty\',this.value)"></div><div><label class="label">每件KG</label><input class="input" type="number" inputmode="decimal" step="0.01" value="'+esc(r.kg)+'" oninput="updateFreightDraft(\''+source+'\','+i+',\'kg\',this.value)"></div><button class="btn red" type="button" onclick="removeFreightItemRow(\''+source+'\','+i+')">刪</button></div>').join('');renderFreightSummary(source)}
-function renderFreightSummary(source){const b=document.getElementById(source+'FreightSummary');if(!b)return;const valid=freightDraft[source].filter(r=>r.item.trim()&&Number(r.qty)>0&&Number(r.kg)>0);const pieces=valid.reduce((a,r)=>a+Number(r.qty),0);const kg=valid.reduce((a,r)=>a+Number(r.qty)*Number(r.kg),0);b.textContent='共 '+valid.length+' 個品項｜'+pieces+' 件｜總重量 '+(Math.round(kg*100)/100)+' KG'}
-window.submitFreightWeight=async function(source){const customer=document.getElementById(source+'FreightCustomer')?.value.trim()||'';const items=freightDraft[source].filter(r=>r.item.trim()&&Number(r.qty)>0&&Number(r.kg)>0);if(!customer||!items.length)return alert('請填客戶，並至少完成一個品項的品名、件數、每件 KG');const batch='FR-'+Date.now()+'-'+String(currentUser.id).slice(0,8);const rows=items.map(r=>({customer,item_text:r.item.trim(),qty:Number(r.qty),piece_kg:Number(r.kg),total_kg:Math.round(Number(r.qty)*Number(r.kg)*100)/100,source,source_label:stage9Role(source),reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',status:'reported',batch_id:batch}));const {error}=await sb.from('freight_receipts').insert(rows);if(error)return alert('回報失敗：'+error.message);document.getElementById(source+'FreightCustomer').value='';freightDraft[source]=[{item:'',qty:'',kg:''}];renderFreightDraft(source);await loadStage9();const total=rows.reduce((a,r)=>a+r.total_kg,0);alert('已整張回報總部｜'+rows.length+' 個品項｜總公斤 '+Math.round(total*100)/100+' KG')};
+/* 第111階段：包裝/貨運寄車公斤改為大區塊輸入。
+   支援：30K高麗菜*3、30KG高麗菜×3、30k 高麗菜 * 3；未寫 *件數 時預設 1 件。 */
+function parseFreightBulk(source){
+  const text=document.getElementById(source+'FreightText')?.value||'';
+  const rows=[],bad=[];
+  text.split(/\r?\n/).forEach((raw,index)=>{
+    const line=raw.trim(); if(!line)return;
+    const m=line.match(/^(\d+(?:\.\d+)?)\s*(?:K|KG|公斤)\s*(.+?)(?:\s*[\*xX×]\s*(\d+(?:\.\d+)?))?\s*$/i);
+    if(!m){bad.push({line:index+1,text:line});return;}
+    const kg=Number(m[1]), item=(m[2]||'').trim(), qty=m[3]===undefined?1:Number(m[3]);
+    if(!item||kg<=0||qty<=0){bad.push({line:index+1,text:line});return;}
+    rows.push({item,qty,kg,total_kg:Math.round(kg*qty*100)/100,raw:line});
+  });
+  return {rows,bad};
+}
+window.previewFreightBulk=function(source){
+  const b=document.getElementById(source+'FreightSummary');if(!b)return;
+  const p=parseFreightBulk(source);
+  const pieces=p.rows.reduce((a,r)=>a+r.qty,0);
+  const kg=p.rows.reduce((a,r)=>a+r.total_kg,0);
+  b.innerHTML=(p.rows.length?'共 '+p.rows.length+' 個品項｜'+pieces+' 件｜總重量 <b>'+Math.round(kg*100)/100+' KG</b>':'請輸入回報公斤數')+
+    (p.bad.length?'<div style="color:#c62828;margin-top:5px">⚠️ 第 '+p.bad.map(x=>x.line).join('、')+' 行格式無法辨識</div>':'');
+};
+window.submitFreightWeight=async function(source){
+  const customer=document.getElementById(source+'FreightCustomer')?.value.trim()||'';
+  const p=parseFreightBulk(source),items=p.rows;
+  if(!customer)return alert('請填客戶');
+  if(p.bad.length)return alert('第 '+p.bad.map(x=>x.line).join('、')+' 行格式無法辨識，請修正後再送出');
+  if(!items.length)return alert('請輸入回報公斤數，例如：30K高麗菜*3');
+  const batch='FR-'+Date.now()+'-'+String(currentUser.id).slice(0,8);
+  const rows=items.map(r=>({customer,item_text:r.item,qty:r.qty,piece_kg:r.kg,total_kg:r.total_kg,source,source_label:stage9Role(source),reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',status:'reported',batch_id:batch}));
+  const {error}=await sb.from('freight_receipts').insert(rows);
+  if(error)return alert('回報失敗：'+error.message);
+  document.getElementById(source+'FreightCustomer').value='';
+  document.getElementById(source+'FreightText').value='';
+  previewFreightBulk(source);
+  await loadStage9();
+  const total=rows.reduce((a,r)=>a+r.total_kg,0);
+  alert('已送到派工現場回報｜'+rows.length+' 個品項｜總公斤 '+Math.round(total*100)/100+' KG');
+};
 function freightGroups(){
   const groups={};
   freightReceipts.forEach(x=>{const k=x.batch_id||('old-'+x.id);(groups[k]||(groups[k]=[])).push(x)});
@@ -3725,13 +3766,11 @@ function freightGroups(){
 }
 function freightBatchCard(group,completed=false){
   const arr=group.rows,h=arr[0],pieces=arr.reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0);
-  const confirmer=h.confirmed_by_name||'', confirmedAt=h.confirmed_at||'';
-  return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(completed?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
-    arr.map(x=>'<div style="padding:5px 0;border-bottom:1px dashed #e5e8ec">'+esc(x.item_text||'')+'｜'+Number(x.qty||0)+' 件 × '+Number(x.piece_kg||0)+' KG ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>').join('')+
-    '<div style="margin-top:6px;font-weight:900">總件數 '+pieces+' 件｜總重量 '+Math.round(kg*100)/100+' KG</div>'+
-    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+
-    (completed?'<div class="meta" style="color:#18703c;font-weight:900">✅ 總部確認：'+esc(confirmer||'')+'｜'+stage9Time(confirmedAt)+'</div>':'<div class="shortageActions"><button class="btn primary freight-confirm-btn" data-batch="'+esc(group.batch)+'">✅ 確認完成</button></div>')+
-    '</div>';
+  const doneCount=arr.filter(x=>(x.status||'reported')==='confirmed').length;
+  return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(doneCount===arr.length?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
+    arr.map(x=>{const done=(x.status||'reported')==='confirmed';return '<div class="freightConfirmItem"><div><b>'+esc(x.item_text||'')+'</b>｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0)+' ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>')+'</div>'}).join('')+
+    '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG</div>'+
+    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div></div>';
 }
 function renderFreightOffice(){
   const box=document.getElementById('freightOfficeList');if(!box)return;
@@ -3739,17 +3778,14 @@ function renderFreightOffice(){
   const pending=groups.filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed'));
   box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">今天目前沒有待確認的寄車公斤回報</div>';
 }
-window.confirmFreightBatch=async function(batch){
+window.confirmFreightItem=async function(id){
   if(!currentUser)return alert('請先登入');
-  if(!confirm('確認這張寄車公斤回報已處理完成？完成後會移到歷史紀錄。'))return;
   const now=new Date().toISOString();
-  let q=sb.from('freight_receipts').update({status:'confirmed',confirmed_at:now,confirmed_by:currentUser.id,confirmed_by_name:currentProfile?.display_name||''});
-  q=String(batch).startsWith('old-')?q.eq('id',Number(String(batch).slice(4))):q.eq('batch_id',batch);
-  const {error}=await q;if(error)return alert('確認失敗：'+error.message);
+  const {error}=await sb.from('freight_receipts').update({status:'confirmed',confirmed_at:now,confirmed_by:currentUser.id,confirmed_by_name:currentProfile?.display_name||''}).eq('id',Number(id));
+  if(error)return alert('確認失敗：'+error.message);
   await loadStage9();
 };
-
-document.addEventListener('click',e=>{const b=e.target.closest?.('.freight-confirm-btn');if(b)confirmFreightBatch(b.dataset.batch)});
+document.addEventListener('click',e=>{const b=e.target.closest?.('.freight-item-confirm-btn');if(b)confirmFreightItem(b.dataset.id)});
 window.renderConversationHistory=function(){
   const box=document.getElementById('conversationHistoryList');if(!box)return;
   const date=document.getElementById('historyDate')?.value||'';
