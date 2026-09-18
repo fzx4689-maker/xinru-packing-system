@@ -1684,7 +1684,7 @@ async function loadOrders(){
     newlySeen.forEach(o=>knownOrderIds.add(o.id));
     if(newlySeen.length){
       const hasUrgent=newlySeen.some(o=>o.is_urgent);
-      playOrderSound(hasUrgent);
+      if(shouldHearPacking()) playOrderSound(hasUrgent);
     }
   }
   const prevSnapshot=JSON.stringify(orders);
