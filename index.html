@@ -3932,7 +3932,7 @@ const deptLabels={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨�
 function canManage(){
  const p=currentProfile;
  if(!p)return false;
- if(p.role==='admin'||p.role==='supervisor')return true;
+ if(p.role==='admin')return true;
  const fp=Array.isArray(p.feature_permissions)?p.feature_permissions:[];
  return fp.includes('announcement');
 }
