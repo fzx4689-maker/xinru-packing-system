@@ -1001,6 +1001,15 @@ body.field-single-role .wrap{padding-top:8px}
 @media(max-width:700px){.freightBulkText{min-height:170px!important}.freightConfirmItem{align-items:flex-start}.freightConfirmItem .btn{flex:0 0 auto}}
 </style>
 
+
+<style id="stage113-freight-complete-history">
+.fieldHistoryBar{margin-top:10px;display:flex;justify-content:flex-end}
+.fieldHistoryPanel{margin-top:10px;padding:12px;border:1px solid #cbd6e2;border-radius:12px;background:#fff}
+.fieldHistoryFilters{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.fieldHistoryFilters input[type=date]{max-width:190px}.fieldHistoryFilters input:not([type=date]){max-width:320px}
+@media(max-width:700px){.fieldHistoryFilters{display:grid;grid-template-columns:1fr 1fr auto}.fieldHistoryFilters input{max-width:none!important}}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1191,7 +1200,7 @@ body.field-single-role .wrap{padding-top:8px}
 
       <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
       <div id="stallManageCard" class="card" style="display:none"><h2 style="font-size:19px">訂單管理</h2><div class="helper">未完成訂單可依權限修改；刪除僅限管理員。</div><div id="stallOrders"></div></div>
-      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><h2>📡 現場回報</h2><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div></div>
+      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><h2>📡 現場回報</h2><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div class="fieldHistoryBar"><button type="button" class="btn gray" onclick="toggleFreightHistory()">🔍 歷史回報</button></div><div id="freightHistoryPanel" class="fieldHistoryPanel" style="display:none"><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
@@ -3771,16 +3780,19 @@ function freightGroups(){
 }
 function freightBatchCard(group,completed=false){
   const arr=group.rows,h=arr[0],pieces=arr.reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0);
-  const doneCount=arr.filter(x=>(x.status||'reported')==='confirmed').length;
-  return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(doneCount===arr.length?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
-    arr.map(x=>{const done=(x.status||'reported')==='confirmed';return '<div class="freightConfirmItem"><div><b>'+esc(x.item_text||'')+'</b>｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0)+' ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>')+'</div>'}).join('')+
+  const doneCount=arr.filter(x=>['confirmed','completed'].includes(x.status||'reported')).length;
+  const allChecked=doneCount===arr.length, fullyCompleted=arr.every(x=>(x.status||'')==='completed');
+  return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(fullyCompleted?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
+    arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');return '<div class="freightConfirmItem"><div><b>'+esc(x.item_text||'')+'</b>｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0)+' ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>')+'</div>'}).join('')+
     '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG</div>'+
-    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div></div>';
+    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+
+    (!fullyCompleted&&allChecked?'<div class="shortageActions"><button type="button" class="btn primary freight-complete-btn" data-batch="'+esc(group.batch)+'">✅ 整單完成</button></div>':'')+
+    (fullyCompleted?'<div class="meta" style="color:#18703c;font-weight:900">✅ 已整單完成｜'+stage9Time(h.confirmed_at||'')+'</div>':'')+'</div>';
 }
 function renderFreightOffice(){
   const box=document.getElementById('freightOfficeList');if(!box)return;
   const groups=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at));
-  const pending=groups.filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed'));
+  const pending=groups.filter(g=>!g.rows.every(x=>(x.status||'')==='completed'));
   box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">今天目前沒有待確認的寄車公斤回報</div>';
 }
 window.confirmFreightItem=async function(id){
@@ -3790,7 +3802,27 @@ window.confirmFreightItem=async function(id){
   if(error)return alert('確認失敗：'+error.message);
   await loadStage9();
 };
-document.addEventListener('click',e=>{const b=e.target.closest?.('.freight-item-confirm-btn');if(b)confirmFreightItem(b.dataset.id)});
+window.completeFreightBatch=async function(batch){
+  if(!currentUser)return alert('請先登入');
+  const g=freightGroups().find(x=>String(x.batch)===String(batch));if(!g)return alert('找不到這張回報單');
+  if(!g.rows.every(x=>['confirmed','completed'].includes(x.status||'')))return alert('請先逐項確認完成');
+  if(!confirm('已再次檢查品項與公斤數，確定整單完成？'))return;
+  const now=new Date().toISOString();
+  let q=sb.from('freight_receipts').update({status:'completed',confirmed_at:now,confirmed_by:currentUser.id,confirmed_by_name:currentProfile?.display_name||''});
+  q=String(batch).startsWith('old-')?q.eq('id',Number(String(batch).slice(4))):q.eq('batch_id',batch);
+  const {error}=await q;if(error)return alert('整單完成失敗：'+error.message);
+  await loadStage9();renderFreightHistory();
+};
+window.toggleFreightHistory=function(){const p=document.getElementById('freightHistoryPanel');if(!p)return;p.style.display=p.style.display==='none'?'block':'none';if(p.style.display==='block')renderFreightHistory()};
+window.clearFreightHistory=function(){const d=document.getElementById('freightHistoryDate'),k=document.getElementById('freightHistoryKeyword');if(d)d.value='';if(k)k.value='';renderFreightHistory()};
+window.renderFreightHistory=function(){
+  const box=document.getElementById('freightHistoryList');if(!box)return;
+  const date=document.getElementById('freightHistoryDate')?.value||'',kw=(document.getElementById('freightHistoryKeyword')?.value||'').trim().toLowerCase();
+  let groups=freightGroups().filter(g=>g.rows.every(x=>(x.status||'')==='completed'));
+  groups=groups.filter(g=>{const h=g.rows[0],d=(h.confirmed_at||h.created_at||'').slice(0,10),text=g.rows.map(x=>[x.customer,x.item_text,x.reported_by_name,x.confirmed_by_name,x.source_label].join(' ')).join(' ').toLowerCase();return(!date||d===date)&&(!kw||text.includes(kw))});
+  box.innerHTML=groups.length?groups.map(g=>freightBatchCard(g,true)).join(''):'<div class="empty">沒有符合條件的歷史回報</div>';
+};
+document.addEventListener('click',e=>{const a=e.target.closest?.('.freight-item-confirm-btn');if(a)confirmFreightItem(a.dataset.id);const b=e.target.closest?.('.freight-complete-btn');if(b)completeFreightBatch(b.dataset.batch)});
 window.renderConversationHistory=function(){
   const box=document.getElementById('conversationHistoryList');if(!box)return;
   const date=document.getElementById('historyDate')?.value||'';
