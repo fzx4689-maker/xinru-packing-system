@@ -1023,22 +1023,11 @@ body.field-single-role .wrap{padding-top:8px}
 </style>
 
 
-<style id="stage117-true-field-level">
-#fieldReportMainLevel{display:block}
-.fieldHistorySecondLevel{
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  border-radius:0!important;
-  background:transparent!important;
-  box-shadow:none!important;
-}
-.fieldHistorySecondTop{display:flex;align-items:center;justify-content:flex-start;margin:0 0 14px 0}
-.fieldHistorySecondTop .btn{min-height:42px;font-weight:700}
-@media(max-width:700px){
- .fieldHistorySecondTop{margin-bottom:10px}
- .fieldHistorySecondTop .btn{min-height:40px}
-}
+<style id="stage118-field-history-level">
+.fieldHistorySecondLevel{margin-top:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.fieldHistoryLevelTop{display:flex;justify-content:flex-start;margin-bottom:14px}
+.fieldHistoryLevelTop .btn{min-height:42px;font-weight:700}
+@media(max-width:700px){.fieldHistoryLevelTop{margin-bottom:10px}.fieldHistoryLevelTop .btn{min-height:40px}}
 </style>
 
 </head>
@@ -1231,9 +1220,7 @@ body.field-single-role .wrap{padding-top:8px}
 
       <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
       <div id="stallManageCard" class="card" style="display:none"><h2 style="font-size:19px">訂單管理</h2><div class="helper">未完成訂單可依權限修改；刪除僅限管理員。</div><div id="stallOrders"></div></div>
-      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div id="fieldReportMainLevel"><div class="fieldReportTitleRow"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" id="fieldHistoryOpenBtn" onclick="setFieldReportLevel('history')">🔍 歷史回報</button></div><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistorySecondLevel" style="display:none">
-<div class="fieldHistorySecondTop"><button type="button" class="btn gray" onclick="setFieldReportLevel('main')">← 返回現場回報</button></div>
-<div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
+      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div class="fieldReportTitleRow fieldReportMainPart"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" onclick="setFieldReportHistoryLevel(true)">🔍 歷史回報</button></div><div class="fieldReportMainPart helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools fieldReportMainPart"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistorySecondLevel" style="display:none"><div class="fieldHistoryLevelTop"><button type="button" class="btn gray" onclick="setFieldReportHistoryLevel(false)">← 返回現場回報</button></div><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
@@ -1241,12 +1228,12 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="packingCompactHead"><h2>包裝部</h2></div>
         <div class="packingMobileTabs" aria-label="包裝部手機功能">
           <button type="button" class="packingMobileTab" data-packing-mobile="0">💬 現場詢問</button>
-          <button type="button" class="packingMobileTab" data-packing-mobile="1">📦 寄車收貨／回報公斤</button>
+          <button type="button" class="packingMobileTab" data-packing-mobile="1">📦 寄車回報公斤</button>
           <button type="button" class="packingMobileTab" data-packing-mobile="2">⚠️ 缺貨回報／催貨</button>
         </div>
         <div class="packingQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>📦 寄車回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
           <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="packingOrders"></div>
@@ -1274,12 +1261,12 @@ body.field-single-role .wrap{padding-top:8px}
         <div class="deliveryLevelPanel active" data-delivery-level-panel="local">
         <div class="deliveryMobileTabs" aria-label="貨運中心手機功能">
           <button type="button" class="deliveryMobileTab" data-delivery-mobile="0">💬 現場詢問</button>
-          <button type="button" class="deliveryMobileTab" data-delivery-mobile="1">📦 寄車收貨／回報公斤</button>
+          <button type="button" class="deliveryMobileTab" data-delivery-mobile="1">📦 寄車回報公斤</button>
           <button type="button" class="deliveryMobileTab" data-delivery-mobile="2">⚠️ 缺貨回報／催貨</button>
         </div>
         <div class="deliveryQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>📦 寄車回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></div></details>
           <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div><div id="deliveryShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="driverFilters" class="driverFilters"></div>
@@ -2206,7 +2193,7 @@ function setStallMode(mode='create'){
   if(m)m.style.display=manage?'block':'none';
   if(f)f.style.display=field?'block':'none';
   if(field){
-    try{setFieldReportLevel(localStorage.getItem('xinru_field_report_level')==='history'?'history':'main')}catch(e){setFieldReportLevel('main')}
+    try{setFieldReportHistoryLevel(localStorage.getItem('xinru_field_report_level')==='history')}catch(e){setFieldReportHistoryLevel(false)}
   }
   const cb=$('#stallCreateModeBtn'),mb=$('#stallManageModeBtn'),fb=$('#stallFieldModeBtn');
   if(cb)cb.className='btn '+(create?'primary':'gray');
@@ -3849,17 +3836,14 @@ window.completeFreightBatch=async function(batch){
   const {error}=await q;if(error)return alert('整單完成失敗：'+error.message);
   await loadStage9();renderFreightHistory();
 };
-window.setFieldReportLevel=function(level){
-  const main=document.getElementById('fieldReportMainLevel');
-  const history=document.getElementById('freightHistoryPanel');
-  if(!main||!history)return;
-  const isHistory=level==='history';
-  main.style.display=isHistory?'none':'block';
-  history.style.display=isHistory?'block':'none';
-  try{localStorage.setItem('xinru_field_report_level',isHistory?'history':'main')}catch(e){}
-  if(isHistory)renderFreightHistory();
+window.setFieldReportHistoryLevel=function(open){
+  document.querySelectorAll('#stallFieldCard .fieldReportMainPart').forEach(el=>el.style.display=open?'none':'');
+  const p=document.getElementById('freightHistoryPanel');
+  if(p)p.style.display=open?'block':'none';
+  try{localStorage.setItem('xinru_field_report_level',open?'history':'main')}catch(e){}
+  if(open)renderFreightHistory();
 };
-window.toggleFreightHistory=function(){setFieldReportLevel('history')};
+window.toggleFreightHistory=function(){setFieldReportHistoryLevel(true)};
 window.clearFreightHistory=function(){const d=document.getElementById('freightHistoryDate'),k=document.getElementById('freightHistoryKeyword');if(d)d.value='';if(k)k.value='';renderFreightHistory()};
 window.renderFreightHistory=function(){
   const box=document.getElementById('freightHistoryList');if(!box)return;
