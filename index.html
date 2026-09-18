@@ -1801,7 +1801,7 @@ function canSeeTab(tab){
   if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
   return false;
 }
-function firstVisibleTab(){if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
+function firstVisibleTab(){return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
   document.body.classList.remove('field-single-role'); // 第128階段：頁面顯示統一交由頁面/功能權限判斷
@@ -4005,13 +4005,21 @@ let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
 const v17Has=(k)=>!v17Perm.configured||v17Perm.funcs.includes(k);
 async function v17LoadMine(){
  if(!currentUser||v17LoadedFor===currentUser.id)return;
- v17LoadedFor=currentUser.id;
+ const loadingUserId=currentUser.id;
  try{
-  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',currentUser.id).maybeSingle();
+  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',loadingUserId).maybeSingle();
   if(error)throw error;
+  if(!currentUser||currentUser.id!==loadingUserId)return;
   v17Perm=data?{pages:data.page_permissions||[],funcs:data.function_permissions||[],configured:true}:{pages:[],funcs:[],configured:false};
-  if(typeof applyRoleUI==='function')applyRoleUI(); if(typeof renderAll==='function')renderAll();
- }catch(e){console.warn('第十七階段權限表尚未啟用，沿用原權限：',e?.message||e);v17Perm={pages:[],funcs:[],configured:false};}
+  v17LoadedFor=loadingUserId; // 第129階段：成功讀到權限後才標記完成，失敗會自動重試
+  document.body.classList.remove('field-single-role');
+  if(typeof applyRoleUI==='function')applyRoleUI();
+  if(typeof renderAll==='function')renderAll();
+ }catch(e){
+  console.warn('讀取本人頁面權限失敗，稍後自動重試：',e?.message||e);
+  v17LoadedFor='';
+  v17Perm={pages:[],funcs:[],configured:false};
+ }
 }
 const v17OldCanSeeTab=canSeeTab;
 canSeeTab=function(tab){
