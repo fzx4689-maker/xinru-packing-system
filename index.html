@@ -909,6 +909,50 @@ body.field-single-role .wrap{padding-top:8px}
 }
 </style>
 
+
+<style id="stage93-announcement-mobile-date-visible">
+/* 只修公告查詢日期顯示；不新增 JS、不碰 Auth、包裝、電視牆、提醒聲 */
+.homeDoneDateBox{display:block;position:relative;min-width:0}
+.homeDoneDateBox #homeDoneDateFilter{width:100%!important}
+.homeDoneDateHint{display:none}
+@media(max-width:600px){
+  #homeDoneWrap .homeDoneSearchRow{
+    grid-template-columns:112px minmax(0,1fr) 48px!important;
+    gap:4px!important;
+  }
+  .homeDoneDateBox{
+    width:112px!important;
+    min-width:112px!important;
+    max-width:112px!important;
+    height:40px!important;
+  }
+  .homeDoneDateBox #homeDoneDateFilter{
+    width:112px!important;
+    min-width:112px!important;
+    max-width:112px!important;
+    height:40px!important;
+    box-sizing:border-box!important;
+  }
+  .homeDoneDateHint{
+    display:flex;
+    position:absolute;
+    left:7px;
+    top:1px;
+    bottom:1px;
+    align-items:center;
+    z-index:2;
+    pointer-events:none;
+    font-size:12px;
+    color:#667085;
+    background:#fff;
+    padding-right:3px;
+  }
+  .homeDoneDateBox:has(#homeDoneDateFilter:valid) .homeDoneDateHint{
+    display:none;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -956,7 +1000,7 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
-        <div id="homeDoneWrap" style="display:none;margin-top:0"><div class="homeQueryHead"><button type="button" class="btn gray" id="homeDoneBackBtn">← 返回公告</button></div><div class="actions homeDoneSearchRow" style="margin:10px 0"><input id="homeDoneDateFilter" class="input" type="date"><input id="homeDoneTextFilter" class="input" placeholder="關鍵字搜尋"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
+        <div id="homeDoneWrap" style="display:none;margin-top:0"><div class="homeQueryHead"><button type="button" class="btn gray" id="homeDoneBackBtn">← 返回公告</button></div><div class="actions homeDoneSearchRow" style="margin:10px 0"><span class="homeDoneDateBox"><input id="homeDoneDateFilter" class="input" type="date" required aria-label="日期"><span class="homeDoneDateHint">日期</span></span><input id="homeDoneTextFilter" class="input" placeholder="關鍵字搜尋"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
         
       </div>
     </section>
