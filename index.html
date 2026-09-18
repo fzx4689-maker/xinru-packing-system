@@ -1185,6 +1185,7 @@ body.field-single-role .wrap{padding-top:8px}
           <label class="workRoleChip"><input type="checkbox" class="new-feature" value="packing"> 📦 包裝部</label>
           <label class="workRoleChip"><input type="checkbox" class="new-feature" value="delivery"> 🚚 貨運部</label>
           <label class="workRoleChip"><input type="checkbox" class="new-feature" value="accounting"> 💰 帳務</label>
+          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="announcement"> 📢 公告管理</label>
         </div>
         <div class="helper" style="margin-top:8px"><b>接收通知</b>（跟職務、功能分開設定）</div>
         <div class="workRoles">
@@ -2198,7 +2199,7 @@ async function callEmployeeManager(action,payload={}){
 }
 function setEmployeeMsg(msg='',ok=false){const el=$('#employeeMsg');el.textContent=msg;el.className='employeeMsg '+(msg?(ok?'ok':'err'):'');}
 const WORK_LABEL={stall:'總部',packing:'包裝部',driver:'貨運',accounting:'帳務區',liuhe:'六禾'};
-const FEATURE_LABEL={stall_order:'派工',packing:'包裝部',delivery:'貨運部',accounting:'帳務'};
+const FEATURE_LABEL={stall_order:'派工',packing:'包裝部',delivery:'貨運部',accounting:'帳務',announcement:'公告管理'};
 const NOTIFICATION_LABEL={packing:'包裝',delivery:'貨運',accounting:'帳務'};
 function featureBadges(list=[]){return list.length?list.map(r=>`<span class="miniRole">${FEATURE_LABEL[r]||r}</span>`).join(''):'<span class="meta">無額外功能</span>';}
 function notificationBadges(list=[]){return list.length?list.map(r=>`<span class="miniRole">${NOTIFICATION_LABEL[r]||r}</span>`).join(''):'<span class="meta">無通知</span>';}
@@ -2240,7 +2241,8 @@ function chooseFeatures(name,currentFeatures=[],onConfirm=null){
     {value:'stall_order',label:'📋 派工'},
     {value:'packing',label:'📦 包裝部'},
     {value:'delivery',label:'🚚 貨運部'},
-    {value:'accounting',label:'💰 帳務'}
+    {value:'accounting',label:'💰 帳務'},
+    {value:'announcement',label:'📢 公告管理'}
   ],false,onConfirm);
 }
 function chooseNotifications(name,currentNotifications=[],onConfirm=null){
@@ -3651,11 +3653,9 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 let homeTasksV79=[],homeDoneV79=[],homeReadsV79=[],homeEmployeesV79=[];
 const deptLabels={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
 function canManage(){
- const p=currentProfile;if(!p)return false;
- if(p.role==='admin')return true;
- if(p.role!=='operator')return false;
- const wr=Array.isArray(p.work_roles)?p.work_roles:[];
- return !(wr.length===1&&wr[0]==='liuhe');
+ if(!currentProfile)return false;
+ if(currentProfile.role==='admin')return true;
+ return currentProfile.role==='operator' && hasFeature('announcement');
 }
 function msg(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
 function fmt(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
