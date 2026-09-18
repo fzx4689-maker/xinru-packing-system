@@ -1598,9 +1598,9 @@ const ROLE_LABEL={admin:'管理員',operator:'主管',viewer:'一般使用者'};
 const canWrite=()=>currentProfile&&['admin','operator'].includes(currentProfile.role);
 const isAdmin=()=>currentProfile?.role==='admin';
 const isSupervisor=()=>currentProfile?.role==='operator';
-const canOperateStall=()=>isAdmin()||(isSupervisor()&&hasWorkRole('stall'));
-const canPackingWork=()=>isAdmin()||hasWorkRole('packing');
-const canManagePacking=()=>isAdmin()||(isSupervisor()&&hasWorkRole('packing'));
+const canOperateStall=()=>isAdmin()||(v17Perm.configured?(v17Has('order.create')||v17Has('order.edit')):(isSupervisor()&&hasWorkRole('stall')));
+const canPackingWork=()=>isAdmin()||(v17Perm.configured?v17Has('packing.work'):hasWorkRole('packing'));
+const canManagePacking=()=>isAdmin()||(v17Perm.configured?v17Has('packing.work'):(isSupervisor()&&hasWorkRole('packing')));
 const actorFields=(kind='updated')=>{if(!currentUser||!currentProfile)return {}; if(kind==='created')return {created_by:currentUser.id,created_by_name:currentProfile.display_name}; if(kind==='completed')return {completed_by:currentUser.id,completed_by_name:currentProfile.display_name,updated_by:currentUser.id,updated_by_name:currentProfile.display_name}; return {updated_by:currentUser.id,updated_by_name:currentProfile.display_name};};
 function requireWrite(){if(canWrite())return true;alert('此帳號目前無法修改內容，請洽管理者。');return false;}
 function requireStallWork(){if(canOperateStall())return true;alert('這個頁面只有查看權限，不能下單或修改。');return false;}
@@ -1788,11 +1788,11 @@ function isPackingOnly(){const r=currentProfile?.work_roles||[];return currentPr
 function isDriverOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='driver'&&!hasFeature('stall_order')&&!hasFeature('packing')&&!hasFeature('accounting')}
 function canSeeTab(tab){
   if(!currentProfile)return false;
-  const admin=currentProfile.role==='admin';
-  if(admin)return true; // 管理員可查看全部頁面，但不會因此出現在司機名單
+  if(currentProfile.role==='admin')return true;
+  if(v17Perm.configured)return tab==='today'||v17Perm.pages.includes(tab);
   if(isPackingOnly())return tab==='packing';
   if(isDriverOnly())return tab==='delivery';
-  if(tab==='home'||tab==='wall'||tab==='today')return true; // 一般辦公室角色保留共用查看頁
+  if(tab==='home'||tab==='wall'||tab==='today')return true;
   if(tab==='sales')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
   if(tab==='procurement')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
   if(tab==='stall')return hasWorkRole('stall')||hasFeature('stall_order');
@@ -1801,10 +1801,10 @@ function canSeeTab(tab){
   if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
   return false;
 }
-function firstVisibleTab(){if(v17Perm?.configured)return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home';if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
+function firstVisibleTab(){return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
-  document.body.classList.toggle('field-single-role',isPackingOnly()||isDriverOnly());
+  document.body.classList.toggle('field-single-role',!v17Perm.configured&&(isPackingOnly()||isDriverOnly()));
   $('#readonlyNote').style.display='none';
   const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';
   $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
@@ -2829,6 +2829,14 @@ async function loadMyProfile(user){
   if(!data.is_active)throw new Error('這個員工帳號已停用');
   return data;
 }
+async function loadMyUnifiedPermission(user){
+  const {data,error}=await sb.from('employee_permission_v17')
+    .select('page_permissions,function_permissions')
+    .eq('user_id',user.id).maybeSingle();
+  if(error)throw error;
+  v17Perm=data?{pages:data.page_permissions||[],funcs:data.function_permissions||[],configured:true}:{pages:[],funcs:[],configured:false};
+  v17LoadedFor=user.id;
+}
 function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
@@ -2840,7 +2848,7 @@ function showApp(){
   updatePwaPushButton();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);v17LoadedFor='';await v17LoadMine();showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
+  try{currentUser=user;currentProfile=await loadMyProfile(user);await loadMyUnifiedPermission(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
     // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
     // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
     const saved=localStorage.getItem('xinru_delivery_driver_filter');
@@ -3978,26 +3986,10 @@ const v17Has=(k)=>!v17Perm.configured||v17Perm.funcs.includes(k);
 async function v17LoadMine(){
  if(!currentUser||v17LoadedFor===currentUser.id)return;
  try{
-  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',currentUser.id).maybeSingle();
-  if(error)throw error;
-  v17Perm=data?{pages:data.page_permissions||[],funcs:data.function_permissions||[],configured:true}:{pages:[],funcs:[],configured:false};
-  v17LoadedFor=currentUser.id;
+  await loadMyUnifiedPermission(currentUser);
   if(typeof applyRoleUI==='function')applyRoleUI(); if(typeof renderAll==='function')renderAll();
- }catch(e){console.warn('第十七階段權限讀取失敗，保留重試：',e?.message||e);v17LoadedFor='';v17Perm={pages:[],funcs:[],configured:false};}
+ }catch(e){v17LoadedFor='';console.warn('讀取統一權限失敗，保留重試：',e?.message||e);}
 }
-const v17OldCanSeeTab=canSeeTab;
-canSeeTab=function(tab){
- if(currentProfile?.role==='admin')return true;
- if(v17Perm.configured)return v17Perm.pages.includes(tab);
- return v17OldCanSeeTab(tab);
-};
-const v17OldPackingWork=canPackingWork;
-canPackingWork=()=>v17OldPackingWork()&&v17Has('packing.work');
-const v17OldManagePacking=canManagePacking;
-canManagePacking=()=>v17OldManagePacking()&&v17Has('packing.work');
-const v17OldOperateStall=canOperateStall;
-canOperateStall=()=>v17OldOperateStall()&&(v17Has('order.create')||v17Has('order.edit'));
-
 function v17ApplyFunctionUI(){
  if(!currentUser||currentProfile?.role==='admin'||!v17Perm.configured)return;
  const submit=document.getElementById('submitOrder'); if(submit){submit.disabled=!v17Has('order.create');submit.classList.toggle('viewer-disabled',!v17Has('order.create'));}
@@ -4005,14 +3997,7 @@ function v17ApplyFunctionUI(){
  document.querySelectorAll('#accounting button').forEach(b=>{const t=b.textContent||'';if(/匯出|Excel|PDF|列印|LINE/.test(t)&&!v17Has('accounting.export'))b.style.display='none';});
 }
 const v17OldApplyRoleUI=applyRoleUI;
-applyRoleUI=function(){
- v17OldApplyRoleUI();
- if(v17Perm.configured){
-  document.body.classList.remove('field-single-role');
-  $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
- }
- v17ApplyFunctionUI();
-};
+applyRoleUI=function(){v17OldApplyRoleUI();v17ApplyFunctionUI();};
 
 function v17AddPermissionButtons(){
  if(currentProfile?.role!=='admin')return;
