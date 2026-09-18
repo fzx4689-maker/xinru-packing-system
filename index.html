@@ -500,6 +500,11 @@ body.field-single-role .wrap{padding-top:8px}
   #stallFieldCard .fieldReportGrid{grid-template-columns:1fr!important}
   #stallFieldCard{background:#eef3f8}
 }
+
+/* 第78階段：超市帳電腦高速輸入介面。只做前端輸入工作區，不改登入/Auth與既有帳務資料表。 */
+.superFast{background:#fff;border:1px solid #dbe3ec;border-radius:14px;padding:12px}.superFastTop{display:grid;grid-template-columns:160px minmax(220px,1fr) 150px 120px;gap:7px;align-items:end}.superFastTable{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}.superFastTable th,.superFastTable td{border:1px solid #d9dee5;padding:4px}.superFastTable th{background:#f1f5f9;font-size:12px}.superFastTable input{width:100%;border:0;background:transparent;padding:7px 6px;font-size:14px;outline:none}.superFastTable input:focus{background:#fff9d9;box-shadow:inset 0 0 0 2px #e3b341}.superFastTable .sfSeq{width:52px;text-align:center;font-weight:900}.superFastTable .sfName{width:30%}.superFastTable .sfKg{width:90px}.superFastTable .sfQty{width:90px}.superFastTable .sfPrice{width:105px}.superFastTable .sfAmount{width:115px;text-align:right;font-weight:900;background:#fafafa}.superFastTable .sfFreight{width:105px;text-align:right;background:#fafafa}.superFastFoot{display:flex;justify-content:flex-end;gap:18px;align-items:center;margin-top:9px;font-size:15px}.superFastFoot b{font-size:18px}.superFastActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.superFastHint{font-size:12px;color:#667085;margin-top:5px}.superFastStatus{margin-right:auto;font-size:12px;font-weight:800;color:#18703c}
+@media(max-width:760px){.superFastTop{grid-template-columns:1fr 1fr}.superFastWrap{overflow-x:auto}.superFastTable{min-width:760px}.superFastFoot{justify-content:flex-start;flex-wrap:wrap}}
+
 </style>
 
 
@@ -797,7 +802,25 @@ body.field-single-role .wrap{padding-top:8px}
           <button type="button" class="acctManagementBtn" data-acct-manage="vehicle"><b>🚚 車輛管理</b><span>車輛資料、加油、保養、維修、保險、驗車</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="report"><b>📊 管理報表</b><span>後續由帳務資料自動彙整，不重複輸入</span></button>
         </div>
-        <div id="acctManagementStage" class="acctManagementStage"><div><b>✍️ 快速做帳</b><div class="helper" style="margin-top:5px">下一階段先做「超市帳」電腦高速輸入介面。</div></div></div>
+        <div id="acctManagementStage" class="acctManagementStage">
+          <div id="acctFastHome">
+            <b>✍️ 快速做帳</b>
+            <div class="helper" style="margin-top:5px">選擇要快速輸入的帳務類型。</div>
+            <div class="actions"><button type="button" class="btn blue" id="openSuperFast">🏪 超市帳高速輸入</button></div>
+          </div>
+          <div id="superFastPanel" class="superFast" style="display:none">
+            <div class="superFastTop">
+              <div class="field"><label class="label">日期</label><input id="sfDate" class="input" type="date"></div>
+              <div class="field"><label class="label">超市／客戶</label><input id="sfCustomer" class="input" autocomplete="off" placeholder="輸入客戶名稱"></div>
+              <div class="field"><label class="label">運費 / KG</label><input id="sfRate" class="input" type="number" step="0.1" value="2"></div>
+              <div class="field"><label class="label">列數</label><select id="sfRowCount" class="input"><option>20</option><option selected>40</option><option>60</option><option>80</option></select></div>
+            </div>
+            <div class="superFastHint">操作：品名 → KG → 數量 → 單價，按 Enter 會往右跳；單價按 Enter 直接到下一列品名。金額、運費自動計算。</div>
+            <div class="superFastWrap"><table class="superFastTable"><thead><tr><th class="sfSeq">序</th><th class="sfName">品名</th><th class="sfKg">每件 KG</th><th class="sfQty">件數</th><th class="sfPrice">單價</th><th class="sfAmount">金額</th><th class="sfFreight">運費</th></tr></thead><tbody id="sfBody"></tbody></table></div>
+            <div class="superFastFoot"><span>貨款 <b id="sfGoods">$0</b></span><span>運費 <b id="sfFreightTotal">$0</b></span><span>合計 <b id="sfGrand">$0</b></span></div>
+            <div class="superFastActions"><span id="sfStatus" class="superFastStatus">尚未儲存</span><button type="button" class="btn gray" id="sfClear">清空</button><button type="button" class="btn gray" id="sfPrint">列印本日帳單</button><button type="button" class="btn primary" id="sfSaveDraft">暫存本機</button><button type="button" class="btn gray" id="sfBack">返回</button></div>
+          </div>
+        </div>
       </div>
       <div class="card acctLegacyArea" style="display:none">
         <h2>💰 舊帳務介面</h2>
@@ -2510,6 +2533,30 @@ function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
 $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
+
+<script>
+// 第78階段：超市帳高速輸入。前端草稿先使用 localStorage，尚未寫入 Supabase 正式帳務表。
+(function(){
+  const $s=id=>document.getElementById(id), key='xinru_super_fast_draft_v1';
+  function today(){const d=new Date(),z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())}
+  function money(n){return '$'+Math.round(Number(n)||0).toLocaleString('zh-TW')}
+  function rows(){return [...document.querySelectorAll('#sfBody tr')]}
+  function calc(){let goods=0,freight=0;rows().forEach(tr=>{const a=tr.querySelectorAll('input'),kg=+a[1].value||0,q=+a[2].value||0,p=+a[3].value||0,amt=q*p,fr=kg*q*(+$s('sfRate').value||0);tr.querySelector('.sfAmount').textContent=amt?money(amt):'';tr.querySelector('.sfFreight').textContent=fr?money(fr):'';goods+=amt;freight+=fr});$s('sfGoods').textContent=money(goods);$s('sfFreightTotal').textContent=money(freight);$s('sfGrand').textContent=money(goods+freight)}
+  function build(n,data=[]){const b=$s('sfBody');if(!b)return;b.innerHTML='';for(let i=0;i<n;i++){const d=data[i]||{};const tr=document.createElement('tr');tr.innerHTML='<td class="sfSeq">'+(i+1)+'</td><td><input data-col="0" value="'+esc(d.name||'')+'" placeholder="品名"></td><td><input data-col="1" type="number" step="0.01" value="'+(d.kg||'')+'"></td><td><input data-col="2" type="number" step="0.01" value="'+(d.qty||'')+'"></td><td><input data-col="3" type="number" step="0.01" value="'+(d.price||'')+'"></td><td class="sfAmount"></td><td class="sfFreight"></td>';b.appendChild(tr)}calc()}
+  function data(){return {date:$s('sfDate').value,customer:$s('sfCustomer').value.trim(),rate:$s('sfRate').value,count:+$s('sfRowCount').value,rows:rows().map(tr=>{const a=tr.querySelectorAll('input');return {name:a[0].value.trim(),kg:a[1].value,qty:a[2].value,price:a[3].value}})}}
+  function open(){document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.toggle('active',x.dataset.acctManage==='entry'));$s('acctFastHome').style.display='none';$s('superFastPanel').style.display='block';if(!$s('sfBody').children.length){let d=null;try{d=JSON.parse(localStorage.getItem(key)||'null')}catch(e){};$s('sfDate').value=d?.date||today();$s('sfCustomer').value=d?.customer||'';$s('sfRate').value=d?.rate||2;$s('sfRowCount').value=String(d?.count||40);build(d?.count||40,d?.rows||[])}setTimeout(()=>$s('sfCustomer').focus(),30)}
+  $s('openSuperFast')?.addEventListener('click',open);
+  $s('sfBack')?.addEventListener('click',()=>{$s('superFastPanel').style.display='none';$s('acctFastHome').style.display='block'});
+  $s('sfRowCount')?.addEventListener('change',()=>{const d=data();build(+$s('sfRowCount').value,d.rows)});
+  $s('sfRate')?.addEventListener('input',calc);$s('sfBody')?.addEventListener('input',calc);
+  $s('sfBody')?.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();const inp=e.target.closest('input');if(!inp)return;const tr=inp.closest('tr'),all=rows(),ri=all.indexOf(tr),ci=+inp.dataset.col;let target;if(ci<3)target=tr.querySelector('input[data-col="'+(ci+1)+'"]');else target=all[ri+1]?.querySelector('input[data-col="0"]');if(target){target.focus();target.select()}});
+  $s('sfSaveDraft')?.addEventListener('click',()=>{localStorage.setItem(key,JSON.stringify(data()));$s('sfStatus').textContent='已暫存本機 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})});
+  $s('sfClear')?.addEventListener('click',()=>{if(!confirm('確定清空這張超市帳？'))return;localStorage.removeItem(key);$s('sfDate').value=today();$s('sfCustomer').value='';$s('sfRate').value=2;build(+$s('sfRowCount').value);$s('sfStatus').textContent='已清空';$s('sfCustomer').focus()});
+  $s('sfPrint')?.addEventListener('click',()=>{const d=data(),used=d.rows.filter(x=>x.name||x.kg||x.qty||x.price),rate=+d.rate||0;let goods=0,freight=0;const rr=used.map((x,i)=>{const a=(+x.qty||0)*(+x.price||0),f=(+x.kg||0)*(+x.qty||0)*rate;goods+=a;freight+=f;return '<tr><td>'+(i+1)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.kg)+'</td><td>'+esc(x.qty)+'</td><td>'+esc(x.price)+'</td><td>'+a+'</td><td>'+f+'</td></tr>'}).join('');const w=window.open('','_blank');w.document.write('<!doctype html><meta charset="utf-8"><title>超市帳</title><style>body{font-family:Arial,"Microsoft JhengHei";padding:12px}h2{text-align:center}table{width:100%;border-collapse:collapse}th,td{border:1px solid #333;padding:5px;text-align:center}.meta{display:flex;justify-content:space-between;margin:8px 0}.total{text-align:right;font-weight:bold;margin-top:8px}@page{size:landscape}</style><h2>欣儒農產行</h2><div class="meta"><b>客戶：'+esc(d.customer)+'</b><b>日期：'+esc(d.date)+'</b><span>運費：'+rate+'元/KG</span></div><table><tr><th>序</th><th>品名</th><th>KG</th><th>件數</th><th>單價</th><th>金額</th><th>運費</th></tr>'+rr+'</table><div class="total">貨款 '+money(goods)+'　運費 '+money(freight)+'　合計 '+money(goods+freight)+'</div>');w.document.close();w.focus();setTimeout(()=>w.print(),250)});
+  document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.acctManage==='entry'){const box=$s('acctManagementStage');if(box&&!$s('acctFastHome'))return; if($s('superFastPanel')){$s('superFastPanel').style.display='none';$s('acctFastHome').style.display='block'}}}));
+})();
+</script>
+
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
