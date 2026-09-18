@@ -1204,7 +1204,7 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div class="packingQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="30K高麗菜*3&#10;10K全紅*2" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
           <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="packingOrders"></div>
@@ -1237,7 +1237,7 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div class="deliveryQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="30K高麗菜*3&#10;10K全紅*2" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></div></details>
+          <details class="shortageQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button></div></details>
           <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div><div id="deliveryShortageReplies" class="shortageList"></div></div></details>
         </div>
         <div id="driverFilters" class="driverFilters"></div>
@@ -3726,9 +3726,14 @@ function parseFreightBulk(source){
   const rows=[],bad=[];
   text.split(/\r?\n/).forEach((raw,index)=>{
     const line=raw.trim(); if(!line)return;
-    const m=line.match(/^(\d+(?:\.\d+)?)\s*(?:K|KG|公斤)\s*(.+?)(?:\s*[\*xX×]\s*(\d+(?:\.\d+)?))?\s*$/i);
-    if(!m){bad.push({line:index+1,text:line});return;}
-    const kg=Number(m[1]), item=(m[2]||'').trim(), qty=m[3]===undefined?1:Number(m[3]);
+    /* 自由格式：公斤可在品名前或後；件數 *3 / x3 / ×3 可省略。 */
+    const qtyMatch=line.match(/(?:\*|[xX×])\s*(\d+(?:\.\d+)?)\s*$/);
+    const qty=qtyMatch?Number(qtyMatch[1]):1;
+    const body=qtyMatch?line.slice(0,qtyMatch.index).trim():line;
+    const kgMatch=body.match(/(\d+(?:\.\d+)?)\s*(?:KG|K|公斤)/i);
+    if(!kgMatch){bad.push({line:index+1,text:line});return;}
+    const kg=Number(kgMatch[1]);
+    const item=(body.slice(0,kgMatch.index)+body.slice(kgMatch.index+kgMatch[0].length)).trim();
     if(!item||kg<=0||qty<=0){bad.push({line:index+1,text:line});return;}
     rows.push({item,qty,kg,total_kg:Math.round(kg*qty*100)/100,raw:line});
   });
