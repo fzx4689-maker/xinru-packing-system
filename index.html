@@ -1056,6 +1056,15 @@ body.field-single-role .wrap{padding-top:8px}
 }
 </style>
 
+
+<style id="stage126-mobile-third-level-only">
+@media (max-width:700px){
+  body.field-report-history-third-level #stall > .stallModeBar{
+    display:none !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1775,8 +1784,22 @@ function renderAll(){
   applyRoleUI();
 }
 function hasFeature(feature){return Array.isArray(currentProfile?.feature_permissions)&&currentProfile.feature_permissions.includes(feature)}
-function isPackingOnly(){
-  return false; // 第127階段：取消單一職務強制只顯示包裝部
+function isPackingOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='packing'&&!hasFeature('stall_order')&&!hasFeature('delivery')&&!hasFeature('accounting')}
+function isDriverOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='driver'&&!hasFeature('stall_order')&&!hasFeature('packing')&&!hasFeature('accounting')}
+function canSeeTab(tab){
+  if(!currentProfile)return false;
+  const admin=currentProfile.role==='admin';
+  if(admin)return true; // 管理員可查看全部頁面，但不會因此出現在司機名單
+  if(isPackingOnly())return tab==='packing';
+  if(isDriverOnly())return tab==='delivery';
+  if(tab==='home'||tab==='wall'||tab==='today')return true; // 一般辦公室角色保留共用查看頁
+  if(tab==='sales')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
+  if(tab==='procurement')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
+  if(tab==='stall')return hasWorkRole('stall')||hasFeature('stall_order');
+  if(tab==='packing')return hasWorkRole('packing')||hasFeature('packing');
+  if(tab==='delivery')return hasWorkRole('driver')||hasFeature('delivery');
+  if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
+  return false;
 }
 function firstVisibleTab(){if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
@@ -3852,6 +3875,7 @@ window.setFieldReportHistoryLevel=function(open){
   const card=document.getElementById('stallFieldCard');
   const p=document.getElementById('freightHistoryPanel');
   if(!card||!p)return;
+  document.body.classList.toggle('field-report-history-third-level',!!open);
   card.classList.toggle('field-history-mode',!!open);
   p.style.display=open?'block':'none';
   try{localStorage.setItem('xinru_field_report_level',open?'history':'main')}catch(e){}
