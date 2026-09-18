@@ -2977,27 +2977,6 @@ function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
 $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
-
-<script id="stage97-restore-announcement-query">
-(function(){
-  function restoreAnnouncementQuery(){
-    let keep=false;
-    try{keep=sessionStorage.getItem('xinru_home_announcement_query')==='1'}catch(e){}
-    if(!keep)return;
-    const btn=document.getElementById('homeDoneToggleBtn');
-    const home=document.getElementById('home');
-    if(!btn||!home)return;
-    // 使用既有公告查詢按鈕進入，不重寫查詢邏輯。
-    btn.click();
-  }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',()=>setTimeout(restoreAnnouncementQuery,900),{once:true});
-  }else{
-    setTimeout(restoreAnnouncementQuery,900);
-  }
-})();
-</script>
-
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -4018,7 +3997,6 @@ function setHomeQueryMode(on){
  const w=document.getElementById('homeDoneWrap'),list=document.getElementById('homeNoticeList'),msgEl=document.getElementById('homeNoticeMsg');
  const top=document.querySelector('#home .homeNoticeTopActions'),title=document.querySelector('#home h3');
  if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.setProperty('display',on?'none':'flex','important');if(title)title.style.display=on?'none':'block';
- try{sessionStorage.setItem('xinru_home_announcement_query',on?'1':'0')}catch(e){}
 }
 function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.style.setProperty('display',ok?'flex':'none','important');add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
 document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
