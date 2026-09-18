@@ -615,6 +615,102 @@ body.field-single-role .wrap{padding-top:8px}
 <style id="v58-home-todo-style">
 .homeTodoCard{border:1px solid #d9e2ec;border-radius:14px;padding:12px 14px;margin-bottom:8px;background:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.homeTodoMain{min-width:0}.homeTodoTitle{font-size:17px;font-weight:900;line-height:1.45}.homeTodoMeta{font-size:12px;color:#667085;margin-top:5px}.homeTodoDept{display:inline-block;border-radius:999px;background:#eef4ff;padding:3px 8px;margin-right:6px;font-weight:800}.homeTodoComplete{flex:0 0 auto}.homeTodoDone{background:#f7f8fa}.homeTodoDone .homeTodoTitle{text-decoration:none;color:#475467}@media(max-width:600px){.homeTodoCard{align-items:stretch;flex-direction:column}.homeTodoComplete{width:100%}}
 </style>
+
+<style id="stage86-fixes">
+/* 第86階段：最後覆蓋，避免舊版 CSS 把新版排版蓋掉 */
+
+/* 派工查詢第一排 */
+#today .queryToolbar{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  flex-wrap:wrap!important;
+}
+#todayBackHomeBtn,#today .queryModeBtn,#today .queryToolbar>h2{
+  box-sizing:border-box!important;
+  height:46px!important;
+  min-height:46px!important;
+  border-radius:12px!important;
+  padding:0 14px!important;
+  font-size:15px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  white-space:nowrap!important;
+  margin:0!important;
+}
+#today .queryToolbar>h2{
+  background:#eef4ff!important;
+  border:1px solid #cfe0f3!important;
+  color:#153b63!important;
+}
+#today .queryToolbar>h2 .th{font-size:10px!important;margin-left:5px!important}
+#today .queryToolbar>.actions{display:flex!important;gap:7px!important;margin:0!important;flex-wrap:nowrap!important}
+#packingQueryControls,#deliveryQueryControls{margin:0!important}
+#packingQueryControls{display:flex!important;gap:7px!important;flex:1 1 420px!important}
+#packingQueryControls .input{height:46px!important;box-sizing:border-box!important}
+#orderQueryKeyword{flex:1 1 240px!important;max-width:none!important}
+
+/* 公告查詢手機：日期 / 搜尋 / 清除 永遠一排 */
+@media(max-width:600px){
+ #homeDoneWrap>.actions{
+   display:grid!important;
+   grid-template-columns:118px minmax(0,1fr) 50px!important;
+   gap:5px!important;
+   align-items:stretch!important;
+   flex-wrap:nowrap!important;
+   width:100%!important;
+ }
+ #homeDoneDateFilter,#homeDoneTextFilter,#homeDoneClearFilter{
+   box-sizing:border-box!important;
+   height:40px!important;
+   min-height:40px!important;
+   margin:0!important;
+ }
+ #homeDoneDateFilter{
+   width:118px!important;min-width:118px!important;max-width:118px!important;
+   padding:6px 4px!important;font-size:11px!important;
+ }
+ #homeDoneTextFilter{
+   width:100%!important;min-width:0!important;max-width:none!important;
+   padding:6px 7px!important;font-size:12px!important;
+ }
+ #homeDoneClearFilter{
+   width:50px!important;min-width:50px!important;max-width:50px!important;
+   padding:0 4px!important;font-size:12px!important;border-radius:10px!important;
+ }
+
+ /* 派工單：手機也保持同尺寸，日期搜尋另起一排，不擠壓功能按鈕 */
+ #today .queryToolbar{gap:5px!important}
+ #todayBackHomeBtn,#today .queryModeBtn,#today .queryToolbar>h2{
+   height:42px!important;min-height:42px!important;padding:0 9px!important;
+   border-radius:11px!important;font-size:13px!important;
+ }
+ #today .queryToolbar>h2 .th{font-size:8px!important}
+ #today .queryToolbar>.actions{gap:5px!important}
+ #packingQueryControls{
+   flex:1 0 100%!important;width:100%!important;
+   display:grid!important;grid-template-columns:128px minmax(0,1fr)!important;gap:5px!important;
+ }
+ #packingQueryControls .input{
+   height:42px!important;min-height:42px!important;margin:0!important;
+   max-width:none!important;width:100%!important;font-size:12px!important;padding:7px 8px!important;
+ }
+ #deliveryQueryControls{flex:1 0 100%!important;width:100%!important}
+ #deliveryQueryControls>.actions{
+   display:grid!important;grid-template-columns:128px minmax(0,1fr)!important;gap:5px!important;
+ }
+ #deliveryQueryControls .input{
+   height:42px!important;max-width:none!important;width:100%!important;font-size:12px!important;padding:7px 8px!important;
+ }
+}
+
+/* +公告：被 JS 判定無權限時完全不佔位置 */
+#homeNoticeAddBtn[style*="display: none"],#homeNoticeAddBtn[style*="display:none"]{display:none!important}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -874,8 +970,8 @@ body.field-single-role .wrap{padding-top:8px}
         <button type="button" id="todayBackHomeBtn" class="btn gray">← 返回公告</button>
         <h2>🔎 派工單 <span class="th" style="display:inline-block;margin-left:6px">พ่ายกงตัน</span></h2>
         <div class="actions" style="margin:12px 0;flex-wrap:wrap">
-          <button id="queryPackingBtn" class="btn primary">📦 包裝部</button>
-          <button id="queryDeliveryBtn" class="btn gray">🚚 貨運部</button>
+          <button id="queryPackingBtn" class="btn primary queryModeBtn">📦 包裝部</button>
+          <button id="queryDeliveryBtn" class="btn gray queryModeBtn">🚚 貨運部</button>
         </div>
         <div id="packingQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap">
           <input id="queryDate" class="input" type="date" style="max-width:220px"><input id="orderQueryKeyword" class="input" placeholder="🔎 關鍵字搜尋（一個字即可）" style="max-width:300px">
@@ -3554,7 +3650,13 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 (function(){
 let homeTasksV79=[],homeDoneV79=[],homeReadsV79=[],homeEmployeesV79=[];
 const deptLabels={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
-function canManage(){return !!currentProfile&&(currentProfile.role==='admin'||currentProfile.role==='operator');}
+function canManage(){
+ const p=currentProfile;if(!p)return false;
+ if(p.role==='admin')return true;
+ if(p.role!=='operator')return false;
+ const wr=Array.isArray(p.work_roles)?p.work_roles:[];
+ return !(wr.length===1&&wr[0]==='liuhe');
+}
 function msg(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
 function fmt(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
 function today(){return typeof taipeiDate==='function'?taipeiDate():new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date());}
@@ -3564,13 +3666,25 @@ function myRead(id){return readRows(id).some(r=>String(r.user_id)===String(curre
 function readStatHtml(x){if(!canManage())return '';const n=readRows(x.id).length,total=homeEmployeesV79.length;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
 function render(){
  const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
- const dueKey=x=>{const v=String(x?.due_date||'').trim();const m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[1]}-${m[2]}-${m[3]}`:(v||'未設定');};
+ const dueKey=x=>{
+  const raw=String(x?.due_date||'').trim(), m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let d=m?`${m[1]}-${m[2]}-${m[3]}`:(raw||'未設定');
+  // 舊公告相容：早期版本把公告日期誤存成建立日；只有這種舊資料才從標題開頭 M/D 修正顯示分組。
+  const created=x?.created_at?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date(x.created_at)):'';
+  const tm=String(x?.title||'').trim().match(/^(\d{1,2})\/(\d{1,2})(?:\s|\(|（)/);
+  if(tm && d===created){
+    const y=created?created.slice(0,4):String(new Date().getFullYear());
+    const mm=String(Number(tm[1])).padStart(2,'0'),dd=String(Number(tm[2])).padStart(2,'0');
+    d=`${y}-${mm}-${dd}`;
+  }
+  return d;
+ };
  const rows=[...homeTasksV79].sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||((Date.parse(a.created_at)||0)-(Date.parse(b.created_at)||0)));
  const groups={};rows.forEach(x=>{const k=dueKey(x);(groups[k]||(groups[k]=[])).push(x);});
  box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
- const filtered=homeDoneV79.filter(x=>{return(!df||String(x.due_date||'').slice(0,10)===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>String(b.due_date||'').localeCompare(String(a.due_date||''))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
- done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(String(x.due_date||'').slice(0,10))}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
+ const filtered=homeDoneV79.filter(x=>{return(!df||dueKey(x)===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>dueKey(b).localeCompare(dueKey(a))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
+ done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(dueKey(x))}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
  box.querySelectorAll('[data-read]').forEach(b=>b.onclick=()=>markRead(b.dataset.read,b));
  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit));
  box.querySelectorAll('[data-end]').forEach(b=>b.onclick=()=>endTask(b.dataset.end,b));
