@@ -1023,11 +1023,22 @@ body.field-single-role .wrap{padding-top:8px}
 </style>
 
 
-<style id="stage116-field-history-level">
-.fieldHistoryTopBtn{min-height:52px!important;padding:0 26px!important;border-radius:12px!important;font-size:18px!important;font-weight:700!important;white-space:nowrap}
-.fieldHistoryLevel{margin-top:12px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
-.fieldHistoryLevelTop{display:flex;justify-content:flex-start;margin-bottom:12px}.fieldHistoryLevelTop .btn{min-height:42px}
-@media(max-width:700px){.fieldHistoryTopBtn{min-height:44px!important;padding:0 14px!important;font-size:16px!important;border-radius:10px!important}.fieldHistoryLevelTop .btn{min-height:40px!important}}
+<style id="stage117-true-field-level">
+#fieldReportMainLevel{display:block}
+.fieldHistorySecondLevel{
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.fieldHistorySecondTop{display:flex;align-items:center;justify-content:flex-start;margin:0 0 14px 0}
+.fieldHistorySecondTop .btn{min-height:42px;font-weight:700}
+@media(max-width:700px){
+ .fieldHistorySecondTop{margin-bottom:10px}
+ .fieldHistorySecondTop .btn{min-height:40px}
+}
 </style>
 
 </head>
@@ -1220,7 +1231,9 @@ body.field-single-role .wrap{padding-top:8px}
 
       <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
       <div id="stallManageCard" class="card" style="display:none"><h2 style="font-size:19px">訂單管理</h2><div class="helper">未完成訂單可依權限修改；刪除僅限管理員。</div><div id="stallOrders"></div></div>
-      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div class="fieldReportTitleRow"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" id="fieldHistoryOpenBtn" onclick="toggleFreightHistory(true)">🔍 歷史回報</button></div><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools" id="fieldReportMainTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistoryLevel" style="display:none"><div class="fieldHistoryLevelTop"><button type="button" class="btn gray" onclick="toggleFreightHistory(false)">← 返回現場回報</button></div><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
+      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div id="fieldReportMainLevel"><div class="fieldReportTitleRow"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" id="fieldHistoryOpenBtn" onclick="setFieldReportLevel('history')">🔍 歷史回報</button></div><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistorySecondLevel" style="display:none">
+<div class="fieldHistorySecondTop"><button type="button" class="btn gray" onclick="setFieldReportLevel('main')">← 返回現場回報</button></div>
+<div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
@@ -2193,11 +2206,7 @@ function setStallMode(mode='create'){
   if(m)m.style.display=manage?'block':'none';
   if(f)f.style.display=field?'block':'none';
   if(field){
-    try{
-      const open=localStorage.getItem('xinru_field_report_level')==='history';
-      const hp=document.getElementById('freightHistoryPanel'),ht=document.getElementById('fieldReportMainTools'),hb=document.getElementById('fieldHistoryOpenBtn');
-      if(hp&&ht){hp.style.display=open?'block':'none';ht.style.display=open?'none':'grid';if(hb)hb.style.display=open?'none':'inline-flex';if(open)renderFreightHistory()}
-    }catch(e){}
+    try{setFieldReportLevel(localStorage.getItem('xinru_field_report_level')==='history'?'history':'main')}catch(e){setFieldReportLevel('main')}
   }
   const cb=$('#stallCreateModeBtn'),mb=$('#stallManageModeBtn'),fb=$('#stallFieldModeBtn');
   if(cb)cb.className='btn '+(create?'primary':'gray');
@@ -3840,14 +3849,17 @@ window.completeFreightBatch=async function(batch){
   const {error}=await q;if(error)return alert('整單完成失敗：'+error.message);
   await loadStage9();renderFreightHistory();
 };
-window.toggleFreightHistory=function(forceOpen){
- const p=document.getElementById('freightHistoryPanel'),tools=document.getElementById('fieldReportMainTools'),btn=document.getElementById('fieldHistoryOpenBtn');
- if(!p||!tools)return;
- const open=typeof forceOpen==='boolean'?forceOpen:p.style.display==='none';
- p.style.display=open?'block':'none';tools.style.display=open?'none':'grid';if(btn)btn.style.display=open?'none':'inline-flex';
- try{localStorage.setItem('xinru_field_report_level',open?'history':'main')}catch(e){}
- if(open)renderFreightHistory();
+window.setFieldReportLevel=function(level){
+  const main=document.getElementById('fieldReportMainLevel');
+  const history=document.getElementById('freightHistoryPanel');
+  if(!main||!history)return;
+  const isHistory=level==='history';
+  main.style.display=isHistory?'none':'block';
+  history.style.display=isHistory?'block':'none';
+  try{localStorage.setItem('xinru_field_report_level',isHistory?'history':'main')}catch(e){}
+  if(isHistory)renderFreightHistory();
 };
+window.toggleFreightHistory=function(){setFieldReportLevel('history')};
 window.clearFreightHistory=function(){const d=document.getElementById('freightHistoryDate'),k=document.getElementById('freightHistoryKeyword');if(d)d.value='';if(k)k.value='';renderFreightHistory()};
 window.renderFreightHistory=function(){
   const box=document.getElementById('freightHistoryList');if(!box)return;
