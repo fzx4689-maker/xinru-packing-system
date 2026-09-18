@@ -821,6 +821,11 @@ body.field-single-role .wrap{padding-top:8px}
 }
 </style>
 
+<style id="stage89-announcement-permission-lock">
+/* 無公告管理權限：+公告強制隱藏，不受其他 CSS 影響 */
+#homeNoticeAddBtn[data-no-announcement-permission="1"]{display:none!important}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -3763,9 +3768,11 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 let homeTasksV79=[],homeDoneV79=[],homeReadsV79=[],homeEmployeesV79=[];
 const deptLabels={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
 function canManage(){
- if(!currentProfile)return false;
- if(currentProfile.role==='admin')return true;
- return currentProfile.role==='operator' && hasFeature('announcement');
+ const p=currentProfile;
+ if(!p)return false;
+ if(p.role==='admin')return true;
+ const fp=Array.isArray(p.feature_permissions)?p.feature_permissions:[];
+ return fp.includes('announcement');
 }
 function msg(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
 function fmt(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
@@ -3775,6 +3782,14 @@ function readRows(id){return homeReadsV79.filter(r=>String(r.task_id)===String(i
 function myRead(id){return readRows(id).some(r=>String(r.user_id)===String(currentUser?.id));}
 function readStatHtml(x){if(!canManage())return '';const n=readRows(x.id).length,total=homeEmployeesV79.length;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
 function render(){
+ const addBtn=document.getElementById('homeNoticeAddBtn');
+ if(addBtn){
+   const ok=canManage();
+   addBtn.dataset.noAnnouncementPermission=ok?'0':'1';
+   addBtn.style.setProperty('display',ok?'flex':'none','important');
+   addBtn.onclick=ok?createTask:null;
+ }
+
  const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
  const dueKey=x=>{
   const raw=String(x?.due_date||'').trim(), m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -3840,7 +3855,7 @@ function setHomeQueryMode(on){
  const top=document.querySelector('#home .homeNoticeTopActions'),title=document.querySelector('#home h3');
  if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.display=on?'none':'grid';if(title)title.style.display=on?'none':'block';
 }
-function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){add.style.display=canManage()?'flex':'none';add.onclick=createTask;}if(tog)tog.onclick=()=>{setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
+function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.style.setProperty('display',ok?'flex':'none','important');add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
 document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
 })();
 
