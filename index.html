@@ -530,6 +530,13 @@ body.field-single-role .wrap{padding-top:8px}
 .homeTodoDelete{background:#fff0f0!important;color:#b4232c!important;border:1px solid #f3c7c9!important}
 @media(max-width:600px){.homeNoticeTopActions{width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px!important}.homeNoticeTopBtn{min-height:44px!important;padding:6px 4px!important;font-size:12px!important}.homeNoticeTopBtn .th{font-size:9px!important}}
 
+
+/* 第84階段：公告／派工單第二層頁面與單字搜尋 */
+.homeQueryHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+#today .queryToolbar{align-items:center}
+#todayBackHomeBtn{flex:0 0 auto}
+@media(max-width:600px){.homeQueryHead{align-items:flex-start}.homeQueryHead h3{font-size:19px}#orderQueryKeyword,#deliveryQueryKeyword{max-width:none!important;flex:1 1 180px}}
+
 </style>
 
 
@@ -584,7 +591,7 @@ body.field-single-role .wrap{padding-top:8px}
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
-        <div id="homeDoneWrap" style="display:none;margin-top:14px"><h3 style="margin:0 0 8px">🔎 公告查詢</h3><div class="actions" style="margin:8px 0;flex-wrap:wrap"><input id="homeDoneDateFilter" class="input" type="date" style="max-width:170px"><select id="homeDoneDeptFilter" class="input" style="max-width:180px"><option value="">全部工作區</option><option value="hq">總部</option><option value="packing">包裝部</option><option value="delivery">貨運部</option><option value="accounting">帳務中心</option><option value="liuhe">六禾</option></select><input id="homeDonePersonFilter" class="input" placeholder="完成者" style="max-width:170px"><input id="homeDoneTextFilter" class="input" placeholder="搜尋待辦內容" style="max-width:220px"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
+        <div id="homeDoneWrap" style="display:none;margin-top:0"><div class="homeQueryHead"><button type="button" class="btn gray" id="homeDoneBackBtn">← 返回公告</button><h3 style="margin:0">🔎 公告查詢</h3></div><div class="actions" style="margin:10px 0;flex-wrap:wrap"><input id="homeDoneDateFilter" class="input" type="date" style="max-width:190px"><input id="homeDoneTextFilter" class="input" placeholder="關鍵字搜尋" style="max-width:300px"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div></div>
         
       </div>
     </section>
@@ -793,17 +800,18 @@ body.field-single-role .wrap{padding-top:8px}
 
     <section id="today" class="panel">
       <div class="queryToolbar">
+        <button type="button" id="todayBackHomeBtn" class="btn gray">← 返回公告</button>
         <h2>🔎 派工單 <span class="th" style="display:inline-block;margin-left:6px">พ่ายกงตัน</span></h2>
         <div class="actions" style="margin:12px 0;flex-wrap:wrap">
           <button id="queryPackingBtn" class="btn primary">📦 包裝部</button>
           <button id="queryDeliveryBtn" class="btn gray">🚚 貨運部</button>
         </div>
         <div id="packingQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap">
-          <input id="queryDate" class="input" type="date" style="max-width:220px">
+          <input id="queryDate" class="input" type="date" style="max-width:220px"><input id="orderQueryKeyword" class="input" placeholder="🔎 關鍵字搜尋（一個字即可）" style="max-width:300px">
         </div>
         <div id="deliveryQueryControls" style="margin:12px 0;display:none">
           <div class="actions" style="flex-wrap:wrap">
-            <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px">
+            <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px"><input id="deliveryQueryKeyword" class="input" placeholder="🔎 關鍵字搜尋（一個字即可）" style="max-width:300px">
           </div>
           <div id="deliveryQueryDriverFilters" class="queryDriverFilters"></div>
         </div>
@@ -1646,11 +1654,13 @@ function renderToday(){
   if(dc)dc.style.display=orderQueryMode==='delivery'?'flex':'none';
   if(orderQueryMode==='delivery'){
     const tq=$('#deliveryQueryDate')?.value||taipeiDate();
-    const arr=deliveryJobs.filter(j=>j.delivery_date===tq);
+    const kw=($('#deliveryQueryKeyword')?.value||'').trim().toLowerCase();
+    const arr=deliveryJobs.filter(j=>j.delivery_date===tq).filter(j=>!kw||[j.customer,j.delivery_no,j.request_text,j.assigned_driver_name,j.driver_reply,j.note].join(' ').toLowerCase().includes(kw));
     deliveryRecordTable(arr,`🚚 ${tq}`);
     return;
   }
-  const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});
+  const kw=($('#orderQueryKeyword')?.value||'').trim().toLowerCase();
+  const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).filter(o=>!kw||[o.customer,o.created_by_name,o.pickup_time,o.note,o.packing_reply,...(o.items||[]).flatMap(x=>[x.item_name,typeof thaiForItem==='function'?thaiForItem(x):''])].join(' ').toLowerCase().includes(kw)).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});
   b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📦 ${q}｜共 ${arr.length} 張包裝部訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📦 ${q} 沒有包裝部訂單</div>`;
 }
 window.toggleItem=async(itemId,newVal,orderId)=>{if(!requirePackingWork())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
@@ -1703,6 +1713,9 @@ $('#stallFieldModeBtn')?.addEventListener('click',()=>setStallMode('field'));
 setStallMode('create');
 $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
 $('#homeOrderQueryBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
+$('#todayBackHomeBtn')?.addEventListener('click',()=>activateTab('home',{save:true}));
+$('#orderQueryKeyword')?.addEventListener('input',renderToday);
+$('#deliveryQueryKeyword')?.addEventListener('input',renderToday);
 function getRememberedTab(){
   const hashTab=(location.hash||'').replace(/^#/,'');
   if(['sales','procurement'].includes(hashTab)) return 'home';
@@ -3483,8 +3496,8 @@ function render(){
  const rows=[...homeTasksV79].sort((a,b)=>String(a.due_date||'').localeCompare(String(b.due_date||''))||new Date(a.created_at)-new Date(b.created_at));
  const groups={};rows.forEach(x=>{const k=String(x.due_date||'未設定');(groups[k]||(groups[k]=[])).push(x);});
  box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
- const df=document.getElementById('homeDoneDateFilter')?.value||'',dep=document.getElementById('homeDoneDeptFilter')?.value||'',person=(document.getElementById('homeDonePersonFilter')?.value||'').trim().toLowerCase(),text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
- const filtered=homeDoneV79.filter(x=>{const d=x.completed_at?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date(x.completed_at)):'';return(!df||d===df)&&(!dep||x.department===dep)&&(!person||String(x.completed_by_name||'').toLowerCase().includes(person))&&(!text||(String(x.title||'')+' '+String(x.note||'')).toLowerCase().includes(text));});
+ const df=document.getElementById('homeDoneDateFilter')?.value||'',text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
+ const filtered=homeDoneV79.filter(x=>{return(!df||String(x.due_date||'')===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>String(b.due_date||'').localeCompare(String(a.due_date||''))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
  done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(x.due_date||'')}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
  box.querySelectorAll('[data-read]').forEach(b=>b.onclick=()=>markRead(b.dataset.read,b));
  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit));
@@ -3526,7 +3539,12 @@ async function deleteTask(id,btn){
  await load();
 }
 function showReaders(id){if(!canManage())return;const reads=readRows(id),readIds=new Set(reads.map(r=>String(r.user_id)));const yes=reads.map(r=>r.user_name||r.user_id).join('、')||'無';const no=homeEmployeesV79.filter(e=>!readIds.has(String(e.user_id))).map(e=>e.display_name||e.user_id).join('、')||'無';alert('已讀：\n'+yes+'\n\n未讀：\n'+no);}
-function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn');if(add){add.style.display=canManage()?'inline-flex':'none';add.onclick=createTask;}if(tog)tog.onclick=()=>{const w=document.getElementById('homeDoneWrap');w.style.display=w.style.display==='none'?'block':'none';};['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneDeptFilter','homeDonePersonFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
+function setHomeQueryMode(on){
+ const w=document.getElementById('homeDoneWrap'),list=document.getElementById('homeNoticeList'),msgEl=document.getElementById('homeNoticeMsg');
+ const top=document.querySelector('#home .homeNoticeTopActions'),title=document.querySelector('#home h3');
+ if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.display=on?'none':'grid';if(title)title.style.display=on?'none':'block';
+}
+function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){add.style.display=canManage()?'flex':'none';add.onclick=createTask;}if(tog)tog.onclick=()=>{setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',render);el.addEventListener('change',render);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});render();};load();}
 document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
 })();
 
