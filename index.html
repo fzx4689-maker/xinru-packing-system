@@ -2221,6 +2221,8 @@ function activateTab(tabName,{save=true}={}){
   renderAll();
 }
 function setStallMode(mode='create'){
+  if(!['create','manage','field'].includes(mode))mode='create';
+  try{localStorage.setItem('xinru_stall_mode',mode)}catch(e){}
   const create=mode==='create',manage=mode==='manage',field=mode==='field';
   const c=$('#stallCreateCard'),t=$('#stallTransCard'),m=$('#stallManageCard'),f=$('#stallFieldCard');
   if(c)c.style.display=create?'block':'none';
@@ -2239,7 +2241,7 @@ function setStallMode(mode='create'){
 $('#stallCreateModeBtn')?.addEventListener('click',()=>setStallMode('create'));
 $('#stallManageModeBtn')?.addEventListener('click',()=>setStallMode('manage'));
 $('#stallFieldModeBtn')?.addEventListener('click',()=>setStallMode('field'));
-setStallMode('create');
+try{setStallMode(localStorage.getItem('xinru_stall_mode')||'create')}catch(e){setStallMode('create')}
 $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
 $('#homeOrderQueryBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
 $('#todayBackHomeBtn')?.addEventListener('click',()=>activateTab('home',{save:true}));
