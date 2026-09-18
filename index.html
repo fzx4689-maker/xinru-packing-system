@@ -461,6 +461,45 @@ body.field-single-role .wrap{padding-top:8px}
 .acctManagementStage{margin-top:12px;border:1px solid #dbe3ec;border-radius:15px;padding:16px;background:#f8fafc}
 @media(max-width:980px){.acctManagementGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.tabs.managementMainTabs{display:flex;overflow-x:auto}.tabs.managementMainTabs .tab{min-width:105px;flex:0 0 auto}.acctManagementGrid{grid-template-columns:1fr}.acctManagementBtn{min-height:auto}}
+
+/* 第78階段：派工／包裝／貨運現場回報桌機樣式統一；只改顯示，不改六組未讀與資料邏輯 */
+@media(min-width:701px){
+  #stallFieldCard .stallFieldQuickTools,
+  #packing .packingQuickTools,
+  #delivery .deliveryQuickTools{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-items:start!important;margin:8px 0 10px!important}
+
+  #stallFieldCard .stallFieldQuick,
+  #packing .packingQuickTools>details.shortageQuick,
+  #delivery .deliveryQuickTools>details.shortageQuick{margin:0!important;padding:0!important;min-width:0!important;border:1px solid #f4b24a!important;border-radius:14px!important;background:#fffaf0!important;overflow:hidden!important}
+
+  #stallFieldCard .stallFieldQuick>summary,
+  #packing .packingQuickTools>details.shortageQuick>summary,
+  #delivery .deliveryQuickTools>details.shortageQuick>summary{list-style:none!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;box-sizing:border-box!important;width:100%!important;min-height:52px!important;margin:0!important;padding:10px 14px!important;border:0!important;border-radius:0!important;background:#fffaf0!important;font-size:17px!important;font-weight:900!important;cursor:pointer!important;white-space:nowrap!important}
+
+  #stallFieldCard .stallFieldQuick>summary::-webkit-details-marker,
+  #packing .packingQuickTools>details.shortageQuick>summary::-webkit-details-marker,
+  #delivery .deliveryQuickTools>details.shortageQuick>summary::-webkit-details-marker{display:none!important}
+
+  #stallFieldCard .stallFieldQuick>summary::before,
+  #packing .packingQuickTools>details.shortageQuick>summary::before,
+  #delivery .deliveryQuickTools>details.shortageQuick>summary::before{content:'▶';display:inline-block;margin-right:8px;font-size:13px;transition:transform .15s ease}
+
+  #stallFieldCard .stallFieldQuick[open]>summary::before,
+  #packing .packingQuickTools>details.shortageQuick[open]>summary::before,
+  #delivery .deliveryQuickTools>details.shortageQuick[open]>summary::before{transform:rotate(90deg)}
+
+  #stallFieldCard .stallFieldQuick[open]>summary,
+  #packing .packingQuickTools>details.shortageQuick[open]>summary,
+  #delivery .deliveryQuickTools>details.shortageQuick[open]>summary{background:#fff4dd!important;border-bottom:1px solid #f4c36a!important}
+
+  #stallFieldCard .stallFieldToolBody,
+  #packing .packingQuickTools>details.shortageQuick>.packingToolBody,
+  #delivery .deliveryQuickTools>details.shortageQuick>.deliveryToolBody{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:10px!important;background:#fff!important;border:0!important;border-radius:0!important}
+
+  #stallFieldCard .stallFieldQuick:not([open])>.stallFieldToolBody{display:none!important}
+  #stallFieldCard .fieldReportGrid{grid-template-columns:1fr!important}
+  #stallFieldCard{background:#eef3f8}
+}
 </style>
 
 
@@ -660,7 +699,7 @@ body.field-single-role .wrap{padding-top:8px}
 
       <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
       <div id="stallManageCard" class="card" style="display:none"><h2 style="font-size:19px">訂單管理</h2><div class="helper">未完成訂單可依權限修改；刪除僅限管理員。</div><div id="stallOrders"></div></div>
-      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><h2>📡 現場回報</h2><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="fieldReportBody fieldReportThreeRows"><section class="fieldReportRow"><h3>💬 現場詢問</h3><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></section><section class="fieldReportRow"><h3>📦 寄車收貨／回報公斤</h3><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></section><section class="fieldReportRow"><h3>⚠️ 缺貨回報／催貨</h3><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></section></div></div>
+      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><h2>📡 現場回報</h2><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div></div>
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
