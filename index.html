@@ -1057,11 +1057,14 @@ body.field-single-role .wrap{padding-top:8px}
 </style>
 
 
-<style id="stage125-stall-third-level-mobile">
-@media(max-width:700px){
-  #stall.stall-history-third-level>.stallModeBar{display:none!important}
+<style id="stage126-mobile-third-level-only">
+@media (max-width:700px){
+  body.field-report-history-third-level #stall > .stallModeBar{
+    display:none !important;
+  }
 }
 </style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -2210,12 +2213,6 @@ function activateTab(tabName,{save=true}={}){
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tabName));
   $$('.panel').forEach(x=>x.classList.toggle('active',x.id===tabName));
   document.body.classList.toggle('wall-focus',tabName==='wall');
-  if(tabName==='stall'&&currentProfile){
-    let stallMode='create';
-    try{stallMode=localStorage.getItem('xinru_stall_mode')||'create'}catch(e){}
-    if(!['create','manage','field'].includes(stallMode))stallMode='create';
-    setStallMode(stallMode,false);
-  }
   if(save){
     try{localStorage.setItem('xinru_active_tab',tabName);}catch(e){}
     // 用網址 hash 記住目前頁面，重新整理後仍停在原頁。
@@ -2223,9 +2220,8 @@ function activateTab(tabName,{save=true}={}){
   }
   renderAll();
 }
-function setStallMode(mode='create',save=true){
+function setStallMode(mode='create'){
   const create=mode==='create',manage=mode==='manage',field=mode==='field';
-  if(save){try{localStorage.setItem('xinru_stall_mode',mode)}catch(e){}}
   const c=$('#stallCreateCard'),t=$('#stallTransCard'),m=$('#stallManageCard'),f=$('#stallFieldCard');
   if(c)c.style.display=create?'block':'none';
   if(t)t.style.display=create?'block':'none';
@@ -2243,7 +2239,7 @@ function setStallMode(mode='create',save=true){
 $('#stallCreateModeBtn')?.addEventListener('click',()=>setStallMode('create'));
 $('#stallManageModeBtn')?.addEventListener('click',()=>setStallMode('manage'));
 $('#stallFieldModeBtn')?.addEventListener('click',()=>setStallMode('field'));
-setStallMode('create',false);
+setStallMode('create');
 $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
 $('#homeOrderQueryBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
 $('#todayBackHomeBtn')?.addEventListener('click',()=>activateTab('home',{save:true}));
@@ -3879,8 +3875,8 @@ window.setFieldReportHistoryLevel=function(open){
   const card=document.getElementById('stallFieldCard');
   const p=document.getElementById('freightHistoryPanel');
   if(!card||!p)return;
+  document.body.classList.toggle('field-report-history-third-level',!!open);
   card.classList.toggle('field-history-mode',!!open);
-  document.getElementById('stall')?.classList.toggle('stall-history-third-level',!!open);
   p.style.display=open?'block':'none';
   try{localStorage.setItem('xinru_field_report_level',open?'history':'main')}catch(e){}
   if(open)renderFreightHistory();
