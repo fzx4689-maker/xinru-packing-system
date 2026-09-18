@@ -1030,6 +1030,20 @@ body.field-single-role .wrap{padding-top:8px}
 @media(max-width:700px){.fieldHistoryLevelTop{margin-bottom:10px}.fieldHistoryLevelTop .btn{min-height:40px}}
 </style>
 
+
+<style id="stage119-field-history-display-fix">
+/* 歷史回報第二層：必須壓過第78階段桌機三欄 display:grid!important */
+#stallFieldCard.field-history-mode .fieldReportMainPart{
+  display:none!important;
+}
+#stallFieldCard.field-history-mode #freightHistoryPanel{
+  display:block!important;
+}
+#stallFieldCard:not(.field-history-mode) #freightHistoryPanel{
+  display:none!important;
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -3837,9 +3851,11 @@ window.completeFreightBatch=async function(batch){
   await loadStage9();renderFreightHistory();
 };
 window.setFieldReportHistoryLevel=function(open){
-  document.querySelectorAll('#stallFieldCard .fieldReportMainPart').forEach(el=>el.style.display=open?'none':'');
+  const card=document.getElementById('stallFieldCard');
   const p=document.getElementById('freightHistoryPanel');
-  if(p)p.style.display=open?'block':'none';
+  if(!card||!p)return;
+  card.classList.toggle('field-history-mode',!!open);
+  p.style.display=open?'block':'none';
   try{localStorage.setItem('xinru_field_report_level',open?'history':'main')}catch(e){}
   if(open)renderFreightHistory();
 };
