@@ -978,6 +978,12 @@ body.field-single-role .wrap{padding-top:8px}
 }
 </style>
 
+
+<style id="stage103-announcement-button-no-flicker">
+#homeNoticeAddBtn[data-no-announcement-permission="1"]{display:none!important}
+#homeNoticeAddBtn[data-no-announcement-permission="0"]{display:inline-flex!important}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -3943,7 +3949,6 @@ function render(){
  if(addBtn){
    const ok=canManage();
    addBtn.dataset.noAnnouncementPermission=ok?'0':'1';
-   addBtn.style.setProperty('display',ok?'flex':'none','important');
    addBtn.onclick=ok?createTask:null;
  }
 
@@ -4016,7 +4021,7 @@ function setHomeQueryMode(on){
  if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.setProperty('display',on?'none':'flex','important');if(title)title.style.display=on?'none':'block';
  try{localStorage.setItem('xinru_home_notice_view',on?'history':'main');}catch(e){}
 }
-function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.style.setProperty('display',ok?'flex':'none','important');add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{homeDoneVisibleCount=20;setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);try{if(localStorage.getItem('xinru_home_notice_view')==='history')setHomeQueryMode(true);}catch(e){}['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){const rerender=()=>{homeDoneVisibleCount=20;render();};el.addEventListener('input',rerender);el.addEventListener('change',rerender);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});homeDoneVisibleCount=20;render();};const more=document.getElementById('homeDoneLoadMore');if(more)more.onclick=()=>{homeDoneVisibleCount+=20;render();};load();}
+function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{homeDoneVisibleCount=20;setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);try{if(localStorage.getItem('xinru_home_notice_view')==='history')setHomeQueryMode(true);}catch(e){}['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){const rerender=()=>{homeDoneVisibleCount=20;render();};el.addEventListener('input',rerender);el.addEventListener('change',rerender);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});homeDoneVisibleCount=20;render();};const more=document.getElementById('homeDoneLoadMore');if(more)more.onclick=()=>{homeDoneVisibleCount+=20;render();};load();}
 document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
 })();
 
