@@ -518,6 +518,9 @@ body.field-single-role .wrap{padding-top:8px}
  .homeTodoActions .btn{font-size:11px!important;padding:4px 7px!important;min-height:28px!important}
  .homeTodoMeta{font-size:10px!important}
 }
+
+/* 第82階段：公告依日期分組；操作按鈕精簡；派工單泰文提高可讀性 */
+.homeDateGroup{margin:0 0 14px}.homeDateHeader{font-size:19px;font-weight:900;padding:7px 4px 6px;border-bottom:2px solid #e6edf5;margin-bottom:6px}.homeDateItems{display:flex;flex-direction:column;gap:6px}.homeDateItems .homeTodoCard{margin-bottom:0!important}.homeOrderQueryBtn{background:#eef4ff!important;color:#153b63!important;border:1px solid #cfe0f3!important}.homeOrderQueryBtn .th{color:#526b84!important;font-weight:800!important;opacity:1!important}.homeTodoActions{display:inline-flex!important;gap:4px!important;vertical-align:middle!important}.homeTodoActions .btn{padding:5px 8px!important;font-size:13px!important;min-height:0!important;border-radius:10px!important}.homeTodoContent{margin-top:0!important}.homeTodoMeta{margin-top:3px!important}@media(max-width:600px){.homeDateHeader{font-size:17px;padding:6px 2px 5px}.homeTodoActions{display:inline-flex!important;justify-content:flex-start!important;width:auto!important}.homeTodoActions .btn{flex:0 0 auto!important;padding:4px 6px!important;font-size:12px!important}.homeTodoCard{padding:8px 9px!important}.homeTodoMeta{font-size:11px!important}}
 </style>
 
 
@@ -566,10 +569,9 @@ body.field-single-role .wrap{padding-top:8px}
   <div class="wrap">
     <section id="home" class="panel active">
       <div class="card">
-        <h2>📢 公告</h2>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:0">
           <h3 style="margin:0">📌 待辦事項</h3>
-          <div class="actions" style="margin:0;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn blue">🔎 派工單<div class="th">พ่ายกงตัน</div></button><button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增公告</button><button type="button" class="btn gray" id="homeDoneToggleBtn">📁 已結束公告</button></div>
+          <div class="actions" style="margin:0;flex-wrap:wrap"><button id="homeOrderQueryBtn" class="btn gray homeOrderQueryBtn">🔎 派工單<div class="th">พ่ายกงตัน</div></button><button type="button" class="btn blue" id="homeNoticeAddBtn">＋ 新增公告</button><button type="button" class="btn gray" id="homeDoneToggleBtn">📁 已結束公告</button></div>
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
@@ -3470,7 +3472,8 @@ function readStatHtml(x){if(!canManage())return '';const n=readRows(x.id).length
 function render(){
  const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
  const rows=[...homeTasksV79].sort((a,b)=>String(a.due_date||'').localeCompare(String(b.due_date||''))||new Date(a.created_at)-new Date(b.created_at));
- box.innerHTML=rows.length?rows.map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoHead"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${eventDateLabel(x.due_date)}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}</div><div class="homeTodoContent"><span>${esc(x.title||'')}</span>${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join(''):'<div class="empty">目前沒有公告</div>';
+ const groups={};rows.forEach(x=>{const k=String(x.due_date||'未設定');(groups[k]||(groups[k]=[])).push(x);});
+ box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',dep=document.getElementById('homeDoneDeptFilter')?.value||'',person=(document.getElementById('homeDonePersonFilter')?.value||'').trim().toLowerCase(),text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
  const filtered=homeDoneV79.filter(x=>{const d=x.completed_at?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date(x.completed_at)):'';return(!df||d===df)&&(!dep||x.department===dep)&&(!person||String(x.completed_by_name||'').toLowerCase().includes(person))&&(!text||(String(x.title||'')+' '+String(x.note||'')).toLowerCase().includes(text));});
  done.innerHTML=filtered.length?filtered.map(x=>`<div class="homeTodoCard homeTodoDone"><div class="homeTodoMain"><div class="homeTodoTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span>${esc(x.title||'')}</div><div class="homeTodoMeta">結束：${esc(x.completed_by_name||'')}｜${fmt(x.completed_at)}｜公告日期 ${esc(x.due_date||'')}</div>${x.note?`<div class="helper" style="margin-top:6px">${esc(x.note)}</div>`:''}</div></div>`).join(''):'<div class="empty">沒有符合條件的已結束公告</div>';
