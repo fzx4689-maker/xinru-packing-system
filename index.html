@@ -1045,7 +1045,7 @@ body.field-single-role .wrap{padding-top:8px}
 </style>
 
 
-<style id="stage121-field-history-align">
+<style id="stage122-field-history-align">
 #stallFieldCard .fieldReportTitleRow{
   display:flex!important;
   align-items:center!important;
@@ -3924,8 +3924,8 @@ function updateStage9Badges(){
   if(!currentUser)return;
   const uid=String(currentUser.id);
   const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;
-  const officeOpen=fieldQuestions.filter(x=>x.status==='open'&&fieldIsToday(x.created_at)).length;
-  const freightPending=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at)&&g.rows.some(x=>(x.status||'reported')!=='confirmed')).length;
+  const officeOpen=fieldQuestions.filter(x=>x.status!=='closed'&&fieldIsToday(x.created_at)).length;
+  const freightPending=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at)&&!g.rows.every(x=>(x.status||'')==='completed')).length;
   const shortageOpen=shortageReports.filter(x=>x.status!=='arrived'&&fieldIsToday(x.reported_at||x.created_at)).length;
   const salesFieldCount=shortageOpen+officeOpen+freightPending;
   setShortageBadge('procurementNoticeBadge',0);
