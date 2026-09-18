@@ -1010,6 +1010,18 @@ body.field-single-role .wrap{padding-top:8px}
 @media(max-width:700px){.fieldHistoryFilters{display:grid;grid-template-columns:1fr 1fr auto}.fieldHistoryFilters input{max-width:none!important}}
 </style>
 
+
+<style id="stage115-history-top-button">
+.fieldReportTitleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-bottom:4px}
+.fieldReportTitleRow>h2{margin:0!important}
+.fieldHistoryTopBtn{margin-left:auto!important;display:inline-flex!important;align-items:center;justify-content:center;white-space:nowrap}
+@media(max-width:700px){
+ .fieldReportTitleRow{display:flex!important;flex-direction:row!important;align-items:center!important}
+ .fieldHistoryTopBtn{display:inline-flex!important;visibility:visible!important;opacity:1!important;flex:0 0 auto;padding:8px 10px!important}
+ .fieldReportTitleRow>h2{font-size:20px!important}
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1200,7 +1212,7 @@ body.field-single-role .wrap{padding-top:8px}
 
       <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
       <div id="stallManageCard" class="card" style="display:none"><h2 style="font-size:19px">訂單管理</h2><div class="helper">未完成訂單可依權限修改；刪除僅限管理員。</div><div id="stallOrders"></div></div>
-      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><h2>📡 現場回報</h2><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div class="fieldHistoryBar"><button type="button" class="btn gray" onclick="toggleFreightHistory()">🔍 歷史回報</button></div><div id="freightHistoryPanel" class="fieldHistoryPanel" style="display:none"><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
+      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div class="fieldReportTitleRow"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" onclick="toggleFreightHistory()">🔍 歷史回報</button></div><div class="helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車收貨／回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div id="freightHistoryPanel" class="fieldHistoryPanel" style="display:none"><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
