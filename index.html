@@ -984,19 +984,6 @@ body.field-single-role .wrap{padding-top:8px}
 #homeNoticeAddBtn[data-no-announcement-permission="0"]{display:inline-flex!important}
 </style>
 
-
-<style id="stage107-notice-manage-ui">
-.notice-admin-collapsed{display:none!important}
-.notice-manage-toggle{
-  display:inline-flex!important;align-items:center;justify-content:center;
-  white-space:nowrap
-}
-.notice-manage-open .notice-admin-collapsed{display:inline-flex!important}
-@media(max-width:700px){
-  .notice-manage-toggle{padding-left:10px!important;padding-right:10px!important}
-}
-</style>
-
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -3009,56 +2996,6 @@ function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
 $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
-
-<script id="stage107-notice-manage-ui-js">
-(function(){
-  function compactNoticeActions(){
-    const root=document.getElementById('homeTaskList')||document;
-    const buttons=[...root.querySelectorAll('button')];
-
-    buttons.forEach(edit=>{
-      if(edit.textContent.trim()!=='✏️ 修改' && edit.textContent.trim()!=='修改') return;
-      const row=edit.parentElement;
-      if(!row || row.dataset.noticeManageReady==='1') return;
-
-      const rowBtns=[...row.querySelectorAll(':scope > button')];
-      const end=rowBtns.find(b=>b.textContent.trim()==='結束');
-      const del=rowBtns.find(b=>b.textContent.includes('刪除'));
-      if(!end || !del) return;
-
-      const read=rowBtns.find(b=>b.textContent.includes('已讀') && b!==edit);
-      const manage=document.createElement('button');
-      manage.type='button';
-      manage.className='btn gray notice-manage-toggle';
-      manage.textContent='⚙️ 管理';
-      manage.onclick=function(ev){
-        ev.preventDefault(); ev.stopPropagation();
-        row.classList.toggle('notice-manage-open');
-      };
-
-      edit.classList.add('notice-admin-collapsed');
-      end.classList.add('notice-admin-collapsed');
-      del.classList.add('notice-admin-collapsed');
-
-      if(read && read.nextSibling) row.insertBefore(manage,read.nextSibling);
-      else if(read) row.appendChild(manage);
-      else row.insertBefore(manage,edit);
-
-      row.dataset.noticeManageReady='1';
-    });
-  }
-
-  const obs=new MutationObserver(()=>compactNoticeActions());
-  function start(){
-    compactNoticeActions();
-    const target=document.getElementById('homeTaskList')||document.body;
-    if(target) obs.observe(target,{childList:true,subtree:true});
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true});
-  else start();
-})();
-</script>
-
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
