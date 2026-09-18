@@ -1790,6 +1790,8 @@ function canSeeTab(tab){
   if(!currentProfile)return false;
   const admin=currentProfile.role==='admin';
   if(admin)return true; // 管理員可查看全部頁面，但不會因此出現在司機名單
+  const syncedPages=(currentProfile.feature_permissions||[]).filter(x=>String(x).startsWith('page:')).map(x=>String(x).slice(5));
+  if(syncedPages.length)return syncedPages.includes(tab); // 第130階段：頁面權限直接以管理員勾選結果為準
   if(isPackingOnly())return tab==='packing';
   if(isDriverOnly())return tab==='delivery';
   if(tab==='home'||tab==='wall'||tab==='today')return true; // 一般辦公室角色保留共用查看頁
@@ -1801,10 +1803,11 @@ function canSeeTab(tab){
   if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
   return false;
 }
-function firstVisibleTab(){return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
+function firstVisibleTab(){const synced=(currentProfile?.feature_permissions||[]).some(x=>String(x).startsWith('page:'));if(!synced&&isPackingOnly())return 'packing';if(!synced&&isDriverOnly())return 'delivery';return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
-  document.body.classList.remove('field-single-role'); // 第128階段：頁面顯示統一交由頁面/功能權限判斷
+  const hasSyncedPages=(currentProfile?.feature_permissions||[]).some(x=>String(x).startsWith('page:'));
+  document.body.classList.toggle('field-single-role',!hasSyncedPages&&(isPackingOnly()||isDriverOnly()));
   $('#readonlyNote').style.display='none';
   const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';
   $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
@@ -2639,34 +2642,6 @@ async function applyMergedJobPermissionTemplates(userId,jobTitles){
  await callEmployeeManager('set_notification_permissions',{user_id:userId,notification_permissions:t.notify});
 }
 
-async function applyNewEmployeePermissionsFromWorkRoles(userId,workRoles){
- const roles=Array.isArray(workRoles)?workRoles:[];
- const pages=new Set(['home','wall']),funcs=new Set(),notify=new Set();
- if(roles.includes('stall')){
-   ['sales','procurement','stall'].forEach(x=>pages.add(x));
-   ['order.create','order.edit','procurement.work'].forEach(x=>funcs.add(x));
-   ['packing','delivery'].forEach(x=>notify.add(x));
- }
- if(roles.includes('packing')){
-   pages.add('packing'); funcs.add('packing.work'); notify.add('packing');
- }
- if(roles.includes('driver')){
-   pages.add('delivery'); funcs.add('delivery.work'); notify.add('delivery');
- }
- if(roles.includes('accounting')){
-   ['sales','accounting','procurement'].forEach(x=>pages.add(x));
-   ['accounting.entry','accounting.export','procurement.work'].forEach(x=>funcs.add(x));
-   notify.add('accounting');
- }
- const {error}=await sb.rpc('set_employee_permissions_v17',{
-   p_user_id:userId,
-   p_page_permissions:[...pages],
-   p_function_permissions:[...funcs]
- });
- if(error)throw error;
- await callEmployeeManager('set_notification_permissions',{user_id:userId,notification_permissions:[...notify]});
-}
-
 const PAY_TYPE_LABEL={monthly:'月薪',daily:'日薪',hourly:'時薪',per_trip:'按趟',piece:'計件',other:'其他'};
 /* 第二十一階段：職位預設權限模板。只在修改職位時套用；套用後仍可個別調整。 */
 const JOB_PERMISSION_TEMPLATE={
@@ -2766,7 +2741,7 @@ function renderEmployeeList(list=[]){
   box.querySelectorAll('.emp-notification').forEach(el=>el.onclick=async()=>{try{const {data,error}=await sb.from('employee_permission_v17').select('page_permissions').eq('user_id',el.dataset.id).maybeSingle();if(error)throw error;const pages=data?.page_permissions||[];const cur=(el.dataset.notifications||'').split(',').filter(Boolean);const opts=[{value:'packing',label:'📦 包裝通知',page:'packing'},{value:'delivery',label:'🚚 貨運通知',page:'delivery'},{value:'accounting',label:'💰 帳務通知',page:'accounting'}].filter(o=>pages.includes(o.page));const notifications=await chooseOptions(el.dataset.name,cur.filter(n=>opts.some(o=>o.value===n)),'通知設定｜只顯示已開啟頁面的通知',opts,false,async(selected)=>{await callEmployeeManager('set_notification_permissions',{user_id:el.dataset.id,notification_permissions:selected});});if(notifications===null)return;setEmployeeMsg('通知設定已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);}}catch(e){setEmployeeMsg('通知設定失敗：'+(e?.message||e),false);}});
   box.querySelectorAll('.emp-permission').forEach(el=>el.onclick=async()=>{const map=ROLE_LABEL;const choices='1 管理員\n2 主管\n3 一般使用者';const v=prompt(`設定「${el.dataset.name}」的系統管理層級\n${choices}\n\n此設定只代表系統管理層級，不等於人員類型或職位。`,el.dataset.role==='admin'?'1':el.dataset.role==='operator'?'2':'3');if(v===null)return;const role=v.trim()==='1'?'admin':v.trim()==='2'?'operator':v.trim()==='3'?'viewer':null;if(!role){setEmployeeMsg('請輸入 1、2 或 3');return;}if(el.dataset.id===currentUser?.id && el.dataset.role==='admin' && role!=='admin'){const admins=[...box.querySelectorAll('.emp-permission')].filter(b=>b.dataset.role==='admin');if(admins.length<=1){setEmployeeMsg('目前只有你一位管理員權限帳號。請先把另一位人員設成管理員，再調整自己的權限。');return;}}try{await callEmployeeManager('set_role',{user_id:el.dataset.id,role});setEmployeeMsg(`系統管理層級已更新：${map[role]}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-password').forEach(el=>el.onclick=async()=>{const p1=prompt(`請輸入「${el.dataset.name}」的新密碼（至少 6 碼）`);if(p1===null)return;if(p1.length<6){setEmployeeMsg('新密碼至少要 6 碼');return;}const p2=prompt('請再輸入一次新密碼確認');if(p2===null||p1!==p2){setEmployeeMsg('兩次輸入的密碼不一致');return;}try{await callEmployeeManager('change_password',{user_id:el.dataset.id,password:p1});setEmployeeMsg('密碼已更新',true);}catch(e){setEmployeeMsg(e.message,false);}});
-  box.querySelectorAll('.emp-active').forEach(el=>el.onclick=async()=>{const active=el.dataset.active==='1',isPending=!active&&el.textContent.trim()==='核准';try{if(isPending){const name=el.closest('.employeeCompact')?.querySelector('b')?.textContent||'新員工';const roles=await chooseWorkRoles(name,[],'核准人員・選擇工作區',async(selected)=>{await callEmployeeManager('approve',{user_id:el.dataset.id,work_roles:selected});await applyNewEmployeePermissionsFromWorkRoles(el.dataset.id,selected);});if(roles===null)return;}else await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
+  box.querySelectorAll('.emp-active').forEach(el=>el.onclick=async()=>{const active=el.dataset.active==='1',isPending=!active&&el.textContent.trim()==='核准';try{if(isPending){const name=el.closest('.employeeCompact')?.querySelector('b')?.textContent||'新員工';const roles=await chooseWorkRoles(name,[],'核准人員・選擇工作區',async(selected)=>{await callEmployeeManager('approve',{user_id:el.dataset.id,work_roles:selected});const p=new Set(['home','wall']);if(selected.includes('stall'))['sales','procurement','stall'].forEach(x=>p.add(x));if(selected.includes('packing'))p.add('packing');if(selected.includes('driver'))p.add('delivery');if(selected.includes('accounting'))['sales','accounting','procurement'].forEach(x=>p.add(x));await callEmployeeManager('set_feature_permissions',{user_id:el.dataset.id,feature_permissions:[...p].map(x=>'page:'+x)});});if(roles===null)return;}else await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-delete').forEach(el=>el.onclick=async()=>{if(!confirm(`確定刪除「${el.dataset.name}」？`))return;try{await callEmployeeManager('delete',{user_id:el.dataset.id});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
 }
 function updatePendingEmployeeBadge(list=[]){
@@ -4005,27 +3980,19 @@ let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
 const v17Has=(k)=>!v17Perm.configured||v17Perm.funcs.includes(k);
 async function v17LoadMine(){
  if(!currentUser||v17LoadedFor===currentUser.id)return;
- const loadingUserId=currentUser.id;
+ v17LoadedFor=currentUser.id;
  try{
-  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',loadingUserId).maybeSingle();
+  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',currentUser.id).maybeSingle();
   if(error)throw error;
-  if(!currentUser||currentUser.id!==loadingUserId)return;
   v17Perm=data?{pages:data.page_permissions||[],funcs:data.function_permissions||[],configured:true}:{pages:[],funcs:[],configured:false};
-  v17LoadedFor=loadingUserId; // 第129階段：成功讀到權限後才標記完成，失敗會自動重試
-  document.body.classList.remove('field-single-role');
-  if(typeof applyRoleUI==='function')applyRoleUI();
-  if(typeof renderAll==='function')renderAll();
- }catch(e){
-  console.warn('讀取本人頁面權限失敗，稍後自動重試：',e?.message||e);
-  v17LoadedFor='';
-  v17Perm={pages:[],funcs:[],configured:false};
- }
+  if(typeof applyRoleUI==='function')applyRoleUI(); if(typeof renderAll==='function')renderAll();
+ }catch(e){console.warn('第十七階段權限表尚未啟用，沿用原權限：',e?.message||e);v17Perm={pages:[],funcs:[],configured:false};}
 }
 const v17OldCanSeeTab=canSeeTab;
 canSeeTab=function(tab){
- const legacy=v17OldCanSeeTab(tab);
+ const legacy=v17OldCanSeeTab(tab); if(!legacy)return false;
  if(currentProfile?.role==='admin'||!v17Perm.configured)return legacy;
- return v17Perm.pages.includes(tab); // 第128階段：已設定的新權限為最終頁面權限
+ return v17Perm.pages.includes(tab);
 };
 const v17OldPackingWork=canPackingWork;
 canPackingWork=()=>v17OldPackingWork()&&v17Has('packing.work');
@@ -4067,6 +4034,10 @@ async function v17EditEmployee(uid,name){
   const allowedFuncs=V17_FUNC_OPTIONS.filter(([value])=>pageSel.includes(v17FuncPage(value)));
   const funcSel=await chooseOptions(name,funcs.filter(f=>pageSel.includes(v17FuncPage(f))),'功能權限｜只顯示已開啟頁面的操作',allowedFuncs.map(([value,label])=>({value,label})),false);if(funcSel===null)return;
   const {error:re}=await sb.rpc('set_employee_permissions_v17',{p_user_id:uid,p_page_permissions:pageSel,p_function_permissions:funcSel});if(re)throw re;
+  const existingEmployee=(await callEmployeeManager('list')).employees?.find(e=>String(e.user_id)===String(uid));
+  const existingFeatures=Array.isArray(existingEmployee?.feature_permissions)?existingEmployee.feature_permissions:[];
+  const syncedFeatures=[...existingFeatures.filter(x=>!String(x).startsWith('page:')),...pageSel.map(x=>'page:'+x)];
+  await callEmployeeManager('set_feature_permissions',{user_id:uid,feature_permissions:syncedFeatures});
   const notifyBtn=document.querySelector(`.emp-notification[data-id="${CSS.escape(uid)}"]`);
   if(notifyBtn){
    const current=(notifyBtn.dataset.notifications||'').split(',').filter(Boolean);
