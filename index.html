@@ -1045,7 +1045,7 @@ body.field-single-role .wrap{padding-top:8px}
 </style>
 
 
-<style id="stage120-field-report-align">
+<style id="stage121-field-history-align">
 #stallFieldCard .fieldReportTitleRow{
   display:flex!important;
   align-items:center!important;
@@ -3685,8 +3685,8 @@ function shortageThreadHtml(id){const ms=shortageThread(id);return `<details ${m
 function fieldIsToday(v){if(!v)return false;try{return new Date(v).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'})===taipeiDate()}catch(e){return false}}
 function renderShortageManage(){
   const box=document.getElementById('shortageManageList');if(!box)return;
-  const active=shortageReports.filter(x=>x.status!=='arrived');
-  box.innerHTML=active.length?active.map(x=>`<div class="shortageRow fieldMessageCard"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${shortageTime(x.reported_at)}</div>${shortageThreadHtml(x.id)}<div class="shortageActions"><button class="btn blue" onclick="replyShortage(${x.id})">💬 回覆現場</button><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button></div></div>`).join(''):'<div class="empty">目前沒有待處理缺貨／催貨</div>';
+  const active=shortageReports.filter(x=>x.status!=='arrived'&&fieldIsToday(x.reported_at||x.created_at));
+  box.innerHTML=active.length?active.map(x=>`<div class="shortageRow fieldMessageCard"><div class="shortageTop"><div><b>${esc(x.customer||'')}</b>｜${esc(x.item_text||'')} ${x.qty_note?'｜'+esc(x.qty_note):''}</div><span class="shortageStatus">${shortageStatusText[x.status]||esc(x.status||'')}</span></div><div class="meta">${esc(x.source_label||'')}回報｜${esc(x.reported_by_name||'')}｜${shortageTime(x.reported_at)}</div>${shortageThreadHtml(x.id)}<div class="shortageActions"><button class="btn blue" onclick="replyShortage(${x.id})">💬 回覆現場</button><button class="btn gray" onclick="setShortageStatus(${x.id},'contacted')">已催廠商</button><button class="btn gray" onclick="setShortageStatus(${x.id},'shipping')">配送中／時間未知</button></div></div>`).join(''):'<div class="empty">今天目前沒有待處理缺貨／催貨</div>';
 }
 function renderShortageSource(source){
   const box=document.getElementById(source==='packing'?'packingShortageReplies':'deliveryShortageReplies');if(!box||!currentUser)return;
@@ -3770,7 +3770,7 @@ window.submitFieldQuestion=async function(source){
   await loadStage9();
   alert('已送到總部');
 }
-function renderFieldQuestionOffice(){const box=document.getElementById('fieldQuestionOfficeList');if(!box)return;const arr=fieldQuestions.filter(x=>x.status!=='closed');box.innerHTML=arr.length?arr.map(x=>'<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(x.subject||'現場詢問')+'</b>｜'+esc(x.question_text||'')+'</div><span class="shortageStatus">'+(x.status==='replied'?'已回應':'待回應')+'</span></div><div class="meta">'+esc(x.source_label||'')+'－'+esc(x.asked_by_name||'')+'｜'+stage9Time(x.created_at)+'</div>'+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="replyFieldQuestion('+x.id+')">📡 總部回應</button><button class="btn gray" onclick="closeFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>').join(''):'<div class="empty">目前沒有待回應的現場詢問</div>'}
+function renderFieldQuestionOffice(){const box=document.getElementById('fieldQuestionOfficeList');if(!box)return;const arr=fieldQuestions.filter(x=>x.status!=='closed'&&fieldIsToday(x.created_at));box.innerHTML=arr.length?arr.map(x=>'<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(x.subject||'現場詢問')+'</b>｜'+esc(x.question_text||'')+'</div><span class="shortageStatus">'+(x.status==='replied'?'已回應':'待回應')+'</span></div><div class="meta">'+esc(x.source_label||'')+'－'+esc(x.asked_by_name||'')+'｜'+stage9Time(x.created_at)+'</div>'+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="replyFieldQuestion('+x.id+')">📡 總部回應</button><button class="btn gray" onclick="closeFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>').join(''):'<div class="empty">目前沒有待回應的現場詢問</div>'}
 function renderFieldQuestionsFor(source){const box=document.getElementById(source==='packing'?'packingQuestionReplies':'deliveryQuestionReplies');if(!box||!currentUser)return;const uid=String(currentUser.id);const arr=fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status!=='closed');box.innerHTML=arr.length?arr.map(x=>{const ms=questionThread(x.id),last=ms[ms.length-1];return '<div class="shortageRow"><div class="shortageTop"><b>'+esc(x.subject||'現場詢問')+'</b><span class="shortageStatus">'+(x.status==='replied'?'📡 有總部回應':'等待回應')+'</span></div><div style="margin-top:6px">'+esc(x.question_text||'')+'</div>'+(last&&last.message_type==='office_reply'?'<div style="margin-top:7px;padding:8px;background:#eef7ff;border-radius:9px"><b>📡 回應：</b>'+esc(last.message||'')+'<div class="meta">'+esc(last.actor_name||'')+'｜'+stage9Time(last.created_at)+'</div></div>':'')+questionThreadHtml(x.id)+'<div class="shortageActions"><button class="btn blue" onclick="fieldReplyQuestion('+x.id+')">💬 繼續回覆</button><button class="btn gray" onclick="closeMyFieldQuestion('+x.id+')">✓ 結束對話</button></div></div>'}).join(''):''}
 window.replyFieldQuestion=async function(id){const t=prompt('📡 總部回應：');if(t===null||!t.trim())return;const now=new Date().toISOString();const {error}=await sb.from('field_question_messages').insert({question_id:id,message:t.trim(),message_type:'office_reply',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:officeActorRole()});if(error)return alert('回應失敗：'+error.message);await sb.from('field_questions').update({status:'replied',updated_at:now}).eq('id',id);await loadStage9()};
 window.fieldReplyQuestion=async function(id){const x=fieldQuestions.find(q=>q.id===id);if(!x||String(x.asked_by)!==String(currentUser.id))return alert('這不是你的對話');const t=prompt('回覆總部：');if(t===null||!t.trim())return;const r=await sb.from('field_question_messages').insert({question_id:id,message:t.trim(),message_type:'field_reply',actor_id:currentUser.id,actor_name:currentProfile?.display_name||'',actor_role:stage9Role(x.source)});if(r.error)return alert('回覆失敗：'+r.error.message);await sb.from('field_questions').update({status:'open',updated_at:new Date().toISOString()}).eq('id',id);await loadStage9()};
@@ -3840,9 +3840,9 @@ function freightBatchCard(group,completed=false){
 }
 function renderFreightOffice(){
   const box=document.getElementById('freightOfficeList');if(!box)return;
-  const groups=freightGroups();
+  const groups=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at));
   const pending=groups.filter(g=>!g.rows.every(x=>(x.status||'')==='completed'));
-  box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">目前沒有待確認的寄車公斤回報</div>';
+  box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">今天目前沒有待確認的寄車公斤回報</div>';
 }
 window.confirmFreightItem=async function(id){
   if(!currentUser)return alert('請先登入');
@@ -3924,9 +3924,9 @@ function updateStage9Badges(){
   if(!currentUser)return;
   const uid=String(currentUser.id);
   const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;
-  const officeOpen=fieldQuestions.filter(x=>x.status==='open').length;
-  const freightPending=freightGroups().filter(g=>g.rows.some(x=>(x.status||'reported')!=='confirmed')).length;
-  const shortageOpen=shortageReports.filter(x=>x.status!=='arrived').length;
+  const officeOpen=fieldQuestions.filter(x=>x.status==='open'&&fieldIsToday(x.created_at)).length;
+  const freightPending=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at)&&g.rows.some(x=>(x.status||'reported')!=='confirmed')).length;
+  const shortageOpen=shortageReports.filter(x=>x.status!=='arrived'&&fieldIsToday(x.reported_at||x.created_at)).length;
   const salesFieldCount=shortageOpen+officeOpen+freightPending;
   setShortageBadge('procurementNoticeBadge',0);
   setShortageBadge('salesNoticeBadge',0);
