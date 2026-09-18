@@ -2211,9 +2211,8 @@ function activateTab(tabName,{save=true}={}){
   }
   renderAll();
 }
-function setStallMode(mode='create',save=true){
+function setStallMode(mode='create'){
   const create=mode==='create',manage=mode==='manage',field=mode==='field';
-  if(save){try{localStorage.setItem('xinru_stall_mode',mode)}catch(e){}}
   const c=$('#stallCreateCard'),t=$('#stallTransCard'),m=$('#stallManageCard'),f=$('#stallFieldCard');
   if(c)c.style.display=create?'block':'none';
   if(t)t.style.display=create?'block':'none';
@@ -2231,10 +2230,7 @@ function setStallMode(mode='create',save=true){
 $('#stallCreateModeBtn')?.addEventListener('click',()=>setStallMode('create'));
 $('#stallManageModeBtn')?.addEventListener('click',()=>setStallMode('manage'));
 $('#stallFieldModeBtn')?.addEventListener('click',()=>setStallMode('field'));
-let rememberedStallMode='create';
-try{rememberedStallMode=localStorage.getItem('xinru_stall_mode')||'create'}catch(e){}
-if(!['create','manage','field'].includes(rememberedStallMode))rememberedStallMode='create';
-setStallMode(rememberedStallMode,false);
+setStallMode('create');
 $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{save:true})));
 $('#homeOrderQueryBtn')?.addEventListener('click',()=>activateTab('today',{save:true}));
 $('#todayBackHomeBtn')?.addEventListener('click',()=>activateTab('home',{save:true}));
@@ -3928,13 +3924,10 @@ function updateStage9Badges(){
   if(!currentUser)return;
   const uid=String(currentUser.id);
   const mine=(source)=>fieldQuestions.filter(x=>x.source===source&&String(x.asked_by)===uid&&x.status==='replied').length;
-  const officePendingRows=fieldQuestions.filter(x=>x.status!=='closed'&&fieldIsToday(x.created_at));
-  const freightPendingGroups=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at)&&!g.rows.every(x=>(x.status||'')==='completed'));
-  const shortagePendingRows=shortageReports.filter(x=>x.status!=='arrived'&&fieldIsToday(x.reported_at||x.created_at));
-  const officeOpen=officePendingRows.length;
-  const freightPending=freightPendingGroups.length;
-  const shortageOpen=shortagePendingRows.length;
-  const salesFieldCount=officeOpen+freightPending+shortageOpen;
+  const officeOpen=fieldQuestions.filter(x=>x.status!=='closed'&&fieldIsToday(x.created_at)).length;
+  const freightPending=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at)&&!g.rows.every(x=>(x.status||'')==='completed')).length;
+  const shortageOpen=shortageReports.filter(x=>x.status!=='arrived'&&fieldIsToday(x.reported_at||x.created_at)).length;
+  const salesFieldCount=shortageOpen+officeOpen+freightPending;
   setShortageBadge('procurementNoticeBadge',0);
   setShortageBadge('salesNoticeBadge',0);
   setShortageBadge('salesFieldBadge',0);
