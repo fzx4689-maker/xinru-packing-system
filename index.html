@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第168Q階段｜內容區回頂版</title>
+<title>第168R階段｜切頁回頂修正版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2651,6 +2651,8 @@ function activateTab(tabName,{save=true}={}){
     if(location.hash!==`#${tabName}`)history.replaceState(null,'',`${location.pathname}${location.search}#${tabName}`);
   }
   renderAll();
+  // 第168R：切頁完成後回到頁首，避免沿用上一頁的垂直捲動位置。
+  requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
 }
 function setStallMode(mode='create'){
   if(mode==='manage')mode='packing';
@@ -3589,39 +3591,6 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
   #today .deliveryQueryMobileCard .freightSlipPhotoLink{display:block;width:100%;margin-top:9px}
   #today .deliveryQueryMobileCard .freightSlipPhoto{display:block;width:100%!important;height:auto!important;max-height:340px!important;object-fit:contain!important;margin:0 auto}
   #today .deliveryQueryMobileCard a{overflow-wrap:anywhere}
-}
-
-/* ===== 第168Q：主要內容區回到頁面上方（版面層） =====
-   不使用固定高度把內容壓到底；各頁依內容自然往下延伸。 */
-#mainApp .page,
-#mainApp .pageShell,
-#mainApp .pageContent{
-  align-content:flex-start;
-  justify-content:flex-start;
-}
-#mainApp .page > .card:first-child,
-#mainApp .pageShell > .card:first-child,
-#mainApp .pageContent > .card:first-child{
-  margin-top:0 !important;
-}
-#todayPage,
-#accountingPage,
-#stallPage,
-#packingPage,
-#deliveryPage,
-#homePage,
-#wallPage{
-  align-content:flex-start !important;
-  justify-content:flex-start !important;
-}
-#todayPage > .card,
-#accountingPage > .card,
-#stallPage > .card,
-#packingPage > .card,
-#deliveryPage > .card,
-#homePage > .card,
-#wallPage > .card{
-  margin-top:0 !important;
 }
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
