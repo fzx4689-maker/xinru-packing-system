@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第168階段登入修正V2｜第168階段｜【第35階段 市場帳完整流程】欣儒農產行｜內部作業系統</title>
+<title>第168階段乾淨重建版｜欣儒農產行｜內部作業系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -3194,13 +3194,13 @@ async function loadEmployees(){
   if(scrollBox)requestAnimationFrame(()=>{scrollBox.scrollTop=keepScroll;});
  }catch(e){if(listEl)listEl.innerHTML=`<div class="empty" style="color:#b4232c">${esc(e.message)}</div>`;if(scrollBox)requestAnimationFrame(()=>{scrollBox.scrollTop=keepScroll;});}
 }
-$('#employeeManageBtn').onclick=async()=>{if(currentProfile?.role!=='admin')return;setEmployeeMsg('');$('#employeeModal').classList.add('show');$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';await loadEmployees();};
+$('#employeeManageBtn').onclick=async()=>{if(!isAdmin())return;setEmployeeMsg('');$('#employeeModal').classList.add('show');$('#employeeTabPanel').style.display='block';$('#employeeTabBtn').className='btn blue';await loadEmployees();};
 $('#closeEmployeeModal').onclick=()=>$('#employeeModal').classList.remove('show');
-$('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn gray';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';await loadEmployees();};
+$('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#employeeTabBtn').className='btn blue';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';await loadEmployees();};
 $('#toggleCreateEmployeeBtn').onclick=()=>{const sec=$('#createEmployeeSection');const open=sec.style.display==='none'||!sec.style.display;sec.style.display=open?'block':'none';$('#employeeList').style.display=open?'none':'block';$('#refreshEmployeesBtn').style.display=open?'none':'inline-block';$('#toggleCreateEmployeeBtn').textContent=open?'收起新增員工':'＋ 新增員工';setEmployeeMsg('');};
 $('#employeeModal').addEventListener('click',e=>{if(e.target===$('#employeeModal'))$('#employeeModal').classList.remove('show');});
 $('#refreshEmployeesBtn').onclick=()=>loadEmployees();
-$('#empRole').onchange=()=>{if($('#empRole').value==='admin')$$('.new-work-role').forEach(x=>x.checked=true);};
+/* 第168：新增帳號固定一般帳號；管理員另由人員管理設定。 */
 $('#createEmployeeBtn').onclick=async()=>{
   const display_name=$('#empName').value.trim(),login_name=$('#empLoginName').value.trim().toLowerCase(),password=$('#empPassword').value;
   if(!display_name||!login_name||!password){setEmployeeMsg('姓名、員工帳號、密碼都要填寫');return;}
@@ -3256,8 +3256,82 @@ $('#myNicknameBtn').onclick=async()=>{
   }
 };
 
+/* ===== 第168階段：權限核心先於登入啟動載入 ===== */
+/* 第168階段：單一權限來源
+   管理員：全部頁面/功能 + 人員管理。
+   非管理員：只認 employee_permission_v17 的 page_permissions / function_permissions。
+   work_roles、主管、瀏覽模板、人員類型、職位、計薪不再參與系統授權。 */
+const V17_PAGE_OPTIONS=[
+ ['accounting','💰 帳務中心'],['stall','📋 派工'],
+ ['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
+];
+const V17_FUNC_OPTIONS=[
+ ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],['order.delete','派工｜刪除訂單'],
+ ['packing.work','包裝｜作業／回覆／完成'],['packing.manage','包裝｜管理／修改'],
+ ['delivery.work','貨運｜可接配送（會出現在司機名單）'],['delivery.manage','貨運｜看全部／指定／更換司機'],
+ ['delivery.edit','貨運｜修改作業'],['delivery.delete','貨運｜刪除'],
+ ['accounting.entry','帳務｜登帳／收款'],['accounting.export','帳務｜匯出／列印'],
+ ['announcement.create','公告｜新增公告'],['announcement.edit','公告｜修改／結束公告'],['announcement.delete','公告｜刪除公告'],
+ ['notify.packing','通知｜包裝提醒'],['notify.delivery','通知｜貨運提醒'],['notify.accounting','通知｜帳務提醒']
+];
+const V168_FUNC_PAGE={
+ 'order.create':'stall','order.edit':'stall','order.delete':'stall',
+ 'packing.work':'packing','packing.manage':'packing',
+ 'delivery.work':'delivery','delivery.manage':'delivery','delivery.edit':'delivery','delivery.delete':'delivery',
+ 'accounting.entry':'accounting','accounting.export':'accounting',
+ 'announcement.create':'home','announcement.edit':'home','announcement.delete':'home',
+ 'notify.packing':'packing','notify.delivery':'delivery','notify.accounting':'accounting'
+};
+let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
+const v17Has=(k)=>isAdmin()||!!(v17Perm.configured&&v17Perm.funcs.includes(k));
+async function v17LoadMine(){
+ if(!currentUser||v17LoadedFor===currentUser.id)return;
+ v17LoadedFor=currentUser.id;
+ try{
+  const {data,error}=await sb.from('employee_permission_v17')
+    .select('page_permissions,function_permissions').eq('user_id',currentUser.id).maybeSingle();
+  if(error)throw error;
+  v17Perm=data?{pages:data.page_permissions||[],funcs:data.function_permissions||[],configured:true}:{pages:[],funcs:[],configured:true};
+  if(typeof applyRoleUI==='function')applyRoleUI();
+  if(typeof renderAll==='function')renderAll();
+ }catch(e){
+  console.error('第168階段權限讀取失敗：',e);
+  v17Perm={pages:[],funcs:[],configured:true}; // 失敗時不沿用舊權限，避免舊規則放行
+ }
+}
+canSeeTab=function(tab){
+ if(!currentProfile||currentProfile.is_active!==true)return false;
+ if(tab==='home')return true; // 公告：所有啟用帳號固定可看，不列入頁面權限
+ if(isAdmin())return true;
+ return !!(v17Perm.configured&&v17Perm.pages.includes(tab));
+};
+canOperateStall=()=>isAdmin()||v17Has('order.create')||v17Has('order.edit')||v17Has('order.delete');
+canPackingWork=()=>isAdmin()||v17Has('packing.work');
+canManagePacking=()=>isAdmin()||v17Has('packing.manage');
+
+function v17ApplyFunctionUI(){
+ if(!currentUser)return;
+ const admin=isAdmin();
+ const submit=document.getElementById('submitOrder');
+ if(submit){const ok=admin||v17Has('order.create');submit.disabled=!ok;submit.classList.toggle('viewer-disabled',!ok);}
+ document.querySelectorAll('button[onclick^="openEdit("]').forEach(btn=>btn.style.display=(admin||v17Has('order.edit'))?'':'none');
+ document.querySelectorAll('#accounting button').forEach(btn=>{
+   const t=btn.textContent||'';
+   if(/匯出|Excel|PDF|列印|LINE/.test(t))btn.style.display=(admin||v17Has('accounting.export'))?'':'none';
+ });
+}
+const v168BaseApplyRoleUI=applyRoleUI;
+applyRoleUI=function(){
+ v168BaseApplyRoleUI();
+ $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
+ const empBtn=$('#employeeManageBtn');if(empBtn)empBtn.style.display=isAdmin()?'':'none';
+ v17ApplyFunctionUI();
+};
+
 async function loadMyProfile(user){
-  const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,nickname,role,is_active,login_name').eq('user_id',user.id).maybeSingle();
+  // 第168乾淨版：保留166既有欄位供舊穩定模組顯示使用；
+  // 授權本身只認 admin + employee_permission_v17，不再認 work_roles/feature_permissions。
+  const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,nickname,role,is_active,login_name,work_roles,feature_permissions,notification_permissions').eq('user_id',user.id).maybeSingle();
   if(error)throw error;
   if(!data)throw new Error('這個登入帳號尚未建立員工權限');
   if(!data.is_active)throw new Error('這個員工帳號已停用');
@@ -3268,51 +3342,32 @@ function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
   const shownName=(currentProfile?.nickname||'').trim()||currentProfile?.display_name||currentProfile?.login_name||'使用者';
   $('#currentUserName').textContent=`👤 ${shownName}`;
-  // 第168階段已取消「職務/work_roles」作為權限層，不再於登入時讀取或顯示舊職務。
-  $('#currentUserRole').textContent=currentProfile?.role==='admin'?'｜管理員':'';
-  try{applyRoleUI();}catch(e){console.error('權限畫面套用失敗',e);}
-  try{updatePwaPushButton();}catch(e){console.error('通知按鈕初始化失敗',e);}
+  $('#currentUserRole').textContent=isAdmin()?'｜管理員':'';
+  applyRoleUI();
+  updatePwaPushButton();
 }
 async function startApp(user){
-  try{
-    // 第168修正版：登入只以 Auth + employee_profiles 為準。
-    // 權限/貨運/帳務等模組載入失敗，不得把已成功登入的人踢回登入頁。
-    currentUser=user;
-    currentProfile=await loadMyProfile(user);
-  }catch(e){
-    console.error('登入身分讀取失敗',e);
+  try{currentUser=user;currentProfile=await loadMyProfile(user);v17LoadedFor='';await v17LoadMine();applyNotificationSoundDefault();showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
+    // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
+    // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
+    const saved=localStorage.getItem('xinru_delivery_driver_filter');
+    if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
+    const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
+    if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
+  }
+  // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
+  await loadDelivery();await loadAccountingCloud();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
+  activateTab(getRememberedTab(),{save:false});}
+  catch(e){
+    console.error(e);
     const msg=String(e?.message||e||'');
+    // 啟動時遇到暫時性網路/API錯誤，不再自動 signOut，避免手機/PWA 被誤登出。
     if(msg.includes('員工帳號已停用')){
       await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
     }else{
-      showLogin('登入資料讀取失敗：'+msg);
+      showLogin('連線暫時不穩定，登入資料已保留，請重新整理');
     }
-    return;
   }
-
-  // 先進系統，再個別載入模組；任何單一模組錯誤都不再偽裝成「不能登入」。
-  showApp();
-
-  try{v17LoadedFor='';await v17LoadMine();}catch(e){console.error('權限載入失敗',e);}
-  try{applyNotificationSoundDefault();}catch(e){console.error('提醒音初始化失敗',e);}
-  try{applyRoleUI();}catch(e){console.error('權限畫面套用失敗',e);}
-  try{if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();}catch(e){console.error('待審核徽章失敗',e);}
-
-  try{
-    if(currentIsDriver()){
-      const saved=localStorage.getItem('xinru_delivery_driver_filter');
-      if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
-      const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
-      if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
-    }
-  }catch(e){console.error('貨運篩選初始化失敗',e);}
-
-  try{await loadDelivery();}catch(e){console.error('貨運載入失敗',e);}
-  try{await loadAccountingCloud();}catch(e){console.error('帳務載入失敗',e);}
-  try{
-    if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
-  }catch(e){console.error('訂單載入失敗',e);}
-  try{activateTab(getRememberedTab(),{save:false});}catch(e){console.error('頁面切換失敗',e);}
 }
 async function resolveLoginEmail(account){
   if(account.includes('@'))return account;
@@ -4453,77 +4508,6 @@ let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Re
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentUser)loadStage9()});window.addEventListener('focus',()=>{if(currentUser)loadStage9()});window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},10000);
 </script>
 <script>
-/* 第168階段：單一權限來源
-   管理員：全部頁面/功能 + 人員管理。
-   非管理員：只認 employee_permission_v17 的 page_permissions / function_permissions。
-   work_roles、主管、瀏覽模板、人員類型、職位、計薪不再參與系統授權。 */
-const V17_PAGE_OPTIONS=[
- ['accounting','💰 帳務中心'],['stall','📋 派工'],
- ['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
-];
-const V17_FUNC_OPTIONS=[
- ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],['order.delete','派工｜刪除訂單'],
- ['packing.work','包裝｜作業／回覆／完成'],['packing.manage','包裝｜管理／修改'],
- ['delivery.work','貨運｜可接配送（會出現在司機名單）'],['delivery.manage','貨運｜看全部／指定／更換司機'],
- ['delivery.edit','貨運｜修改作業'],['delivery.delete','貨運｜刪除'],
- ['accounting.entry','帳務｜登帳／收款'],['accounting.export','帳務｜匯出／列印'],
- ['announcement.create','公告｜新增公告'],['announcement.edit','公告｜修改／結束公告'],['announcement.delete','公告｜刪除公告'],
- ['notify.packing','通知｜包裝提醒'],['notify.delivery','通知｜貨運提醒'],['notify.accounting','通知｜帳務提醒']
-];
-const V168_FUNC_PAGE={
- 'order.create':'stall','order.edit':'stall','order.delete':'stall',
- 'packing.work':'packing','packing.manage':'packing',
- 'delivery.work':'delivery','delivery.manage':'delivery','delivery.edit':'delivery','delivery.delete':'delivery',
- 'accounting.entry':'accounting','accounting.export':'accounting',
- 'announcement.create':'home','announcement.edit':'home','announcement.delete':'home',
- 'notify.packing':'packing','notify.delivery':'delivery','notify.accounting':'accounting'
-};
-let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
-const v17Has=(k)=>isAdmin()||!!(v17Perm.configured&&v17Perm.funcs.includes(k));
-async function v17LoadMine(){
- if(!currentUser||v17LoadedFor===currentUser.id)return;
- v17LoadedFor=currentUser.id;
- try{
-  const {data,error}=await sb.from('employee_permission_v17')
-    .select('page_permissions,function_permissions').eq('user_id',currentUser.id).maybeSingle();
-  if(error)throw error;
-  v17Perm=data?{pages:data.page_permissions||[],funcs:data.function_permissions||[],configured:true}:{pages:[],funcs:[],configured:true};
-  if(typeof applyRoleUI==='function')applyRoleUI();
-  if(typeof renderAll==='function')renderAll();
- }catch(e){
-  console.error('第168階段權限讀取失敗：',e);
-  v17Perm={pages:[],funcs:[],configured:true}; // 失敗時不沿用舊權限，避免舊規則放行
- }
-}
-canSeeTab=function(tab){
- if(!currentProfile||currentProfile.is_active!==true)return false;
- if(tab==='home')return true; // 公告：所有啟用帳號固定可看，不列入頁面權限
- if(isAdmin())return true;
- return !!(v17Perm.configured&&v17Perm.pages.includes(tab));
-};
-canOperateStall=()=>isAdmin()||v17Has('order.create')||v17Has('order.edit')||v17Has('order.delete');
-canPackingWork=()=>isAdmin()||v17Has('packing.work');
-canManagePacking=()=>isAdmin()||v17Has('packing.manage');
-
-function v17ApplyFunctionUI(){
- if(!currentUser)return;
- const admin=isAdmin();
- const submit=document.getElementById('submitOrder');
- if(submit){const ok=admin||v17Has('order.create');submit.disabled=!ok;submit.classList.toggle('viewer-disabled',!ok);}
- document.querySelectorAll('button[onclick^="openEdit("]').forEach(btn=>btn.style.display=(admin||v17Has('order.edit'))?'':'none');
- document.querySelectorAll('#accounting button').forEach(btn=>{
-   const t=btn.textContent||'';
-   if(/匯出|Excel|PDF|列印|LINE/.test(t))btn.style.display=(admin||v17Has('accounting.export'))?'':'none';
- });
-}
-const v168BaseApplyRoleUI=applyRoleUI;
-applyRoleUI=function(){
- v168BaseApplyRoleUI();
- $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
- const empBtn=$('#employeeManageBtn');if(empBtn)empBtn.style.display=isAdmin()?'':'none';
- v17ApplyFunctionUI();
-};
-
 async function v17EditEmployee(uid,name){
  try{
   const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();
