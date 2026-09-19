@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第167A-2階段｜公告＋電視牆全員可看</title>
+<title>第167A-3階段｜解除舊單一職務導覽控制</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2045,7 +2045,7 @@ function canSeeTab(tab){
 function firstVisibleTab(){if(typeof v17Perm!=='undefined'&&v17Perm.configured)return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home';if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
-  document.body.classList.toggle('field-single-role',isPackingOnly()||isDriverOnly());
+  document.body.classList.remove('field-single-role'); // 167A-3：舊 work_roles 不再隱藏整排導覽
   $('#readonlyNote').style.display='none';
   const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';
   $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
