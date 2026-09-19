@@ -702,6 +702,42 @@ body.wall-focus #wall .progress{height:8px!important}
 
 /* 第159階段：派工現場回報分類紅點。三種設備共用同一邏輯，只隨既有RWD排版。 */
 #stallFieldCard .stallFieldQuick>summary .navNoticeBadge{margin-left:7px;flex:0 0 auto}
+
+
+/* 第162階段：貨運查詢統一卡片版。資料/流程不變，只統一查詢呈現。 */
+#today .deliveryQueryMobileWrap{display:block!important;width:100%;min-width:0}
+#today .deliveryQueryMobileWrap>.helper{grid-column:1/-1}
+#today .deliveryQueryMobileCard{
+  width:100%;min-width:0;background:#fff;border:1px solid #dfe3e8;border-radius:18px;
+  padding:15px;margin:0 0 12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.03)
+}
+#today .deliveryQueryMobileCard.urgent{
+  border:2px solid #ff9fa5!important;background:#fff7f7!important;
+}
+#today .deliveryQueryMobileHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid #edf0f2}
+#today .deliveryQueryMobileHead>div:first-child{min-width:0;flex:1}
+#today .deliveryQueryMobileCustomer{font-size:23px;font-weight:950;line-height:1.2;overflow-wrap:anywhere}
+#today .deliveryQueryMobileMeta{font-size:15px;line-height:1.5;margin:4px 0;overflow-wrap:anywhere}
+#today .deliveryQueryMobileContent{margin-top:10px;padding:10px 12px;border-radius:11px;background:#f8fafc;border:1px solid #e7ebef;font-size:16px;line-height:1.5;overflow-wrap:anywhere}
+#today .deliveryQueryMobileCard.urgent .deliveryQueryMobileContent{background:#fffafa;border-color:#ffd6d8}
+#today .deliveryQueryMobileReply{margin-top:9px;padding:9px 10px;border-radius:11px;background:#eef7ff;border:1px solid #cfe7ff;overflow-wrap:anywhere}
+#today .deliveryQueryMobileFoot{margin-top:10px;padding-top:9px;border-top:1px solid #edf0f2;display:grid;gap:5px;font-size:15px}
+#today .deliveryQueryMobileCard .freightSlipPhotoLink{display:block;width:100%;margin-top:10px}
+#today .deliveryQueryMobileCard .freightSlipPhoto{display:block;width:100%!important;height:auto!important;max-height:420px!important;object-fit:contain!important;margin:0 auto}
+#today .deliveryQueryMobileCard a{overflow-wrap:anywhere}
+@media(min-width:900px){
+  #today .deliveryQueryMobileWrap{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+  #today .deliveryQueryMobileCard{margin:0}
+}
+@media(max-width:600px){
+  #today .deliveryQueryMobileWrap{display:block!important}
+  #today .deliveryQueryMobileCard{padding:13px;margin-bottom:10px;border-radius:16px}
+  #today .deliveryQueryMobileCustomer{font-size:21px}
+  #today .deliveryQueryMobileMeta{font-size:14px}
+  #today .deliveryQueryMobileContent{font-size:15px}
+  #today .deliveryQueryMobileFoot{font-size:14px}
+  #today .deliveryQueryMobileCard .freightSlipPhoto{max-height:340px!important}
+}
 </style>
 
 
@@ -2237,8 +2273,7 @@ function deliveryRecordTable(arr,label){
   else if(deliveryQueryDriverFilter!=='all')arr=arr.filter(j=>j.assigned_driver_id===deliveryQueryDriverFilter);
   renderDeliveryQueryDriverFilters();
   const sorted=[...arr].sort((a,b)=>String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
-  if(sorted.length && window.matchMedia('(max-width:600px)').matches){box.innerHTML=renderDeliveryRecordMobile(sorted,label);return;}
-  box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>客戶</th><th>司機</th><th>狀態</th><th>送達資料</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}<div class="meta">${fmtDateTime(j.created_at)}</div></td><td><b>${j.is_urgent?'🚨 ':''}${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div>${j.request_text?`<div class="meta" style="white-space:normal;max-width:280px">${esc(j.request_text).replace(/\n/g,'<br>')}</div>`:''}${renderFreightSlipPhoto(j,'query')}</td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}${renderDriverReplies(j.driver_reply)}</td><td>${j.completed_at?`<div>${fmtDateTime(j.completed_at)}</div>`:''}${j.delivery_photo_url?`<div><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:(j.proof_required?'<div class="meta">📷 待回傳</div>':'')}${j.collected_amount!=null?`<div>💰 實收 $${esc(j.collected_amount)}</div>`:''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
+  box.innerHTML=sorted.length?renderDeliveryRecordMobile(sorted,label):`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
 }
 window.setDeliveryRecordMode=mode=>{
   deliveryRecordMode=mode;
