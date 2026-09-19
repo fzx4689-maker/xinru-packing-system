@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第168階段正式版｜第168階段｜【第35階段 市場帳完整流程】欣儒農產行｜內部作業系統</title>
+<title>第168階段登入修正版｜第168階段｜【第35階段 市場帳完整流程】欣儒農產行｜內部作業系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -3274,27 +3274,45 @@ function showApp(){
   updatePwaPushButton();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);v17LoadedFor='';await v17LoadMine();applyNotificationSoundDefault();showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
-    // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
-    // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
-    const saved=localStorage.getItem('xinru_delivery_driver_filter');
-    if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
-    const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
-    if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
-  }
-  // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
-  await loadDelivery();await loadAccountingCloud();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
-  activateTab(getRememberedTab(),{save:false});}
-  catch(e){
-    console.error(e);
+  try{
+    // 第168修正版：登入只以 Auth + employee_profiles 為準。
+    // 權限/貨運/帳務等模組載入失敗，不得把已成功登入的人踢回登入頁。
+    currentUser=user;
+    currentProfile=await loadMyProfile(user);
+  }catch(e){
+    console.error('登入身分讀取失敗',e);
     const msg=String(e?.message||e||'');
-    // 啟動時遇到暫時性網路/API錯誤，不再自動 signOut，避免手機/PWA 被誤登出。
     if(msg.includes('員工帳號已停用')){
       await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
     }else{
-      showLogin('連線暫時不穩定，登入資料已保留，請重新整理');
+      showLogin('登入資料讀取失敗：'+msg);
     }
+    return;
   }
+
+  // 先進系統，再個別載入模組；任何單一模組錯誤都不再偽裝成「不能登入」。
+  showApp();
+
+  try{v17LoadedFor='';await v17LoadMine();}catch(e){console.error('權限載入失敗',e);}
+  try{applyNotificationSoundDefault();}catch(e){console.error('提醒音初始化失敗',e);}
+  try{applyRoleUI();}catch(e){console.error('權限畫面套用失敗',e);}
+  try{if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();}catch(e){console.error('待審核徽章失敗',e);}
+
+  try{
+    if(currentIsDriver()){
+      const saved=localStorage.getItem('xinru_delivery_driver_filter');
+      if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
+      const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
+      if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
+    }
+  }catch(e){console.error('貨運篩選初始化失敗',e);}
+
+  try{await loadDelivery();}catch(e){console.error('貨運載入失敗',e);}
+  try{await loadAccountingCloud();}catch(e){console.error('帳務載入失敗',e);}
+  try{
+    if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
+  }catch(e){console.error('訂單載入失敗',e);}
+  try{activateTab(getRememberedTab(),{save:false});}catch(e){console.error('頁面切換失敗',e);}
 }
 async function resolveLoginEmail(account){
   if(account.includes('@'))return account;
