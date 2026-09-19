@@ -609,8 +609,8 @@ body.field-single-role .wrap{padding-top:8px}
 }
 
 
-/* 第144階段：iPad 橫式投影 32 吋／10 公尺大字緊湊版。
-   維持雙欄、不砍單；縮短每項垂直間距，讓約 8 項品項的第一排下方可露出第3/4張訂單頂部。 */
+/* 第145階段：電視牆中泰同列緊湊版。
+   只改電視牆品項呈現：泰文接在中文後方、再縮短品項垂直間距；雙欄、不砍單。 */
 body.wall-focus #wall .wallCards{
   grid-template-columns:repeat(2,minmax(0,1fr))!important;
   gap:10px!important;
@@ -647,12 +647,13 @@ body.wall-focus #wall .wallCardItems{
   font-weight:850!important;
 }
 body.wall-focus #wall .wallCardItem{
-  padding:7px 0!important;
+  padding:3px 0!important;
 }
 body.wall-focus #wall .wallCardItem .th{
+  display:inline!important;
   font-size:23px!important;
-  line-height:1.22!important;
-  margin-top:4px!important;
+  line-height:1.08!important;
+  margin:0 0 0 8px!important;
   font-weight:750!important;
 }
 body.wall-focus #wall .wallCardFoot{
@@ -1930,7 +1931,7 @@ function renderWall(){
    <div class="wallCardHead"><div><div class="wallCardCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)}</div>
    <div class="wallCardThai">${esc(cth)}</div>
    <div class="wallCardDate">取貨日期 ${esc(o.order_date||'')}${o.pickup_time?`｜取貨時間 ${esc(o.pickup_time)}`:''}</div></div>${statusBadge(o.status)}</div>
-   <div class="wallCardItems">${o.items.map(x=>`<div class="wallCardItem">${x.is_completed?'✅':'☐'} ${esc(x.item_name)}<div class="th">${esc(thaiForItem(x))}</div></div>`).join('')}</div>
+   <div class="wallCardItems">${o.items.map(x=>`<div class="wallCardItem">${x.is_completed?'✅':'☐'} ${esc(x.item_name)} <span class="th">${esc(thaiForItem(x))}</span></div>`).join('')}</div>
    ${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}
    <div class="wallCardFoot"><div style="flex:1"><b>進度 ${done}/${total}</b><div class="progress" style="margin-top:7px"><div class="bar" style="width:${pct}%"></div></div></div>
    <div class="wallCardTime">下單 ${fmtDateTime(o.created_at)}</div></div>
