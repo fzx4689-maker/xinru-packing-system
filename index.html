@@ -684,6 +684,21 @@ body.wall-focus #wall .wallDateBtn{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
 }
+
+/* 第146階段：8品項完整＋底部露出第3/4張訂單。
+   iPad橫式投影32吋；只作用於 wall-focus #wall，不碰其他頁。 */
+body.wall-focus #wall .wallCards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+body.wall-focus #wall .wallOrderCard{padding:10px 12px!important}
+body.wall-focus #wall .wallCardHead{padding-bottom:4px!important;margin-bottom:4px!important;gap:8px!important}
+body.wall-focus #wall .wallCardCustomer{font-size:42px!important;line-height:1.02!important;font-weight:950!important;white-space:nowrap!important}
+body.wall-focus #wall .wallCardThai{display:inline!important;font-size:22px!important;line-height:1.02!important;margin:0 0 0 8px!important;font-weight:800!important}
+body.wall-focus #wall .wallCardDate{font-size:clamp(20px,2.05vw,26px)!important;line-height:1.05!important;margin-top:3px!important;font-weight:950!important;white-space:nowrap!important}
+body.wall-focus #wall .wallCardItems{font-size:31px!important;line-height:1.10!important;font-weight:850!important}
+body.wall-focus #wall .wallCardItem{padding:2px 0!important}
+body.wall-focus #wall .wallCardItem .th{display:inline!important;font-size:21px!important;line-height:1.05!important;margin:0 0 0 6px!important;font-weight:750!important}
+body.wall-focus #wall .wallCardFoot{margin-top:4px!important;font-size:24px!important}
+body.wall-focus #wall .wallCardTime{font-size:19px!important}
+body.wall-focus #wall .progress{height:8px!important}
 </style>
 
 
@@ -1928,8 +1943,7 @@ function renderWall(){
   const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;
   const cth=translitLine(o.customer);
   return `<article class="wallOrderCard ${o.is_urgent?'urgent':''}">
-   <div class="wallCardHead"><div><div class="wallCardCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)}</div>
-   <div class="wallCardThai">${esc(cth)}</div>
+   <div class="wallCardHead"><div><div class="wallCardCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)} <span class="wallCardThai">${esc(cth)}</span></div>
    <div class="wallCardDate">取貨日期 ${esc(o.order_date||'')}${o.pickup_time?`｜取貨時間 ${esc(o.pickup_time)}`:''}</div></div>${statusBadge(o.status)}</div>
    <div class="wallCardItems">${o.items.map(x=>`<div class="wallCardItem">${x.is_completed?'✅':'☐'} ${esc(x.item_name)} <span class="th">${esc(thaiForItem(x))}</span></div>`).join('')}</div>
    ${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}
