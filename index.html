@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第168階段登入修正版｜第168階段｜【第35階段 市場帳完整流程】欣儒農產行｜內部作業系統</title>
+<title>第168階段登入修正V2｜第168階段｜【第35階段 市場帳完整流程】欣儒農產行｜內部作業系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -3266,12 +3266,12 @@ async function loadMyProfile(user){
 function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
-  const shownName=(currentProfile.nickname||'').trim()||currentProfile.display_name;
-  const workText=(currentProfile.work_roles||[]).map(r=>WORK_LABEL[r]||r).join('／')||'未設定';
+  const shownName=(currentProfile?.nickname||'').trim()||currentProfile?.display_name||currentProfile?.login_name||'使用者';
   $('#currentUserName').textContent=`👤 ${shownName}`;
-  $('#currentUserRole').textContent=`｜職務：${workText}`;
-  applyRoleUI();
-  updatePwaPushButton();
+  // 第168階段已取消「職務/work_roles」作為權限層，不再於登入時讀取或顯示舊職務。
+  $('#currentUserRole').textContent=currentProfile?.role==='admin'?'｜管理員':'';
+  try{applyRoleUI();}catch(e){console.error('權限畫面套用失敗',e);}
+  try{updatePwaPushButton();}catch(e){console.error('通知按鈕初始化失敗',e);}
 }
 async function startApp(user){
   try{
