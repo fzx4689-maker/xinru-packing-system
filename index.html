@@ -1176,6 +1176,16 @@ body.wall-focus #wall .progress{height:8px!important}
 #stallCropperModal .cropper-dashed{border-color:rgba(255,255,255,.65)}
 </style>
 
+
+<style id="wallOrderPhotoStyle">
+.wallCardPhotoWrap{margin:8px 0 6px}
+.wallCardPhoto{display:block;width:150px;height:110px;object-fit:contain;object-position:center;background:#f3f5f7;border:1px solid #e1e6eb;border-radius:10px}
+.wallCardPhotoWrap.photoOnly .wallCardPhoto{width:100%;height:min(34vh,320px)}
+body.wall-focus #wall .wallCardPhotoWrap{margin:5px 0 4px!important}
+body.wall-focus #wall .wallCardPhoto{width:150px!important;height:105px!important;border-radius:8px!important}
+body.wall-focus #wall .wallCardPhotoWrap.photoOnly .wallCardPhoto{width:100%!important;height:min(38vh,340px)!important;object-fit:contain!important}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1970,6 +1980,7 @@ function renderWall(){
   return `<article class="wallOrderCard ${o.is_urgent?'urgent':''}">
    <div class="wallCardHead"><div><div class="wallCardCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)} <span class="wallCardThai">${esc(cth)}</span></div>
    <div class="wallCardDate">取貨日期 ${esc(o.order_date||'')}${o.pickup_time?`｜取貨時間 ${esc(o.pickup_time)}`:''}</div></div>${statusBadge(o.status)}</div>
+   ${o.photo_url?`<div class="wallCardPhotoWrap ${total===0?'photoOnly':''}"><img class="wallCardPhoto" src="${esc(o.photo_url)}" alt="派工照片" loading="eager" decoding="async"></div>`:''}
    <div class="wallCardItems">${o.items.map(x=>`<div class="wallCardItem">${x.is_completed?'✅':'☐'} ${esc(x.item_name)} <span class="th">${esc(thaiForItem(x))}</span></div>`).join('')}</div>
    ${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}
    <div class="wallCardFoot"><div style="flex:1"><b>進度 ${done}/${total}</b><div class="progress" style="margin-top:7px"><div class="bar" style="width:${pct}%"></div></div></div>
