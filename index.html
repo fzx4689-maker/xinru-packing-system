@@ -1157,19 +1157,26 @@ body.wall-focus #wall .progress{height:8px!important}
 </style>
 
 
-<style id="stallPhotoEditorStyle">
-#stallPhotoEditor{position:fixed;inset:0;z-index:100500;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:14px}
-#stallPhotoEditor.show{display:flex}
-#stallPhotoEditor .speBox{width:min(720px,100%);max-height:96vh;overflow:auto;background:#fff;border-radius:20px;padding:14px}
-#stallPhotoEditor .speHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
-#stallPhotoEditor .speHead b{font-size:20px}
-#stallPhotoEditor .speStage{position:relative;width:100%;height:min(62vh,560px);overflow:hidden;background:#111;border-radius:14px;touch-action:none}
-#stallPhotoEditor canvas{width:100%;height:100%;display:block;touch-action:none}
-#stallPhotoEditor .speHelp{text-align:center;font-weight:800;color:#667085;margin:9px 0}
-#stallPhotoEditor .speRange{display:flex;align-items:center;gap:10px;margin:10px 0}
-#stallPhotoEditor .speRange input{flex:1}
-#stallPhotoEditor .speActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-#stallPhotoEditor .speActions .btn{min-width:105px}
+<style id="stallCropStyle">
+#stallCropModal{position:fixed;inset:0;z-index:100500;background:#111;display:none;flex-direction:column;color:#fff}
+#stallCropModal.show{display:flex}
+#stallCropTop{height:68px;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;font-size:18px}
+#stallCropTop button{border:0;background:none;color:#fff;font-size:18px;padding:10px}
+#stallCropArea{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none}
+#stallCropCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#stallCropBox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);touch-action:none;min-width:70px;min-height:70px}
+#stallCropBox:before,#stallCropBox:after{content:"";position:absolute;background:rgba(255,255,255,.5);pointer-events:none}
+#stallCropBox:before{left:33.333%;top:0;width:1px;height:100%;box-shadow:calc(var(--crop-w,300px)/3) 0 0 rgba(255,255,255,.5)}
+#stallCropBox:after{top:33.333%;left:0;height:1px;width:100%;box-shadow:0 calc(var(--crop-h,300px)/3) 0 rgba(255,255,255,.5)}
+.cropHandle{position:absolute;width:34px;height:34px;z-index:3}
+.cropHandle:after{content:"";position:absolute;width:18px;height:18px;border-color:#fff}
+.cropHandle.nw{left:-5px;top:-5px}.cropHandle.ne{right:-5px;top:-5px}.cropHandle.sw{left:-5px;bottom:-5px}.cropHandle.se{right:-5px;bottom:-5px}
+.cropHandle.nw:after{left:5px;top:5px;border-left:4px solid;border-top:4px solid}
+.cropHandle.ne:after{right:5px;top:5px;border-right:4px solid;border-top:4px solid}
+.cropHandle.sw:after{left:5px;bottom:5px;border-left:4px solid;border-bottom:4px solid}
+.cropHandle.se:after{right:5px;bottom:5px;border-right:4px solid;border-bottom:4px solid}
+#stallCropBottom{padding:12px 16px 22px;display:flex;justify-content:center;gap:18px;background:#111}
+#stallCropBottom button{border:1px solid #666;border-radius:999px;background:#222;color:#fff;padding:11px 22px;font-size:17px;font-weight:800}
 </style>
 
 </head>
@@ -4358,49 +4365,92 @@ document.querySelectorAll('[data-delivery-level]').forEach(btn=>{
 })();
 </script>
 
-<div id="stallPhotoEditor" aria-hidden="true">
- <div class="speBox">
-  <div class="speHead"><b>📷 調整派工照片</b><button type="button" id="speCancelTop" class="btn gray">取消</button></div>
-  <div class="speStage"><canvas id="speCanvas"></canvas></div>
-  <div class="speHelp">單指拖曳位置｜雙指縮放｜也可使用下方縮放</div>
-  <div class="speRange"><span>縮小</span><input id="speZoom" type="range" min="1" max="4" step="0.01" value="1"><span>放大</span></div>
-  <div class="speActions">
-   <button type="button" id="speRotate" class="btn gray">↻ 旋轉</button>
-   <button type="button" id="speReset" class="btn gray">重設</button>
-   <button type="button" id="speCancel" class="btn gray">取消</button>
-   <button type="button" id="speUse" class="btn blue">✓ 確認使用</button>
+<div id="stallCropModal" aria-hidden="true">
+ <div id="stallCropTop"><button type="button" id="stallCropCancel">取消</button><b>裁切照片</b><button type="button" id="stallCropDone">完成</button></div>
+ <div id="stallCropArea">
+  <canvas id="stallCropCanvas"></canvas>
+  <div id="stallCropBox">
+   <span class="cropHandle nw" data-h="nw"></span><span class="cropHandle ne" data-h="ne"></span>
+   <span class="cropHandle sw" data-h="sw"></span><span class="cropHandle se" data-h="se"></span>
   </div>
  </div>
+ <div id="stallCropBottom"><button type="button" id="stallCropRotate">↻ 旋轉 90°</button><button type="button" id="stallCropReset">重設裁切</button></div>
 </div>
-<script id="stallPhotoEditorScript">
+<script id="stallCropScript">
 (()=>{
  const input=document.getElementById('photoInput'),preview=document.getElementById('photoPreview');
  if(!input||!preview)return;
- const modal=document.getElementById('stallPhotoEditor'),canvas=document.getElementById('speCanvas'),ctx=canvas.getContext('2d'),zoomEl=document.getElementById('speZoom');
- let img=null,sourceFile=null,scale=1,minScale=1,x=0,y=0,rotation=0,pointers=new Map(),dragStart=null,pinchStart=null;
+ const modal=document.getElementById('stallCropModal'),area=document.getElementById('stallCropArea'),
+ canvas=document.getElementById('stallCropCanvas'),ctx=canvas.getContext('2d'),box=document.getElementById('stallCropBox');
+ let img=null,file=null,rot=0,fit=1,imgX=0,imgY=0,crop={x:0,y:0,w:0,h:0},mode='',start=null,editedDispatch=false;
 
- function resizeCanvas(){const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(r.width*dpr));canvas.height=Math.max(1,Math.round(r.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0)}
- function dims(){const rot=((rotation%360)+360)%360;return(rot===90||rot===270)?{w:img.naturalHeight,h:img.naturalWidth}:{w:img.naturalWidth,h:img.naturalHeight}}
- function resetView(){if(!img)return;resizeCanvas();const r=canvas.getBoundingClientRect(),d=dims();minScale=Math.max(r.width/d.w,r.height/d.h);scale=minScale;x=r.width/2;y=r.height/2;zoomEl.value='1';draw()}
- function clamp(){if(!img)return;const r=canvas.getBoundingClientRect(),d=dims(),hw=d.w*scale/2,hh=d.h*scale/2;if(hw<=r.width/2)x=r.width/2;else x=Math.min(hw,Math.max(r.width-hw,x));if(hh<=r.height/2)y=r.height/2;else y=Math.min(hh,Math.max(r.height-hh,y))}
- function draw(){if(!img)return;const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,r.width,r.height);ctx.save();ctx.translate(x,y);ctx.rotate(rotation*Math.PI/180);ctx.scale(scale,scale);ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);ctx.restore()}
- function setZoom(mult){scale=minScale*Math.max(1,Math.min(4,mult));clamp();draw()}
- function openEditor(file){sourceFile=file;const url=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(url);img=im;rotation=0;modal.classList.add('show');modal.setAttribute('aria-hidden','false');requestAnimationFrame(resetView)};im.onerror=()=>{URL.revokeObjectURL(url);alert('照片讀取失敗，請重新選擇。');input.value=''};im.src=url}
- function closeEditor(clearInput=true){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');pointers.clear();dragStart=null;pinchStart=null;if(clearInput)input.value=''}
- function exportPhoto(){if(!img)return;const r=canvas.getBoundingClientRect(),maxSide=1800,factor=Math.min(1,maxSide/Math.max(r.width,r.height)),out=document.createElement('canvas');out.width=Math.max(1,Math.round(r.width*factor));out.height=Math.max(1,Math.round(r.height*factor));const oc=out.getContext('2d');oc.scale(factor,factor);oc.translate(x,y);oc.rotate(rotation*Math.PI/180);oc.scale(scale,scale);oc.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);out.toBlob(blob=>{if(!blob){alert('照片處理失敗，請重試。');return}const f=new File([blob],(sourceFile?.name||'派工照片').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg',lastModified:Date.now()}),dt=new DataTransfer();dt.items.add(f);input.files=dt.files;const u=URL.createObjectURL(blob);preview.onload=()=>URL.revokeObjectURL(u);preview.src=u;preview.style.display='block';closeEditor(false);input.dataset.edited='1';input.dispatchEvent(new Event('change',{bubbles:true}))},'image/jpeg',0.9)}
+ function areaSize(){return {w:area.clientWidth,h:area.clientHeight}}
+ function rotatedDims(){return(rot%180)?{w:img.naturalHeight,h:img.naturalWidth}:{w:img.naturalWidth,h:img.naturalHeight}}
+ function resizeCanvas(){const a=areaSize(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(a.w*dpr);canvas.height=Math.round(a.h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}
+ function reset(){
+  if(!img)return;resizeCanvas();const a=areaSize(),d=rotatedDims();
+  fit=Math.min(a.w/d.w,a.h/d.h);imgX=a.w/2;imgY=a.h/2;
+  const dw=d.w*fit,dh=d.h*fit,pad=Math.max(12,Math.min(34,a.w*.05));
+  crop={x:(a.w-dw)/2+pad,y:(a.h-dh)/2+pad,w:Math.max(70,dw-pad*2),h:Math.max(70,dh-pad*2)};
+  syncBox();draw();
+ }
+ function syncBox(){box.style.left=crop.x+'px';box.style.top=crop.y+'px';box.style.width=crop.w+'px';box.style.height=crop.h+'px';box.style.setProperty('--crop-w',crop.w+'px');box.style.setProperty('--crop-h',crop.h+'px')}
+ function draw(){
+  if(!img)return;const a=areaSize(),dpr=Math.min(devicePixelRatio||1,2);
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,a.w,a.h);ctx.save();
+  ctx.translate(imgX,imgY);ctx.rotate(rot*Math.PI/180);ctx.scale(fit,fit);ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);ctx.restore()
+ }
+ function open(f){
+  file=f;const u=URL.createObjectURL(f),im=new Image();
+  im.onload=()=>{URL.revokeObjectURL(u);img=im;rot=0;modal.classList.add('show');modal.setAttribute('aria-hidden','false');requestAnimationFrame(reset)};
+  im.onerror=()=>{URL.revokeObjectURL(u);input.value='';alert('照片讀取失敗，請重新選擇。')};im.src=u
+ }
+ function close(clear=true){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');mode='';start=null;if(clear)input.value=''}
+ function point(e){const r=area.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+ function clampCrop(){
+  const a=areaSize(),min=70;
+  crop.w=Math.max(min,Math.min(crop.w,a.w-crop.x));crop.h=Math.max(min,Math.min(crop.h,a.h-crop.y));
+  crop.x=Math.max(0,Math.min(crop.x,a.w-min));crop.y=Math.max(0,Math.min(crop.y,a.h-min));
+  crop.w=Math.min(crop.w,a.w-crop.x);crop.h=Math.min(crop.h,a.h-crop.y)
+ }
+ function begin(e,m){e.preventDefault();const p=point(e);mode=m;start={p,c:{...crop}};area.setPointerCapture?.(e.pointerId)}
+ box.addEventListener('pointerdown',e=>{const h=e.target.dataset.h;if(h)return begin(e,h);begin(e,'move')});
+ area.addEventListener('pointermove',e=>{
+  if(!mode||!start)return;const p=point(e),dx=p.x-start.p.x,dy=p.y-start.p.y,c=start.c;
+  if(mode==='move'){crop.x=c.x+dx;crop.y=c.y+dy}
+  if(mode==='nw'){crop.x=c.x+dx;crop.y=c.y+dy;crop.w=c.w-dx;crop.h=c.h-dy}
+  if(mode==='ne'){crop.y=c.y+dy;crop.w=c.w+dx;crop.h=c.h-dy}
+  if(mode==='sw'){crop.x=c.x+dx;crop.w=c.w-dx;crop.h=c.h+dy}
+  if(mode==='se'){crop.w=c.w+dx;crop.h=c.h+dy}
+  clampCrop();syncBox()
+ });
+ ['pointerup','pointercancel'].forEach(t=>area.addEventListener(t,()=>{mode='';start=null}));
+ document.getElementById('stallCropRotate').onclick=()=>{rot=(rot+90)%360;reset()};
+ document.getElementById('stallCropReset').onclick=reset;
+ document.getElementById('stallCropCancel').onclick=()=>close(true);
 
- input.addEventListener('change',e=>{if(input.dataset.edited==='1'){delete input.dataset.edited;return}const f=input.files&&input.files[0];if(!f)return;e.stopImmediatePropagation();openEditor(f)},true);
- zoomEl.addEventListener('input',()=>setZoom(parseFloat(zoomEl.value)||1));
- document.getElementById('speRotate').onclick=()=>{rotation=(rotation+90)%360;resetView()};
- document.getElementById('speReset').onclick=()=>{rotation=0;resetView()};
- document.getElementById('speUse').onclick=exportPhoto;
- ['speCancel','speCancelTop'].forEach(id=>document.getElementById(id).onclick=()=>closeEditor(true));
+ document.getElementById('stallCropDone').onclick=()=>{
+  if(!img)return;
+  // 將目前顯示畫面按裁切框真正輸出成新 JPEG
+  const max=1800,ratio=Math.min(max/crop.w,max/crop.h,2),out=document.createElement('canvas');
+  out.width=Math.max(1,Math.round(crop.w*ratio));out.height=Math.max(1,Math.round(crop.h*ratio));
+  const oc=out.getContext('2d');oc.scale(ratio,ratio);oc.translate(-crop.x,-crop.y);
+  oc.translate(imgX,imgY);oc.rotate(rot*Math.PI/180);oc.scale(fit,fit);oc.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+  out.toBlob(blob=>{
+   if(!blob)return alert('照片裁切失敗，請重試。');
+   const f=new File([blob],(file?.name||'派工照片').replace(/\.[^.]+$/,'')+'_crop.jpg',{type:'image/jpeg',lastModified:Date.now()});
+   const dt=new DataTransfer();dt.items.add(f);input.files=dt.files;
+   editedDispatch=true;close(false);input.dispatchEvent(new Event('change',{bubbles:true}))
+  },'image/jpeg',.9)
+ };
 
- canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1)dragStart={px:e.clientX,py:e.clientY,x,y};if(pointers.size===2){const a=[...pointers.values()],dx=a[0].x-a[1].x,dy=a[0].y-a[1].y;pinchStart={dist:Math.hypot(dx,dy),scale}}});
- canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1&&dragStart){x=dragStart.x+(e.clientX-dragStart.px);y=dragStart.y+(e.clientY-dragStart.py);clamp();draw()}else if(pointers.size===2&&pinchStart){const a=[...pointers.values()],dx=a[0].x-a[1].x,dy=a[0].y-a[1].y,mult=(pinchStart.scale/minScale)*(Math.hypot(dx,dy)/Math.max(1,pinchStart.dist));zoomEl.value=String(Math.max(1,Math.min(4,mult)));setZoom(mult)}});
- function pointerEnd(e){pointers.delete(e.pointerId);if(pointers.size===1){const p=[...pointers.values()][0];dragStart={px:p.x,py:p.y,x,y};pinchStart=null}else if(!pointers.size){dragStart=null;pinchStart=null}}
- canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointercancel',pointerEnd);
- window.addEventListener('resize',()=>{if(modal.classList.contains('show'))resetView()});
+ // 捕捉原始照片，先阻止既有預覽流程；裁切完成後再交回原流程。
+ input.addEventListener('change',e=>{
+  if(editedDispatch){editedDispatch=false;return}
+  const f=input.files&&input.files[0];if(!f)return;
+  e.stopImmediatePropagation();open(f)
+ },true);
+ window.addEventListener('resize',()=>{if(modal.classList.contains('show'))reset()});
 })();
 </script>
 
