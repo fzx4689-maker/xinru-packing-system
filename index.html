@@ -1156,6 +1156,22 @@ body.wall-focus #wall .progress{height:8px!important}
 }
 </style>
 
+
+<style id="stallPhotoEditorStyle">
+#stallPhotoEditor{position:fixed;inset:0;z-index:100500;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:14px}
+#stallPhotoEditor.show{display:flex}
+#stallPhotoEditor .speBox{width:min(720px,100%);max-height:96vh;overflow:auto;background:#fff;border-radius:20px;padding:14px}
+#stallPhotoEditor .speHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+#stallPhotoEditor .speHead b{font-size:20px}
+#stallPhotoEditor .speStage{position:relative;width:100%;height:min(62vh,560px);overflow:hidden;background:#111;border-radius:14px;touch-action:none}
+#stallPhotoEditor canvas{width:100%;height:100%;display:block;touch-action:none}
+#stallPhotoEditor .speHelp{text-align:center;font-weight:800;color:#667085;margin:9px 0}
+#stallPhotoEditor .speRange{display:flex;align-items:center;gap:10px;margin:10px 0}
+#stallPhotoEditor .speRange input{flex:1}
+#stallPhotoEditor .speActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#stallPhotoEditor .speActions .btn{min-width:105px}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1335,7 +1351,7 @@ body.wall-focus #wall .progress{height:8px!important}
               <button id="ocrPhoto" class="btn blue">辨識照片文字</button>
               <button id="clearPhoto" class="btn gray">移除照片</button>
             </div>
-            <div id="ocrStatus" class="helper" style="margin:10px 0 0">拍照或從手機相簿選照片後，可辨識文字；辨識結果會放到需求內容，可再人工修改後送出。</div>
+            <div id="ocrStatus" class="helper" style="margin:10px 0 0">拍照後可辨識文字，辨識結果會放到需求內容，可再人工修改後送出。</div>
           </div>
         </details>
 
@@ -4341,4 +4357,51 @@ document.querySelectorAll('[data-delivery-level]').forEach(btn=>{
   }));
 })();
 </script>
+
+<div id="stallPhotoEditor" aria-hidden="true">
+ <div class="speBox">
+  <div class="speHead"><b>📷 調整派工照片</b><button type="button" id="speCancelTop" class="btn gray">取消</button></div>
+  <div class="speStage"><canvas id="speCanvas"></canvas></div>
+  <div class="speHelp">單指拖曳位置｜雙指縮放｜也可使用下方縮放</div>
+  <div class="speRange"><span>縮小</span><input id="speZoom" type="range" min="1" max="4" step="0.01" value="1"><span>放大</span></div>
+  <div class="speActions">
+   <button type="button" id="speRotate" class="btn gray">↻ 旋轉</button>
+   <button type="button" id="speReset" class="btn gray">重設</button>
+   <button type="button" id="speCancel" class="btn gray">取消</button>
+   <button type="button" id="speUse" class="btn blue">✓ 確認使用</button>
+  </div>
+ </div>
+</div>
+<script id="stallPhotoEditorScript">
+(()=>{
+ const input=document.getElementById('photoInput'),preview=document.getElementById('photoPreview');
+ if(!input||!preview)return;
+ const modal=document.getElementById('stallPhotoEditor'),canvas=document.getElementById('speCanvas'),ctx=canvas.getContext('2d'),zoomEl=document.getElementById('speZoom');
+ let img=null,sourceFile=null,scale=1,minScale=1,x=0,y=0,rotation=0,pointers=new Map(),dragStart=null,pinchStart=null;
+
+ function resizeCanvas(){const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(r.width*dpr));canvas.height=Math.max(1,Math.round(r.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0)}
+ function dims(){const rot=((rotation%360)+360)%360;return(rot===90||rot===270)?{w:img.naturalHeight,h:img.naturalWidth}:{w:img.naturalWidth,h:img.naturalHeight}}
+ function resetView(){if(!img)return;resizeCanvas();const r=canvas.getBoundingClientRect(),d=dims();minScale=Math.max(r.width/d.w,r.height/d.h);scale=minScale;x=r.width/2;y=r.height/2;zoomEl.value='1';draw()}
+ function clamp(){if(!img)return;const r=canvas.getBoundingClientRect(),d=dims(),hw=d.w*scale/2,hh=d.h*scale/2;if(hw<=r.width/2)x=r.width/2;else x=Math.min(hw,Math.max(r.width-hw,x));if(hh<=r.height/2)y=r.height/2;else y=Math.min(hh,Math.max(r.height-hh,y))}
+ function draw(){if(!img)return;const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,r.width,r.height);ctx.save();ctx.translate(x,y);ctx.rotate(rotation*Math.PI/180);ctx.scale(scale,scale);ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);ctx.restore()}
+ function setZoom(mult){scale=minScale*Math.max(1,Math.min(4,mult));clamp();draw()}
+ function openEditor(file){sourceFile=file;const url=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(url);img=im;rotation=0;modal.classList.add('show');modal.setAttribute('aria-hidden','false');requestAnimationFrame(resetView)};im.onerror=()=>{URL.revokeObjectURL(url);alert('照片讀取失敗，請重新選擇。');input.value=''};im.src=url}
+ function closeEditor(clearInput=true){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');pointers.clear();dragStart=null;pinchStart=null;if(clearInput)input.value=''}
+ function exportPhoto(){if(!img)return;const r=canvas.getBoundingClientRect(),maxSide=1800,factor=Math.min(1,maxSide/Math.max(r.width,r.height)),out=document.createElement('canvas');out.width=Math.max(1,Math.round(r.width*factor));out.height=Math.max(1,Math.round(r.height*factor));const oc=out.getContext('2d');oc.scale(factor,factor);oc.translate(x,y);oc.rotate(rotation*Math.PI/180);oc.scale(scale,scale);oc.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);out.toBlob(blob=>{if(!blob){alert('照片處理失敗，請重試。');return}const f=new File([blob],(sourceFile?.name||'派工照片').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg',lastModified:Date.now()}),dt=new DataTransfer();dt.items.add(f);input.files=dt.files;const u=URL.createObjectURL(blob);preview.onload=()=>URL.revokeObjectURL(u);preview.src=u;preview.style.display='block';closeEditor(false);input.dataset.edited='1';input.dispatchEvent(new Event('change',{bubbles:true}))},'image/jpeg',0.9)}
+
+ input.addEventListener('change',e=>{if(input.dataset.edited==='1'){delete input.dataset.edited;return}const f=input.files&&input.files[0];if(!f)return;e.stopImmediatePropagation();openEditor(f)},true);
+ zoomEl.addEventListener('input',()=>setZoom(parseFloat(zoomEl.value)||1));
+ document.getElementById('speRotate').onclick=()=>{rotation=(rotation+90)%360;resetView()};
+ document.getElementById('speReset').onclick=()=>{rotation=0;resetView()};
+ document.getElementById('speUse').onclick=exportPhoto;
+ ['speCancel','speCancelTop'].forEach(id=>document.getElementById(id).onclick=()=>closeEditor(true));
+
+ canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1)dragStart={px:e.clientX,py:e.clientY,x,y};if(pointers.size===2){const a=[...pointers.values()],dx=a[0].x-a[1].x,dy=a[0].y-a[1].y;pinchStart={dist:Math.hypot(dx,dy),scale}}});
+ canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1&&dragStart){x=dragStart.x+(e.clientX-dragStart.px);y=dragStart.y+(e.clientY-dragStart.py);clamp();draw()}else if(pointers.size===2&&pinchStart){const a=[...pointers.values()],dx=a[0].x-a[1].x,dy=a[0].y-a[1].y,mult=(pinchStart.scale/minScale)*(Math.hypot(dx,dy)/Math.max(1,pinchStart.dist));zoomEl.value=String(Math.max(1,Math.min(4,mult)));setZoom(mult)}});
+ function pointerEnd(e){pointers.delete(e.pointerId);if(pointers.size===1){const p=[...pointers.values()][0];dragStart={px:p.x,py:p.y,x,y};pinchStart=null}else if(!pointers.size){dragStart=null;pinchStart=null}}
+ canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointercancel',pointerEnd);
+ window.addEventListener('resize',()=>{if(modal.classList.contains('show'))resetView()});
+})();
+</script>
+
 </body></html>
