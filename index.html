@@ -1681,11 +1681,15 @@ const MAP={
 '白木耳':'ไป๋ มู่ เอ่อร์','黑木耳':'เฮย มู่ เอ่อร์','白蘑菇':'ไป๋ โม๋ กู','鮑魚菇':'เป้า อวี๋ กู',
 '文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
+let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let soundPrefExplicit=false; let knownOrderIds=new Set();
 const SOUND_PREF_KEY='xinru_sound_enabled';
 const PUSH_VAPID_PUBLIC='BJ-cj-c6DJsGne_Zh0XhWTFa-krMd2TpmdEtbOVEvjymdakhwv3eoV8Q1vAhIT7Jt4R4WoNylvw9uDomcPXBuGo';
 let deferredInstallPrompt=null;
-try{soundEnabled=localStorage.getItem(SOUND_PREF_KEY)==='1';}catch(e){}
+try{
+ const v=localStorage.getItem(SOUND_PREF_KEY);
+ soundPrefExplicit=(v==='1'||v==='0');
+ soundEnabled=(v==='1');
+}catch(e){}
 let currentUser=null; let currentProfile=null; let appStarted=false;
 let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter=localStorage.getItem('xinru_delivery_driver_filter')||'all'; let deliveryQueryDriverFilter=localStorage.getItem('xinru_delivery_query_driver_filter')||'all'; let deliveryRecordMode='date';
 let orderQueryMode='packing';
@@ -1961,6 +1965,15 @@ function hasWorkRole(role){return Array.isArray(currentProfile?.work_roles)&&cur
 function hasNotification(kind){return Array.isArray(currentProfile?.notification_permissions)&&currentProfile.notification_permissions.includes(kind)}
 function shouldHearPacking(){return hasNotification('packing')}
 function shouldHearFreight(){return hasNotification('delivery')}
+function hasAnySoundNotification(){return shouldHearPacking()||shouldHearFreight()}
+function applyNotificationSoundDefault(){
+ if(!currentProfile)return;
+ if(hasAnySoundNotification()&&!soundPrefExplicit){
+  soundEnabled=true;
+  try{localStorage.setItem(SOUND_PREF_KEY,'1')}catch(e){}
+  updateSoundReadyUI(true);
+ }
+}
 function shouldHearFreightJob(job){
   if(!currentUser||!shouldHearFreight()||!job)return false;
   const assigned=String(job.assigned_driver_id||'');
@@ -2437,8 +2450,8 @@ function updateSoundReadyUI(ok){
     el=document.createElement('div');el.id='soundReadyBox';
     el.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:14px;font-weight:900;box-shadow:0 4px 18px rgba(0,0,0,.18);cursor:pointer;user-select:none;font-size:15px';
     el.onclick=async()=>{
-      if(soundEnabled){soundEnabled=false;try{localStorage.setItem(SOUND_PREF_KEY,'0')}catch(e){}updateSoundReadyUI(soundEnabled);return;}
-      soundEnabled=true;try{localStorage.setItem(SOUND_PREF_KEY,'1')}catch(e){}
+      if(soundEnabled){soundEnabled=false;soundPrefExplicit=true;try{localStorage.setItem(SOUND_PREF_KEY,'0')}catch(e){}updateSoundReadyUI(soundEnabled);return;}
+      soundEnabled=true;soundPrefExplicit=true;try{localStorage.setItem(SOUND_PREF_KEY,'1')}catch(e){}
       const good=await unlockAudio();
       updateSoundReadyUI(true);
       if(good)playSoundTest();
@@ -2451,10 +2464,11 @@ function updateSoundReadyUI(ok){
 function playSoundTest(){
   try{const t=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.5,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.22);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.24)}catch(e){}
 }
-function playOrderSound(isUrgent=false){
+async function playOrderSound(isUrgent=false){
  if(!soundEnabled)return;
  try{
-  unlockAudio();
+  const ready=await unlockAudio();
+  if(!ready||!audioCtx||audioCtx.state!=='running')return;
   const now=audioCtx.currentTime;
   // 兩輪提醒，每輪 5 秒，總共 10 秒。瀏覽器音量已拉到接近上限；實際分貝仍由手機/平板/電腦喇叭與系統音量決定。
   const cycleSeconds=5.0, cycles=2, step=.20;
@@ -2487,10 +2501,12 @@ function playOrderSound(isUrgent=false){
   }
  }catch(e){console.warn('提示音無法播放',e)}
 }
-function playFreightSound(){
+async function playFreightSound(){
  if(!soundEnabled)return;
  try{
-  unlockAudio();const now=audioCtx.currentTime;
+  const ready=await unlockAudio();
+  if(!ready||!audioCtx||audioCtx.state!=='running')return;
+  const now=audioCtx.currentTime;
   const master=audioCtx.createGain();master.gain.setValueAtTime(.9,now);master.connect(audioCtx.destination);
   // 貨運部：三短一長的低音喇叭聲，與包裝部高頻連續聲明顯不同。
   const pattern=[{t:0,d:.22,f:440},{t:.35,d:.22,f:440},{t:.70,d:.22,f:440},{t:1.10,d:.65,f:330}];
@@ -2944,7 +2960,7 @@ function showApp(){
   updatePwaPushButton();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
+  try{currentUser=user;currentProfile=await loadMyProfile(user);applyNotificationSoundDefault();showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
     // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
     // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
     const saved=localStorage.getItem('xinru_delivery_driver_filter');
