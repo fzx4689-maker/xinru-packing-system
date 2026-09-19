@@ -699,6 +699,9 @@ body.wall-focus #wall .wallCardItem .th{display:inline!important;font-size:21px!
 body.wall-focus #wall .wallCardFoot{margin-top:4px!important;font-size:24px!important}
 body.wall-focus #wall .wallCardTime{font-size:19px!important}
 body.wall-focus #wall .progress{height:8px!important}
+
+/* 第159階段：派工現場回報分類紅點。三種設備共用同一邏輯，只隨既有RWD排版。 */
+#stallFieldCard .stallFieldQuick>summary .navNoticeBadge{margin-left:7px;flex:0 0 auto}
 </style>
 
 
@@ -1430,7 +1433,7 @@ body.wall-focus #wall .wallOrderNote{
 
       <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
       <div id="stallManageCard" class="card" style="display:none"><h2 style="font-size:19px">訂單管理</h2><div class="helper">未完成訂單可依權限修改；刪除限管理員／主管。</div><div id="stallOrders"></div></div>
-      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div class="fieldReportTitleRow fieldReportMainPart"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" onclick="setFieldReportHistoryLevel(true)">🔍 歷史回報</button></div><div class="fieldReportMainPart helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools fieldReportMainPart"><details class="stallFieldQuick"><summary>💬 現場詢問</summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車回報公斤</summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistorySecondLevel" style="display:none"><div class="fieldHistoryLevelTop"><button type="button" class="btn gray" onclick="setFieldReportHistoryLevel(false)">← 返回現場回報</button></div><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
+      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div class="fieldReportTitleRow fieldReportMainPart"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" onclick="setFieldReportHistoryLevel(true)">🔍 歷史回報</button></div><div class="fieldReportMainPart helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools fieldReportMainPart"><details class="stallFieldQuick"><summary>💬 現場詢問<span id="stallQuestionBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車回報公斤<span id="stallFreightBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨<span id="stallShortageBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistorySecondLevel" style="display:none"><div class="fieldHistoryLevelTop"><button type="button" class="btn gray" onclick="setFieldReportHistoryLevel(false)">← 返回現場回報</button></div><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div></div>
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
@@ -4213,8 +4216,13 @@ function updateStage9Badges(){
   setShortageBadge('procurementNoticeBadge',0);
   setShortageBadge('salesNoticeBadge',0);
   setShortageBadge('salesFieldBadge',0);
+  // 第159階段：主選單「派工」保留總紅點；進入派工後，不再把紅點放在「現場回報」分頁。
+  // 三種回報各自標示，讓電腦／平板／手機都能直接知道是哪一區有待處理內容。
   setShortageBadge('stallNoticeBadge',salesFieldCount);
-  setShortageBadge('stallFieldBadge',salesFieldCount);
+  setShortageBadge('stallFieldBadge',0);
+  setShortageBadge('stallQuestionBadge',officeOpen);
+  setShortageBadge('stallFreightBadge',freightPending);
+  setShortageBadge('stallShortageBadge',shortageOpen);
   if(document.querySelector('[data-sales-panel="field"]')?.classList.contains('active'))refreshSalesFieldMirror();
   setShortageBadge('packingNoticeBadge',mine('packing'));
   setShortageBadge('deliveryNoticeBadge',mine('delivery'));
