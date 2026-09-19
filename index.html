@@ -1193,6 +1193,27 @@ body.wall-focus #wall .wallCardPhotoWrap.photoOnly .wallCardPhoto{width:100%!imp
 .orderFlowPhoto.queryPhoto{width:110px;height:86px;margin:4px 0}
 </style>
 
+
+<style id="todayMobilePhotoCardStyle">
+.todayMobileCards{display:none}
+@media(max-width:600px){
+ #todayBody{overflow:visible!important;width:100%!important;max-width:100%!important}
+ .todayMobileCount{margin:8px 2px!important}
+ .todayMobileCards{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;width:100%!important}
+ .todayMobileCard{box-sizing:border-box;width:100%;min-width:0;padding:12px;border:1px solid #dfe5eb;border-radius:14px;background:#fff}
+ .todayMobileCard.urgent{border-color:#ffb4b4;background:#fffafa}
+ .todayMobileHead{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+ .todayMobileCustomer{font-size:20px;font-weight:950;line-height:1.15;overflow-wrap:anywhere}
+ .todayMobileMeta{display:grid;gap:3px;margin-top:8px;font-size:13px;line-height:1.4;color:#4d5968}
+ .todayMobileContent{margin-top:10px;padding-top:9px;border-top:1px solid #edf0f3}
+ .todayMobileItem{padding:4px 0;font-size:16px;font-weight:800}
+ .todayMobileItem .th{font-size:13px;font-weight:600}
+ .todayMobileCard .orderFlowPhoto.queryPhoto{display:block!important;width:100%!important;height:auto!important;max-height:340px!important;object-fit:contain!important;margin:8px 0 2px!important;background:#f3f5f7;border:1px solid #e1e6eb;border-radius:10px}
+ .todayMobileReply{margin-top:8px}
+ .todayMobileFoot{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid #edf0f3;font-size:14px}
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -2323,6 +2344,36 @@ window.deleteDelivery=async id=>{
   const {error}=await sb.from('delivery_jobs').delete().eq('id',id);if(error){alert('刪除失敗：'+error.message);return;}await loadDelivery();
 };
 
+function renderTodayPackingMobile(arr,q){
+ return `<div class="helper todayMobileCount">📦 ${q}｜共 ${arr.length} 張包裝部訂單</div>
+ <div class="todayMobileCards">${arr.map(o=>{
+   const items=o.items||[];
+   const done=items.filter(x=>x.is_completed).length,total=items.length;
+   return `<div class="todayMobileCard ${o.is_urgent?'urgent':''}">
+     <div class="todayMobileHead">
+       <div>
+         <div class="todayMobileCustomer">${o.is_urgent?'🚨 ':''}${esc(o.customer)}</div>
+         <div class="meta">${esc(o.order_no||'')}</div>
+       </div>
+       <div>${statusBadge(o.status)}</div>
+     </div>
+     <div class="todayMobileMeta">
+       <div><b>下單時間：</b>${fmtDateTime(o.created_at)}</div>
+       <div><b>下單人：</b>${esc(o.created_by_name||'舊訂單')}</div>
+       ${o.pickup_time?`<div><b>取貨時間：</b>${esc(o.pickup_time)}</div>`:''}
+     </div>
+     ${(items.length||o.photo_url||o.packing_reply)?`<div class="todayMobileContent">
+       ${items.map(x=>`<div class="todayMobileItem"><div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div>`).join('')}
+       ${renderOrderPhoto(o,'query')}
+       ${o.packing_reply?`<div class="th todayMobileReply">📣 ${esc(o.packing_reply)}</div>`:''}
+     </div>`:''}
+     <div class="todayMobileFoot">
+       <div><b>進度：</b>${done}/${total}</div>
+       ${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}
+     </div>
+   </div>`;
+ }).join('')}</div>`;
+}
 function renderToday(){
   const b=$('#todayBody');if(!b)return;
   const q=$('#queryDate')?.value||taipeiDate();
@@ -2345,7 +2396,9 @@ function renderToday(){
   }
   const kw=($('#orderQueryKeyword')?.value||'').trim().toLowerCase();
   const arr=[...orders].filter(o=>(o.order_date||new Date(o.created_at).toLocaleDateString('en-CA',{timeZone:'Asia/Taipei'}))===q).filter(o=>!kw||[o.customer,o.created_by_name,o.pickup_time,o.note,o.packing_reply,...(o.items||[]).flatMap(x=>[x.item_name,typeof thaiForItem==='function'?thaiForItem(x):''])].join(' ').toLowerCase().includes(kw)).sort((a,b)=>{const ta=Date.parse(a.created_at)||0,tb=Date.parse(b.created_at)||0;if(tb!==ta)return tb-ta;return (Number(b.id)||0)-(Number(a.id)||0);});
-  b.innerHTML=arr.length?`<div class="helper" style="margin:10px 0">📦 ${q}｜共 ${arr.length} 張包裝部訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${renderOrderPhoto(o,'query')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">📦 ${q} 沒有包裝部訂單</div>`;
+  if(!arr.length){b.innerHTML=`<div class="empty">📦 ${q} 沒有包裝部訂單</div>`;return;}
+  if(window.matchMedia('(max-width:600px)').matches){b.innerHTML=renderTodayPackingMobile(arr,q);return;}
+  b.innerHTML=`<div class="helper" style="margin:10px 0">📦 ${q}｜共 ${arr.length} 張包裝部訂單</div><table class="table"><thead><tr><th>下單時間</th><th>下單人</th><th>客戶</th><th>取貨時間</th><th>品項</th><th>進度</th><th>狀態</th></tr></thead><tbody>${arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length;return `<tr><td>${fmtDateTime(o.created_at)}</td><td><b>${esc(o.created_by_name||'舊訂單')}</b></td><td><b>${o.is_urgent?'🚨 ':''}${esc(o.customer)}</b></td><td>${esc(o.pickup_time||'')}</td><td>${o.items.map(x=>`<div>${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div>`).join('')}${renderOrderPhoto(o,'query')}${o.packing_reply?`<div class="th" style="margin-top:6px">📣 ${esc(o.packing_reply)}</div>`:''}</td><td>${done}/${total}</td><td>${statusBadge(o.status)}${o.completed_at?`<div class="meta">完成 ${fmtDateTime(o.completed_at)}</div>`:''}</td></tr>`}).join('')}</tbody></table>`;
 }
 window.toggleItem=async(itemId,newVal,orderId)=>{if(!requirePackingWork())return;await sb.from('order_items').update({is_completed:newVal,completed_at:newVal?new Date().toISOString():null}).eq('id',itemId);const o=orders.find(x=>x.id===orderId);await sb.from('orders').update({...actorFields('updated'),...(o&&o.status==='waiting'?{status:'packing'}:{})}).eq('id',orderId);await loadOrders()};
 window.savePackingReply=async id=>{if(!requirePackingWork())return;const el=$(`#reply-${id}`);if(!el)return;const reply=el.value.trim();const {error}=await sb.from('orders').update({packing_reply:reply||null,...actorFields('updated')}).eq('id',id);if(error){alert('回覆儲存失敗：'+error.message);return}packingReplyDirty.delete(`reply-${id}`);if(document.activeElement===el)el.blur();await loadOrders();};
