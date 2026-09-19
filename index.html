@@ -1582,7 +1582,13 @@ const SUPABASE_KEY='sb_publishable_JjHWTnCuEYgQ5__ZFh5UIw_UO5E5IP2';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const MAP={
 '棧板':'จ้าน ป่าน','台灣白K切頭':'ไถ หวาน ไป๋ K เชีย โถว','峰白K':'เฟิง ไป๋ K','進口白K L':'จิ้น โข่ว ไป๋ K L','進口白K':'จิ้น โข่ว ไป๋ K','高麗菜':'เกา ลี่ ไช่','紅蘿蔔':'หง หลัว ปัว','白蘿蔔':'ไป๋ หลัว ปัว','青花菜':'ชิง ฮวา ไช่','青花':'ชิง ฮวา','小黃瓜':'เสี่ยว หวง กวา','大黃瓜':'ต้า หวง กวา','青椒':'ชิง เจียว','彩椒':'ไฉ่ เจียว','水果椒':'สุ่ย กั่ว เจียว','茄子':'เฉีย จื่อ','絲瓜':'ซือ กวา','苦瓜':'ขู่ กวา','冬瓜':'ตง กวา','大陸妹':'ต้า ลู่ เม่ย','地瓜葉':'ตี้ กวา เย่','小白菜':'เสี่ยว ไป๋ ไช่','青江菜':'ชิง เจียง ไช่','青江':'ชิง เจียง','空心菜':'คง ซิน ไช่','菠菜':'ปัว ไช่','芥蘭':'เจี้ย หลาน','水蓮':'สุ่ย เหลียน','皇宮菜':'หวง กง ไช่','蘿美':'หลัว เหม่ย','美生':'เหม่ย เซิง','芝麻葉':'จือ หม่า เย่','四季豆':'ซื่อ จี้ โต้ว','秋葵':'ชิว ขุย','九層塔':'จิ่ว เฉิง ถ่า','蔥':'ชง','北蒜':'เป่ย ซ่วน','蒜頭':'ซ่วน โถว','紅地瓜':'หง ตี้ กวา','黃地瓜':'หวง ตี้ กวา','南瓜':'หนาน กวา','芋頭':'อวี่ โถว','牛蒡':'หนิว ปั้ง','筊白筍':'เจี่ยว ไป๋ สุ่น','蘆筍':'หลู สุ่ย','日本山藥':'รื่อ เปิ่น ซาน เย่า','羽衣甘藍':'อวี่ อี กาน หลาน','日本茄子':'รื่อ เปิ่น เฉีย จื่อ','花瓜':'ฮวา กวา','佛手瓜':'ฝอ โส่ว กวา','西芹':'ซี ฉิน','山東':'ซาน ตง','蘿蔓':'หลัว ม่าน','清江':'ชิง เจียง','蚵白':'เขอ ไป๋','油菜':'โหยว ไช่','半軟':'ป้าน หร่วน','初秋':'ชู ชิว','全軟':'เฉวียน หร่วน','小刈菜':'เสี่ยว อี้ ไช่','皇宮':'หวง กง','紫高':'จื่อ เกา','雪翠':'เสวี่ย ชุ่ย','印高':'อิ้น เกา','白花':'ไป๋ ฮวา','紐洋大':'หนิว หยาง ต้า','紐洋中':'หนิว หยาง จง','紫洋':'จื่อ หยาง','馬大':'หม่า ต้า','馬中':'หม่า จง','馬裂':'หม่า เลี่ย','櫛瓜特':'จื้อ กวา เท่อ','櫛瓜中':'จื้อ กวา จง','大瓜':'ต้า กวา','花蒲':'ฮวา ผู','貝貝':'เป้ย เป้ย','東昇':'ตง เซิง','貴族':'กุ้ย จู๋','密本':'มี่ เปิ่น','甜豆':'เถียน โต้ว','荷豆':'เหอ โต้ว','菜豆':'ไช่ โต้ว','敏豆':'หมิ่น โต้ว','蒜包':'ซ่วน เปา','青花去絲小花':'ชิง ฮวา ชวี่ ซือ เสี่ยว ฮวา','小辣':'เสี่ยว ล่า','大辣':'ต้า ล่า','綠骨':'ลวี่ กู่','紅骨':'หง กู่','韭菜':'จิ่ว ไช่','豆芽菜':'โต้ว หยา ไช่','黃豆芽':'หวง โต้ว หยา','苜蓿芽':'มู่ ซวี่ หยา','小豆苗':'เสี่ยว โต้ว เหมียว','香菜':'เซียง ไช่','石蓮花':'สือ เหลียน ฮวา','小黃豆乾':'เสี่ยว หวง โต้ว กาน','帶殼筊白筍':'ไต้ เขอ เจี่ยว ไป๋ สุ่ย','檢驗':'เจี่ยน เยี่ยน','蒜碎':'ซ่วน ซุ่ย'
-,'仙草':'เซียน เฉ่า','愛玉':'อ้าย อวี่','中華豆腐':'จง ฮวา โต้ว ฝู่','雞蛋豆腐':'จี ตั้น โต้ว ฝู่','板豆腐':'ป่าน โต้ว ฝู่','生豆包':'เซิง โต้ว เปา','豆干':'โต้ว กาน','佛恩寺':'ฝอ เอิน ซื่อ','果果龍':'กั่ว กั่ว หลง','六禾':'ลิ่ว เหอ','古早味':'กู่ เจ่า เว่ย','洋晨時光':'หยาง เฉิน สือ กวง','史堤克':'สื่อ ตี เค่อ','安中':'อัน จง','仁和':'เหริน เหอ','水牛':'สุ่ย หนิว','坤霖':'คุน หลิน','善化':'ซ่าน ฮว่า','鹹水雞':'เสียน สุ่ย จี','開宣':'ไค เซวียน','民雄':'หมิน สยง','元泰':'หยวน ไท่','偉嘉':'เหว่ย เจีย','鐵架':'เถี่ย เจี้ย','蛤蜊':'เก๋อ หลี','鳥蛋':'เหนี่ยว ตั้น','老薑':'เหล่า เจียง','五香豆干':'อู่ เซียง โต้ว กาน','黑豆干':'เฮย โต้ว กาน','油豆腐':'โหยว โต้ว ฝู่','鮮香菇':'เซียน เซียง กู','秀珍菇':'ซิ่ว เจิน กู','海帶結':'ไห่ ไต้ เจี๋ย','海龍':'ไห่ หลง','麵腸':'เมี่ยน ฉาง','蒜米':'ซ่วน หมี่','紅椒':'หง เจียว','黃椒':'หวง เจียว','青苑':'ชิง หย่วน','隆記':'หลง จี้','龍鍇':'หลง ข่าย','穠全':'หนง เฉวียน','新和盛':'ซิน เหอ เซิ่ง','打冰':'ต่า ปิง','玉米筍':'อวี่ หมี่ สุ่ย','進馬':'จิ้น หม่า','燦霖':'ช่าน หลิน','芹菜':'ฉิน ไช่','甜玉米':'เถียน อวี่ หมี่','金針菇':'จิน เจิน กู','全紅':'เฉวียน หง','杏鮑菇':'ซิ่ง เป้า กู','龍鬚':'หลง ซวี','檸檬':'หนิง เหมิง','橘子':'จวี๋ จื่อ','葡萄':'ผู เถา','水梨':'สุ่ย หลี','酪梨':'ลั่ว หลี'};
+,'仙草':'เซียน เฉ่า','愛玉':'อ้าย อวี่','中華豆腐':'จง ฮวา โต้ว ฝู่','雞蛋豆腐':'จี ตั้น โต้ว ฝู่','板豆腐':'ป่าน โต้ว ฝู่','生豆包':'เซิง โต้ว เปา','豆干':'โต้ว กาน','佛恩寺':'ฝอ เอิน ซื่อ','果果龍':'กั่ว กั่ว หลง','六禾':'ลิ่ว เหอ','古早味':'กู่ เจ่า เว่ย','洋晨時光':'หยาง เฉิน สือ กวง','史堤克':'สื่อ ตี เค่อ','安中':'อัน จง','仁和':'เหริน เหอ','水牛':'สุ่ย หนิว','坤霖':'คุน หลิน','善化':'ซ่าน ฮว่า','鹹水雞':'เสียน สุ่ย จี','開宣':'ไค เซวียน','民雄':'หมิน สยง','元泰':'หยวน ไท่','偉嘉':'เหว่ย เจีย','鐵架':'เถี่ย เจี้ย','蛤蜊':'เก๋อ หลี','鳥蛋':'เหนี่ยว ตั้น','老薑':'เหล่า เจียง','五香豆干':'อู่ เซียง โต้ว กาน','黑豆干':'เฮย โต้ว กาน','油豆腐':'โหยว โต้ว ฝู่','鮮香菇':'เซียน เซียง กู','秀珍菇':'ซิ่ว เจิน กู','海帶結':'ไห่ ไต้ เจี๋ย','海龍':'ไห่ หลง','麵腸':'เมี่ยน ฉาง','蒜米':'ซ่วน หมี่','紅椒':'หง เจียว','黃椒':'หวง เจียว','青苑':'ชิง หย่วน','隆記':'หลง จี้','龍鍇':'หลง ข่าย','穠全':'หนง เฉวียน','新和盛':'ซิน เหอ เซิ่ง','打冰':'ต่า ปิง','玉米筍':'อวี่ หมี่ สุ่ย','進馬':'จิ้น หม่า','燦霖':'ช่าน หลิน','芹菜':'ฉิน ไช่','甜玉米':'เถียน อวี่ หมี่','金針菇':'จิน เจิน กู','全紅':'เฉวียน หง','杏鮑菇':'ซิ่ง เป้า กู','龍鬚':'หลง ซวี','檸檬':'หนิง เหมิง','橘子':'จวี๋ จื่อ','葡萄':'ผู เถา','水梨':'สุ่ย หลี','酪梨':'ลั่ว หลี',
+'紅皺葉':'หง โจ้ว เย่','紅奶油':'หง หน่าย โหยว','綠奶油':'ลวี่ หน่าย โหยว','綠皺葉':'ลวี่ โจ้ว เย่',
+'紅火焰':'หง หั่ว เยี่ยน','綠火焰':'ลวี่ หั่ว เยี่ยน','綠橡木':'ลวี่ เซี่ยง มู่','紅橡木':'หง เซี่ยง มู่',
+'紅甜':'หง เถียน','綠甜':'ลวี่ เถียน','紅捲':'หง เจวี่ยน','綠捲':'ลวี่ เจวี่ยน',
+'聖女':'เซิ่ง หนวี่','小番茄':'เสี่ยว ฟาน เฉีย','蓮藕':'เหลียน โอ่ว','木耳':'มู่ เอ่อร์',
+'白木耳':'ไป๋ มู่ เอ่อร์','黑木耳':'เฮย มู่ เอ่อร์','白蘑菇':'ไป๋ โม๋ กู','鮑魚菇':'เป้า อวี๋ กู',
+'文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let knownOrderIds=new Set();
 const SOUND_PREF_KEY='xinru_sound_enabled';
@@ -2238,7 +2244,11 @@ function setStallMode(mode='create'){
   if(cb)cb.className='btn '+(create?'primary':'gray');
   if(mb)mb.className='btn '+(manage?'primary':'gray');
   if(fb)fb.className='btn '+(field?'primary':'gray');
-  if(field){renderFieldQuestionOffice();renderFreightOffice();renderShortageManage();}
+  if(field){
+    if(typeof window.renderFieldQuestionOffice==='function')window.renderFieldQuestionOffice();
+    if(typeof window.renderFreightOffice==='function')window.renderFreightOffice();
+    if(typeof window.renderShortageManage==='function')window.renderShortageManage();
+  }
 }
 $('#stallCreateModeBtn')?.addEventListener('click',()=>setStallMode('create'));
 $('#stallManageModeBtn')?.addEventListener('click',()=>setStallMode('manage'));
@@ -3122,6 +3132,22 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 .deliveryRouteCard .routeTop{display:flex;justify-content:space-between;gap:10px;align-items:center}.deliveryRouteCard .routeName{font-size:18px;font-weight:900}
 .deliveryRouteStops{font-size:13px;color:#667085;margin-top:6px}
 @media(max-width:760px){.deliveryLevelNav{grid-template-columns:1fr 1fr;gap:7px}.deliveryLevelBtn{padding:11px 9px;border-radius:12px}.deliveryLevelBtn b{font-size:14px}.deliveryLevelBtn span{display:none}}
+
+/* 第141階段：32吋電視／約10公尺觀看版。只影響電視牆 focus 模式。 */
+body.wall-focus .wallCards{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px!important}
+body.wall-focus .wallOrderCard{padding:18px!important;border-radius:18px!important}
+body.wall-focus .wallCardHead{padding-bottom:10px!important;margin-bottom:10px!important;gap:12px!important}
+body.wall-focus .wallCardCustomer{font-size:36px!important;line-height:1.12!important;font-weight:950!important}
+body.wall-focus .wallCardThai{font-size:18px!important;line-height:1.25!important;margin-top:5px!important;font-weight:700!important}
+body.wall-focus .wallCardDate{font-size:24px!important;line-height:1.25!important;margin-top:7px!important;font-weight:900!important}
+body.wall-focus .wallCardItems{font-size:27px!important;line-height:1.35!important;font-weight:800!important}
+body.wall-focus .wallCardItem{padding:9px 0!important}
+body.wall-focus .wallCardItem .th{font-size:18px!important;line-height:1.25!important;margin-top:3px!important;font-weight:700!important}
+body.wall-focus .wallCardFoot{margin-top:10px!important;font-size:22px!important}
+body.wall-focus .wallCardTime{font-size:17px!important;font-weight:700!important}
+body.wall-focus .wallOrderCard .badge{font-size:18px!important;padding:7px 12px!important}
+body.wall-focus .wallOrderCard .progress{height:14px!important}
+body.wall-focus .wallBackBtn{font-size:17px!important;padding:9px 14px!important}
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
