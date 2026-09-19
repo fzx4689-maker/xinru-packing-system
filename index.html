@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第167H階段｜歷史派工單歸回部門</title>
+<title>第168P階段｜單一頁面權限＋貨運部</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1327,7 +1327,7 @@ body.wall-focus #wall .wallOrderNote{
       <button class="tab" data-tab="accounting">💰 帳務中心</button>
       <button class="tab" data-tab="stall">📋 派工<span id="stallNoticeBadge" class="navNoticeBadge"></span></button>
       <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">เปาจวงปู้</div></button>
-      <button class="tab" data-tab="delivery">🚚 貨運中心<span id="deliveryNoticeBadge" class="navNoticeBadge"></span></button>
+      <button class="tab" data-tab="delivery">🚚 貨運部<span id="deliveryNoticeBadge" class="navNoticeBadge"></span></button>
       <button class="tab" data-tab="wall">📺 電視牆<div class="th">เตี้ยนซื่อเฉียง</div></button>
     </div>
   </div>
@@ -1521,7 +1521,7 @@ body.wall-focus #wall .wallOrderNote{
     <section id="delivery" class="panel">
       <div class="card">
         <div class="deliveryHead">
-          <div><h2 style="margin-bottom:4px">🚚 貨運中心｜現場配送</h2><div class="helper">指定司機＝只由該司機接收；尚未指定＝貨運部門待接單</div></div>
+          <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
           <button type="button" id="deliveryHistoryBtn" class="btn gray">🔎 歷史派工單</button>
         </div>
         <div class="deliveryMobileTabs" aria-label="貨運中心手機功能">
@@ -2031,23 +2031,16 @@ function isPackingOnly(){const r=currentProfile?.work_roles||[];return currentPr
 function isDriverOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='driver'&&!hasFeature('stall_order')&&!hasFeature('packing')&&!hasFeature('accounting')}
 function canSeeTab(tab){
   if(!currentProfile)return false;
-  const admin=currentProfile.role==='admin';
-  if(admin)return true; // 管理員可查看全部頁面，但不會因此出現在司機名單
-  if(isPackingOnly())return tab==='packing';
-  if(isDriverOnly())return tab==='delivery';
-  if(tab==='home'||tab==='wall'||tab==='today')return true; // 一般辦公室角色保留共用查看頁
-  if(tab==='sales')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
-  if(tab==='procurement')return hasWorkRole('stall')||hasWorkRole('accounting')||hasFeature('stall_order')||hasFeature('accounting');
-  if(tab==='stall')return hasWorkRole('stall')||hasFeature('stall_order');
-  if(tab==='packing')return hasWorkRole('packing')||hasFeature('packing');
-  if(tab==='delivery')return hasWorkRole('driver')||hasFeature('delivery');
-  if(tab==='accounting')return hasWorkRole('accounting')||hasFeature('accounting');
-  return false;
+  if(currentProfile.role==='admin')return true;
+  if(tab==='home'||tab==='wall')return true;
+  if(tab==='today')return false;
+  if(!v17Perm?.configured)return false;
+  return ['accounting','stall','packing','delivery'].includes(tab) && v17Perm.pages.includes(tab);
 }
-function firstVisibleTab(){if(typeof v17Perm!=='undefined'&&v17Perm.configured)return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home';if(isPackingOnly())return 'packing';if(isDriverOnly())return 'delivery';return ['home','sales','accounting','procurement','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
+function firstVisibleTab(){return ['home','accounting','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
-  document.body.classList.toggle('field-single-role',isPackingOnly()||isDriverOnly());
+  document.body.classList.remove('field-single-role');
   $('#readonlyNote').style.display='none';
   const mb=$('#employeeManageBtn');if(mb)mb.style.display=admin?'inline-block':'none';
   $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
@@ -2589,9 +2582,9 @@ async function loadDeliveryHistoryForDate(date,kw=''){
 function renderToday(){
   const b=$('#todayBody');if(!b)return;
   const historyTitle=$('#departmentHistoryTitle');
-  if(historyTitle)historyTitle.textContent=orderQueryMode==='delivery'?'🚚 貨運中心｜歷史派工單':'📦 包裝部｜歷史派工單';
+  if(historyTitle)historyTitle.textContent=orderQueryMode==='delivery'?'🚚 貨運部｜歷史派工單':'📦 包裝部｜歷史派工單';
   const historyBack=$('#todayBackHomeBtn');
-  if(historyBack)historyBack.textContent=orderQueryMode==='delivery'?'← 返回貨運中心':'← 返回包裝部';
+  if(historyBack)historyBack.textContent=orderQueryMode==='delivery'?'← 返回貨運部':'← 返回包裝部';
   const q=$('#queryDate')?.value||taipeiDate();
   const pb=$('#queryPackingBtn'),db=$('#queryDeliveryBtn');
   const pc=$('#packingQueryControls'),dc=$('#deliveryQueryControls');
@@ -2641,7 +2634,14 @@ function activateTab(tabName,{save=true}={}){
     if(dd)dd.value=taipeiDate();
   }
   // 登入後若上次停留的頁面現在沒有職務權限，直接跳到第一個可見頁面。
-  if(currentProfile&&!canSeeTab(tabName))tabName=firstVisibleTab();
+  if(currentProfile){
+    if(tabName==='today'){
+      const historySource=(orderQueryMode==='delivery')?'delivery':'packing';
+      if(!canSeeTab(historySource))tabName=firstVisibleTab();
+    }else if(!canSeeTab(tabName)){
+      tabName=firstVisibleTab();
+    }
+  }
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tabName));
   $$('.panel').forEach(x=>x.classList.toggle('active',x.id===tabName));
   document.body.classList.toggle('wall-focus',tabName==='wall');
@@ -2674,13 +2674,14 @@ $$('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab,{
 let departmentHistoryReturnTab='home';
 function openDepartmentHistory(mode){
   if(mode!=='packing'&&mode!=='delivery')return;
+  if(!canSeeTab(mode)){activateTab(firstVisibleTab(),{save:true});return;}
   orderQueryMode=mode;
   departmentHistoryReturnTab=mode;
   try{localStorage.setItem('xinru_order_query_mode',mode)}catch(e){}
   const title=$('#departmentHistoryTitle');
-  if(title)title.textContent=mode==='packing'?'📦 包裝部｜歷史派工單':'🚚 貨運中心｜歷史派工單';
+  if(title)title.textContent=mode==='packing'?'📦 包裝部｜歷史派工單':'🚚 貨運部｜歷史派工單';
   const back=$('#todayBackHomeBtn');
-  if(back)back.textContent=mode==='packing'?'← 返回包裝部':'← 返回貨運中心';
+  if(back)back.textContent=mode==='packing'?'← 返回包裝部':'← 返回貨運部';
   activateTab('today',{save:true});
   renderToday();
 }
@@ -4453,7 +4454,10 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 <script>
 /* 第十七階段：頁面權限＋功能權限。獨立權限表，不修改登入/Auth 核心。 */
 const V17_PAGE_OPTIONS=[
- ['home','🏠 首頁'],['sales','🧾 開單／收銀'],['accounting','💰 帳務中心'],['procurement','📦 商品／庫存'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
+ ['accounting','💰 帳務中心'],
+ ['stall','📋 派工'],
+ ['packing','📦 包裝部'],
+ ['delivery','🚚 貨運部']
 ];
 const V17_FUNC_OPTIONS=[
  ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],
@@ -4473,12 +4477,6 @@ async function v17LoadMine(){
   if(typeof applyRoleUI==='function')applyRoleUI(); if(typeof renderAll==='function')renderAll();
  }catch(e){console.warn('第十七階段權限表尚未啟用，沿用原權限：',e?.message||e);v17Perm={pages:[],funcs:[],configured:false};}
 }
-const v17OldCanSeeTab=canSeeTab;
-canSeeTab=function(tab){
- if(isManager())return true;
- if(v17Perm.configured)return v17Perm.pages.includes(tab);
- return v17OldCanSeeTab(tab);
-};
 const v17OldPackingWork=canPackingWork;
 canPackingWork=()=>v17OldPackingWork()&&v17Has('packing.work');
 const v17OldManagePacking=canManagePacking;
@@ -4492,13 +4490,9 @@ function v17ApplyFunctionUI(){
  document.querySelectorAll('button[onclick^="openEdit("]').forEach(b=>{if(!v17Has('order.edit'))b.style.display='none'});
  document.querySelectorAll('#accounting button').forEach(b=>{const t=b.textContent||'';if(/匯出|Excel|PDF|列印|LINE/.test(t)&&!v17Has('accounting.export'))b.style.display='none';});
 }
-const v17OldApplyRoleUI=applyRoleUI;
+const v17BaseApplyRoleUI=applyRoleUI;
 applyRoleUI=function(){
- v17OldApplyRoleUI();
- if(v17Perm.configured){
-  document.body.classList.remove('field-single-role');
-  $$('.tab').forEach(t=>{t.style.display=canSeeTab(t.dataset.tab)?'':'none'});
- }
+ v17BaseApplyRoleUI();
  v17ApplyFunctionUI();
 };
 
