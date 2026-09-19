@@ -3498,21 +3498,27 @@ document.addEventListener('click',e=>{const b=e.target.closest('.fieldReportTab'
 const packingToolDetails=[...document.querySelectorAll('#packing .packingQuickTools > details.shortageQuick')];
 packingToolDetails.forEach(d=>d.addEventListener('toggle',()=>{if(window.innerWidth<=700)return;if(!d.open)return;packingToolDetails.forEach(x=>{if(x!==d)x.open=false})}));
 function setPackingMobileTool(index){
-  packingToolDetails.forEach((d,i)=>{const on=i===index;d.classList.toggle('mobileActive',on);d.open=on});
-  document.querySelectorAll('#packing .packingMobileTab').forEach((b,i)=>b.classList.toggle('active',i===index));
+  const tabs=[...document.querySelectorAll('#packing .packingMobileTab')];
+  const same=index>=0&&tabs[index]?.classList.contains('active');
+  const next=same?-1:index;
+  packingToolDetails.forEach((d,i)=>{const on=i===next;d.classList.toggle('mobileActive',on);d.open=on});
+  tabs.forEach((b,i)=>b.classList.toggle('active',i===next));
 }
 document.querySelectorAll('#packing .packingMobileTab').forEach((b,i)=>b.addEventListener('click',()=>setPackingMobileTool(i)));
-if(window.innerWidth<=700)setPackingMobileTool(0);
+if(window.innerWidth<=700)setPackingMobileTool(-1);
 
 // 第55階段：貨運中心桌機保留 details；手機同步包裝部三鍵切換單一滿版內容。
 const deliveryToolDetails=[...document.querySelectorAll('#delivery .deliveryQuickTools > details.shortageQuick')];
 deliveryToolDetails.forEach(d=>d.addEventListener('toggle',()=>{if(window.innerWidth<=700)return;if(!d.open)return;deliveryToolDetails.forEach(x=>{if(x!==d)x.open=false})}));
 function setDeliveryMobileTool(index){
-  deliveryToolDetails.forEach((d,i)=>{const on=i===index;d.classList.toggle('mobileActive',on);d.open=on});
-  document.querySelectorAll('#delivery .deliveryMobileTab').forEach((b,i)=>b.classList.toggle('active',i===index));
+  const tabs=[...document.querySelectorAll('#delivery .deliveryMobileTab')];
+  const same=index>=0&&tabs[index]?.classList.contains('active');
+  const next=same?-1:index;
+  deliveryToolDetails.forEach((d,i)=>{const on=i===next;d.classList.toggle('mobileActive',on);d.open=on});
+  tabs.forEach((b,i)=>b.classList.toggle('active',i===next));
 }
 document.querySelectorAll('#delivery .deliveryMobileTab').forEach((b,i)=>b.addEventListener('click',()=>setDeliveryMobileTool(i)));
-if(window.innerWidth<=700)setDeliveryMobileTool(0);
+if(window.innerWidth<=700)setDeliveryMobileTool(-1);
 
 document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
