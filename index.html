@@ -608,6 +608,81 @@ body.field-single-role .wrap{padding-top:8px}
  #today .queryToolbar h2{min-height:42px!important;font-size:20px!important}
 }
 
+
+/* 第142階段：iPad 橫式鏡像／投影到 32 吋電視，約 10 公尺觀看。
+   只影響「電視牆」頁；維持雙欄，允許卡片往下延伸，不為塞更多訂單縮字。 */
+body.wall-focus #wall .wallCards{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:16px!important;
+}
+body.wall-focus #wall .wallOrderCard{
+  padding:18px!important;
+  border-radius:18px!important;
+}
+body.wall-focus #wall .wallCardHead{
+  padding-bottom:11px!important;
+  margin-bottom:11px!important;
+  gap:12px!important;
+}
+body.wall-focus #wall .wallCardCustomer{
+  font-size:40px!important;
+  line-height:1.08!important;
+  font-weight:950!important;
+}
+body.wall-focus #wall .wallCardThai{
+  font-size:22px!important;
+  line-height:1.25!important;
+  margin-top:5px!important;
+  font-weight:800!important;
+}
+body.wall-focus #wall .wallCardDate{
+  font-size:27px!important;
+  line-height:1.25!important;
+  margin-top:8px!important;
+  font-weight:950!important;
+}
+body.wall-focus #wall .wallCardItems{
+  font-size:30px!important;
+  line-height:1.32!important;
+  font-weight:850!important;
+}
+body.wall-focus #wall .wallCardItem{
+  padding:10px 0!important;
+}
+body.wall-focus #wall .wallCardItem .th{
+  font-size:21px!important;
+  line-height:1.22!important;
+  margin-top:4px!important;
+  font-weight:750!important;
+}
+body.wall-focus #wall .wallCardFoot{
+  margin-top:12px!important;
+  font-size:25px!important;
+}
+body.wall-focus #wall .wallCardTime{
+  font-size:20px!important;
+  font-weight:800!important;
+}
+body.wall-focus #wall .wallOrderCard .badge{
+  font-size:20px!important;
+  padding:8px 13px!important;
+}
+body.wall-focus #wall .progress{
+  height:16px!important;
+}
+body.wall-focus #wall .wallDateBar{
+  margin-bottom:10px!important;
+}
+body.wall-focus #wall .wallDateBtn{
+  font-size:18px!important;
+  padding:8px 12px!important;
+}
+/* iPad/觸控橫式：不讓一般 tablet 規則把電視牆退回單欄或縮字 */
+@media screen and (orientation:landscape) and (pointer:coarse){
+  body.wall-focus #wall .wallCards{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
 </style>
 
 
@@ -3133,21 +3208,6 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 .deliveryRouteStops{font-size:13px;color:#667085;margin-top:6px}
 @media(max-width:760px){.deliveryLevelNav{grid-template-columns:1fr 1fr;gap:7px}.deliveryLevelBtn{padding:11px 9px;border-radius:12px}.deliveryLevelBtn b{font-size:14px}.deliveryLevelBtn span{display:none}}
 
-/* 第141階段：32吋電視／約10公尺觀看版。只影響電視牆 focus 模式。 */
-body.wall-focus .wallCards{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px!important}
-body.wall-focus .wallOrderCard{padding:18px!important;border-radius:18px!important}
-body.wall-focus .wallCardHead{padding-bottom:10px!important;margin-bottom:10px!important;gap:12px!important}
-body.wall-focus .wallCardCustomer{font-size:36px!important;line-height:1.12!important;font-weight:950!important}
-body.wall-focus .wallCardThai{font-size:18px!important;line-height:1.25!important;margin-top:5px!important;font-weight:700!important}
-body.wall-focus .wallCardDate{font-size:24px!important;line-height:1.25!important;margin-top:7px!important;font-weight:900!important}
-body.wall-focus .wallCardItems{font-size:27px!important;line-height:1.35!important;font-weight:800!important}
-body.wall-focus .wallCardItem{padding:9px 0!important}
-body.wall-focus .wallCardItem .th{font-size:18px!important;line-height:1.25!important;margin-top:3px!important;font-weight:700!important}
-body.wall-focus .wallCardFoot{margin-top:10px!important;font-size:22px!important}
-body.wall-focus .wallCardTime{font-size:17px!important;font-weight:700!important}
-body.wall-focus .wallOrderCard .badge{font-size:18px!important;padding:7px 12px!important}
-body.wall-focus .wallOrderCard .progress{height:14px!important}
-body.wall-focus .wallBackBtn{font-size:17px!important;padding:9px 14px!important}
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
