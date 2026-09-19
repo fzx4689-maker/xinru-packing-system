@@ -2107,11 +2107,18 @@ async function loadDeliveryDrivers(){
 }
 async function loadDelivery(){
   if(!currentUser)return;
+  // 第161階段：貨運輪詢只在資料真的改變時重畫，避免手機查詢畫面每2秒跳動。
+  // 保留原本2秒補抓、Realtime、提醒聲、司機指派與所有貨運流程。
+  const prevJobsSnapshot=JSON.stringify(deliveryJobs);
+  const prevDriversSnapshot=JSON.stringify(deliveryDrivers);
   await loadDeliveryDrivers();
   if(!canViewFreight()){
     deliveryJobs=[];
-    renderDelivery();
-    if(orderQueryMode==='delivery')renderToday();
+    const changed=prevJobsSnapshot!==JSON.stringify(deliveryJobs)||prevDriversSnapshot!==JSON.stringify(deliveryDrivers);
+    if(changed){
+      renderDelivery();
+      if(orderQueryMode==='delivery')renderToday();
+    }
     return;
   }
   let q=sb.from('delivery_jobs').select('*');
@@ -2131,9 +2138,13 @@ async function loadDelivery(){
       if(hasNew&&shouldHearFreight())playFreightSound();
     }
   }
-  renderDelivery();
-  if(deliveryRecordMode)window.setDeliveryRecordMode(deliveryRecordMode);
-  if(orderQueryMode==='delivery')renderToday();
+  const jobsChanged=prevJobsSnapshot!==JSON.stringify(deliveryJobs);
+  const driversChanged=prevDriversSnapshot!==JSON.stringify(deliveryDrivers);
+  if(jobsChanged||driversChanged){
+    renderDelivery();
+    if(deliveryRecordMode)window.setDeliveryRecordMode(deliveryRecordMode);
+    if(orderQueryMode==='delivery')renderToday();
+  }
   checkDeliveryOverdue();
 }
 function renderFreightSlipPhoto(j,place='normal'){
@@ -2200,12 +2211,33 @@ function preserveLegacyDriverReplies(j){
     return structured?line:`${who}：${line}`;
   }).join('\n');
 }
+function renderDeliveryRecordMobile(arr,label){
+  return `<div class="deliveryQueryMobileWrap"><div class="helper" style="margin:10px 0">${esc(label)}｜共 ${arr.length} 張貨運單</div>${arr.map(j=>`
+    <div class="deliveryQueryMobileCard ${j.is_urgent?'urgent':''}">
+      <div class="deliveryQueryMobileHead">
+        <div><div class="deliveryQueryMobileCustomer">${j.is_urgent?'🚨 ':''}${esc(j.customer||'未填客戶')}</div><div class="meta">${esc(j.delivery_no||'')}</div></div>
+        ${deliveryStatusBadge(j.status)}
+      </div>
+      <div class="deliveryQueryMobileMeta"><b>配送日期：</b>${esc(j.delivery_date||'')}</div>
+      <div class="deliveryQueryMobileMeta"><b>下單時間：</b>${fmtDateTime(j.created_at)}</div>
+      <div class="deliveryQueryMobileMeta"><b>司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>
+      ${j.request_text?`<div class="deliveryQueryMobileContent">${esc(j.request_text).replace(/\n/g,'<br>')}</div>`:''}
+      ${renderFreightSlipPhoto(j,'query')}
+      ${j.driver_reply?`<div class="deliveryQueryMobileReply"><b>💬 司機回覆</b>${renderDriverReplies(j.driver_reply)}</div>`:''}
+      ${(j.completed_at||j.delivery_photo_url||j.proof_required||j.collected_amount!=null)?`<div class="deliveryQueryMobileFoot">
+        ${j.completed_at?`<div><b>送達：</b>${fmtDateTime(j.completed_at)}</div>`:''}
+        ${j.delivery_photo_url?`<div><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:(j.proof_required?'<div class="meta">📷 待回傳送達照片</div>':'')}
+        ${j.collected_amount!=null?`<div><b>💰 實收 $${esc(j.collected_amount)}</b></div>`:''}
+      </div>`:''}
+    </div>`).join('')}</div>`;
+}
 function deliveryRecordTable(arr,label){
   const box=$('#todayBody');if(!box)return;
   if(!canManageFreight())arr=arr.filter(j=>j.assigned_driver_id===currentUser?.id);
   else if(deliveryQueryDriverFilter!=='all')arr=arr.filter(j=>j.assigned_driver_id===deliveryQueryDriverFilter);
   renderDeliveryQueryDriverFilters();
   const sorted=[...arr].sort((a,b)=>String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
+  if(sorted.length && window.matchMedia('(max-width:600px)').matches){box.innerHTML=renderDeliveryRecordMobile(sorted,label);return;}
   box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>客戶</th><th>司機</th><th>狀態</th><th>送達資料</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}<div class="meta">${fmtDateTime(j.created_at)}</div></td><td><b>${j.is_urgent?'🚨 ':''}${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div>${j.request_text?`<div class="meta" style="white-space:normal;max-width:280px">${esc(j.request_text).replace(/\n/g,'<br>')}</div>`:''}${renderFreightSlipPhoto(j,'query')}</td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}${renderDriverReplies(j.driver_reply)}</td><td>${j.completed_at?`<div>${fmtDateTime(j.completed_at)}</div>`:''}${j.delivery_photo_url?`<div><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:(j.proof_required?'<div class="meta">📷 待回傳</div>':'')}${j.collected_amount!=null?`<div>💰 實收 $${esc(j.collected_amount)}</div>`:''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
 }
 window.setDeliveryRecordMode=mode=>{
@@ -3382,6 +3414,24 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 @media(max-width:760px){.deliveryLevelNav{grid-template-columns:1fr 1fr;gap:7px}.deliveryLevelBtn{padding:11px 9px;border-radius:12px}.deliveryLevelBtn b{font-size:14px}.deliveryLevelBtn span{display:none}}
 
 
+
+/* 第160階段：貨運訂單查詢手機卡片版。只改 <=600px 查詢呈現，不改貨運資料/接單/完成流程。 */
+.deliveryQueryMobileWrap{display:none}
+@media(max-width:600px){
+  #today .deliveryQueryMobileWrap{display:block;width:100%;min-width:0}
+  #today .deliveryQueryMobileCard{width:100%;min-width:0;background:#fff;border:1px solid #dfe3e8;border-radius:16px;padding:13px;margin:0 0 10px;overflow:hidden}
+  #today .deliveryQueryMobileCard.urgent{border:2px solid #ffb1b5}
+  #today .deliveryQueryMobileHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid #edf0f2}
+  #today .deliveryQueryMobileHead>div:first-child{min-width:0;flex:1}
+  #today .deliveryQueryMobileCustomer{font-size:21px;font-weight:900;line-height:1.2;overflow-wrap:anywhere}
+  #today .deliveryQueryMobileMeta{font-size:14px;line-height:1.45;margin:4px 0;overflow-wrap:anywhere}
+  #today .deliveryQueryMobileContent{margin-top:9px;padding:10px;border-radius:11px;background:#f8fafc;border:1px solid #e7ebef;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+  #today .deliveryQueryMobileReply{margin-top:9px;padding:9px 10px;border-radius:11px;background:#eef7ff;border:1px solid #cfe7ff;overflow-wrap:anywhere}
+  #today .deliveryQueryMobileFoot{margin-top:10px;padding-top:9px;border-top:1px solid #edf0f2;display:grid;gap:5px;font-size:14px}
+  #today .deliveryQueryMobileCard .freightSlipPhotoLink{display:block;width:100%;margin-top:9px}
+  #today .deliveryQueryMobileCard .freightSlipPhoto{display:block;width:100%!important;height:auto!important;max-height:340px!important;object-fit:contain!important;margin:0 auto}
+  #today .deliveryQueryMobileCard a{overflow-wrap:anywhere}
+}
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
