@@ -1225,6 +1225,21 @@ body.wall-focus #wall .wallCardPhotoWrap.photoOnly .wallCardPhoto{width:100%!imp
 }
 </style>
 
+
+<style id="stage157-mobile-wall-note">
+/* 第157階段：手機直式電視牆固定單欄；派工備註顯示。iPad/電視橫式維持第146階段雙欄。 */
+body.wall-focus #wall .wallOrderNote{
+  margin-top:8px;padding:8px 10px;border:1px solid #f2d58a;border-radius:10px;
+  background:#fff8e6;font-size:22px;line-height:1.3;font-weight:800;
+  white-space:pre-wrap;overflow-wrap:anywhere;
+}
+@media screen and (max-width:760px) and (orientation:portrait){
+  body.wall-focus #wall .wallCards{grid-template-columns:minmax(0,1fr)!important;gap:8px!important;}
+  body.wall-focus #wall .wallOrderCard{width:100%!important;min-width:0!important;}
+  body.wall-focus #wall .wallCardCustomer,body.wall-focus #wall .wallCardDate{white-space:normal!important;}
+  body.wall-focus #wall .wallOrderNote{font-size:18px!important;margin-top:7px!important;padding:7px 9px!important;}
+}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1748,7 +1763,7 @@ const MAP={
 '紅甜':'หง เถียน','綠甜':'ลวี่ เถียน','紅捲':'หง เจวี่ยน','綠捲':'ลวี่ เจวี่ยน',
 '聖女':'เซิ่ง หนวี่','小番茄':'เสี่ยว ฟาน เฉีย','蓮藕':'เหลียน โอ่ว','木耳':'มู่ เอ่อร์',
 '白木耳':'ไป๋ มู่ เอ่อร์','黑木耳':'เฮย มู่ เอ่อร์','白蘑菇':'ไป๋ โม๋ กู','鮑魚菇':'เป้า อวี๋ กู',
-'文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน'};
+'文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน','紫光山':'จื่อ กวง ซาน','番薯葉':'ฟาน สู่ เย่','五香豆乾':'อู่ เซียง โต้ว กาน','A菜':'เอ ไช่','洋菇':'หยาง กู'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let soundPrefExplicit=false; let knownOrderIds=new Set();
 const SOUND_PREF_KEY='xinru_sound_enabled';
@@ -3364,41 +3379,6 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 @media(max-width:760px){.deliveryLevelNav{grid-template-columns:1fr 1fr;gap:7px}.deliveryLevelBtn{padding:11px 9px;border-radius:12px}.deliveryLevelBtn b{font-size:14px}.deliveryLevelBtn span{display:none}}
 
 
-/* 第156階段：手機版電視牆單欄＋派工備註顯示。
-   桌機/iPad橫式仍沿用第146階段雙欄版型。 */
-body.wall-focus #wall .wallOrderNote{
-  margin-top:8px;
-  padding:8px 10px;
-  border:1px solid #f2d58a;
-  border-radius:10px;
-  background:#fff8e6;
-  font-size:22px;
-  line-height:1.3;
-  font-weight:800;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-}
-@media screen and (max-width:760px) and (orientation:portrait){
-  body.wall-focus #wall .wallCards{
-    grid-template-columns:minmax(0,1fr)!important;
-    gap:8px!important;
-  }
-  body.wall-focus #wall .wallOrderCard{
-    width:100%!important;
-    min-width:0!important;
-  }
-  body.wall-focus #wall .wallCardCustomer{
-    white-space:normal!important;
-  }
-  body.wall-focus #wall .wallCardDate{
-    white-space:normal!important;
-  }
-  body.wall-focus #wall .wallOrderNote{
-    font-size:18px!important;
-    margin-top:7px!important;
-    padding:7px 9px!important;
-  }
-}
 </style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
