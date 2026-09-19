@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第167A階段｜只改頁面權限</title>
+<title>第167A-2階段｜公告＋電視牆全員可看</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -4433,7 +4433,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 <script>
 /* 第十七階段：頁面權限＋功能權限。獨立權限表，不修改登入/Auth 核心。 */
 const V17_PAGE_OPTIONS=[
- ['accounting','💰 帳務中心'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
+ ['accounting','💰 帳務中心'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心']
 ];
 const V17_FUNC_OPTIONS=[
  ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],
@@ -4462,7 +4462,7 @@ const v17OldCanSeeTab=canSeeTab;
 canSeeTab=function(tab){
  if(!currentProfile)return false;
  if(currentProfile.role==='admin')return true;
- if(tab==='home')return true;
+ if(tab==='home'||tab==='wall')return true;
  if(!v17Perm.configured)return false;
  return v17Perm.pages.includes(tab);
 };
