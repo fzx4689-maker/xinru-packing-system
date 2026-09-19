@@ -1518,14 +1518,8 @@ body.wall-focus #wall .wallOrderNote{
     <section id="delivery" class="panel">
       <div class="card">
         <div class="deliveryHead">
-          <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
-          <button id="refreshDeliveryBtn" type="button" class="btn gray">重新整理</button>
+          <div><h2 style="margin-bottom:4px">🚚 貨運中心｜現場配送</h2><div class="helper">指定司機＝只由該司機接收；尚未指定＝貨運部門待接單</div></div>
         </div>
-        <div class="deliveryLevelNav" id="deliveryLevelNav">
-          <button type="button" class="deliveryLevelBtn active" data-delivery-level="local"><b>🚚 西螺配送</b><span>POS／一般客戶配送・派單給現場司機</span></button>
-          <button type="button" class="deliveryLevelBtn" data-delivery-level="route"><b>🛣️ 北／南線出車</b><span>超市路線・以一次出車為單位</span></button>
-        </div>
-        <div class="deliveryLevelPanel active" data-delivery-level-panel="local">
         <div class="deliveryMobileTabs" aria-label="貨運中心手機功能">
           <button type="button" class="deliveryMobileTab" data-delivery-mobile="0">💬 現場詢問</button>
           <button type="button" class="deliveryMobileTab" data-delivery-mobile="1">📦 寄車回報公斤</button>
@@ -1538,14 +1532,6 @@ body.wall-focus #wall .wallOrderNote{
         </div>
         <div id="driverFilters" class="driverFilters"></div>
         <div id="deliveryBody"></div>
-        </div>
-        <div class="deliveryLevelPanel" data-delivery-level-panel="route">
-          <div class="deliveryRouteShell">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">🛣️ 今日北／南線</h3><div class="helper" style="margin-top:4px">不預設出車時間；司機疊好貨、實際按出車後才記錄時間。</div></div></div>
-            <div class="deliveryRouteCard"><div class="routeTop"><div><div class="routeName">南線</div><div class="deliveryRouteStops">客戶訂單會隨當日開單持續累加，出車時才鎖定當次版本。</div></div><span class="badge wait">待集貨</span></div></div>
-            <div class="deliveryRouteCard"><div class="routeTop"><div><div class="routeName">北線</div><div class="deliveryRouteStops">點進路線後再看客戶；點客戶後才看完整貨品明細。</div></div><span class="badge wait">待集貨</span></div></div>
-            <div class="helper" style="margin-top:10px">此階段先完成貨運中心的多層級入口與三裝置版面；正式車趟、客戶累加、出車鎖單資料下一階段接入，避免改動既有正式配送資料。</div>
-          </div>
         </div>
       </div>
 
@@ -1834,7 +1820,17 @@ try{
  soundEnabled=(v==='1');
 }catch(e){}
 let currentUser=null; let currentProfile=null; let appStarted=false;
-let deliveryJobs=[]; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter=localStorage.getItem('xinru_delivery_driver_filter')||'all'; let deliveryQueryDriverFilter=localStorage.getItem('xinru_delivery_query_driver_filter')||'all'; let deliveryRecordMode='date';
+let freightSoundKeys=new Map();
+function normalizeFreightSoundKey(key){
+  const s=String(key||'freight');
+  let m=s.match(/(?:freight-)?assign[:\-](\d+)/i);if(m)return `assign:${m[1]}`;
+  m=s.match(/(?:freight-)?change[:\-](\d+)(?:[:\-](\d+))?/i);if(m)return `change:${m[1]}:${m[2]||0}`;
+  m=s.match(/(?:^|:)new[:\-](\d+)/i);if(m)return `new:${m[1]}`;
+  m=s.match(/freight-(\d+)(?:$|[-:])/i);if(m)return `new:${m[1]}`;
+  return s;
+}
+function playFreightSoundOnce(key){const k=normalizeFreightSoundKey(key);const now=Date.now(),last=freightSoundKeys.get(k)||0;if(now-last<12000)return;freightSoundKeys.set(k,now);for(const [x,t] of freightSoundKeys)if(now-t>60000)freightSoundKeys.delete(x);playFreightSound();}
+let deliveryJobs=[]; let deliveryHistoryJobs=[]; let deliveryHistoryQueryToken=0; let deliveryDrivers=[]; let deliveryPhotoFile=null; let deliveryDriverFilter=localStorage.getItem('xinru_delivery_driver_filter')||'all'; let deliveryQueryDriverFilter=localStorage.getItem('xinru_delivery_query_driver_filter')||'all'; let deliveryRecordMode='date';
 let orderQueryMode='packing';
 try{const savedQueryMode=localStorage.getItem('xinru_order_query_mode');if(savedQueryMode==='delivery'||savedQueryMode==='packing')orderQueryMode=savedQueryMode;}catch(e){}
 let deliveryAssignmentBaselineReady=false; let knownMyAssignedJobIds=new Set();
@@ -2069,7 +2065,7 @@ function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(
 function renderStallDelivery(){
   const box=$('#stallOrders');if(!box)return;
   const arr=[...deliveryJobs].filter(j=>j.status!=='completed').sort((a,b)=>(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
-  box.innerHTML=arr.length?arr.map(j=>`<div class="order ${j.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(j.customer||'未填客戶')} ${j.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(j.delivery_no||'')}｜配送 ${esc(j.delivery_date||'')} ${esc(j.pickup_time||'')}</div></div>${deliveryStatusBadge(j.status)}</div><div class="meta" style="margin-top:7px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>${renderDeliveryChecklist(j,false)}${renderFreightSlipPhoto(j,'delivery')}${j.payment_required?`<div class="meta" style="font-weight:800">💰 應收 $${esc(j.required_amount??0)}｜${j.collected_at?'✓ 已收款':'尚未確認收款'}</div>`:''}${j.basket_required?`<div class="meta" style="font-weight:800">🧺 回籃｜${j.basket_return_qty!=null?`已回 ${esc(j.basket_return_qty)} 個`:'待司機回覆數量'}</div>`:''}${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}<div class="actions" style="margin-top:12px">${canOperateStall()?`<button class="btn blue" onclick="openDeliveryEdit(${j.id})">✏️ 修改訂單</button>`:''}${isManager()?`<button class="btn red" onclick="deleteDelivery(${j.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理貨運訂單</div>';
+  box.innerHTML=arr.length?arr.map(j=>`<div class="order ${j.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(j.customer||'未填客戶')} ${j.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(j.delivery_no||'')}｜配送 ${esc(j.delivery_date||'')} ${esc(j.pickup_time||'')}</div></div>${deliveryStatusBadge(j.status)}</div><div class="meta" style="margin-top:7px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>${renderDeliveryChangeNotice(j)}${renderDeliveryChecklist(j,false)}${renderFreightSlipPhoto(j,'delivery')}${j.payment_required?`<div class="meta" style="font-weight:800">💰 應收 $${esc(j.required_amount??0)}｜${j.collected_at?'✓ 已收款':'尚未確認收款'}</div>`:''}${j.basket_required?`<div class="meta" style="font-weight:800">🧺 回籃｜${j.basket_return_qty!=null?`已回 ${esc(j.basket_return_qty)} 個`:'待司機回覆數量'}</div>`:''}${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}<div class="actions" style="margin-top:12px">${canOperateStall()?`<button class="btn blue" onclick="openDeliveryEdit(${j.id})">✏️ 修改訂單</button>`:''}${isManager()?`<button class="btn red" onclick="deleteDelivery(${j.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理貨運訂單</div>';
 }
 
 function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="th">${esc(translitLine(o.customer))}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${(()=>{const n=packingChangeNoticeFor(o.id);return n?`<div class="orderChangeNotice"><div class="changeTitle">⚠️ 訂單已修改</div><div class="orderChangeDiff">${esc(n.diff_text||'內容已更新')}</div><div class="orderChangeMeta">修改：${esc(n.changed_by_name||'')}｜${fmtDateTime(n.created_at)}</div>${canPackingWork()?`<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="ackPackingChange(${n.id})">✓ 已確認修改</button></div>`:''}</div>`:''})()}${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''} ${canPackingWork()?'':'viewer-disabled'}" ${canPackingWork()?`onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})"`:''}>${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${renderOrderPhoto(o,'packing')}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder="" ${canPackingWork()?'':'disabled'}><button class="btn gray" ${canPackingWork()?`onclick="savePackingReply(${o.id})"`:'disabled style="opacity:.45"'}>儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${canManagePacking()&&o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}${canPackingWork()?`<button class="btn primary" ${(total>0&&done!==total)?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button>`:''}</div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
@@ -2195,9 +2191,9 @@ async function loadDelivery(){
       knownMyAssignedJobIds=nowMine;
       deliveryAssignmentBaselineReady=true;
     }else{
-      const hasNew=[...nowMine].some(id=>!knownMyAssignedJobIds.has(id));
+      const added=[...nowMine].filter(id=>!knownMyAssignedJobIds.has(id));
       knownMyAssignedJobIds=nowMine;
-      if(hasNew&&shouldHearFreight())playFreightSound();
+      if(added.length&&shouldHearFreight())for(const id of added)playFreightSoundOnce(`assign:${id}`);
     }
   }
   const jobsChanged=prevJobsSnapshot!==JSON.stringify(deliveryJobs);
@@ -2296,8 +2292,7 @@ function renderDeliveryRecordMobile(arr,label){
 function deliveryRecordTable(arr,label){
   // 歷史查詢只套用人員可見範圍，不套用配送狀態過濾；已完成與未完成都必須保留。
   const box=$('#todayBody');if(!box)return;
-  if(!canManageFreight())arr=arr.filter(j=>j.assigned_driver_id===currentUser?.id);
-  else if(deliveryQueryDriverFilter!=='all')arr=arr.filter(j=>j.assigned_driver_id===deliveryQueryDriverFilter);
+  if(canManageFreight()&&deliveryQueryDriverFilter!=='all')arr=arr.filter(j=>j.assigned_driver_id===deliveryQueryDriverFilter);
   renderDeliveryQueryDriverFilters();
   const sorted=[...arr].sort((a,b)=>String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
   box.innerHTML=sorted.length?renderDeliveryRecordMobile(sorted,label):`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
@@ -2336,12 +2331,39 @@ window.setDeliveryBasketQty=async id=>{
   const v=prompt('實際回籃數量',j.basket_return_qty??'');if(v===null)return;const n=Number(v);if(!Number.isInteger(n)||n<0){alert('請輸入正確的回籃數量');return}
   await updateDelivery(id,{basket_return_qty:n});
 };
+function deliveryChangePending(j){return Number(j?.change_revision||0)>Number(j?.change_ack_revision||0)}
+function renderDeliveryChangeNotice(j){
+  if(!deliveryChangePending(j))return '';
+  const mine=String(j.assigned_driver_id||'')===String(currentUser?.id||'');
+  return `<div class="orderChangeNotice"><div class="changeTitle">⚠️ 訂單已修改</div><div class="orderChangeDiff">${esc(j.change_diff||'內容已更新')}</div><div class="orderChangeMeta">修改：${esc(j.change_changed_by_name||'')}｜${fmtDateTime(j.change_changed_at)}</div>${mine&&currentIsDriver()?`<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="ackDeliveryChange(${j.id},${Number(j.change_revision||0)})">✓ 已確認修改</button></div>`:''}</div>`;
+}
+window.ackDeliveryChange=async(id,revision)=>{
+  if(!currentIsDriver())return;
+  const j=deliveryJobs.find(x=>Number(x.id)===Number(id));
+  if(!j||String(j.assigned_driver_id||'')!==String(currentUser?.id||''))return;
+  const {data,error}=await sb.from('delivery_jobs').update({change_ack_revision:revision,change_acknowledged_by:currentUser.id,change_acknowledged_by_name:currentProfile?.display_name||'',change_acknowledged_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('assigned_driver_id',currentUser.id).eq('change_revision',revision).select('id,change_revision,change_ack_revision');
+  if(error){alert('確認修改失敗：'+error.message);return;}
+  if(!data?.length){alert('這張單已再次修改或已改派，系統已重新同步');await loadDelivery();return;}
+  await loadDelivery();
+};
+function formatDeliveryChangeDiff(j,patch){
+  const d=[]; const val=v=>v==null?'':String(v);
+  const add=(label,a,b)=>{if(val(a)!==val(b))d.push(`${label}：${val(a)||'空白'} → ${val(b)||'空白'}`)};
+  add('客戶',j.customer,patch.customer);add('配送日期',j.delivery_date,patch.delivery_date);add('取貨時間',j.pickup_time,patch.pickup_time);
+  add('需求內容',j.request_text,patch.request_text);add('備註',j.note,patch.note);
+  if(!!j.is_urgent!==!!patch.is_urgent)d.push(`急單：${j.is_urgent?'是':'否'} → ${patch.is_urgent?'是':'否'}`);
+  if(!!j.proof_required!==!!patch.proof_required)d.push(`送達照片：${j.proof_required?'需要':'不需要'} → ${patch.proof_required?'需要':'不需要'}`);
+  if(!!j.payment_required!==!!patch.payment_required||Number(j.required_amount||0)!==Number(patch.required_amount||0))d.push(`收款：${j.payment_required?'$'+Number(j.required_amount||0):'不需要'} → ${patch.payment_required?'$'+Number(patch.required_amount||0):'不需要'}`);
+  if(!!j.basket_required!==!!patch.basket_required)d.push(`回籃：${j.basket_required?'需要':'不需要'} → ${patch.basket_required?'需要':'不需要'}`);
+  return d.join('\n');
+}
 function renderDeliveryCard(j){
   const mine=j.assigned_driver_id===currentUser?.id;
   const unassigned=!j.assigned_driver_id&&j.status==='waiting';
   const canClaim=currentIsDriver()&&unassigned;
   const canOperate=mine&&currentIsDriver();
   let actions='';
+  if(canManageFreight()&&canWrite()&&!['delivering','completed'].includes(j.status))actions+=`<button class="btn blue" onclick="openDriverPicker(${j.id})">${j.assigned_driver_id?'🔄 更換司機':'🚚 指派司機'}</button>`;
   if(canClaim)actions+=`<button class="btn primary" onclick="claimDelivery(${j.id})">🙋 我要配送</button>`;
   if(canOperate&&j.status==='assigned')actions+=`<button class="btn primary" onclick="acceptDelivery(${j.id})">接單</button>`;
   if(canOperate&&j.status==='accepted')actions+=`<button class="btn primary" onclick="startDelivery(${j.id})">🚚 開始配送</button>`;
@@ -2351,6 +2373,7 @@ function renderDeliveryCard(j){
   return `<div class="deliveryCard ${j.status==='completed'?'completed':''} ${j.is_urgent?'urgent':''}">
     <div class="orderHead"><div><div style="font-size:21px;font-weight:900">${esc(j.customer||'未填客戶')} ${j.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(j.delivery_no)}｜配送 ${esc(j.delivery_date||'')}</div></div>${deliveryStatusBadge(j.status)}</div>
     <div style="margin-top:8px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>
+    ${renderDeliveryChangeNotice(j)}
     ${j.pickup_time?`<div class="meta" style="margin-top:6px">取貨時間：${esc(j.pickup_time)}</div>`:''}
     ${renderDeliveryChecklist(j,canOperate&&['assigned','accepted','delivering'].includes(j.status))}
     ${renderFreightSlipPhoto(j,'delivery')}
@@ -2365,10 +2388,13 @@ function renderDeliveryCard(j){
   </div>`;
 }
 async function updateDelivery(id,patch){
-  if(!(canWrite()||currentIsDriver())){alert('此帳號無法操作貨運單');return;}
-  const {error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
-  if(error){alert('更新失敗：'+error.message);return}
-  await loadDelivery();
+  if(!(canWrite()||currentIsDriver())){alert('此帳號無法操作貨運單');return false;}
+  let q=sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
+  if(!canManageFreight()&&currentIsDriver())q=q.eq('assigned_driver_id',currentUser.id);
+  const {data,error}=await q.select('id');
+  if(error){alert('更新失敗：'+error.message);return false}
+  if(!data?.length){alert('這張貨運單目前已不屬於你，系統已重新同步');await loadDelivery();return false;}
+  await loadDelivery();return true;
 }
 window.openDriverPicker=id=>{
   const j=deliveryJobs.find(x=>x.id===id);if(!j||!canManageFreight()||!canWrite()||['delivering','completed'].includes(j.status))return;
@@ -2382,16 +2408,22 @@ window.openDriverPicker=id=>{
 };
 window.closeDriverPicker=()=>{document.getElementById('driverAssignOverlay')?.remove();};
 window.chooseDeliveryDriver=async(id,uid)=>{
-  const j=deliveryJobs.find(x=>x.id===id);if(!j)return;
+  const j=deliveryJobs.find(x=>x.id===id);if(!j||!canManageFreight()||!canWrite())return;
   if(['delivering','completed'].includes(j.status)){closeDriverPicker();alert('已開始配送，不能直接更換司機');return;}
-  const oldUid=j.assigned_driver_id||'';
+  const oldUid=String(j.assigned_driver_id||'');uid=String(uid||'');
   if(oldUid===uid){closeDriverPicker();return;}
-  const driver=deliveryDrivers.find(x=>x.user_id===uid);
+  const driver=deliveryDrivers.find(x=>String(x.user_id)===uid);
   const preservedReply=preserveLegacyDriverReplies(j);
   closeDriverPicker();
-  await updateDelivery(id,uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})});
+  const patch=uid?{assigned_driver_id:uid,assigned_driver_name:deliveryDisplayName(driver?.display_name||''),status:'assigned',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})}:{assigned_driver_id:null,assigned_driver_name:null,status:'waiting',accepted_at:null,...(preservedReply?{driver_reply:preservedReply}:{})};
+  let rq=sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
+  rq=oldUid?rq.eq('assigned_driver_id',oldUid):rq.is('assigned_driver_id',null);
+  const {data,error}=await rq.select('*');
+  if(error){alert('更換司機失敗：'+error.message);return;}
+  if(!data?.length){alert('這張單剛剛已被其他操作更新，系統已重新同步');await loadDelivery();return;}
   try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,old_driver_id:oldUid||null,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
-  if(uid)await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${j.customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`assign-${id}-${uid}-${Date.now()}`,kind:'freight'});
+  if(uid){try{await sendXinruPush({targetUserId:uid,title:'🚚 指派配送',body:`${j.customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`freight-assign-${id}-${uid}-${Number(data[0]?.change_revision||0)}`,kind:'freight'});}catch(e){console.warn('改派推播失敗',e);alert('司機已更換成功，但新司機手機推播失敗；貨運頁仍會即時同步。');}}
+  await loadDelivery();
 };
 window.claimDelivery=async id=>{
   if(!currentIsDriver()){alert('你的工作職能不是司機');return}
@@ -2485,13 +2517,19 @@ $('#saveDeliveryEdit').onclick=async()=>{
   const uid=$('#editDeliveryDriver').value,driver=deliveryDrivers.find(x=>x.user_id===uid),file=$('#editDeliveryPhotoInput').files?.[0];
   const patch={customer,delivery_date:$('#editDeliveryDate').value||taipeiDate(),pickup_time:$('#editDeliveryPickup').value||null,request_text:$('#editDeliveryText').value.trim()||null,note:$('#editDeliveryNote').value.trim()||null,is_urgent:$('#editDeliveryUrgent').checked,proof_required:$('#editDeliveryProofRequired').checked,payment_required:$('#editDeliveryPaymentRequired').checked,required_amount:$('#editDeliveryPaymentRequired').checked?Number($('#editDeliveryRequiredAmount').value||0):null,basket_required:$('#editDeliveryBasketRequired').checked,assigned_driver_id:uid||null,assigned_driver_name:uid?deliveryDisplayName(driver?.display_name||''):null,status:uid?'assigned':'waiting',accepted_at:null};
   if(file){const saveBtn=$('#saveDeliveryEdit');const oldText=saveBtn.textContent,progress=openPhotoUploadStatus();saveBtn.disabled=true;saveBtn.textContent='照片處理中…';try{patch.slip_photo_url=await uploadDeliveryProof(file,'order-'+id,progress.el);progress.el.textContent='✅ 照片上傳完成';await new Promise(r=>setTimeout(r,500));}catch(e){alert('照片上傳失敗：'+e.message);return;}finally{progress.close();saveBtn.disabled=false;saveBtn.textContent=oldText;}}
-  const oldUid=j.assigned_driver_id||'';
-  const {error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('修改失敗：'+error.message);return;}
-  if(oldUid!==(uid||'')){
-    try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,old_driver_id:oldUid||null,new_driver_id:uid||null,status:uid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
+  const oldUid=String(j.assigned_driver_id||''),newUid=String(uid||'');
+  const diffText=formatDeliveryChangeDiff(j,patch);
+  if(diffText){
+    patch.change_revision=Number(j.change_revision||0)+1;
+    patch.change_diff=diffText;patch.change_changed_at=new Date().toISOString();patch.change_changed_by=currentUser?.id||null;patch.change_changed_by_name=currentProfile?.display_name||'';
   }
-  try{await deliveryChannel.send({type:'broadcast',event:'job_updated',payload:{id,driver_id:uid||null,customer,updated_at:Date.now()}})}catch(e){console.warn('貨運訂單更新廣播失敗',e)}
-  if(uid){try{await sendXinruPush({targetUserId:uid,title:oldUid===(uid||'')?'🚚 配送單已修改':'🚚 指派配送',body:oldUid===(uid||'')?`${customer||'貨運單'}｜內容已修改，請重新確認`:`${customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`delivery-update-${id}-${Date.now()}`,kind:'freight'});}catch(e){console.warn('貨運修改推播失敗',e);alert('訂單已修改，但手機推播失敗；貨運頁面仍會即時更新。');}}
+  const {data,error}=await sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id).select('*');if(error){alert('修改失敗：'+error.message);return;}
+  if(!data?.length){alert('修改沒有成功，系統已重新同步');await loadDelivery();return;}
+  if(oldUid!==newUid){
+    try{await deliveryChannel.send({type:'broadcast',event:'assignment',payload:{id,old_driver_id:oldUid||null,new_driver_id:newUid||null,status:newUid?'assigned':'waiting'}})}catch(e){console.warn('貨運即時指派廣播失敗',e)}
+  }
+  if(diffText){try{await deliveryChannel.send({type:'broadcast',event:'job_updated',payload:{id,driver_id:newUid||null,customer,revision:Number(data[0]?.change_revision||0),updated_at:Date.now()}})}catch(e){console.warn('貨運訂單更新廣播失敗',e)}}
+  if(diffText||newUid){try{await sendXinruPush({targetRole:newUid?null:'driver',targetUserId:newUid||null,title:diffText?'🚚 配送單已修改':'🚚 指派配送',body:diffText?`${customer||'貨運單'}｜內容已修改，請確認修改內容`:`${customer||'貨運單'}｜已指派給你`,url:'./#delivery',tag:`freight-${diffText?'change':'assign'}-${id}-${Number(data[0]?.change_revision||0)}${newUid?'-'+newUid:''}`,kind:'freight'});}catch(e){console.warn('貨運推播失敗',e);alert('訂單已更新，但手機推播失敗；貨運頁面仍會即時同步。');}}
   $('#deliveryEditModal').classList.remove('show');await loadDelivery();
 };
 window.deleteDelivery=async id=>{
@@ -2531,6 +2569,21 @@ function renderTodayPackingMobile(arr,q){
    </div>`;
  }).join('')}</div>`;
 }
+async function loadDeliveryHistoryForDate(date,kw=''){
+  const token=++deliveryHistoryQueryToken;
+  const box=$('#todayBody');if(box)box.innerHTML='<div class="empty">正在讀取貨運紀錄…</div>';
+  let q=sb.from('delivery_jobs').select('*').eq('delivery_date',date);
+  // 第166階段：一般司機歷史資料從資料庫查詢層就限定本人，不抓其他司機再隱藏。
+  if(!canManageFreight()){
+    if(!currentIsDriver()){deliveryHistoryJobs=[];if(box)box.innerHTML='<div class="empty">沒有貨運查詢權限</div>';return;}
+    q=q.eq('assigned_driver_id',currentUser.id);
+  }
+  const {data,error}=await q.order('created_at',{ascending:false});
+  if(token!==deliveryHistoryQueryToken)return;
+  if(error){if(box)box.innerHTML=`<div class="empty" style="color:#b4232c">貨運紀錄讀取失敗：${esc(error.message)}</div>`;return;}
+  deliveryHistoryJobs=(data||[]).filter(j=>!kw||[j.customer,j.delivery_no,j.request_text,j.assigned_driver_name,j.driver_reply,j.note].join(' ').toLowerCase().includes(kw));
+  deliveryRecordTable(deliveryHistoryJobs,`🚚 ${date}`);
+}
 function renderToday(){
   const b=$('#todayBody');if(!b)return;
   const q=$('#queryDate')?.value||taipeiDate();
@@ -2549,10 +2602,7 @@ function renderToday(){
     if(canManageFreight())deliveryQueryDriverFilter='all';
     // 第163階段：貨運歷史派工單比照包裝歷史紀錄，所有狀態都保留。
     // 這裡只依日期與關鍵字查詢，不依 waiting / assigned / accepted / delivering / completed 篩除任何歷史單。
-    const arr=deliveryJobs
-      .filter(j=>j.delivery_date===tq)
-      .filter(j=>!kw||[j.customer,j.delivery_no,j.request_text,j.assigned_driver_name,j.driver_reply,j.note].join(' ').toLowerCase().includes(kw));
-    deliveryRecordTable(arr,`🚚 ${tq}`);
+    loadDeliveryHistoryForDate(tq,kw);
     return;
   }
   const kw=($('#orderQueryKeyword')?.value||'').trim().toLowerCase();
@@ -2886,7 +2936,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{
   if(event.data?.type==='PUSH_RECEIVED'){
     const p=event.data.payload||{};
     if(p.kind==='packing'&&shouldHearPacking())playOrderSound(!!p.urgent);
-    if(p.kind==='freight'&&shouldHearFreightJob({assigned_driver_id:p.target_user_id||null,status:p.target_user_id?'assigned':'waiting'}))playFreightSound();
+    if(p.kind==='freight'&&shouldHearFreightJob({assigned_driver_id:p.target_user_id||null,status:p.target_user_id?'assigned':'waiting'}))playFreightSoundOnce(p.tag||`push:${p.target_user_id||'department'}`);
   }
 });
 
@@ -3180,8 +3230,7 @@ async function enforceActiveSession(){
 }
 
 
-// 貨運單已改由攤位下單統一建立。
-$('#refreshDeliveryBtn').onclick=()=>loadDelivery();
+// 第166階段：貨運中心自動同步，不再提供手動重新整理按鈕。
 
 // 第四十一階段：恢復「自己的小暱稱」功能（沿用既有 set_my_nickname RPC）
 $('#myNicknameBtn').onclick=async()=>{
@@ -3310,8 +3359,8 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
   if(!currentUser)return;
   const p=msg?.payload||{};const id=String(p.id||'');
   loadDelivery();
-  if(currentIsDriver()&&String(p.driver_id||'')===String(currentUser.id)){
-    playFreightSound();
+  if(currentIsDriver()&&(!p.driver_id||String(p.driver_id)===String(currentUser.id))){
+    playFreightSoundOnce(`change:${id}:${p.revision||0}`);
     const name=p.customer||'貨運單';
     const wrap=$('#overdueToastWrap');
     if(wrap){const el=document.createElement('div');el.className='overdueToast';el.innerHTML=`<button aria-label="關閉">×</button>📝 配送單已修改<div class="meta">${esc(name)}｜請重新確認內容</div>`;el.querySelector('button').onclick=()=>el.remove();wrap.prepend(el);setTimeout(()=>el.remove(),20000);}
@@ -3333,7 +3382,7 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
   }
   if(currentIsDriver()){
     if(newUid===String(currentUser.id)){
-      if(id&&!knownMyAssignedJobIds.has(id)){knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSound()}
+      if(id&&!knownMyAssignedJobIds.has(id)){knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSoundOnce(`assign:${id}`)}
     }else if(oldUid===String(currentUser.id)&&id){
       knownMyAssignedJobIds.delete(id);
     }
@@ -3343,7 +3392,7 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
 .on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{
   if(!currentUser)return;
   const n=payload.new||{};const id=String(n.id||'');
-  if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSound();
+  if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSoundOnce(`new:${id}`);
   if(payload.eventType==='UPDATE'){
     // Realtime UPDATE 到達時，先把該列直接合併進本機，再依目前篩選立即重畫。
     const idx=deliveryJobs.findIndex(j=>String(j.id)===id);
@@ -3353,7 +3402,7 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
     if(currentIsDriver()){
       const assigned=String(n.assigned_driver_id||'');
       if(assigned===String(currentUser.id)&&n.status==='assigned'&&id&&!knownMyAssignedJobIds.has(id)){
-        knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSound();
+        knownMyAssignedJobIds.add(id);if(shouldHearFreight())playFreightSoundOnce(`assign:${id}`);
       }else if(assigned!==String(currentUser.id)&&id){
         knownMyAssignedJobIds.delete(id);
       }
@@ -3461,6 +3510,7 @@ function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
 $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
+<!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -3523,6 +3573,7 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
 <div id="iosPullRefresh" style="position:fixed;left:50%;top:8px;transform:translate(-50%,-70px);z-index:99999;background:#fff;border:1px solid #dbe2ea;border-radius:999px;padding:8px 14px;box-shadow:0 4px 18px #0002;font-weight:900;transition:transform .16s ease;pointer-events:none">↓ 下拉更新</div>
+<!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
 </body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){
@@ -4600,14 +4651,7 @@ function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=docume
 document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
 })();
 
-// 第68階段：貨運中心第一層切換（只切畫面，不改既有配送資料）。
-document.querySelectorAll('[data-delivery-level]').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    const level=btn.dataset.deliveryLevel;
-    document.querySelectorAll('[data-delivery-level]').forEach(x=>x.classList.toggle('active',x===btn));
-    document.querySelectorAll('[data-delivery-level-panel]').forEach(x=>x.classList.toggle('active',x.dataset.deliveryLevelPanel===level));
-  });
-});
+// 第166階段：貨運中心僅保留現場配送，不再切換北／南線。
 </script>\n
 <!-- 第48階段：開單／收銀＋現場回報版面壓縮；只顯示當日現場訊息；未修改登入/Auth核心 -->
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
@@ -4737,4 +4781,5 @@ document.querySelectorAll('[data-delivery-level]').forEach(btn=>{
 })();
 </script>
 
+<!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
 </body></html>
