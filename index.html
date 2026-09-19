@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>【第35階段 市場帳完整流程】欣儒農產行｜內部作業系統</title>
+<title>第167A階段｜只改頁面權限</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -4433,7 +4433,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 <script>
 /* 第十七階段：頁面權限＋功能權限。獨立權限表，不修改登入/Auth 核心。 */
 const V17_PAGE_OPTIONS=[
- ['home','🏠 首頁'],['sales','🧾 開單／收銀'],['accounting','💰 帳務中心'],['procurement','📦 商品／庫存'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
+ ['accounting','💰 帳務中心'],['stall','📋 派工'],['packing','📦 包裝部'],['delivery','🚚 貨運中心'],['wall','📺 電視牆']
 ];
 const V17_FUNC_OPTIONS=[
  ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],
@@ -4453,11 +4453,18 @@ async function v17LoadMine(){
   if(typeof applyRoleUI==='function')applyRoleUI(); if(typeof renderAll==='function')renderAll();
  }catch(e){console.warn('第十七階段權限表尚未啟用，沿用原權限：',e?.message||e);v17Perm={pages:[],funcs:[],configured:false};}
 }
+/* 第167A階段：只切換「頁面可見性」。
+   不改登入/Auth、不改功能操作權、不改貨運司機、不改公告管理。
+   管理員全頁；所有啟用帳號固定可看公告(home)；
+   其餘受控頁面只認 employee_permission_v17.page_permissions。
+   未載入/未設定 v17 時不回退舊 work_roles / feature_permissions。 */
 const v17OldCanSeeTab=canSeeTab;
 canSeeTab=function(tab){
- if(isManager())return true;
- if(v17Perm.configured)return v17Perm.pages.includes(tab);
- return v17OldCanSeeTab(tab);
+ if(!currentProfile)return false;
+ if(currentProfile.role==='admin')return true;
+ if(tab==='home')return true;
+ if(!v17Perm.configured)return false;
+ return v17Perm.pages.includes(tab);
 };
 const v17OldPackingWork=canPackingWork;
 canPackingWork=()=>v17OldPackingWork()&&v17Has('packing.work');
