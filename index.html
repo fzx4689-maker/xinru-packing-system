@@ -1214,6 +1214,17 @@ body.wall-focus #wall .wallCardPhotoWrap.photoOnly .wallCardPhoto{width:100%!imp
 }
 </style>
 
+
+<style id="freightSlipPhotoFlowStyle">
+.freightSlipPhotoLink{display:inline-block;margin-top:8px;max-width:100%}
+.freightSlipPhoto{display:block;width:150px;height:115px;object-fit:contain;background:#f3f5f7;border:1px solid #e1e6eb;border-radius:10px}
+@media(max-width:600px){
+ #today .freightSlipPhoto.queryPhoto,#delivery .freightSlipPhoto{
+   width:100%!important;height:auto!important;max-height:340px!important;object-fit:contain!important;
+ }
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -2106,6 +2117,12 @@ async function loadDelivery(){
   if(orderQueryMode==='delivery')renderToday();
   checkDeliveryOverdue();
 }
+function renderFreightSlipPhoto(j,place='normal'){
+ if(!j||!j.slip_photo_url)return '';
+ const url=esc(j.slip_photo_url);
+ if(place==='query')return `<a class="freightSlipPhotoLink" href="${url}" target="_blank" rel="noopener"><img class="deliveryPhoto freightSlipPhoto queryPhoto" src="${url}" alt="貨運派單照片" loading="lazy"></a>`;
+ return `<a class="freightSlipPhotoLink" href="${url}" target="_blank" rel="noopener"><img class="deliveryPhoto freightSlipPhoto" src="${url}" alt="貨運派單照片" loading="lazy"></a>`;
+}
 function renderDelivery(){
   const filters=$('#driverFilters'),body=$('#deliveryBody');
   if(!filters||!body)return;
@@ -2170,7 +2187,7 @@ function deliveryRecordTable(arr,label){
   else if(deliveryQueryDriverFilter!=='all')arr=arr.filter(j=>j.assigned_driver_id===deliveryQueryDriverFilter);
   renderDeliveryQueryDriverFilters();
   const sorted=[...arr].sort((a,b)=>String(b.delivery_date||'').localeCompare(String(a.delivery_date||'')) || (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
-  box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>客戶</th><th>司機</th><th>狀態</th><th>送達資料</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}<div class="meta">${fmtDateTime(j.created_at)}</div></td><td><b>${j.is_urgent?'🚨 ':''}${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div>${j.request_text?`<div class="meta" style="white-space:normal;max-width:280px">${esc(j.request_text).replace(/\n/g,'<br>')}</div>`:''}</td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}${renderDriverReplies(j.driver_reply)}</td><td>${j.completed_at?`<div>${fmtDateTime(j.completed_at)}</div>`:''}${j.delivery_photo_url?`<div><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:(j.proof_required?'<div class="meta">📷 待回傳</div>':'')}${j.collected_amount!=null?`<div>💰 實收 $${esc(j.collected_amount)}</div>`:''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
+  box.innerHTML=sorted.length?`<div class="helper" style="margin:10px 0">${esc(label)}｜共 ${sorted.length} 張貨運單</div><table class="table"><thead><tr><th>配送日期</th><th>客戶</th><th>司機</th><th>狀態</th><th>送達資料</th></tr></thead><tbody>${sorted.map(j=>`<tr><td>${esc(j.delivery_date||'')}<div class="meta">${fmtDateTime(j.created_at)}</div></td><td><b>${j.is_urgent?'🚨 ':''}${esc(j.customer||'未填客戶')}</b><div class="meta">${esc(j.delivery_no||'')}</div>${j.request_text?`<div class="meta" style="white-space:normal;max-width:280px">${esc(j.request_text).replace(/\n/g,'<br>')}</div>`:''}${renderFreightSlipPhoto(j,'query')}</td><td>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</td><td>${deliveryStatusBadge(j.status)}${renderDriverReplies(j.driver_reply)}</td><td>${j.completed_at?`<div>${fmtDateTime(j.completed_at)}</div>`:''}${j.delivery_photo_url?`<div><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:(j.proof_required?'<div class="meta">📷 待回傳</div>':'')}${j.collected_amount!=null?`<div>💰 實收 $${esc(j.collected_amount)}</div>`:''}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${esc(label)}沒有貨運紀錄</div>`;
 }
 window.setDeliveryRecordMode=mode=>{
   deliveryRecordMode=mode;
@@ -2199,7 +2216,7 @@ function renderDeliveryCard(j){
     ${canAssign?`<div class="driverAssignLine"><span><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</span><button class="driverAssignMini" onclick="openDriverPicker(${j.id})">${j.assigned_driver_id?'更換':'指派'}</button></div>`:`<div style="margin-top:8px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>`}
     ${j.pickup_time?`<div class="meta" style="margin-top:6px">取貨時間：${esc(j.pickup_time)}</div>`:''}
     ${j.request_text?`<div class="urgentRow" style="margin-top:10px;background:#f8fafc;border-color:#e2e8f0"><div><b>品項：</b><br>${esc(j.request_text).replace(/\n/g,'<br>')}</div></div>`:''}
-    ${j.slip_photo_url?`<a href="${esc(j.slip_photo_url)}" target="_blank" rel="noopener"><img class="deliveryPhoto" src="${esc(j.slip_photo_url)}" alt="訂單照片"></a>`:''}
+    ${renderFreightSlipPhoto(j,'delivery')}
     ${(j.proof_required||j.payment_required)?`<div class="meta" style="margin-top:8px;font-weight:800">${j.proof_required?'📷 需送達照片　':''}${j.payment_required?'💰 需收款':''}</div>`:''}
     ${j.driver_reply?`<div class="urgentRow" style="margin-top:8px;background:#eef7ff;border-color:#cfe7ff"><div><b>💬 司機回覆</b>${renderDriverReplies(j.driver_reply)}</div></div>`:''}
     ${j.delivery_photo_url?`<div style="margin-top:8px"><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:''}
