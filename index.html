@@ -2268,6 +2268,7 @@ function renderDeliveryRecordMobile(arr,label){
     </div>`).join('')}</div>`;
 }
 function deliveryRecordTable(arr,label){
+  // 歷史查詢只套用人員可見範圍，不套用配送狀態過濾；已完成與未完成都必須保留。
   const box=$('#todayBody');if(!box)return;
   if(!canManageFreight())arr=arr.filter(j=>j.assigned_driver_id===currentUser?.id);
   else if(deliveryQueryDriverFilter!=='all')arr=arr.filter(j=>j.assigned_driver_id===deliveryQueryDriverFilter);
@@ -2493,7 +2494,11 @@ function renderToday(){
     const kw=($('#orderQueryKeyword')?.value||'').trim().toLowerCase();
     // 管理端整合後不再套用舊的司機篩選；司機帳號仍維持只能查自己的貨運紀錄。
     if(canManageFreight())deliveryQueryDriverFilter='all';
-    const arr=deliveryJobs.filter(j=>j.delivery_date===tq).filter(j=>!kw||[j.customer,j.delivery_no,j.request_text,j.assigned_driver_name,j.driver_reply,j.note].join(' ').toLowerCase().includes(kw));
+    // 第163階段：貨運歷史派工單比照包裝歷史紀錄，所有狀態都保留。
+    // 這裡只依日期與關鍵字查詢，不依 waiting / assigned / accepted / delivering / completed 篩除任何歷史單。
+    const arr=deliveryJobs
+      .filter(j=>j.delivery_date===tq)
+      .filter(j=>!kw||[j.customer,j.delivery_no,j.request_text,j.assigned_driver_name,j.driver_reply,j.note].join(' ').toLowerCase().includes(kw));
     deliveryRecordTable(arr,`🚚 ${tq}`);
     return;
   }
