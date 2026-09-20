@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170A階段｜人員管理簡潔版</title>
+<title>欣儒系統｜第170B階段｜人員管理正式架構</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1305,6 +1305,11 @@ body.wall-focus #wall .wallOrderNote{
 .empSettingsTitle{font-weight:900;margin-bottom:9px}.empMiniActions{display:flex;flex-wrap:wrap;gap:7px}#jobTemplateTabPanel{display:none!important}
 @media(max-width:700px){.employeeCompactName{font-size:17px}.employeeCompactMeta{font-size:12px}.empSettingsBtn{min-width:72px;padding:8px 10px}.empMiniActions .btn{flex:1 1 calc(50% - 8px);min-width:120px}.employeeBox{padding:14px}.employeeHead{align-items:flex-start;flex-wrap:wrap}}
 </style>
+
+<style id="stage170B-personnel-ui">
+#refreshEmployeesBtn{display:none!important}.permissionExplain170B{display:grid;gap:12px;font-size:14px;line-height:1.65;padding:6px 2px}.permissionExplain170B>div{padding:11px 13px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.empSettingGroup{padding:11px 0;border-top:1px solid var(--line)}.empSettingGroup:first-of-type{border-top:0;padding-top:2px}.empSettingGroupTitle{font-size:13px;font-weight:900;color:#475467;margin-bottom:8px}.empDangerNote{font-size:11px;color:#667085;line-height:1.5;margin-top:7px}.empSettingsPanel .empMiniActions .btn{min-height:40px}.empSettingsPanel .emp-delete{color:#b4232c;background:#fff1f1}.employeeCompactSummary .empSummaryChip:first-child{background:#eef4ff}
+@media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1786,14 +1791,12 @@ body.wall-focus #wall .wallOrderNote{
     </div>
 
     <div id="permissionTabPanel" style="display:none">
-      <div style="display:grid;gap:10px;font-size:14px;line-height:1.6;padding:4px 2px">
-        <div><b>系統管理層級</b>：管理員／主管／一般使用者，決定可管理系統到什麼程度。</div>
-        <div><b>人員類型</b>：正職員工／兼職工讀／臨時人員／外部合作人員，表示人員與公司的用工關係，不會自動改變系統管理層級。</div>
-        <div><b>職位</b>：決定主要工作，例如老闆、主管、櫃台、包裝、配送等；可套用對應的職位權限模板。</div>
-        <div><b>工作區</b>：決定主要工作的區域，例如總部、包裝部、貨運、帳務區。</div>
-        <div><b>系統權限</b>：決定可以進入哪些頁面，以及可以執行哪些功能；個別人員仍可另外調整。</div>
-        <div><b>通知設定</b>：只決定要收到哪些工作通知，不會改變職位、工作區或系統權限。</div>
-        <div><b>計薪</b>：獨立設定是否計薪，以及月薪／日薪／時薪／按趟／計件／其他等計薪方式。</div>
+      <div class="permissionExplain170B">
+        <div><b>頁面權限＝能看</b>：決定可以進入帳務中心、派工、包裝部、貨運部；公告與電視牆為共用頁面。</div>
+        <div><b>功能權限＝能做</b>：只有六大功能：派工作業、包裝作業、貨運配送、貨運管理、帳務作業、公告管理。</div>
+        <div><b>管理員</b>：擁有全部頁面與功能，並可管理人員、權限、帳號與狀態。</div>
+        <div><b>通知設定</b>：只控制收到哪些工作通知，不會自動增加頁面或功能權限。</div>
+        <div><b>身分依據</b>：系統以員工 user_id 為準；修改姓名、帳號或暱稱不會建立另一個人，也不應切斷歷史紀錄。</div>
       </div>
     </div>
 
@@ -3197,20 +3200,28 @@ function renderEmployeeList(list=[]){
         </div>
         <div style="display:grid;gap:8px;justify-items:end"><div class="employeeStatus ${statusClass}">● ${status}</div><button class="btn blue emp-settings empSettingsBtn" data-id="${esc(e.user_id)}">設定</button></div>
       </div>
-      <div class="empSettingsPanel" data-settings-for="${esc(e.user_id)}"><div class="empSettingsTitle">${esc(e.display_name||'未命名')}｜設定</div><div class="empMiniActions">
-        <button class="btn gray emp-name" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">姓名</button>
-        <button class="btn gray emp-account" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-login="${esc(e.login_name||'')}">帳號</button>
-        <button class="btn blue emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">密碼</button>
-        <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">管理員設定</button>
-        <button class="btn gray emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">系統權限</button>
-        <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">通知設定</button>
-        <button class="btn gray emp-person-type" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-value="${esc(e.person_type||'')}">人員類型</button>
-        <button class="btn gray emp-job-title" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-values="${esc(employeeJobTitles(e).join(','))}">職位資料</button>
-        <button class="btn gray emp-payroll" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-enabled="${e.payroll_enabled===true?'1':e.payroll_enabled===false?'0':''}" data-paytype="${esc(e.pay_type||'')}">計薪</button>
-        <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'暫時停用':(e.registration_status==='pending'?'核准':'重新啟用')}</button>
-        <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>永久刪除</button>
+      <div class="empSettingsPanel" data-settings-for="${esc(e.user_id)}"><div class="empSettingsTitle">${esc(e.display_name||'未命名')}｜設定</div>
+        <div class="empSettingGroup"><div class="empSettingGroupTitle">基本資料</div><div class="empMiniActions">
+          <button class="btn gray emp-name" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">正式姓名</button>
+          <button class="btn gray emp-account" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-login="${esc(e.login_name||'')}">登入帳號</button>
+          <button class="btn gray emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">重設密碼</button>
+        </div></div>
+        <div class="empSettingGroup"><div class="empSettingGroupTitle">系統權限</div><div class="empMiniActions">
+          <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">管理員設定</button>
+          <button class="btn blue emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">頁面／功能權限</button>
+        </div></div>
+        <div class="empSettingGroup"><div class="empSettingGroupTitle">通知設定</div><div class="empMiniActions">
+          <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">工作通知</button>
+        </div></div>
+        <div class="empSettingGroup"><div class="empSettingGroupTitle">帳號狀態</div><div class="empMiniActions">
+          <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'暫時停用':(e.registration_status==='pending'?'核准':'重新啟用')}</button>
+          <button class="btn gray emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>永久刪除</button>
+        </div><div class="empDangerNote">永久刪除僅供錯建／測試／重複帳號；正式離職狀態待資料層完成後啟用。</div></div>
+        <button class="emp-person-type" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-value="${esc(e.person_type||'')}" style="display:none"></button>
+        <button class="emp-job-title" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-values="${esc(employeeJobTitles(e).join(','))}" style="display:none"></button>
+        <button class="emp-payroll" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-enabled="${e.payroll_enabled===true?'1':e.payroll_enabled===false?'0':''}" data-paytype="${esc(e.pay_type||'')}" style="display:none"></button>
         <button class="emp-work" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-roles="${esc((e.work_roles||[]).join(','))}" style="display:none"></button>
-      </div></div>
+      </div>
     </div>`;
   }).join('');
   box.querySelectorAll('.emp-settings').forEach(el=>el.onclick=()=>{
@@ -3267,7 +3278,7 @@ async function loadEmployees(){
 }
 $('#employeeManageBtn').onclick=async()=>{if(currentProfile?.role!=='admin')return;setEmployeeMsg('');$('#employeeModal').classList.add('show');$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';await loadEmployees();};
 $('#closeEmployeeModal').onclick=()=>$('#employeeModal').classList.remove('show');
-$('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn gray';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';await loadEmployees();};
+$('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn gray';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='none';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';await loadEmployees();};
 $('#permissionTabBtn').onclick=()=>{$('#employeeTabPanel').style.display='none';$('#permissionTabPanel').style.display='block';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn gray';$('#permissionTabBtn').className='btn blue';$('#jobTemplateTabBtn').className='btn gray';};
 $('#jobTemplateTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='none';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='block';$('#employeeTabBtn').className='btn gray';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn blue';await loadJobTemplateManager();};
 $('#toggleCreateEmployeeBtn').onclick=()=>{const sec=$('#createEmployeeSection');const open=sec.style.display==='none'||!sec.style.display;sec.style.display=open?'block':'none';$('#employeeList').style.display=open?'none':'block';$('#refreshEmployeesBtn').style.display=open?'none':'inline-block';$('#toggleCreateEmployeeBtn').textContent=open?'收起新增員工':'＋ 新增員工';setEmployeeMsg('');};
@@ -3282,7 +3293,7 @@ $('#createEmployeeBtn').onclick=async()=>{
   if(!display_name||!login_name||!password){setEmployeeMsg('姓名、員工帳號、密碼都要填寫');return;}
   if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號請用英文字母、數字、點、底線或減號，2～30字');return;}
   const btn=$('#createEmployeeBtn');btn.disabled=true;btn.textContent='建立中…';
-  try{const core_work_roles=work_roles.filter(r=>r!=='liuhe');const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles:core_work_roles,feature_permissions,notification_permissions});if(work_roles.includes('liuhe')&&created?.user_id){await setEmployeeWorkRolesV32(created.user_id,work_roles);}$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='operator';$$('.new-work-role').forEach(x=>x.checked=['stall','packing'].includes(x.value));$$('.new-feature').forEach(x=>x.checked=false);$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
+  try{const core_work_roles=work_roles.filter(r=>r!=='liuhe');const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles:core_work_roles,feature_permissions,notification_permissions});if(work_roles.includes('liuhe')&&created?.user_id){await setEmployeeWorkRolesV32(created.user_id,work_roles);}$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='operator';$$('.new-work-role').forEach(x=>x.checked=['stall','packing'].includes(x.value));$$('.new-feature').forEach(x=>x.checked=false);$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='none';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
 };
 
 async function enforceActiveSession(){
@@ -3580,7 +3591,12 @@ function acctLedgerSheetHtml(d){
 function acctSafeName(s){return (s||'客戶').replace(/[\\/:*?"<>|]/g,'_')}
 function acctDownload(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function acctCsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
-$('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style></head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
+$('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){alert('超市帳務會在超市專用頁處理');return}const per=28,groups=[d.rows.slice(0,28),d.rows.slice(28,56),d.rows.slice(56,84)],heads=['日期','序','品名','數量','單價','金額'];const table=(group,gi)=>`<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${Array.from({length:per},(_,i)=>{const r=group[i],seq=gi*28+i+1;return r?`<tr><td class="${r.basketMark!==''?'basket':''}">${r.basketMark!==''?r.basketMark:r.date}</td><td>${seq}</td><td>${esc(r.name)}</td><td>${r.qty||''}</td><td>${r.price!==''?r.price:''}</td><td>${r.amount||0}</td></tr>`:`<tr><td></td><td>${seq}</td><td></td><td></td><td></td><td>0</td></tr>`}).join('')}</tbody></table>`;const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>@page{mso-page-orientation:landscape;margin:.18in .18in .18in .18in}body{font-family:"Microsoft JhengHei",Arial;font-size:9pt}.title{text-align:center;font-size:14pt;font-weight:bold}.meta{display:flex;justify-content:space-between;font-size:11pt;margin:5px 0}.cols{display:flex;gap:3px}.cols table{width:33.33%;border-collapse:collapse;table-layout:fixed}.cols th,.cols td{border:1px solid #222;height:18px;padding:1px 3px;white-space:nowrap;overflow:hidden}.cols th:nth-child(1),.cols td:nth-child(1){width:16%}.cols th:nth-child(2),.cols td:nth-child(2){width:8%}.cols th:nth-child(3),.cols td:nth-child(3){width:30%}.cols th:nth-child(4),.cols td:nth-child(4){width:10%}.cols th:nth-child(5),.cols td:nth-child(5){width:16%}.cols th:nth-child(6),.cols td:nth-child(6){width:20%}.basket{color:red;font-weight:bold}.total{text-align:right;font-size:11pt;font-weight:bold;margin-top:4px}</style>
+<style id="stage170B-personnel-ui">
+#refreshEmployeesBtn{display:none!important}.permissionExplain170B{display:grid;gap:12px;font-size:14px;line-height:1.65;padding:6px 2px}.permissionExplain170B>div{padding:11px 13px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.empSettingGroup{padding:11px 0;border-top:1px solid var(--line)}.empSettingGroup:first-of-type{border-top:0;padding-top:2px}.empSettingGroupTitle{font-size:13px;font-weight:900;color:#475467;margin-bottom:8px}.empDangerNote{font-size:11px;color:#667085;line-height:1.5;margin-top:7px}.empSettingsPanel .empMiniActions .btn{min-height:40px}.empSettingsPanel .emp-delete{color:#b4232c;background:#fff1f1}.employeeCompactSummary .empSummaryChip:first-child{background:#eef4ff}
+@media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
+</style>
+</head><body><div class="title">欣儒農產行 0900-767-577</div><div class="meta"><b>客戶：${esc(d.customer)}</b><span>期間：${esc(d.period||'')}</span></div><div class="cols">${groups.map(table).join('')}</div><div class="total">貨款總計：${acctMoney(d.goodsTotal)}　｜　🧺 ${esc(acctBasketText(d.baskets))}</div>
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
 <!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
@@ -3642,7 +3658,12 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
   #today .deliveryQueryMobileCard .freightSlipPhoto{display:block;width:100%!important;height:auto!important;max-height:340px!important;object-fit:contain!important;margin:0 auto}
   #today .deliveryQueryMobileCard a{overflow-wrap:anywhere}
 }
-</style></head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
+</style>
+<style id="stage170B-personnel-ui">
+#refreshEmployeesBtn{display:none!important}.permissionExplain170B{display:grid;gap:12px;font-size:14px;line-height:1.65;padding:6px 2px}.permissionExplain170B>div{padding:11px 13px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.empSettingGroup{padding:11px 0;border-top:1px solid var(--line)}.empSettingGroup:first-of-type{border-top:0;padding-top:2px}.empSettingGroupTitle{font-size:13px;font-weight:900;color:#475467;margin-bottom:8px}.empDangerNote{font-size:11px;color:#667085;line-height:1.5;margin-top:7px}.empSettingsPanel .empMiniActions .btn{min-height:40px}.empSettingsPanel .emp-delete{color:#b4232c;background:#fff1f1}.employeeCompactSummary .empSummaryChip:first-child{background:#eef4ff}
+@media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
+</style>
+</head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
 <div id="iosPullRefresh" style="position:fixed;left:50%;top:8px;transform:translate(-50%,-70px);z-index:99999;background:#fff;border:1px solid #dbe2ea;border-radius:999px;padding:8px 14px;box-shadow:0 4px 18px #0002;font-weight:900;transition:transform .16s ease;pointer-events:none">↓ 下拉更新</div>
