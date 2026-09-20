@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第171階段｜六大權限正式接管版</title>
+<title>欣儒系統｜第171A階段｜管理員功能獨立設定版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2056,8 +2056,8 @@ try{const savedQueryMode=localStorage.getItem('xinru_order_query_mode');if(saved
 let deliveryAssignmentBaselineReady=false; let knownMyAssignedJobIds=new Set();
 const ROLE_LABEL={admin:'管理員',operator:'主管',viewer:'一般使用者'};
 const isAdmin=()=>currentProfile?.role==='admin';
-/* 第171階段：舊 operator／主管不再是功能放行來源。功能一律由 v17 六大功能權限決定。 */
-const canWrite=()=>isAdmin()||['order.work','packing.work','delivery.work','delivery.manage','accounting.work','announcement.manage'].some(k=>v17Has(k));
+/* 第171A階段：舊 operator／主管不再是功能放行來源。功能一律由 v17 六大功能權限決定。 */
+const canWrite=()=>['order.work','packing.work','delivery.work','delivery.manage','accounting.work','announcement.manage'].some(k=>v17Has(k));
 const isSupervisor=()=>false;
 const isManager=()=>isAdmin();
 let canOperateStall=()=>v17Has('order.work');
@@ -2245,14 +2245,14 @@ function renderAll(){
   renderToday();
   applyRoleUI();
 }
-/* 第171階段：feature_permissions / work_roles 僅保留資料相容，不再參與頁面或功能放行。 */
+/* 第171A階段：feature_permissions / work_roles 僅保留資料相容，不再參與頁面或功能放行。 */
 function hasFeature(){return false}
 function isPackingOnly(){return false}
 function isDriverOnly(){return false}
 /* 第169C2階段：六大權限核心狀態。
    僅管理員自動全權限；一般帳號必須等 employee_permission_v17 載入後才放行。 */
 let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
-const v17Has=(k)=>isAdmin()||!!(v17Perm.configured&&v17Perm.funcs.includes(k));
+const v17Has=(k)=>!!(v17Perm.configured&&v17Perm.funcs.includes(k));
 async function v17LoadMine(){
   if(!currentUser)return;
   const uid=currentUser.id;
@@ -2354,7 +2354,7 @@ function renderWall(){
 
 const DELIVERY_STATUS_LABEL={waiting:'待接單',assigned:'待接單',accepted:'已接單',delivering:'配送中',completed:'已送達'};
 function deliveryStatusBadge(st){return `<span class="deliveryStatus ds-${esc(st)}">${esc(DELIVERY_STATUS_LABEL[st]||st)}</span>`}
-function currentIsDriver(){return !!currentProfile&&(isAdmin()||v17Has('delivery.work'))}
+function currentIsDriver(){return !!currentProfile&&v17Has('delivery.work')}
 function currentIsStall(){return v17Has('order.work')}
 function hasWorkRole(){return false}
 function hasNotification(kind){return Array.isArray(currentProfile?.notification_permissions)&&currentProfile.notification_permissions.includes(kind)}
@@ -2375,7 +2375,7 @@ function shouldHearFreightJob(job){
   if(assigned)return assigned===String(currentUser.id);
   return job.status==='waiting';
 }
-function canManageFreight(){return !!currentProfile&&(isAdmin()||v17Has('delivery.manage'))}
+function canManageFreight(){return !!currentProfile&&v17Has('delivery.manage')}
 function canViewFreight(){return canManageFreight()||currentIsDriver()}
 function deliveryNo(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `D${p(d.getMonth()+1)}${p(d.getDate())}-${Date.now().toString().slice(-6)}`}
 function deliveryDisplayName(name){return String(name||'').trim()}
@@ -4851,7 +4851,6 @@ async function v17EditPages(uid,name){
 }
 async function v17EditFunctions(uid,name){
  try{
-  if(v17EmployeeIsAdmin(uid)){setEmployeeMsg('管理員自動擁有全部功能權限。',true);return;}
   const row=await v17PermissionRow(uid);
   const allowed=V17_FUNC_OPTIONS.filter(([value])=>v17FuncPage(value)==='home'||row.pages.includes(v17FuncPage(value)));
   const current=row.funcs.filter(f=>v17FuncPage(f)==='home'||row.pages.includes(v17FuncPage(f)));
