@@ -1619,46 +1619,34 @@ body.wall-focus #wall .wallOrderNote{
 }
 </style>
 
-<style id="stage171j-history-mobile-exact-row">
-/* 第171J：手機歷史派工只保留 返回｜日期｜關鍵字，精準限制在可用寬度；桌機不變 */
+<style id="stage171k-mobile-history-only">
+/* 171K：只作用於手機 <=600px；桌機完全沿用原版 */
 @media (max-width:600px){
   #today .queryToolbar{
     display:grid!important;
-    grid-template-columns:40px minmax(145px,42%) minmax(0,1fr)!important;
-    column-gap:6px!important;
-    row-gap:0!important;
-    align-items:center!important;
-    width:100%!important;
-    max-width:100%!important;
-    box-sizing:border-box!important;
-    overflow:hidden!important;
+    grid-template-columns:42px minmax(0,1.35fr) minmax(0,1fr)!important;
+    gap:6px!important; align-items:center!important;
+    width:100%!important; max-width:100%!important;
+    box-sizing:border-box!important; overflow:hidden!important;
   }
   #todayBackHomeBtn{
-    grid-column:1!important;
-    width:40px!important;min-width:40px!important;max-width:40px!important;
-    height:42px!important;min-height:42px!important;
-    margin:0!important;padding:0!important;
-    box-sizing:border-box!important;
-    font-size:0!important;overflow:hidden!important;
+    grid-column:1!important; width:42px!important; min-width:42px!important; max-width:42px!important;
+    height:42px!important; min-height:42px!important; margin:0!important; padding:0!important;
+    box-sizing:border-box!important; font-size:0!important; overflow:hidden!important;
   }
-  #todayBackHomeBtn::before{content:'←'!important;font-size:23px!important;line-height:1!important}
+  #todayBackHomeBtn::before{content:'←'!important;font-size:24px!important;line-height:1!important}
   #departmentHistoryTitle,#queryPackingBtn,#queryDeliveryBtn{display:none!important}
-
-  #packingQueryControls,#deliveryQueryControls,#deliveryQueryControls>.actions{display:contents!important}
-  #packingQueryControls #queryDate,#deliveryQueryControls #deliveryQueryDate{grid-column:2!important}
-  #packingQueryControls #orderQueryKeyword,#deliveryQueryControls #deliveryQueryKeyword{grid-column:3!important}
-
-  #queryDate,#deliveryQueryDate,#orderQueryKeyword,#deliveryQueryKeyword{
-    width:100%!important;min-width:0!important;max-width:100%!important;
-    height:42px!important;min-height:42px!important;
-    margin:0!important;
-    box-sizing:border-box!important;
-    border-radius:12px!important;
-    font-size:14px!important;
+  #packingQueryControls{display:contents!important}
+  #packingQueryControls #queryDate{grid-column:2!important}
+  #packingQueryControls #orderQueryKeyword{grid-column:3!important}
+  #deliveryQueryControls{display:none!important}
+  #queryDate,#orderQueryKeyword{
+    width:100%!important; min-width:0!important; max-width:100%!important;
+    height:42px!important; min-height:42px!important; margin:0!important;
+    box-sizing:border-box!important; border-radius:12px!important; font-size:13px!important;
   }
-  #queryDate,#deliveryQueryDate{padding:4px 6px!important}
-  #orderQueryKeyword,#deliveryQueryKeyword{padding:4px 8px!important}
-  #deliveryQueryDriverFilters{grid-column:1 / -1!important;min-width:0!important;max-width:100%!important}
+  #queryDate{padding:4px 5px!important}
+  #orderQueryKeyword{padding:4px 7px!important}
 }
 </style>
 </head>
