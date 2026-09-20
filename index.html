@@ -1675,6 +1675,33 @@ body.wall-focus #wall .wallOrderNote{
   #stallFieldCard .fieldHistoryTopBtn{padding-left:10px!important;padding-right:10px!important}
 }
 </style>
+
+<style id="acctQuickV2Style">
+#acctStageWork .quickV2{margin-top:14px;border:1px solid #d7e0e8;border-radius:16px;background:#fff;padding:16px}
+#acctStageWork .quickV2Head{display:grid;grid-template-columns:160px minmax(220px,1.2fr) 170px 180px;gap:10px;align-items:end}
+#acctStageWork .quickV2 .field{min-width:0}
+#acctStageWork .quickV2 .label{display:block;font-weight:800;margin:0 0 5px}
+#acctStageWork .quickV2 .input{width:100%;box-sizing:border-box}
+#acctStageWork .quickV2Table{margin-top:14px;border:1px solid #dce4ea;border-radius:12px;overflow:hidden}
+#acctStageWork .quickV2Row{display:grid;grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 110px 90px 120px 48px;gap:7px;align-items:center;padding:7px 8px;border-bottom:1px solid #edf1f4}
+#acctStageWork .quickV2Row:last-child{border-bottom:0}
+#acctStageWork .quickV2Labels{font-weight:900;background:#f5f8fa}
+#acctStageWork .quickV2Row .input{text-align:left}
+#acctStageWork .quickV2Num{text-align:right;font-weight:900}
+#acctStageWork .quickV2Foot{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+#acctStageWork .quickV2Total{margin-left:auto;font-size:20px;font-weight:900}
+#acctStageWork .quickV2Pending{font-size:13px;color:#9a6700;font-weight:800}
+#acctStageWork .quickV2Record{padding:11px 12px;border:1px solid #dde5eb;border-radius:12px;background:#fff;margin-top:8px}
+#acctStageWork .quickV2RecordTop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media(max-width:760px){
+ #acctStageWork .quickV2{padding:10px}
+ #acctStageWork .quickV2Head{grid-template-columns:1fr 1fr}
+ #acctStageWork .quickV2Head .quickEntityField{grid-column:1/-1}
+ #acctStageWork .quickV2Table{overflow-x:auto}
+ #acctStageWork .quickV2Row{min-width:760px}
+ #acctStageWork .quickV2Total{width:100%;margin-left:0}
+}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -5076,7 +5103,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 
 <script>
-// 第172B階段：九入口架構延續172A；快速做帳脫離舊帳務介面；不修改登入/Auth。
+// 第172C階段：只新增快速做帳正式輸入第一版；不修改登入/Auth與其他穩定頁面。
 (function(){
   const defs={
     entry:{title:'✍️ 快速做帳',desc:'日常帳務由帳務人員自行輸入；已取消貨運派工自動進帳。',items:['開始快速做帳','今日做帳紀錄']},
@@ -5105,6 +5132,17 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     document.getElementById('acctStageBack')?.addEventListener('click',home);
   }
   document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>open(btn.dataset.acctManage)));
+  function qEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function qToday(){const d=new Date(Date.now()+8*3600000);return d.toISOString().slice(0,10)}
+  function qProfiles(){try{return JSON.parse(localStorage.getItem('xinru_customer_profiles_v1')||'[]')||[]}catch(e){return []}}
+  function qMoney(v){const n=Number(v);return Number.isFinite(n)?n:0}
+  function qRowHtml(i){return '<div class="quickV2Row" data-qrow="'+i+'"><b class="quickV2No">'+(i+1)+'</b><input class="input qName" placeholder="品名"><input class="input qKg" inputmode="decimal" placeholder="公斤"><input class="input qQty" inputmode="decimal" value="1" placeholder="數量"><input class="input qPrice" inputmode="decimal" placeholder="單價可空白"><input class="input qBasket" inputmode="numeric" placeholder="籃數"><div class="quickV2Num qAmount">—</div><button type="button" class="btn gray qRemove" title="移除此列">×</button></div>'}
+  function qRecalc(work){let total=0,pending=0;work.querySelectorAll('[data-qrow]').forEach(r=>{const qty=qMoney(r.querySelector('.qQty').value),pv=r.querySelector('.qPrice').value.trim(),price=qMoney(pv),amt=pv===''?null:qty*price;if(amt===null){pending++;r.querySelector('.qAmount').textContent='待補價'}else{total+=amt;r.querySelector('.qAmount').textContent='$'+Math.round(amt).toLocaleString('zh-TW')}});const t=work.querySelector('#quickV2Total');if(t)t.textContent='$'+Math.round(total).toLocaleString('zh-TW');const p=work.querySelector('#quickV2Pending');if(p)p.textContent=pending?'待補價格 '+pending+' 項':'價格已完整'}
+  function qAddRow(work,focus=true){const body=work.querySelector('#quickV2Rows');const i=body.querySelectorAll('[data-qrow]').length;body.insertAdjacentHTML('beforeend',qRowHtml(i));qBindRows(work);qRecalc(work);if(focus)body.lastElementChild.querySelector('.qName').focus()}
+  function qBindRows(work){work.querySelectorAll('[data-qrow]').forEach((r,i)=>{r.dataset.qrow=i;r.querySelector('.quickV2No').textContent=i+1;r.querySelectorAll('input').forEach(inp=>{if(inp.dataset.qbound)return;inp.dataset.qbound='1';inp.addEventListener('input',()=>qRecalc(work));inp.addEventListener('keydown',ev=>{if(ev.isComposing||ev.key!=='Enter')return;ev.preventDefault();const fields=[...r.querySelectorAll('input')],idx=fields.indexOf(inp);if(idx<fields.length-1)fields[idx+1].focus();else qAddRow(work,true)})});const rm=r.querySelector('.qRemove');if(!rm.dataset.qbound){rm.dataset.qbound='1';rm.onclick=()=>{if(work.querySelectorAll('[data-qrow]').length===1){r.querySelectorAll('input').forEach(x=>x.value=x.classList.contains('qQty')?'1':'');qRecalc(work);return}r.remove();qBindRows(work);qRecalc(work)}}})}
+  function renderQuickV2(work){const ps=qProfiles();const opts=ps.map(x=>'<option value="'+qEsc(x.name)+'"></option>').join('');work.innerHTML='<div class="quickV2"><div class="quickV2Head"><div class="field"><label class="label">日期</label><input id="quickV2Date" class="input" type="date" value="'+qToday()+'"></div><div class="field quickEntityField"><label class="label">往來對象／識別名稱＊</label><input id="quickV2Entity" class="input" list="quickV2EntityList" autocomplete="off" placeholder="例如：0299、仁和、長青"><datalist id="quickV2EntityList">'+opts+'</datalist></div><div class="field"><label class="label">對象類型</label><select id="quickV2Type" class="input"><option>客戶</option><option>超市</option><option>中盤</option><option>產農</option><option>廠商</option></select></div><div class="field"><label class="label">備註</label><input id="quickV2Note" class="input" placeholder="可不填"></div></div><div class="quickV2Table"><div class="quickV2Row quickV2Labels"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>單價</span><span>籃數</span><span>金額</span><span></span></div><div id="quickV2Rows">'+qRowHtml(0)+'</div></div><div class="quickV2Foot"><button id="quickV2Add" type="button" class="btn blue">＋ 新增一列</button><span id="quickV2Pending" class="quickV2Pending">待補價格 1 項</span><button id="quickV2Clear" type="button" class="btn gray">清空</button><button id="quickV2Save" type="button" class="btn primary">💾 儲存本筆</button><div class="quickV2Total">本次金額 <span id="quickV2Total">$0</span></div></div><div class="helper" style="display:block!important;margin-top:10px">單價可以空白後補；籃數只有實際有籃子時才輸入。這裡不讀取貨運派工資料。</div></div>';qBindRows(work);qRecalc(work);const ent=work.querySelector('#quickV2Entity');ent.addEventListener('change',()=>{const x=qProfiles().find(v=>String(v.name).trim()===ent.value.trim());if(x&&x.type){const sel=work.querySelector('#quickV2Type');if([...sel.options].some(o=>o.value===x.type))sel.value=x.type}});work.querySelector('#quickV2Add').onclick=()=>qAddRow(work,true);work.querySelector('#quickV2Clear').onclick=()=>{if(!confirm('確定清空目前尚未儲存的內容嗎？'))return;renderQuickV2(work)};work.querySelector('#quickV2Save').onclick=()=>qSave(work)}
+  async function qSave(work){const entity=work.querySelector('#quickV2Entity').value.trim(),date=work.querySelector('#quickV2Date').value,type=work.querySelector('#quickV2Type').value;if(!entity){alert('請輸入往來對象／識別名稱');work.querySelector('#quickV2Entity').focus();return}const items=[];let invalid=false;work.querySelectorAll('[data-qrow]').forEach(r=>{const name=r.querySelector('.qName').value.trim(),kgv=r.querySelector('.qKg').value.trim(),qtyv=r.querySelector('.qQty').value.trim(),pv=r.querySelector('.qPrice').value.trim(),bv=r.querySelector('.qBasket').value.trim();if(!name&&!kgv&&!pv&&!bv)return;const qty=qMoney(qtyv||1);if(!name||!(qty>0)){invalid=true;return}items.push({name,kg:kgv===''?'':qMoney(kgv),qty,price:pv===''?'':qMoney(pv),basket:bv===''?'':qMoney(bv),amount:pv===''?'':qty*qMoney(pv)})});if(invalid||!items.length){alert('請至少輸入一筆完整品名與數量');return}const total=items.reduce((s,x)=>s+(x.amount===''?0:Number(x.amount)||0),0),record={id:Date.now(),date,customer:entity,type,mode:'quick_v2',txnType:'quick_entry',txnTypeLabel:'快速做帳',items,goods:total,total,paid:0,due:total,note:work.querySelector('#quickV2Note').value.trim(),status:'active',createdAt:new Date().toISOString(),audit:[{action:'create',at:new Date().toISOString(),by:(window.currentProfile?.display_name||window.currentUser?.email||'')}]};const rows=(typeof acctRecords==='function'?acctRecords():[]).slice();rows.unshift(record);localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));if(typeof acctCloudRecords!=='undefined'&&acctCloudRecords!==null)acctCloudRecords=rows;try{if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');await saveAccountingCloud(record);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();alert('已儲存');renderQuickV2(work);work.querySelector('#quickV2Entity').value=entity;work.querySelector('#quickV2Type').value=type}catch(e){alert('本機已暫存，但雲端同步失敗：'+e.message)}}
+  function renderQuickToday(work){const day=qToday(),rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.mode==='quick_v2'&&x.date===day&&x.status!=='void');work.innerHTML='<div class="quickV2"><b>📋 今日做帳紀錄｜'+day+'</b><div class="helper" style="display:block!important;margin-top:5px">只顯示新快速做帳已儲存紀錄；正式資料不提供刪除。</div><div id="quickV2TodayList">'+(rows.length?rows.map(r=>'<div class="quickV2Record"><div class="quickV2RecordTop"><b>'+qEsc(r.customer)+'｜'+qEsc(r.type||'')+'</b><b>$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b></div><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name+'×'+x.qty+(x.price===''?'（待補價）':'')).join('、'))+'</div></div>').join(''):'<div class="empty" style="padding:18px">今天尚無快速做帳紀錄</div>')+'</div></div>'}
   stage.addEventListener('click',e=>{
     const b=e.target.closest('[data-acct-stage-action]');if(!b)return;
     const a=b.dataset.acctStageAction, work=document.getElementById('acctStageWork');if(!work)return;
@@ -5112,10 +5150,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       // 第172B階段：新快速做帳與舊帳務介面完全分離；舊區保留底層程式但不再顯示。
       const legacy=document.querySelector('.acctLegacyArea');
       if(legacy) legacy.style.setProperty('display','none');
-      work.innerHTML='<div class="acctWorkPlaceholder"><b>✍️ 快速做帳</b><div class="helper">新快速做帳工作區。後續依確認後的帳表規格逐步接入；不再開啟舊帳務介面。</div></div>';
+      renderQuickV2(work);
       work.scrollIntoView({behavior:'smooth',block:'start'});
       return;
     }
+    if(a==='今日做帳紀錄'){renderQuickToday(work);return;}
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
   });
   home();
