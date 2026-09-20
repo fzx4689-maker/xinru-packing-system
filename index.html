@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170R階段｜帳號狀態說明排版修正版</title>
+<title>欣儒系統｜第170S階段｜說明頁工具列狀態修正版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1511,6 +1511,13 @@ body.wall-focus #wall .wallOrderNote{
  .empSettingGroup:has(.empDangerNote) .empDangerNote{
    font-size:10px!important;
  }
+}
+</style>
+
+
+<style id="stage170S-help-toolbar-state">
+#employeeModal .employeeHead.helpMode #toggleCreateEmployeeBtn{
+  display:none!important;
 }
 </style>
 
@@ -3524,7 +3531,7 @@ $('#permissionTabBtn').onclick=()=>{
   $('#permissionTabBtn').title='返回人員管理';
   $('#permissionTabBtn').setAttribute('aria-label','返回人員管理');
   $('#permissionTabBtn').className='btn blue';
-  $('#toggleCreateEmployeeBtn').style.display='none';
+  $('#employeeModal .employeeHead').classList.add('helpMode');
  }else{
   $('#permissionTabPanel').style.display='none';
   $('#employeeTabPanel').style.display='block';
@@ -3533,7 +3540,7 @@ $('#permissionTabBtn').onclick=()=>{
   $('#permissionTabBtn').title='權限說明';
   $('#permissionTabBtn').setAttribute('aria-label','權限說明');
   $('#permissionTabBtn').className='btn gray';
-  $('#toggleCreateEmployeeBtn').style.display='flex';
+  $('#employeeModal .employeeHead').classList.remove('helpMode');
  }
  $('#employeeTabBtn').className='btn gray';
  $('#jobTemplateTabBtn').className='btn gray';
