@@ -1576,6 +1576,70 @@ body.wall-focus #wall .wallOrderNote{
   #homeDoneToggleBtn::before{content:'🔍';font-size:20px!important;line-height:1!important}
 }
 </style>
+<style id="stage171M-unified-history-toolbar">
+/* 第171M：三個歷史頁共用唯一工具列。電腦／手機皆固定第一排：←｜日期｜關鍵字。 */
+.unifiedHistoryToolbar{
+  display:grid!important;
+  grid-template-columns:46px 220px minmax(240px,420px)!important;
+  gap:8px!important;
+  align-items:center!important;
+  justify-content:start!important;
+  width:100%!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+  margin:0 0 12px!important;
+  padding:0!important;
+}
+.unifiedHistoryToolbar .unifiedHistoryBack{
+  width:46px!important;min-width:46px!important;max-width:46px!important;
+  height:44px!important;min-height:44px!important;
+  margin:0!important;padding:0!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  box-sizing:border-box!important;font-size:22px!important;line-height:1!important;
+  white-space:nowrap!important;
+}
+.unifiedHistoryToolbar .unifiedHistoryDate,
+.unifiedHistoryToolbar .unifiedHistoryKeyword{
+  width:100%!important;min-width:0!important;max-width:none!important;
+  height:44px!important;min-height:44px!important;
+  margin:0!important;box-sizing:border-box!important;
+}
+.unifiedHistoryToolbar .unifiedHistoryKeyword{padding-left:12px!important;padding-right:10px!important}
+.unifiedHistoryToolbar .homeDoneDateBox{
+  width:100%!important;min-width:0!important;max-width:none!important;height:44px!important;margin:0!important;
+}
+.unifiedHistoryToolbar .homeDoneDateBox #homeDoneDateFilter{
+  width:100%!important;min-width:0!important;max-width:none!important;height:44px!important;min-height:44px!important;margin:0!important;
+}
+#today .unifiedHistoryControls{display:contents!important}
+#today #deliveryQueryControls{display:none!important}
+#homeDoneWrap .unifiedHistoryToolbar + #homeDoneList,
+#freightHistoryPanel .unifiedHistoryToolbar + #freightHistoryList{margin-top:0!important}
+@media(max-width:600px){
+  .unifiedHistoryToolbar{
+    grid-template-columns:40px minmax(132px,42%) minmax(0,1fr)!important;
+    gap:6px!important;
+    width:100%!important;max-width:100%!important;
+    overflow:hidden!important;
+    margin-bottom:10px!important;
+  }
+  .unifiedHistoryToolbar .unifiedHistoryBack{
+    width:40px!important;min-width:40px!important;max-width:40px!important;
+    height:42px!important;min-height:42px!important;
+    font-size:20px!important;border-radius:10px!important;
+  }
+  .unifiedHistoryToolbar .unifiedHistoryDate,
+  .unifiedHistoryToolbar .unifiedHistoryKeyword,
+  .unifiedHistoryToolbar .homeDoneDateBox,
+  .unifiedHistoryToolbar .homeDoneDateBox #homeDoneDateFilter{
+    height:42px!important;min-height:42px!important;min-width:0!important;max-width:none!important;
+    box-sizing:border-box!important;
+  }
+  .unifiedHistoryToolbar .unifiedHistoryDate,
+  .unifiedHistoryToolbar .homeDoneDateBox #homeDoneDateFilter{padding-left:5px!important;padding-right:3px!important;font-size:13px!important}
+  .unifiedHistoryToolbar .unifiedHistoryKeyword{padding:6px 8px!important;font-size:13px!important}
+}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1623,7 +1687,7 @@ body.wall-focus #wall .wallOrderNote{
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
-        <div id="homeDoneWrap" style="display:none;margin-top:0"><div class="homeQueryHead"><button type="button" class="btn gray" id="homeDoneBackBtn">← 返回公告</button></div><div class="actions homeDoneSearchRow" style="margin:10px 0"><span class="homeDoneDateBox"><input id="homeDoneDateFilter" class="input" type="date" required aria-label="日期"><span class="homeDoneDateHint">日期</span></span><input id="homeDoneTextFilter" class="input" placeholder="關鍵字搜尋"><button type="button" class="btn gray" id="homeDoneClearFilter">清除</button></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div><div class="homeDoneMoreRow"><button type="button" class="btn gray" id="homeDoneLoadMore" style="display:none">載入更多</button></div></div>
+        <div id="homeDoneWrap" style="display:none;margin-top:0"><div class="unifiedHistoryToolbar"><button type="button" class="btn gray unifiedHistoryBack" id="homeDoneBackBtn" aria-label="返回公告">←</button><span class="homeDoneDateBox unifiedHistoryDate"><input id="homeDoneDateFilter" class="input" type="date" required aria-label="日期"><span class="homeDoneDateHint">日期</span></span><input id="homeDoneTextFilter" class="input unifiedHistoryKeyword" placeholder="🔍 關鍵字"></div><div id="homeDoneList"><div class="empty">目前沒有完成紀錄</div></div><div class="homeDoneMoreRow"><button type="button" class="btn gray" id="homeDoneLoadMore" style="display:none">載入更多</button></div></div>
         
       </div>
     </section>
@@ -1769,7 +1833,7 @@ body.wall-focus #wall .wallOrderNote{
 
       <div id="stallTransCard" class="card"><h2 style="font-size:19px">音譯測試</h2><div class="helper">輸入中文菜名，先看泰文字音譯。</div><div class="actions"><input id="transInput" class="input" style="flex:1" placeholder="例如：白蘿蔔"><button id="transBtn" class="btn blue">測試</button></div><div id="transResult" style="margin-top:12px;font-weight:800"></div></div>
       <div id="stallManageCard" class="card" style="display:none"><h2 id="stallManageTitle" style="font-size:19px">📦 包裝訂單</h2><div class="helper">原始派工單的修改／刪除只在派工頁操作；包裝部與貨運部只負責接單執行。</div><div id="stallOrders"></div></div>
-      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div class="fieldReportTitleRow fieldReportMainPart"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" onclick="setFieldReportHistoryLevel(true)">🔍 歷史回報</button></div><div class="fieldReportMainPart helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools fieldReportMainPart"><details class="stallFieldQuick"><summary>💬 現場詢問<span id="stallQuestionBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車回報公斤<span id="stallFreightBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨<span id="stallShortageBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistorySecondLevel" style="display:none"><div class="fieldHistoryLevelTop"><button type="button" class="btn gray" onclick="setFieldReportHistoryLevel(false)">← 返回現場回報</button></div><div class="fieldHistoryFilters"><input id="freightHistoryDate" class="input" type="date" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input" placeholder="搜尋客戶／品項／回報人" oninput="renderFreightHistory()"><button type="button" class="btn gray" onclick="clearFreightHistory()">清除</button></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div>
+      <div id="stallFieldCard" class="card fieldReportCard" style="display:none"><div class="fieldReportHead"><div><div class="fieldReportTitleRow fieldReportMainPart"><h2>📡 現場回報</h2><button type="button" class="btn gray fieldHistoryTopBtn" onclick="setFieldReportHistoryLevel(true)">🔍 歷史回報</button></div><div class="fieldReportMainPart helper">沿用既有現場回報資料與未讀邏輯；詢問／寄車／缺貨三區不重寫。</div></div></div><div class="stallFieldQuickTools fieldReportMainPart"><details class="stallFieldQuick"><summary>💬 現場詢問<span id="stallQuestionBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="fieldQuestionOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有詢問訊息</div></div></div></details><details class="stallFieldQuick"><summary>📦 寄車回報公斤<span id="stallFreightBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="freightOfficeList" class="fieldReportGrid"><div class="empty">今天目前沒有寄車訊息</div></div></div></details><details class="stallFieldQuick"><summary>⚠️ 缺貨回報／催貨<span id="stallShortageBadge" class="navNoticeBadge"></span></summary><div class="stallFieldToolBody"><div id="shortageManageList" class="fieldReportGrid"><div class="empty">今天目前沒有缺貨訊息</div></div></div></details></div><div id="freightHistoryPanel" class="fieldHistoryPanel fieldHistorySecondLevel" style="display:none"><div class="unifiedHistoryToolbar"><button type="button" class="btn gray unifiedHistoryBack" onclick="setFieldReportHistoryLevel(false)" aria-label="返回現場回報">←</button><input id="freightHistoryDate" class="input unifiedHistoryDate" type="date" aria-label="日期" oninput="renderFreightHistory()"><input id="freightHistoryKeyword" class="input unifiedHistoryKeyword" placeholder="🔍 關鍵字" oninput="renderFreightHistory()"></div><div id="freightHistoryList" class="fieldReportGrid"></div></div></div>
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
@@ -1823,21 +1887,13 @@ body.wall-focus #wall .wallOrderNote{
     </section>
 
     <section id="today" class="panel">
-      <div class="queryToolbar">
-        <button type="button" id="todayBackHomeBtn" class="btn gray" aria-label="返回">←</button>
-        <h2 id="departmentHistoryTitle" style="margin:0">🔎 歷史派工單</h2>
-        <button id="queryPackingBtn" class="btn primary queryModeBtn" type="button" style="display:none!important">📦 包裝部</button>
-        <button id="queryDeliveryBtn" class="btn gray queryModeBtn" type="button" style="display:none!important">🚚 貨運部</button>
-        <div id="packingQueryControls" class="actions" style="margin:12px 0;flex-wrap:wrap">
-          <input id="queryDate" class="input" type="date" style="max-width:220px"><input id="orderQueryKeyword" class="input" placeholder="🔍 關鍵字" style="max-width:300px">
-        </div>
-        <div id="deliveryQueryControls" style="margin:12px 0;display:none">
-          <div class="actions" style="flex-wrap:wrap">
-            <input id="deliveryQueryDate" class="input" type="date" style="max-width:220px"><input id="deliveryQueryKeyword" class="input" placeholder="🔎 關鍵字搜尋（一個字即可）" style="max-width:300px">
-          </div>
-          <div id="deliveryQueryDriverFilters" class="queryDriverFilters"></div>
+      <div class="queryToolbar unifiedHistoryToolbar">
+        <button type="button" id="todayBackHomeBtn" class="btn gray unifiedHistoryBack" aria-label="返回">←</button>
+        <div id="packingQueryControls" class="unifiedHistoryControls">
+          <input id="queryDate" class="input unifiedHistoryDate" type="date" aria-label="日期"><input id="orderQueryKeyword" class="input unifiedHistoryKeyword" placeholder="🔍 關鍵字">
         </div>
       </div>
+      <div id="deliveryQueryControls" style="display:none!important" aria-hidden="true"><input id="deliveryQueryDate" type="date"><input id="deliveryQueryKeyword"><div id="deliveryQueryDriverFilters"></div></div>
       <div id="todayBody"></div>
     </section>
 
@@ -2912,18 +2968,13 @@ async function loadDeliveryHistoryForDate(date,kw=''){
 }
 function renderToday(){
   const b=$('#todayBody');if(!b)return;
-  const historyTitle=$('#departmentHistoryTitle');
-  if(historyTitle)historyTitle.textContent=orderQueryMode==='delivery'?'🚚 貨運部｜歷史派工單':'📦 包裝部｜歷史派工單';
   const historyBack=$('#todayBackHomeBtn');
   if(historyBack)historyBack.textContent='←';
   const q=$('#queryDate')?.value||taipeiDate();
-  const pb=$('#queryPackingBtn'),db=$('#queryDeliveryBtn');
   const pc=$('#packingQueryControls'),dc=$('#deliveryQueryControls');
-  if(pb)pb.className='btn '+(orderQueryMode==='packing'?'primary':'gray');
-  if(db)db.className='btn '+(orderQueryMode==='delivery'?'primary':'gray');
   // 第95階段：包裝／貨運共用同一組「日期＋關鍵字」查詢列。
   // 舊貨運查詢控制項保留在 DOM 但永遠隱藏，避免影響既有初始化與登入流程。
-  if(pc)pc.style.display='flex';
+  if(pc)pc.style.display='contents';
   if(dc)dc.style.setProperty('display','none','important');
   if(orderQueryMode==='delivery'){
     const tq=$('#queryDate')?.value||taipeiDate();
@@ -3009,8 +3060,6 @@ function openDepartmentHistory(mode){
   orderQueryMode=mode;
   departmentHistoryReturnTab=mode;
   try{localStorage.setItem('xinru_order_query_mode',mode)}catch(e){}
-  const title=$('#departmentHistoryTitle');
-  if(title)title.textContent=mode==='packing'?'📦 包裝部｜歷史派工單':'🚚 貨運部｜歷史派工單';
   const back=$('#todayBackHomeBtn');
   if(back)back.textContent='←';
   activateTab('today',{save:true});
@@ -3900,73 +3949,7 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 #refreshEmployeesBtn{display:none!important}.permissionExplain170B{display:grid;gap:12px;font-size:14px;line-height:1.65;padding:6px 2px}.permissionExplain170B>div{padding:11px 13px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.empSettingGroup{padding:11px 0;border-top:1px solid var(--line)}.empSettingGroup:first-of-type{border-top:0;padding-top:2px}.empSettingGroupTitle{font-size:13px;font-weight:900;color:#475467;margin-bottom:8px}.empDangerNote{font-size:11px;color:#667085;line-height:1.5;margin-top:7px}.empSettingsPanel .empMiniActions .btn{min-height:40px}.empSettingsPanel .emp-delete{color:#b4232c;background:#fff1f1}.employeeCompactSummary .empSummaryChip:first-child{background:#eef4ff}
 @media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
 </style>
-<style id="stage171L-history-unified">
 
-/* 第171L階段：包裝／貨運歷史派工查詢列統一。桌機與手機都只顯示 ← + 日期 + 關鍵字；不動查詢邏輯/Auth。 */
-#today .queryToolbar{
-  display:grid!important;
-  grid-template-columns:46px minmax(0,650px)!important;
-  gap:8px!important;
-  align-items:center!important;
-  justify-content:start!important;
-  width:100%!important;
-  max-width:100%!important;
-  box-sizing:border-box!important;
-  flex-wrap:unset!important;
-}
-#today #departmentHistoryTitle,
-#today #queryPackingBtn,
-#today #queryDeliveryBtn{display:none!important}
-#today #todayBackHomeBtn{
-  grid-column:1!important;
-  width:46px!important;min-width:46px!important;max-width:46px!important;
-  height:44px!important;min-height:44px!important;
-  padding:0!important;margin:0!important;
-  box-sizing:border-box!important;
-  display:flex!important;align-items:center!important;justify-content:center!important;
-  font-size:22px!important;line-height:1!important;
-}
-#today #packingQueryControls{
-  grid-column:2!important;
-  display:grid!important;
-  grid-template-columns:220px minmax(240px,420px)!important;
-  gap:8px!important;
-  align-items:center!important;
-  width:100%!important;max-width:650px!important;
-  min-width:0!important;margin:0!important;
-  flex:unset!important;
-}
-#today #packingQueryControls #queryDate,
-#today #packingQueryControls #orderQueryKeyword{
-  width:100%!important;max-width:none!important;min-width:0!important;
-  height:44px!important;min-height:44px!important;
-  margin:0!important;box-sizing:border-box!important;
-}
-#today #deliveryQueryControls{display:none!important}
-@media(max-width:600px){
-  #today .queryToolbar{
-    grid-template-columns:40px minmax(0,1fr)!important;
-    gap:6px!important;
-    padding:0!important;
-  }
-  #today #todayBackHomeBtn{
-    width:40px!important;min-width:40px!important;max-width:40px!important;
-    height:42px!important;min-height:42px!important;
-    font-size:20px!important;border-radius:10px!important;
-  }
-  #today #packingQueryControls{
-    grid-template-columns:minmax(118px,42%) minmax(0,1fr)!important;
-    gap:6px!important;
-    width:100%!important;max-width:100%!important;min-width:0!important;
-  }
-  #today #packingQueryControls #queryDate,
-  #today #packingQueryControls #orderQueryKeyword{
-    height:42px!important;min-height:42px!important;
-    padding:6px 8px!important;font-size:13px!important;
-  }
-  #today #packingQueryControls #queryDate{padding-left:5px!important;padding-right:3px!important}
-}
-</style>
 </head><body>${acctLedgerSheetHtml(d)}<script>onload=()=>print()<\/script>
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 \n
