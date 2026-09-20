@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第171A階段｜管理員功能獨立設定版</title>
+<title>欣儒系統｜第171B階段｜通知摘要大分頁排序版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2056,7 +2056,7 @@ try{const savedQueryMode=localStorage.getItem('xinru_order_query_mode');if(saved
 let deliveryAssignmentBaselineReady=false; let knownMyAssignedJobIds=new Set();
 const ROLE_LABEL={admin:'管理員',operator:'主管',viewer:'一般使用者'};
 const isAdmin=()=>currentProfile?.role==='admin';
-/* 第171A階段：舊 operator／主管不再是功能放行來源。功能一律由 v17 六大功能權限決定。 */
+/* 第171B階段：舊 operator／主管不再是功能放行來源。功能一律由 v17 六大功能權限決定。 */
 const canWrite=()=>['order.work','packing.work','delivery.work','delivery.manage','accounting.work','announcement.manage'].some(k=>v17Has(k));
 const isSupervisor=()=>false;
 const isManager=()=>isAdmin();
@@ -2245,7 +2245,7 @@ function renderAll(){
   renderToday();
   applyRoleUI();
 }
-/* 第171A階段：feature_permissions / work_roles 僅保留資料相容，不再參與頁面或功能放行。 */
+/* 第171B階段：feature_permissions / work_roles 僅保留資料相容，不再參與頁面或功能放行。 */
 function hasFeature(){return false}
 function isPackingOnly(){return false}
 function isDriverOnly(){return false}
@@ -3398,12 +3398,14 @@ function renderEmployeeList(list=[]){
     const status=e.registration_status==='pending'&&!e.is_active?'待審核':e.is_active?'使用中':'暫時停用';
     const statusClass=e.is_active?'on':'off';
     const pages=(e.page_permissions||[]).map(x=>({stall:'派工',packing:'包裝',delivery:'貨運',accounting:'帳務'}[x]||x));
-    const notices=(e.notification_permissions||[]).map(x=>({packing:'包裝通知',delivery:'貨運通知',accounting:'帳務通知'}[x]||x));
+    const noticeOrder=['accounting','packing','delivery'];
+    const noticeList=noticeOrder.filter(x=>(e.notification_permissions||[]).includes(x));
+    const notices=noticeList.map(x=>({accounting:'帳務通知',packing:'包裝通知',delivery:'貨運通知'}[x]||x));
     return `<div class="employeeCompact">
       <div class="employeeCompactTop">
         <div class="employeeCompactMain"><div class="employeeCompactName">${esc(e.display_name||'未命名')}</div>
           <div class="employeeCompactMeta">${e.login_name?esc(e.login_name):'尚未設定'}　｜　${e.role==='admin'?'管理員':'一般使用者'}</div>
-          <div class="employeeCompactSummary">${notices.length?`<span class="empSummaryChip empNoticeIcons" title="${esc(notices.join('／'))}">${(e.notification_permissions||[]).map(x=>({packing:'📦',delivery:'🚚',accounting:'💰'}[x]||'🔔')).join(' ')}</span>`:''}</div>
+          <div class="employeeCompactSummary">${notices.length?`<span class="empSummaryChip empNoticeIcons" title="${esc(notices.join('／'))}">${noticeList.map(x=>({accounting:'💰',packing:'📦',delivery:'🚚'}[x]||'🔔')).join(' ')}</span>`:''}</div>
         </div>
         <div style="display:grid;gap:8px;justify-items:end"><div class="employeeStatus ${statusClass}">● ${status}</div><button class="btn blue emp-settings empSettingsBtn" data-id="${esc(e.user_id)}" title="設定" aria-label="設定">⚙️</button></div>
       </div>
