@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170C階段｜人員管理手機精簡版</title>
+<title>欣儒系統｜第170E階段｜人員管理三裝置正式版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1347,6 +1347,99 @@ body.wall-focus #wall .wallOrderNote{
 }
 </style>
 
+
+<style id="stage170D-personnel-one-line">
+/* 右上角工具列：＋ ? × 同一排 */
+.employeeHead{padding-right:150px!important;position:relative!important;min-height:52px!important}
+#closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
+.employeeTopActions{position:absolute!important;right:54px!important;top:0!important;margin:0!important;display:flex!important;gap:6px!important;z-index:4}
+#permissionTabBtn{width:46px!important;height:46px!important;min-width:46px!important}
+#toggleCreateEmployeeBtn{position:absolute!important;right:108px!important;top:0!important;margin:0!important;width:46px!important;height:46px!important;z-index:5}
+#employeeTabPanel{position:relative!important;padding-top:0!important}
+#employeeMsg{margin-top:8px!important}
+.empSettingsPanel.open{padding:12px 14px!important}
+.empSettingGroup{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 0!important}
+.empSettingGroupTitle{flex:0 0 76px!important;margin:0!important;white-space:nowrap!important}
+.empMiniActions{display:flex!important;flex-wrap:wrap!important;gap:7px!important;align-items:center!important}
+@media(max-width:700px){
+ .employeeBox{position:relative!important}
+ .employeeHead{padding-right:148px!important;display:block!important;min-height:54px!important}
+ .employeeHead h2{font-size:22px!important;line-height:46px!important;white-space:nowrap!important}
+ .employeeHead .employeeCount{display:none!important}
+ #closeEmployeeModal{right:0!important;top:0!important}
+ .employeeTopActions{right:54px!important;top:0!important}
+ #toggleCreateEmployeeBtn{right:108px!important;top:0!important}
+ #employeeTabPanel{padding-top:0!important}
+ #employeeMsg{font-size:13px!important;margin:4px 0 6px!important}
+ .empSettingsPanel.open{padding:10px!important}
+ .empSettingsTitle{font-size:17px!important;padding-bottom:8px!important}
+ .empSettingGroup{display:grid!important;grid-template-columns:72px minmax(0,1fr)!important;gap:6px!important;padding:7px 0!important}
+ .empSettingGroupTitle{font-size:14px!important;flex:none!important}
+ .empMiniActions{display:flex!important;flex-wrap:nowrap!important;gap:5px!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch;padding-bottom:2px!important}
+ .empMiniActions .btn{flex:0 0 auto!important;white-space:nowrap!important;padding:8px 9px!important;font-size:13px!important}
+ .empSettingHint{grid-column:2!important;font-size:11px!important;margin-top:0!important}
+}
+</style>
+
+
+<style id="stage170E-personnel-device-layout">
+.empSettingsPanel.open{display:block!important;background:#fff!important;border:3px solid #2563eb!important;border-radius:18px!important;box-shadow:0 10px 26px rgba(37,99,235,.18)!important}
+.empSettingGroup{border-bottom:1px solid #e5e7eb!important}
+.empSettingGroup:last-of-type{border-bottom:0!important}
+.empMiniActions{display:flex!important;flex-wrap:nowrap!important;gap:7px!important;align-items:center!important}
+.empMiniActions .btn{flex:0 0 auto!important;white-space:nowrap!important}
+.employeeTopActions{display:flex!important;gap:6px!important}
+#employeeTabBtn,#jobTemplateTabBtn{display:none!important}
+#toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:46px!important;height:46px!important;min-width:46px!important;padding:0!important;border-radius:14px!important;font-size:24px!important;font-weight:900!important}
+@media(min-width:1100px){
+ .employeeBox{width:min(980px,94vw)!important;padding:22px!important}
+ .employeeHead{position:relative!important;padding-right:160px!important;min-height:50px!important}
+ .employeeTopActions{position:absolute!important;right:54px!important;top:0!important;margin:0!important}
+ #closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
+ .empSettingGroup{display:grid!important;grid-template-columns:110px 1fr!important;gap:12px!important;align-items:center!important;padding:12px 0!important}
+ .empSettingGroupTitle{margin:0!important;font-size:14px!important}
+ .empSettingsPanel.open{padding:16px 18px!important}
+}
+@media(min-width:701px) and (max-width:1099px){
+ .employeeBox{width:min(860px,96vw)!important;padding:18px!important}
+ .employeeHead{position:relative!important;padding-right:154px!important;min-height:50px!important}
+ .employeeTopActions{position:absolute!important;right:52px!important;top:0!important;margin:0!important}
+ #closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
+ .empSettingGroup{display:grid!important;grid-template-columns:92px minmax(0,1fr)!important;gap:9px!important;align-items:center!important;padding:10px 0!important}
+ .empSettingGroupTitle{margin:0!important;font-size:14px!important}
+ .empMiniActions{overflow-x:auto!important}
+ .empSettingsPanel.open{padding:14px!important}
+}
+@media(max-width:700px){
+ .employeeModal{padding:0!important;align-items:stretch!important}
+ .employeeBox{width:100%!important;max-height:100vh!important;border-radius:0!important;padding:12px 10px!important}
+ .employeeHead{position:relative!important;display:block!important;padding-right:150px!important;min-height:50px!important;margin-bottom:6px!important}
+ .employeeHead h2{font-size:20px!important;line-height:44px!important;margin:0!important;white-space:nowrap!important}
+ .employeeHead .employeeCount{display:none!important}
+ .employeeTopActions{position:absolute!important;right:50px!important;top:0!important;margin:0!important}
+ #closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
+ #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:42px!important;height:42px!important;min-width:42px!important;font-size:22px!important}
+ .employeeCompact{padding:9px 2px!important}
+ .employeeCompactTop{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 6px!important;align-items:center!important}
+ .employeeCompactName{font-size:17px!important;margin:0!important}
+ .employeeCompactMeta{font-size:12px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+ .employeeCompactSummary{margin-top:2px!important;min-height:22px!important}
+ .empNoticeIcons{font-size:16px!important;padding:2px 6px!important}
+ .empSettingsBtn{width:48px!important;min-width:48px!important;height:42px!important;font-size:21px!important}
+ .empSettingsPanel.open{margin:7px 0 2px!important;padding:9px 10px!important}
+ .empSettingsTitle{font-size:16px!important;padding-bottom:7px!important;margin-bottom:2px!important}
+ .empSettingGroup{display:grid!important;grid-template-columns:70px minmax(0,1fr)!important;gap:5px!important;align-items:center!important;padding:7px 0!important}
+ .empSettingGroupTitle{margin:0!important;font-size:13px!important;white-space:nowrap!important}
+ .empMiniActions{overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;padding-bottom:1px!important}
+ .empMiniActions .btn{min-height:36px!important;padding:7px 8px!important;font-size:12px!important;border-radius:9px!important}
+ .empDangerNote{grid-column:2!important;font-size:10px!important;line-height:1.3!important;margin:2px 0 0!important}
+ #createEmployeeSection .grid2{grid-template-columns:1fr 1fr!important;gap:7px!important}
+ #createEmployeeSection .field{margin:0!important}
+ #createEmployeeSection .label{font-size:11px!important}
+ #createEmployeeSection .input{min-height:38px!important;font-size:13px!important}
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1784,13 +1877,14 @@ body.wall-focus #wall .wallOrderNote{
     <div class="employeeHead"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray employeeIconBtn" title="關閉" aria-label="關閉">×</button></div>
     <div class="actions employeeTopActions">
       <button id="employeeTabBtn" class="btn blue" style="display:none">👥 人員</button>
+      <button id="toggleCreateEmployeeBtn" class="btn primary" style="padding:8px 11px;font-size:13px" title="新增員工" aria-label="新增員工">＋</button>
       <button id="permissionTabBtn" class="btn gray employeeIconBtn" title="權限說明" aria-label="權限說明">?</button>
       <button id="jobTemplateTabBtn" class="btn gray" style="display:none">🧩 職位／權限模板</button>
     </div>
 
     <div id="employeeTabPanel">
       <div class="actions" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-        <button id="toggleCreateEmployeeBtn" class="btn primary" style="padding:8px 11px;font-size:13px" title="新增員工" aria-label="新增員工">＋</button>
+        
         <button id="refreshEmployeesBtn" class="btn gray" style="display:none;padding:8px 11px;font-size:13px">重新整理</button>
       </div>
       <div id="createEmployeeSection" class="card" style="display:none;box-shadow:none;margin-bottom:10px;padding:12px">
@@ -1798,9 +1892,9 @@ body.wall-focus #wall .wallOrderNote{
           <div class="field"><label class="label">姓名</label><input id="empName" class="input" autocomplete="off"></div>
           <div class="field"><label class="label">員工帳號</label><input id="empLoginName" class="input" type="text" autocomplete="off"></div>
           <div class="field"><label class="label">初始密碼</label><input id="empPassword" class="input" type="password" autocomplete="new-password"></div>
-          <div class="field"><label class="label">系統權限</label><select id="empRole" class="input"><option value="operator">主管</option><option value="viewer">一般使用者</option><option value="admin">管理員</option></select></div>
+          <div class="field"><label class="label">管理員</label><select id="empRole" class="input"><option value="viewer">否｜一般使用者</option><option value="admin">是｜管理員</option></select></div>
         </div>
-        <div class="workRoles">
+        <div class="workRoles" style="display:none">
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="stall" checked> 🏢 總部</label>
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="packing" checked> 📦 包裝部</label>
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="driver"> 🚚 貨運</label>
@@ -3244,8 +3338,9 @@ function renderEmployeeList(list=[]){
           <button class="btn gray emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">重設密碼</button>
         </div></div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">權限設定</div><div class="empMiniActions">
+          
           <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">${e.role==='admin'?'👑 管理員：是':'👤 管理員：否'}</button>
-          <button class="btn blue emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">頁面／功能權限</button>
+          <button class="btn blue emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">頁面＋功能</button>
         </div></div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">通知設定</div><div class="empMiniActions">
           <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">🔔 通知</button>
