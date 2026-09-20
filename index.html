@@ -2810,10 +2810,20 @@ $('#saveDeliveryEdit').onclick=async()=>{
   $('#deliveryEditModal').classList.remove('show');await loadDelivery();
 };
 window.deleteDelivery=async id=>{
-  if(!isManager())return;const j=deliveryJobs.find(x=>x.id===id);if(!j)return;
+  if(!isManager())return;const j=deliveryJobs.find(x=>Number(x.id)===Number(id));if(!j)return;
   if(j.status==='completed'&&!isManager()){alert('已送達訂單只有管理員或主管可以刪除');return;}
   if(!confirm(`確定刪除「${j.customer||j.delivery_no}」貨運單？\n刪除後無法復原。`))return;
-  const {error}=await sb.from('delivery_jobs').delete().eq('id',id);if(error){alert('刪除失敗：'+error.message);return;}await loadDelivery();
+  const {error}=await sb.from('delivery_jobs').delete().eq('id',id);
+  if(error){alert('刪除失敗：'+error.message);return;}
+  // 第171F階段：資料庫刪除成功後先移除本機資料並立即重畫，不等輪詢/重開 App。
+  deliveryJobs=deliveryJobs.filter(x=>Number(x.id)!==Number(id));
+  deliveryHistoryJobs=deliveryHistoryJobs.filter(x=>Number(x.id)!==Number(id));
+  knownMyAssignedJobIds.delete(String(id));
+  renderDelivery();
+  try{if(localStorage.getItem('xinru_stall_mode')==='delivery')renderStallDelivery();}catch(e){}
+  if(orderQueryMode==='delivery')renderToday();
+  // 再向 Supabase 補抓一次，確保所有畫面與資料庫一致。
+  await loadDelivery();
 };
 
 function renderTodayPackingMobile(arr,q){
@@ -3653,6 +3663,18 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
   if(!currentUser)return;
   const n=payload.new||{};const id=String(n.id||'');
   if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSoundOnce(`new:${id}`);
+  if(payload.eventType==='DELETE'){
+    // 其他裝置刪除貨運單時，本機也立即移除；DELETE 的 id 由 payload.old 取得。
+    const deletedId=String(payload.old?.id||'');
+    if(deletedId){
+      deliveryJobs=deliveryJobs.filter(j=>String(j.id)!==deletedId);
+      deliveryHistoryJobs=deliveryHistoryJobs.filter(j=>String(j.id)!==deletedId);
+      knownMyAssignedJobIds.delete(deletedId);
+      renderDelivery();
+      try{if(localStorage.getItem('xinru_stall_mode')==='delivery')renderStallDelivery();}catch(e){}
+      if(orderQueryMode==='delivery')renderToday();
+    }
+  }
   if(payload.eventType==='UPDATE'){
     // Realtime UPDATE 到達時，先把該列直接合併進本機，再依目前篩選立即重畫。
     const idx=deliveryJobs.findIndex(j=>String(j.id)===id);
