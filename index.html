@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第171C階段｜核心人員權限清理版</title>
+<title>欣儒系統｜第171E階段｜貨運收款回籃單排版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -753,6 +753,18 @@ body.wall-focus #wall .progress{height:8px!important}
   #stall .stallModeBar{gap:4px!important}
   #stall .stallModeBar .btn{font-size:12px!important;padding-left:2px!important;padding-right:2px!important}
 }
+
+/* 第171E階段：貨運手機版收款＋回籃固定同一排，只調整顯示，不修改配送流程 */
+.deliverySettleRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.deliveryBasketInline{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.deliverySettleBtn{padding:7px 10px;font-size:12px;border-radius:9px}
+@media(max-width:760px){
+  #delivery .deliverySettleRow{flex-wrap:nowrap;gap:6px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  #delivery .deliveryPaidBadge{flex:0 0 auto;padding:5px 8px;font-size:12px}
+  #delivery .deliveryBasketInline{flex:0 0 auto;gap:4px;font-size:13px}
+  #delivery .deliverySettleBtn{flex:0 0 auto;padding:6px 8px;font-size:12px}
+}
+
 </style>
 
 
@@ -2610,8 +2622,7 @@ function renderDeliveryCard(j){
     ${renderFreightSlipPhoto(j,'delivery')}
     ${(j.proof_required||j.payment_required||j.basket_required)?`<div class="meta" style="margin-top:8px;font-weight:800">${j.proof_required?'📷 需送達照片　':''}${j.payment_required?`💰 應收 $${esc(j.required_amount??0)}　`:''}${j.basket_required?'🧺 需回籃':''}</div>`:''}
     ${deliveryProofPending(j)?'<div class="urgentRow" style="margin-top:8px"><b>⚠️ 待補送達照片｜照片上傳成功後才算完單</b></div>':''}
-    ${j.payment_required?`<div class="actions" style="margin-top:8px">${paymentDone?'<span class="badge green">✓ 已確認收款</span>':(canOperate?`<button class="btn green" onclick="confirmDeliveryPayment(${j.id})">✓ 已收款</button>`:'<span class="meta">尚未確認收款</span>')}</div>`:''}
-    ${j.basket_required?`<div class="actions" style="margin-top:8px"><b>🧺 回籃：</b>${j.basket_return_qty!=null?`<span>${esc(j.basket_return_qty)} 個</span>`:'<span class="meta">尚未回報</span>'}${canOperate?`<button class="btn gray" onclick="setDeliveryBasketQty(${j.id})">${j.basket_return_qty!=null?'修改數量':'回覆數量'}</button>`:''}</div>`:''}
+    ${(j.payment_required||j.basket_required)?`<div class="deliverySettleRow">${j.payment_required?(paymentDone?'<span class="badge green deliveryPaidBadge">✓ 已確認收款</span>':(canOperate?`<button class="btn green deliverySettleBtn" onclick="confirmDeliveryPayment(${j.id})">✓ 已收款</button>`:'<span class="meta">尚未確認收款</span>')):''}${j.basket_required?`<span class="deliveryBasketInline"><b>🧺 回籃：</b>${j.basket_return_qty!=null?`<span>${esc(j.basket_return_qty)} 個</span>`:'<span class="meta">尚未回報</span>'}${canOperate?`<button class="btn gray deliverySettleBtn" onclick="setDeliveryBasketQty(${j.id})">${j.basket_return_qty!=null?'修改數量':'回覆數量'}</button>`:''}</span>`:''}</div>`:''}
     ${j.driver_reply?`<div class="urgentRow" style="margin-top:8px;background:#eef7ff;border-color:#cfe7ff"><div><b>💬 司機回覆</b>${renderDriverReplies(j.driver_reply)}</div></div>`:''}
     ${j.delivery_photo_url?`<div style="margin-top:8px"><a href="${esc(j.delivery_photo_url)}" target="_blank" rel="noopener">📷 查看送達照片</a></div>`:''}
     ${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}
