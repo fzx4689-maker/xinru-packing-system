@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170T階段｜通知勾選穩定版</title>
+<title>欣儒系統｜第171階段｜六大權限正式接管版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2055,10 +2055,11 @@ let orderQueryMode='packing';
 try{const savedQueryMode=localStorage.getItem('xinru_order_query_mode');if(savedQueryMode==='delivery'||savedQueryMode==='packing')orderQueryMode=savedQueryMode;}catch(e){}
 let deliveryAssignmentBaselineReady=false; let knownMyAssignedJobIds=new Set();
 const ROLE_LABEL={admin:'管理員',operator:'主管',viewer:'一般使用者'};
-const canWrite=()=>currentProfile&&['admin','operator'].includes(currentProfile.role);
 const isAdmin=()=>currentProfile?.role==='admin';
-const isSupervisor=()=>currentProfile?.role==='operator';
-const isManager=()=>isAdmin()||isSupervisor();
+/* 第171階段：舊 operator／主管不再是功能放行來源。功能一律由 v17 六大功能權限決定。 */
+const canWrite=()=>isAdmin()||['order.work','packing.work','delivery.work','delivery.manage','accounting.work','announcement.manage'].some(k=>v17Has(k));
+const isSupervisor=()=>false;
+const isManager=()=>isAdmin();
 let canOperateStall=()=>v17Has('order.work');
 let canPackingWork=()=>v17Has('packing.work');
 let canManagePacking=()=>v17Has('packing.work');
@@ -2244,9 +2245,10 @@ function renderAll(){
   renderToday();
   applyRoleUI();
 }
-function hasFeature(feature){return Array.isArray(currentProfile?.feature_permissions)&&currentProfile.feature_permissions.includes(feature)}
-function isPackingOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='packing'&&!hasFeature('stall_order')&&!hasFeature('delivery')&&!hasFeature('accounting')}
-function isDriverOnly(){const r=currentProfile?.work_roles||[];return currentProfile?.role!=='admin'&&r.length===1&&r[0]==='driver'&&!hasFeature('stall_order')&&!hasFeature('packing')&&!hasFeature('accounting')}
+/* 第171階段：feature_permissions / work_roles 僅保留資料相容，不再參與頁面或功能放行。 */
+function hasFeature(){return false}
+function isPackingOnly(){return false}
+function isDriverOnly(){return false}
 /* 第169C2階段：六大權限核心狀態。
    僅管理員自動全權限；一般帳號必須等 employee_permission_v17 載入後才放行。 */
 let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
@@ -2296,11 +2298,11 @@ function renderOrderPhoto(o,place='normal'){
  }
  return `<div class="orderFlowPhotoWrap"><a href="${url}" target="_blank" rel="noopener"><img class="orderFlowPhoto" src="${url}" alt="派工照片" loading="lazy"></a></div>`;
 }
-function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${(()=>{const n=packingChangeNoticeFor(o.id);return n?`<div class="orderChangeNotice"><div class="changeTitle">⚠️ 訂單已修改</div><div class="orderChangeDiff">${esc(n.diff_text||'內容已更新')}</div><div class="orderChangeMeta">修改：${esc(n.changed_by_name||'')}｜${fmtDateTime(n.created_at)}</div>${canPackingWork()?`<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="ackPackingChange(${n.id})">✓ 已確認修改</button></div>`:''}</div>`:''})()}${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${renderOrderPhoto(o,'stall')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${canOperateStall()?(o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'):''}${isManager()?`<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
+function renderStall(){const box=$('#stallOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>`<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(o.order_no)}｜取貨 ${esc(o.pickup_time||'')}｜${fmt(o.created_at)}</div></div>${statusBadge(o.status)}</div>${(()=>{const n=packingChangeNoticeFor(o.id);return n?`<div class="orderChangeNotice"><div class="changeTitle">⚠️ 訂單已修改</div><div class="orderChangeDiff">${esc(n.diff_text||'內容已更新')}</div><div class="orderChangeMeta">修改：${esc(n.changed_by_name||'')}｜${fmtDateTime(n.created_at)}</div>${canPackingWork()?`<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="ackPackingChange(${n.id})">✓ 已確認修改</button></div>`:''}</div>`:''})()}${o.items.map(x=>`<div class="item"><div></div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div>${x.is_completed?'✅':''}</div></div>`).join('')}${renderOrderPhoto(o,'stall')}${o.packing_reply?`<div class="urgentRow" style="margin-top:12px;background:#eef7ff;border-color:#cfe7ff"><div><b>📣 包裝回覆：</b>${esc(o.packing_reply)}</div></div>`:''}<div class="actions" style="margin-top:12px">${canOperateStall()?(o.status!=='done'?`<button class="btn blue" onclick="openEdit(${o.id})">✏️ 修改訂單</button>`:'<span class="meta">已完成訂單不可修改</span>'):''}${v17Has('order.work')?`<button class="btn red" onclick="deleteOrder(${o.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
 function renderStallDelivery(){
   const box=$('#stallOrders');if(!box)return;
   const arr=[...deliveryJobs].filter(j=>j.status!=='completed').sort((a,b)=>(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
-  box.innerHTML=arr.length?arr.map(j=>`<div class="order ${j.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(j.customer||'未填客戶')} ${j.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(j.delivery_no||'')}｜配送 ${esc(j.delivery_date||'')} ${esc(j.pickup_time||'')}</div></div>${deliveryStatusBadge(j.status)}</div><div class="meta" style="margin-top:7px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>${renderDeliveryChangeNotice(j)}${renderDeliveryChecklist(j,false)}${renderFreightSlipPhoto(j,'delivery')}${j.payment_required?`<div class="meta" style="font-weight:800">💰 應收 $${esc(j.required_amount??0)}｜${j.collected_at?'✓ 已收款':'尚未確認收款'}</div>`:''}${j.basket_required?`<div class="meta" style="font-weight:800">🧺 回籃｜${j.basket_return_qty!=null?`已回 ${esc(j.basket_return_qty)} 個`:'待司機回覆數量'}</div>`:''}${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}<div class="actions" style="margin-top:12px">${canOperateStall()?`<button class="btn blue" onclick="openDeliveryEdit(${j.id})">✏️ 修改訂單</button>`:''}${isManager()?`<button class="btn red" onclick="deleteDelivery(${j.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理貨運訂單</div>';
+  box.innerHTML=arr.length?arr.map(j=>`<div class="order ${j.is_urgent?'urgent':''}"><div class="orderHead"><div><div style="font-size:22px;font-weight:900">${esc(j.customer||'未填客戶')} ${j.is_urgent?'<span class="badge red">🚨 急單</span>':''}</div><div class="meta">${esc(j.delivery_no||'')}｜配送 ${esc(j.delivery_date||'')} ${esc(j.pickup_time||'')}</div></div>${deliveryStatusBadge(j.status)}</div><div class="meta" style="margin-top:7px"><b>🚚 司機：</b>${esc(j.assigned_driver_name?deliveryDisplayName(j.assigned_driver_name):'尚未指派')}</div>${renderDeliveryChangeNotice(j)}${renderDeliveryChecklist(j,false)}${renderFreightSlipPhoto(j,'delivery')}${j.payment_required?`<div class="meta" style="font-weight:800">💰 應收 $${esc(j.required_amount??0)}｜${j.collected_at?'✓ 已收款':'尚未確認收款'}</div>`:''}${j.basket_required?`<div class="meta" style="font-weight:800">🧺 回籃｜${j.basket_return_qty!=null?`已回 ${esc(j.basket_return_qty)} 個`:'待司機回覆數量'}</div>`:''}${j.note?`<div class="meta">備註：${esc(j.note)}</div>`:''}<div class="actions" style="margin-top:12px">${canOperateStall()?`<button class="btn blue" onclick="openDeliveryEdit(${j.id})">✏️ 修改訂單</button>`:''}${canManageFreight()?`<button class="btn red" onclick="deleteDelivery(${j.id})">🗑️ 刪除訂單</button>`:''}</div></div>`).join(''):'<div class="empty">目前沒有待處理貨運訂單</div>';
 }
 
 function renderPacking(){const box=$('#packingOrders');const arr=[...orders].filter(o=>o.status!=='done').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));box.innerHTML=arr.length?arr.map(o=>{const done=o.items.filter(x=>x.is_completed).length,total=o.items.length,pct=total?Math.round(done/total*100):0;return `<div class="order ${o.is_urgent?'urgent':''}"><div class="orderHead"><div><div class="orderTitle" style="font-size:24px">${esc(o.customer)} ${o.is_urgent?'<span class="badge red">🚨 急單｜ด่วน</span>':''}</div><div class="th">${esc(translitLine(o.customer))}</div><div class="meta">訂單號 ${esc(o.order_no)}｜取貨日期 ${esc(o.order_date||'')}</div></div>${statusBadge(o.status)}</div>${(()=>{const n=packingChangeNoticeFor(o.id);return n?`<div class="orderChangeNotice"><div class="changeTitle">⚠️ 訂單已修改</div><div class="orderChangeDiff">${esc(n.diff_text||'內容已更新')}</div><div class="orderChangeMeta">修改：${esc(n.changed_by_name||'')}｜${fmtDateTime(n.created_at)}</div>${canPackingWork()?`<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="ackPackingChange(${n.id})">✓ 已確認修改</button></div>`:''}</div>`:''})()}${o.items.map(x=>`<div class="item"><div class="check ${x.is_completed?'done':''} ${canPackingWork()?'':'viewer-disabled'}" ${canPackingWork()?`onclick="toggleItem(${x.id},${x.is_completed?'false':'true'},${o.id})"`:''}>${x.is_completed?'✓':''}</div><div><div class="cn">${esc(x.item_name)}</div><div class="th">${esc(thaiForItem(x))}</div></div><div></div></div>`).join('')}<div style="margin-top:12px"><div class="meta">完成 ${done}/${total}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div></div>${o.note?`<div class="urgentRow" style="margin-top:12px"><div><b>備註：</b>${esc(o.note)}</div></div>`:''}${renderOrderPhoto(o,'packing')}<div class="field" style="margin-top:12px"><label class="label">📣 包裝回覆</label><div class="actions"><input id="reply-${o.id}" class="input" style="flex:1" value="${esc(o.packing_reply||'')}" placeholder="" ${canPackingWork()?'':'disabled'}><button class="btn gray" ${canPackingWork()?`onclick="savePackingReply(${o.id})"`:'disabled style="opacity:.45"'}>儲存回覆</button></div></div><div class="actions" style="margin-top:12px">${canManagePacking()&&o.status==='waiting'?`<button class="btn blue" onclick="startPacking(${o.id})">接單／開始包裝</button>`:''}${canPackingWork()?`<button class="btn primary" ${(total>0&&done!==total)?'disabled style="opacity:.45"':''} onclick="finishOrder(${o.id})">✅ 整單完成</button>`:''}</div></div>`}).join(''):'<div class="empty">目前沒有待處理訂單</div>'}
@@ -2353,8 +2355,8 @@ function renderWall(){
 const DELIVERY_STATUS_LABEL={waiting:'待接單',assigned:'待接單',accepted:'已接單',delivering:'配送中',completed:'已送達'};
 function deliveryStatusBadge(st){return `<span class="deliveryStatus ds-${esc(st)}">${esc(DELIVERY_STATUS_LABEL[st]||st)}</span>`}
 function currentIsDriver(){return !!currentProfile&&(isAdmin()||v17Has('delivery.work'))}
-function currentIsStall(){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes('stall')}
-function hasWorkRole(role){return Array.isArray(currentProfile?.work_roles)&&currentProfile.work_roles.includes(role)}
+function currentIsStall(){return v17Has('order.work')}
+function hasWorkRole(){return false}
 function hasNotification(kind){return Array.isArray(currentProfile?.notification_permissions)&&currentProfile.notification_permissions.includes(kind)}
 function shouldHearPacking(){return hasNotification('packing')}
 function shouldHearFreight(){return hasNotification('delivery')}
@@ -2598,7 +2600,7 @@ function renderDeliveryCard(j){
   const canClaim=currentIsDriver()&&unassigned;
   const canOperate=mine&&currentIsDriver();
   let actions='';
-  if(canManageFreight()&&canWrite()&&!['delivering','completed'].includes(j.status))actions+=`<button class="btn blue" onclick="openDriverPicker(${j.id})">${j.assigned_driver_id?'🔄 更換司機':'🚚 指派司機'}</button>`;
+  if(canManageFreight()&&!['delivering','completed'].includes(j.status))actions+=`<button class="btn blue" onclick="openDriverPicker(${j.id})">${j.assigned_driver_id?'🔄 更換司機':'🚚 指派司機'}</button>`;
   if(canClaim)actions+=`<button class="btn primary" onclick="claimDelivery(${j.id})">🙋 我要配送</button>`;
   if(canOperate&&j.status==='assigned')actions+=`<button class="btn primary" onclick="acceptDelivery(${j.id})">接單</button>`;
   if(canOperate&&j.status==='accepted')actions+=`<button class="btn primary" onclick="startDelivery(${j.id})">🚚 開始配送</button>`;
@@ -2623,7 +2625,7 @@ function renderDeliveryCard(j){
   </div>`;
 }
 async function updateDelivery(id,patch){
-  if(!(canWrite()||currentIsDriver())){alert('此帳號無法操作貨運單');return false;}
+  if(!(canManageFreight()||currentIsDriver())){alert('此帳號無法操作貨運單');return false;}
   let q=sb.from('delivery_jobs').update({...patch,updated_at:new Date().toISOString()}).eq('id',id);
   if(!canManageFreight()&&currentIsDriver())q=q.eq('assigned_driver_id',currentUser.id);
   const {data,error}=await q.select('id');
@@ -2632,7 +2634,7 @@ async function updateDelivery(id,patch){
   await loadDelivery();return true;
 }
 window.openDriverPicker=id=>{
-  const j=deliveryJobs.find(x=>x.id===id);if(!j||!canManageFreight()||!canWrite()||['delivering','completed'].includes(j.status))return;
+  const j=deliveryJobs.find(x=>x.id===id);if(!j||!canManageFreight()||['delivering','completed'].includes(j.status))return;
   let overlay=document.getElementById('driverAssignOverlay');
   if(overlay)overlay.remove();
   overlay=document.createElement('div');overlay.id='driverAssignOverlay';overlay.className='driverAssignOverlay';
@@ -2643,7 +2645,7 @@ window.openDriverPicker=id=>{
 };
 window.closeDriverPicker=()=>{document.getElementById('driverAssignOverlay')?.remove();};
 window.chooseDeliveryDriver=async(id,uid)=>{
-  const j=deliveryJobs.find(x=>x.id===id);if(!j||!canManageFreight()||!canWrite())return;
+  const j=deliveryJobs.find(x=>x.id===id);if(!j||!canManageFreight())return;
   if(['delivering','completed'].includes(j.status)){closeDriverPicker();alert('已開始配送，不能直接更換司機');return;}
   const oldUid=String(j.assigned_driver_id||'');uid=String(uid||'');
   if(oldUid===uid){closeDriverPicker();return;}
@@ -2738,7 +2740,7 @@ window.replyDelivery=async id=>{
   await updateDelivery(id,{driver_reply:merged});
 };
 window.openDeliveryEdit=id=>{
-  if(!canManageFreight()||!canWrite())return;
+  if(!canManageFreight())return;
   const j=deliveryJobs.find(x=>x.id===id);if(!j||j.status==='completed')return;
   $('#editDeliveryId').value=j.id;$('#editDeliveryCustomer').value=j.customer||'';$('#editDeliveryDate').value=j.delivery_date||taipeiDate();$('#editDeliveryPickup').value=j.pickup_time||'';$('#editDeliveryText').value=j.request_text||'';$('#editDeliveryNote').value=j.note||'';$('#editDeliveryUrgent').checked=!!j.is_urgent;$('#editDeliveryProofRequired').checked=!!j.proof_required;$('#editDeliveryPaymentRequired').checked=!!j.payment_required;$('#editDeliveryRequiredAmount').value=j.required_amount??'';$('#editDeliveryAmountWrap').style.display=j.payment_required?'block':'none';$('#editDeliveryBasketRequired').checked=!!j.basket_required;$('#editDeliveryPhotoInput').value='';
   const sel=$('#editDeliveryDriver');sel.innerHTML='<option value="">尚未指派</option>'+deliveryDrivers.map(d=>`<option value="${esc(d.user_id)}">${esc(deliveryDisplayName(d.display_name))}</option>`).join('');sel.value=j.assigned_driver_id||'';
@@ -2746,7 +2748,7 @@ window.openDeliveryEdit=id=>{
 };
 $('#cancelDeliveryEdit').onclick=()=>$('#deliveryEditModal').classList.remove('show');
 $('#saveDeliveryEdit').onclick=async()=>{
-  if(!canManageFreight()||!canWrite())return;
+  if(!canManageFreight())return;
   const id=Number($('#editDeliveryId').value),j=deliveryJobs.find(x=>x.id===id);if(!j)return;
   const customer=$('#editDeliveryCustomer').value.trim();if(!customer){alert('請輸入客戶／店家名稱');return;}
   const uid=$('#editDeliveryDriver').value,driver=deliveryDrivers.find(x=>x.user_id===uid),file=$('#editDeliveryPhotoInput').files?.[0];
@@ -2858,7 +2860,7 @@ window.finishOrder=async id=>{
  if(targetOrder && (targetOrder.items||[]).length===0){
   if(!confirm('這是純照片派工單（0/0）。確定要標記「整單完成」嗎？'))return;
  }if(!requirePackingWork())return;const o=orders.find(x=>x.id===id);if(!o||!o.items.every(x=>x.is_completed))return;await sb.from('orders').update({status:'done',completed_at:new Date().toISOString(),...actorFields('completed')}).eq('id',id);await loadOrders()};
-window.deleteOrder=async id=>{if(!isManager())return;const o=orders.find(x=>x.id===id);if(!o)return;const ok=confirm(`確定要刪除「${o.customer}」的訂單嗎？\n訂單編號：${o.order_no}\n\n刪除後無法復原。`);if(!ok)return;try{const {error}=await sb.from('orders').delete().eq('id',id);if(error)throw error;await loadOrders();alert('訂單已刪除');}catch(e){console.error(e);alert('刪除失敗：'+e.message)}};
+window.deleteOrder=async id=>{if(!v17Has('order.work'))return;const o=orders.find(x=>x.id===id);if(!o)return;const ok=confirm(`確定要刪除「${o.customer}」的訂單嗎？\n訂單編號：${o.order_no}\n\n刪除後無法復原。`);if(!ok)return;try{const {error}=await sb.from('orders').delete().eq('id',id);if(error)throw error;await loadOrders();alert('訂單已刪除');}catch(e){console.error(e);alert('刪除失敗：'+e.message)}};
 window.openEdit=id=>{if(!requireStallWork())return;const o=orders.find(x=>x.id===id);if(!o||o.status==='done')return;$('#editOrderId').value=o.id;$('#editCustomer').value=o.customer||'';$('#editPickupTime').value=o.pickup_time||'';$('#editOrderDate').value=o.order_date||taipeiDate();$('#editItems').value=o.items.map(x=>x.item_name).join('\n');$('#editNote').value=o.note||'';editUrgent=!!o.is_urgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent);$('#editModal').classList.add('show')};
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
@@ -3334,9 +3336,9 @@ async function applyMergedJobPermissionTemplates(userId,jobTitles){
 const PAY_TYPE_LABEL={monthly:'月薪',daily:'日薪',hourly:'時薪',per_trip:'按趟',piece:'計件',other:'其他'};
 /* 第二十一階段：職位預設權限模板。只在修改職位時套用；套用後仍可個別調整。 */
 const JOB_PERMISSION_TEMPLATE={
- owner:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.work','packing.work','delivery.work','accounting.work','procurement.work'],notify:['packing','delivery','accounting']},
- supervisor:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.work','packing.work','delivery.work','accounting.work','procurement.work'],notify:['packing','delivery','accounting']},
- counter:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.work','accounting.work','procurement.work'],notify:['packing','delivery','accounting']},
+ owner:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.work','packing.work','delivery.work','accounting.work'],notify:['packing','delivery','accounting']},
+ supervisor:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.work','packing.work','delivery.work','accounting.work'],notify:['packing','delivery','accounting']},
+ counter:{pages:['home','sales','accounting','procurement','stall','packing','delivery','wall'],funcs:['order.work','accounting.work'],notify:['packing','delivery','accounting']},
  packing:{pages:['home','packing','wall'],funcs:['packing.work'],notify:['packing']},
  driver:{pages:['home','delivery','wall'],funcs:['delivery.work'],notify:['delivery']},
  temporary:{pages:['home'],funcs:[],notify:[]},
@@ -4888,7 +4890,7 @@ window.addEventListener('load',()=>{
 /* 第三十階段：叫貨單。RPC 獨立，不修改登入/Auth。 */
 let procurementOrdersV30=[];
 function procSupplierTypeLabel(v){return ({supermarket:'超市',farmer:'產農',vendor:'廠商',other:'其他'})[v]||v||'';}
-function procCanManage(){return !!currentProfile && (currentProfile.role==='admin'||currentProfile.role==='operator'||hasFeature('procurement.work')||hasWorkRole('stall')||hasWorkRole('accounting'));}
+function procCanManage(){return !!currentProfile && (isAdmin()||v17Has('accounting.work'));}
 function procResetItemRows(){const box=document.getElementById('procItemRows');if(!box)return;box.innerHTML='';procAddItemRow();}
 function procAddItemRow(data={}){const box=document.getElementById('procItemRows');if(!box)return;const row=document.createElement('div');row.className='procItemRow';row.innerHTML=`<div class="field"><label class="label">品項</label><input class="input procItemName" value="${esc(data.item_name||'')}" placeholder="品項名稱"></div><div class="field"><label class="label">數量</label><input class="input procItemQty" inputmode="decimal" value="${esc(data.quantity||'')}" placeholder="數量"></div><div class="field"><label class="label">單位</label><input class="input procItemUnit" value="${esc(data.unit||'')}" placeholder="件/箱/斤"></div><div class="field procItemNote"><label class="label">品項備註</label><input class="input procItemNoteInput" value="${esc(data.note||'')}" placeholder="可留空"></div><button type="button" class="btn red procRemoveItem">刪除</button>`;box.appendChild(row);row.querySelector('.procRemoveItem').onclick=()=>{if(box.children.length<=1){row.querySelectorAll('input').forEach(x=>x.value='');return;}row.remove();};}
 function procRenderOrders(){const box=document.getElementById('procOrderList');if(!box)return;const rows=procurementOrdersV30||[];box.innerHTML=rows.length?rows.map(o=>`<div class="procOrderCard"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div style="font-size:18px;font-weight:900">${esc(o.supplier_name)}</div><div class="meta">${esc(procSupplierTypeLabel(o.supplier_type))}｜叫貨 ${esc(o.order_date||'')}｜預計到貨 ${esc(o.expected_date||'未填')}</div><div class="meta">單號 ${esc(o.order_no||'')}｜建立：${esc(o.created_by_name||'')} ${fmtDateTime(o.created_at)}</div></div><span class="badge yellow">待到貨</span></div><div class="procOrderItems">${(o.items||[]).map(x=>`<div class="procOrderItem"><div><b>${esc(x.item_name)}</b>${x.note?` <span class="meta">｜${esc(x.note)}</span>`:''}</div><div><b>${esc(x.quantity??'')} ${esc(x.unit||'')}</b></div></div>`).join('')}</div>${o.note?`<div class="helper" style="margin-top:8px">備註：${esc(o.note)}</div>`:''}</div>`).join(''):'<div class="empty">目前沒有叫貨單</div>';}
