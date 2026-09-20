@@ -5076,7 +5076,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 
 <script>
-// 第172A階段：帳務中心依最新確認規格改為九個第一層入口；不修改登入/Auth。
+// 第172B階段：九入口架構延續172A；快速做帳脫離舊帳務介面；不修改登入/Auth。
 (function(){
   const defs={
     entry:{title:'✍️ 快速做帳',desc:'日常帳務由帳務人員自行輸入；已取消貨運派工自動進帳。',items:['開始快速做帳','今日做帳紀錄']},
@@ -5109,9 +5109,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const b=e.target.closest('[data-acct-stage-action]');if(!b)return;
     const a=b.dataset.acctStageAction, work=document.getElementById('acctStageWork');if(!work)return;
     if(a==='開始快速做帳'){
-      document.querySelector('.acctLegacyArea')?.style.setProperty('display','block');
-      document.querySelectorAll('.acctSubPage').forEach(p=>p.classList.toggle('active',p.dataset.acctPagePanel==='quick'));
-      document.querySelector('.acctLegacyArea')?.scrollIntoView({behavior:'smooth',block:'start'});
+      // 第172B階段：新快速做帳與舊帳務介面完全分離；舊區保留底層程式但不再顯示。
+      const legacy=document.querySelector('.acctLegacyArea');
+      if(legacy) legacy.style.setProperty('display','none');
+      work.innerHTML='<div class="acctWorkPlaceholder"><b>✍️ 快速做帳</b><div class="helper">新快速做帳工作區。後續依確認後的帳表規格逐步接入；不再開啟舊帳務介面。</div></div>';
+      work.scrollIntoView({behavior:'smooth',block:'start'});
       return;
     }
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
