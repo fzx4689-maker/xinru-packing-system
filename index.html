@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第169A1階段｜登入修正版</title>
+<title>第169A2階段｜大權限定義版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -4441,7 +4441,7 @@ let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Re
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentUser)loadStage9()});window.addEventListener('focus',()=>{if(currentUser)loadStage9()});window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},10000);
 </script>
 <script>
-/* 第169A階段：權限資料入口整理。沿用 employee_permission_v17；本階段不改業務功能判斷/Auth。 */
+/* 第169A2階段：大權限定義。頁面＝能看、功能＝能做；本階段先整理權限資料入口，不改Auth。 */
 const V17_PAGE_OPTIONS=[
  ['accounting','💰 帳務中心'],
  ['stall','📋 派工'],
@@ -4449,20 +4449,12 @@ const V17_PAGE_OPTIONS=[
  ['delivery','🚚 貨運部']
 ];
 const V17_FUNC_OPTIONS=[
- ['order.create','派工｜新增訂單'],
- ['order.edit','派工｜修改訂單'],
- ['order.delete','派工｜刪除訂單'],
- ['packing.work','包裝｜勾選／回覆／完成'],
- ['packing.manage','包裝｜接單／管理'],
- ['delivery.work','貨運｜本人配送作業'],
- ['delivery.manage','貨運｜管理／指派司機'],
- ['delivery.edit','貨運｜修改貨運單'],
- ['delivery.delete','貨運｜刪除貨運單'],
- ['accounting.entry','帳務｜登帳／收款'],
- ['accounting.export','帳務｜匯出／列印'],
- ['announcement.create','公告｜新增'],
- ['announcement.edit','公告｜修改／結束'],
- ['announcement.delete','公告｜刪除']
+ ['order.work','派工｜作業'],
+ ['packing.work','包裝｜作業'],
+ ['delivery.work','貨運｜配送作業'],
+ ['delivery.manage','貨運｜管理'],
+ ['accounting.work','帳務｜帳務作業'],
+ ['announcement.manage','公告｜管理']
 ];
 let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
 const v17Has=(k)=>isManager()||!v17Perm.configured||v17Perm.funcs.includes(k);
@@ -4506,11 +4498,11 @@ function v17AddPermissionButtons(){
 }
 function v17FuncPage(key){
  return ({
-  'order.create':'stall','order.edit':'stall','order.delete':'stall',
-  'packing.work':'packing','packing.manage':'packing',
-  'delivery.work':'delivery','delivery.manage':'delivery','delivery.edit':'delivery','delivery.delete':'delivery',
-  'accounting.entry':'accounting','accounting.export':'accounting',
-  'announcement.create':'home','announcement.edit':'home','announcement.delete':'home'
+  'order.work':'stall',
+  'packing.work':'packing',
+  'delivery.work':'delivery','delivery.manage':'delivery',
+  'accounting.work':'accounting',
+  'announcement.manage':'home'
  })[key]||'';
 }
 function v17NotifyPage(key){return ({packing:'packing',delivery:'delivery',accounting:'accounting'})[key]||'';}
@@ -4518,7 +4510,15 @@ async function v17EditEmployee(uid,name){
  try{
   const empCard=[...document.querySelectorAll('.emp-admin-toggle')].find(x=>x.dataset.id===uid);if(empCard?.dataset.role==='admin'){setEmployeeMsg('管理員自動擁有全部頁面與功能權限，不需要另外勾選。',true);return;}
   const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();if(error)throw error;
-  const pages=data?.page_permissions||[],funcs=data?.function_permissions||[];
+  const pages=data?.page_permissions||[],rawFuncs=data?.function_permissions||[];
+  const migratedFuncs=new Set(rawFuncs.filter(x=>V17_FUNC_OPTIONS.some(o=>o[0]===x)));
+  if(rawFuncs.some(x=>['order.create','order.edit','order.delete'].includes(x)))migratedFuncs.add('order.work');
+  if(rawFuncs.some(x=>['packing.work','packing.manage'].includes(x)))migratedFuncs.add('packing.work');
+  if(rawFuncs.includes('delivery.work'))migratedFuncs.add('delivery.work');
+  if(rawFuncs.some(x=>['delivery.manage','delivery.edit','delivery.delete'].includes(x)))migratedFuncs.add('delivery.manage');
+  if(rawFuncs.some(x=>['accounting.entry','accounting.export'].includes(x)))migratedFuncs.add('accounting.work');
+  if(rawFuncs.some(x=>['announcement.create','announcement.edit','announcement.delete'].includes(x)))migratedFuncs.add('announcement.manage');
+  const funcs=[...migratedFuncs];
   const pageSel=await chooseOptions(name,pages,'頁面權限｜決定看得到哪些分頁',V17_PAGE_OPTIONS.map(([value,label])=>({value,label})),false);if(pageSel===null)return;
   const allowedFuncs=V17_FUNC_OPTIONS.filter(([value])=>v17FuncPage(value)==='home'||pageSel.includes(v17FuncPage(value)));
   const funcSel=await chooseOptions(name,funcs.filter(f=>pageSel.includes(v17FuncPage(f))),'功能權限｜只顯示已開啟頁面的操作',allowedFuncs.map(([value,label])=>({value,label})),false);if(funcSel===null)return;
