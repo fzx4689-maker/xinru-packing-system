@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170E階段｜人員管理三裝置正式版</title>
+<title>欣儒系統｜第170H階段｜人員權限通知直覺版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1311,135 +1311,84 @@ body.wall-focus #wall .wallOrderNote{
 @media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
 </style>
 
-<style id="stage170C-personnel-compact">
-.employeeTopActions{margin:4px 0 10px!important;gap:6px!important;align-items:center}
-.employeeIconBtn{width:46px!important;height:46px!important;min-width:46px!important;padding:0!important;border-radius:14px!important;font-size:26px!important;line-height:1!important;font-weight:900!important}
-#permissionTabBtn{font-size:22px!important}
-#toggleCreateEmployeeBtn{width:46px!important;height:42px!important;min-width:46px!important;padding:0!important;font-size:25px!important;border-radius:14px!important}
-.employeeCompact{padding:12px 4px!important}
-.employeeCompactTop{align-items:center!important}
-.employeeCompactName{margin-bottom:2px!important}
-.employeeCompactMeta{margin-bottom:3px!important}
-.employeeCompactSummary{margin-top:2px!important}
-.empNoticeIcons{font-size:18px!important;padding:3px 8px!important;letter-spacing:3px}
-.empSettingsBtn{min-width:58px!important;width:58px!important;height:46px!important;padding:0!important;font-size:23px!important;border-radius:14px!important}
-.empSettingsPanel.open{display:block!important;margin:10px 0 4px!important;padding:15px!important;background:#fff!important;border:3px solid #2563eb!important;border-radius:18px!important;box-shadow:0 10px 26px rgba(37,99,235,.18)!important}
-.empSettingsTitle{font-size:18px!important;font-weight:900!important;padding-bottom:10px!important;border-bottom:2px solid #dbeafe!important}
-.empSettingGroup{padding:10px 0!important}
-.empSettingGroupTitle{font-weight:900!important;margin-bottom:7px!important}
-@media(max-width:700px){
- .employeeBox{padding:14px 12px!important}
- .employeeHead{display:grid!important;grid-template-columns:1fr auto!important;gap:6px 8px!important;align-items:center!important}
- .employeeHead h2{font-size:23px!important;margin:0!important;white-space:nowrap}
- .employeeHead .employeeCount{grid-column:1/2;font-size:13px!important;width:max-content}
- #closeEmployeeModal{grid-column:2;grid-row:1/3;justify-self:end;align-self:start}
- .employeeTopActions{margin:6px 0!important;justify-content:flex-end!important}
- #toggleCreateEmployeeBtn{margin:0 0 6px!important}
- .employeeCompactTop{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:5px 8px!important}
- .employeeCompactName{font-size:18px!important}
- .employeeCompactMeta{font-size:13px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
- .employeeCompactSummary{min-height:24px!important}
- .employeeCompactTop>div:last-child{gap:3px!important}
- .employeeStatus{font-size:14px!important;white-space:nowrap}
- .empSettingsPanel.open{padding:12px!important}
- .empMiniActions{display:flex!important;flex-wrap:wrap!important;gap:7px!important}
- .empMiniActions .btn{flex:0 0 auto!important;min-width:0!important;padding:9px 11px!important;font-size:14px!important}
-}
-</style>
-
-
-<style id="stage170D-personnel-one-line">
-/* 右上角工具列：＋ ? × 同一排 */
-.employeeHead{padding-right:150px!important;position:relative!important;min-height:52px!important}
-#closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
-.employeeTopActions{position:absolute!important;right:54px!important;top:0!important;margin:0!important;display:flex!important;gap:6px!important;z-index:4}
-#permissionTabBtn{width:46px!important;height:46px!important;min-width:46px!important}
-#toggleCreateEmployeeBtn{position:absolute!important;right:108px!important;top:0!important;margin:0!important;width:46px!important;height:46px!important;z-index:5}
-#employeeTabPanel{position:relative!important;padding-top:0!important}
-#employeeMsg{margin-top:8px!important}
-.empSettingsPanel.open{padding:12px 14px!important}
-.empSettingGroup{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 0!important}
-.empSettingGroupTitle{flex:0 0 76px!important;margin:0!important;white-space:nowrap!important}
-.empMiniActions{display:flex!important;flex-wrap:wrap!important;gap:7px!important;align-items:center!important}
-@media(max-width:700px){
- .employeeBox{position:relative!important}
- .employeeHead{padding-right:148px!important;display:block!important;min-height:54px!important}
- .employeeHead h2{font-size:22px!important;line-height:46px!important;white-space:nowrap!important}
- .employeeHead .employeeCount{display:none!important}
- #closeEmployeeModal{right:0!important;top:0!important}
- .employeeTopActions{right:54px!important;top:0!important}
- #toggleCreateEmployeeBtn{right:108px!important;top:0!important}
- #employeeTabPanel{padding-top:0!important}
- #employeeMsg{font-size:13px!important;margin:4px 0 6px!important}
- .empSettingsPanel.open{padding:10px!important}
- .empSettingsTitle{font-size:17px!important;padding-bottom:8px!important}
- .empSettingGroup{display:grid!important;grid-template-columns:72px minmax(0,1fr)!important;gap:6px!important;padding:7px 0!important}
- .empSettingGroupTitle{font-size:14px!important;flex:none!important}
- .empMiniActions{display:flex!important;flex-wrap:nowrap!important;gap:5px!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch;padding-bottom:2px!important}
- .empMiniActions .btn{flex:0 0 auto!important;white-space:nowrap!important;padding:8px 9px!important;font-size:13px!important}
- .empSettingHint{grid-column:2!important;font-size:11px!important;margin-top:0!important}
-}
-</style>
-
-
-<style id="stage170E-personnel-device-layout">
-.empSettingsPanel.open{display:block!important;background:#fff!important;border:3px solid #2563eb!important;border-radius:18px!important;box-shadow:0 10px 26px rgba(37,99,235,.18)!important}
-.empSettingGroup{border-bottom:1px solid #e5e7eb!important}
-.empSettingGroup:last-of-type{border-bottom:0!important}
-.empMiniActions{display:flex!important;flex-wrap:nowrap!important;gap:7px!important;align-items:center!important}
-.empMiniActions .btn{flex:0 0 auto!important;white-space:nowrap!important}
-.employeeTopActions{display:flex!important;gap:6px!important}
+<style id="stage170G-personnel-clean">
+/* 170G 人員管理：單一正式規格，不疊用 170C~170F 人員 CSS */
+.employeeBox{box-sizing:border-box}
+.employeeHead{position:relative!important}
+.employeeTopActions{position:absolute!important;display:flex!important;flex-flow:row nowrap!important;align-items:center!important;margin:0!important}
 #employeeTabBtn,#jobTemplateTabBtn{display:none!important}
-#toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:46px!important;height:46px!important;min-width:46px!important;padding:0!important;border-radius:14px!important;font-size:24px!important;font-weight:900!important}
-@media(min-width:1100px){
- .employeeBox{width:min(980px,94vw)!important;padding:22px!important}
- .employeeHead{position:relative!important;padding-right:160px!important;min-height:50px!important}
- .employeeTopActions{position:absolute!important;right:54px!important;top:0!important;margin:0!important}
- #closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
- .empSettingGroup{display:grid!important;grid-template-columns:110px 1fr!important;gap:12px!important;align-items:center!important;padding:12px 0!important}
- .empSettingGroupTitle{margin:0!important;font-size:14px!important}
- .empSettingsPanel.open{padding:16px 18px!important}
+#toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{
+ position:static!important;inset:auto!important;margin:0!important;padding:0!important;
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ font-weight:900!important;line-height:1!important;flex:0 0 auto!important;
 }
-@media(min-width:701px) and (max-width:1099px){
- .employeeBox{width:min(860px,96vw)!important;padding:18px!important}
- .employeeHead{position:relative!important;padding-right:154px!important;min-height:50px!important}
- .employeeTopActions{position:absolute!important;right:52px!important;top:0!important;margin:0!important}
- #closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
- .empSettingGroup{display:grid!important;grid-template-columns:92px minmax(0,1fr)!important;gap:9px!important;align-items:center!important;padding:10px 0!important}
- .empSettingGroupTitle{margin:0!important;font-size:14px!important}
- .empMiniActions{overflow-x:auto!important}
- .empSettingsPanel.open{padding:14px!important}
-}
+#closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
+.empSettingsPanel{display:none}
+.empSettingsPanel.open{display:block!important;background:#fff!important;border:3px solid #2563eb!important;border-radius:16px!important}
+.empMiniActions{display:flex!important;flex-flow:row nowrap!important;align-items:center!important;gap:6px!important;min-width:0!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;scrollbar-width:none}
+.empMiniActions::-webkit-scrollbar{display:none}
+.empMiniActions .btn{flex:0 0 auto!important;white-space:nowrap!important}
+.empDangerNote{color:#64748b!important}
+
+/* 手機：員工主要使用。緊湊、清楚、每區一行 */
 @media(max-width:700px){
  .employeeModal{padding:0!important;align-items:stretch!important}
- .employeeBox{width:100%!important;max-height:100vh!important;border-radius:0!important;padding:12px 10px!important}
- .employeeHead{position:relative!important;display:block!important;padding-right:150px!important;min-height:50px!important;margin-bottom:6px!important}
- .employeeHead h2{font-size:20px!important;line-height:44px!important;margin:0!important;white-space:nowrap!important}
+ .employeeBox{width:100%!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;padding:12px 12px 18px!important}
+ .employeeHead{height:48px!important;min-height:48px!important;padding:0 142px 0 2px!important;margin:0 0 8px!important;display:block!important}
+ .employeeHead h2{font-size:20px!important;line-height:42px!important;margin:0!important;white-space:nowrap!important}
  .employeeHead .employeeCount{display:none!important}
- .employeeTopActions{position:absolute!important;right:50px!important;top:0!important;margin:0!important}
- #closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
- #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:42px!important;height:42px!important;min-width:42px!important;font-size:22px!important}
- .employeeCompact{padding:9px 2px!important}
- .employeeCompactTop{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 6px!important;align-items:center!important}
- .employeeCompactName{font-size:17px!important;margin:0!important}
- .employeeCompactMeta{font-size:12px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
- .employeeCompactSummary{margin-top:2px!important;min-height:22px!important}
- .empNoticeIcons{font-size:16px!important;padding:2px 6px!important}
- .empSettingsBtn{width:48px!important;min-width:48px!important;height:42px!important;font-size:21px!important}
- .empSettingsPanel.open{margin:7px 0 2px!important;padding:9px 10px!important}
- .empSettingsTitle{font-size:16px!important;padding-bottom:7px!important;margin-bottom:2px!important}
- .empSettingGroup{display:grid!important;grid-template-columns:70px minmax(0,1fr)!important;gap:5px!important;align-items:center!important;padding:7px 0!important}
- .empSettingGroupTitle{margin:0!important;font-size:13px!important;white-space:nowrap!important}
- .empMiniActions{overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;padding-bottom:1px!important}
- .empMiniActions .btn{min-height:36px!important;padding:7px 8px!important;font-size:12px!important;border-radius:9px!important}
- .empDangerNote{grid-column:2!important;font-size:10px!important;line-height:1.3!important;margin:2px 0 0!important}
+ .employeeTopActions{top:0!important;right:47px!important;gap:5px!important}
+ #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:40px!important;height:40px!important;min-width:40px!important;border-radius:11px!important;font-size:21px!important}
+ #closeEmployeeModal{right:0!important;top:0!important}
+ #employeeMsg{font-size:12px!important;margin:3px 0 5px!important}
+ .employeeCompact{padding:9px 2px!important;border-bottom:1px solid #e5e7eb!important}
+ .employeeCompactTop{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 8px!important;align-items:center!important}
+ .employeeCompactName{font-size:18px!important;line-height:1.2!important;margin:0!important}
+ .employeeCompactMeta{font-size:12px!important;line-height:1.25!important;margin-top:3px!important}
+ .employeeCompactSummary{margin-top:4px!important;min-height:22px!important}
+ .empNoticeIcons{font-size:16px!important;padding:2px 7px!important}
+ .employeeStatus{font-size:13px!important;white-space:nowrap!important}
+ .empSettingsBtn{width:46px!important;height:40px!important;min-width:46px!important;padding:0!important;font-size:20px!important;border-radius:11px!important}
+ .empSettingsPanel.open{margin:8px 0 4px!important;padding:8px 10px 10px!important}
+ .empSettingsTitle{font-size:16px!important;font-weight:900!important;padding:2px 0 7px!important;margin:0!important;border-bottom:1px solid #dbe3ee!important}
+ .empSettingGroup{display:grid!important;grid-template-columns:68px minmax(0,1fr)!important;gap:6px!important;align-items:center!important;padding:7px 0!important;border-bottom:1px solid #e5e7eb!important}
+ .empSettingGroup:last-of-type{border-bottom:0!important}
+ .empSettingGroupTitle{font-size:12px!important;font-weight:800!important;white-space:nowrap!important;margin:0!important}
+ .empMiniActions{width:100%!important}
+ .empMiniActions .btn{width:auto!important;min-width:0!important;min-height:34px!important;padding:6px 8px!important;border-radius:9px!important;font-size:12px!important}
+ .empDangerNote{grid-column:2!important;margin:0!important;font-size:9px!important;line-height:1.25!important}
  #createEmployeeSection .grid2{grid-template-columns:1fr 1fr!important;gap:7px!important}
- #createEmployeeSection .field{margin:0!important}
- #createEmployeeSection .label{font-size:11px!important}
- #createEmployeeSection .input{min-height:38px!important;font-size:13px!important}
+}
+
+/* 平板：保留更多橫向空間 */
+@media(min-width:701px) and (max-width:1099px){
+ .employeeBox{width:min(900px,96vw)!important;padding:18px!important}
+ .employeeHead{min-height:48px!important;padding-right:158px!important}
+ .employeeTopActions{top:0!important;right:52px!important;gap:6px!important}
+ #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:44px!important;height:44px!important;min-width:44px!important;border-radius:12px!important;font-size:22px!important}
+ .empSettingsPanel.open{padding:12px 14px!important}
+ .empSettingGroup{display:grid!important;grid-template-columns:90px minmax(0,1fr)!important;gap:10px!important;align-items:center!important;padding:9px 0!important;border-bottom:1px solid #e5e7eb!important}
+ .empSettingGroupTitle{margin:0!important}
+}
+
+/* 電腦：寬版 */
+@media(min-width:1100px){
+ .employeeBox{width:min(1000px,94vw)!important;padding:22px!important}
+ .employeeHead{min-height:50px!important;padding-right:166px!important}
+ .employeeTopActions{top:0!important;right:54px!important;gap:7px!important}
+ #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:46px!important;height:46px!important;min-width:46px!important;border-radius:13px!important;font-size:23px!important}
+ .empSettingsPanel.open{padding:14px 16px!important}
+ .empSettingGroup{display:grid!important;grid-template-columns:105px minmax(0,1fr)!important;gap:12px!important;align-items:center!important;padding:10px 0!important;border-bottom:1px solid #e5e7eb!important}
+ .empSettingGroupTitle{margin:0!important}
 }
 </style>
 
+<style id="stage170H-permission-notify">
+.empNotifyCheck{display:inline-flex!important;align-items:center!important;gap:3px!important;flex:0 0 auto!important;white-space:nowrap!important;min-height:34px!important;padding:5px 7px!important;border:1px solid #dbe3ee!important;border-radius:9px!important;background:#f8fafc!important;font-weight:700!important;font-size:12px!important;box-sizing:border-box!important}
+.empNotifyCheck input{width:17px!important;height:17px!important;margin:0!important;accent-color:#2563eb}
+@media(max-width:700px){.empNotifyCheck{padding:5px!important;font-size:11px!important}}
+@media(min-width:701px){.empNotifyCheck{font-size:13px!important;padding:6px 9px!important}}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1467,7 +1416,7 @@ body.wall-focus #wall .wallOrderNote{
 </div>
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
-    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔 通知</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
+    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7 managementMainTabs">
       <button class="tab active" data-tab="home">📢 公告<div class="th">กงเก้า</div></button>
       <button class="tab" data-tab="accounting">💰 帳務中心</button>
@@ -3339,11 +3288,14 @@ function renderEmployeeList(list=[]){
         </div></div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">權限設定</div><div class="empMiniActions">
           
-          <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">${e.role==='admin'?'👑 管理員：是':'👤 管理員：否'}</button>
-          <button class="btn blue emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">頁面＋功能</button>
+          <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">${e.role==='admin'?'管理員：是':'管理員：否'}</button>
+          <button class="btn gray emp-v17page" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">頁面</button>
+          <button class="btn gray emp-v17func" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">功能</button>
         </div></div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">通知設定</div><div class="empMiniActions">
-          <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">🔔 通知</button>
+          <label class="empNotifyCheck"><input type="checkbox" class="emp-notify-check" data-id="${esc(e.user_id)}" value="accounting" ${(e.notification_permissions||[]).includes('accounting')?'checked':''}> 帳務中心</label>
+          <label class="empNotifyCheck"><input type="checkbox" class="emp-notify-check" data-id="${esc(e.user_id)}" value="packing" ${(e.notification_permissions||[]).includes('packing')?'checked':''}> 包裝部</label>
+          <label class="empNotifyCheck"><input type="checkbox" class="emp-notify-check" data-id="${esc(e.user_id)}" value="delivery" ${(e.notification_permissions||[]).includes('delivery')?'checked':''}> 貨運部</label>
         </div></div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">帳號狀態</div><div class="empMiniActions">
           <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'暫時停用':(e.registration_status==='pending'?'核准':'重新啟用')}</button>
@@ -3363,7 +3315,8 @@ function renderEmployeeList(list=[]){
     box.querySelectorAll('.emp-settings').forEach(x=>x.textContent='⚙️');
     if(panel&&willOpen){panel.classList.add('open');el.textContent='⌃';}
   });
-  box.querySelectorAll('.emp-v17perm').forEach(el=>el.onclick=()=>v17EditEmployee(el.dataset.id,el.dataset.name));
+  box.querySelectorAll('.emp-v17page').forEach(el=>el.onclick=()=>v17EditPages(el.dataset.id,el.dataset.name));
+  box.querySelectorAll('.emp-v17func').forEach(el=>el.onclick=()=>v17EditFunctions(el.dataset.id,el.dataset.name));
   box.querySelectorAll('.emp-name').forEach(el=>el.onclick=async()=>{const v=prompt(`修改「${el.dataset.name}」的顯示姓名`,el.dataset.name||'');if(v===null)return;const display_name=v.trim();if(!display_name){setEmployeeMsg('姓名不能空白');return;}if(display_name===el.dataset.name)return;try{await callEmployeeManager('set_display_name',{user_id:el.dataset.id,display_name});setEmployeeMsg(`姓名已更新：${display_name}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-account').forEach(el=>el.onclick=async()=>{const v=prompt(`設定「${el.dataset.name}」的員工帳號`,el.dataset.login||'');if(v===null)return;const login_name=v.trim().toLowerCase();if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號格式不正確');return;}try{await callEmployeeManager('set_login_name',{user_id:el.dataset.id,login_name});setEmployeeMsg('帳號已更新',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-person-type').forEach(el=>el.onclick=async()=>{const opts=[{value:'full_time',label:'正職員工'},{value:'part_time',label:'兼職／工讀'},{value:'temporary',label:'臨時人員'},{value:'external_partner',label:'外部合作人員'}];const v=prompt(`設定「${el.dataset.name}」的人員類型\n1 正職員工\n2 兼職／工讀\n3 臨時人員\n4 外部合作人員`,el.dataset.value==='full_time'?'1':el.dataset.value==='part_time'?'2':el.dataset.value==='temporary'?'3':el.dataset.value==='external_partner'?'4':'');if(v===null)return;const person_type=opts[Number(v)-1]?.value;if(!person_type){setEmployeeMsg('請輸入 1～4');return;}try{await setHRProfile(el.dataset.id,{person_type});setEmployeeMsg('人員類型已更新',true);await loadEmployees();}catch(e){setEmployeeMsg('人員類型更新失敗：'+(e?.message||e),false);}});
@@ -3381,7 +3334,21 @@ function renderEmployeeList(list=[]){
   box.querySelectorAll('.emp-payroll').forEach(el=>el.onclick=async()=>{const yn=prompt(`「${el.dataset.name}」是否計薪？\n1 是\n2 否`,el.dataset.enabled==='1'?'1':el.dataset.enabled==='0'?'2':'1');if(yn===null)return;if(!['1','2'].includes(yn.trim())){setEmployeeMsg('請輸入 1 或 2');return;}if(yn.trim()==='2'){try{await setHRProfile(el.dataset.id,{payroll_enabled:false,pay_type:''});setEmployeeMsg('計薪設定已更新',true);await loadEmployees();}catch(e){setEmployeeMsg('計薪設定失敗：'+(e?.message||e),false);}return;}const vals=['monthly','daily','hourly','per_trip','piece','other'];const pt=prompt('計薪方式\n1 月薪\n2 日薪\n3 時薪\n4 按趟\n5 計件\n6 其他',String(Math.max(0,vals.indexOf(el.dataset.paytype))+1));if(pt===null)return;const pay_type=vals[Number(pt)-1];if(!pay_type){setEmployeeMsg('請輸入 1～6');return;}try{await setHRProfile(el.dataset.id,{payroll_enabled:true,pay_type});setEmployeeMsg('計薪設定已更新',true);await loadEmployees();}catch(e){setEmployeeMsg('計薪設定失敗：'+(e?.message||e),false);}});
   box.querySelectorAll('.emp-work').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.roles||'').split(',').filter(Boolean);const roles=await chooseWorkRoles(el.dataset.name,cur,'設定工作區',async(selected)=>{await setEmployeeWorkRolesV32(el.dataset.id,selected);});if(roles===null)return;setEmployeeMsg('工作區已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
   box.querySelectorAll('.emp-feature').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.features||'').split(',').filter(Boolean);const features=await chooseFeatures(el.dataset.name,cur,async(selected)=>{await callEmployeeManager('set_feature_permissions',{user_id:el.dataset.id,feature_permissions:selected});});if(features===null)return;setEmployeeMsg('額外功能已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
-  box.querySelectorAll('.emp-notification').forEach(el=>el.onclick=async()=>{try{const {data,error}=await sb.from('employee_permission_v17').select('page_permissions').eq('user_id',el.dataset.id).maybeSingle();if(error)throw error;const pages=data?.page_permissions||[];const cur=(el.dataset.notifications||'').split(',').filter(Boolean);const opts=[{value:'packing',label:'📦 包裝通知',page:'packing'},{value:'delivery',label:'🚚 貨運通知',page:'delivery'},{value:'accounting',label:'💰 帳務通知',page:'accounting'}].filter(o=>pages.includes(o.page));const notifications=await chooseOptions(el.dataset.name,cur.filter(n=>opts.some(o=>o.value===n)),'通知設定｜只顯示已開啟頁面的通知',opts,false,async(selected)=>{await callEmployeeManager('set_notification_permissions',{user_id:el.dataset.id,notification_permissions:selected});});if(notifications===null)return;setEmployeeMsg('通知設定已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);}}catch(e){setEmployeeMsg('通知設定失敗：'+(e?.message||e),false);}});
+  box.querySelectorAll('.emp-notify-check').forEach(el=>el.onchange=async()=>{
+    const uid=el.dataset.id;
+    const card=el.closest('.employeeCompact');
+    const checks=[...card.querySelectorAll('.emp-notify-check')];
+    const selected=checks.filter(x=>x.checked).map(x=>x.value);
+    checks.forEach(x=>x.disabled=true);
+    try{
+      await callEmployeeManager('set_notification_permissions',{user_id:uid,notification_permissions:selected});
+      setEmployeeMsg('通知設定已更新',true);
+      if(uid===currentUser?.id)currentProfile=await loadMyProfile(currentUser);
+    }catch(e){
+      el.checked=!el.checked;
+      setEmployeeMsg('通知設定失敗：'+(e?.message||e),false);
+    }finally{checks.forEach(x=>x.disabled=false);}
+  });
   box.querySelectorAll('.emp-permission').forEach(el=>el.onclick=async()=>{
     const isNowAdmin=el.dataset.role==='admin', makeAdmin=!isNowAdmin;
     if(el.dataset.id===currentUser?.id && isNowAdmin){
@@ -3424,10 +3391,10 @@ async function loadEmployees(){
 }
 $('#employeeManageBtn').onclick=async()=>{if(currentProfile?.role!=='admin')return;setEmployeeMsg('');$('#employeeModal').classList.add('show');$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';await loadEmployees();};
 $('#closeEmployeeModal').onclick=()=>$('#employeeModal').classList.remove('show');
-$('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn gray';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='none';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';await loadEmployees();};
+$('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn gray';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='none';$('#toggleCreateEmployeeBtn').textContent='＋';await loadEmployees();};
 $('#permissionTabBtn').onclick=()=>{$('#employeeTabPanel').style.display='none';$('#permissionTabPanel').style.display='block';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn gray';$('#permissionTabBtn').className='btn blue';$('#jobTemplateTabBtn').className='btn gray';};
 $('#jobTemplateTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='none';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='block';$('#employeeTabBtn').className='btn gray';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn blue';await loadJobTemplateManager();};
-$('#toggleCreateEmployeeBtn').onclick=()=>{const sec=$('#createEmployeeSection');const open=sec.style.display==='none'||!sec.style.display;sec.style.display=open?'block':'none';$('#employeeList').style.display=open?'none':'block';$('#refreshEmployeesBtn').style.display=open?'none':'inline-block';$('#toggleCreateEmployeeBtn').textContent=open?'收起新增員工':'＋ 新增員工';setEmployeeMsg('');};
+$('#toggleCreateEmployeeBtn').onclick=()=>{const sec=$('#createEmployeeSection');const open=sec.style.display==='none'||!sec.style.display;sec.style.display=open?'block':'none';$('#employeeList').style.display=open?'none':'block';$('#refreshEmployeesBtn').style.display=open?'none':'inline-block';$('#toggleCreateEmployeeBtn').textContent=open?'−':'＋';$('#toggleCreateEmployeeBtn').title=open?'收起新增員工':'新增員工';$('#toggleCreateEmployeeBtn').setAttribute('aria-label',open?'收起新增員工':'新增員工');setEmployeeMsg('');};
 $('#employeeModal').addEventListener('click',e=>{if(e.target===$('#employeeModal'))$('#employeeModal').classList.remove('show');});
 $('#refreshEmployeesBtn').onclick=()=>loadEmployees();
 $('#empRole').onchange=()=>{if($('#empRole').value==='admin')$$('.new-work-role').forEach(x=>x.checked=true);};
@@ -3439,7 +3406,7 @@ $('#createEmployeeBtn').onclick=async()=>{
   if(!display_name||!login_name||!password){setEmployeeMsg('姓名、員工帳號、密碼都要填寫');return;}
   if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號請用英文字母、數字、點、底線或減號，2～30字');return;}
   const btn=$('#createEmployeeBtn');btn.disabled=true;btn.textContent='建立中…';
-  try{const core_work_roles=work_roles.filter(r=>r!=='liuhe');const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles:core_work_roles,feature_permissions,notification_permissions});if(work_roles.includes('liuhe')&&created?.user_id){await setEmployeeWorkRolesV32(created.user_id,work_roles);}$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='operator';$$('.new-work-role').forEach(x=>x.checked=['stall','packing'].includes(x.value));$$('.new-feature').forEach(x=>x.checked=false);$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='none';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
+  try{const core_work_roles=work_roles.filter(r=>r!=='liuhe');const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles:core_work_roles,feature_permissions,notification_permissions});if(work_roles.includes('liuhe')&&created?.user_id){await setEmployeeWorkRolesV32(created.user_id,work_roles);}$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='viewer';$$('.new-work-role').forEach(x=>x.checked=['stall','packing'].includes(x.value));$$('.new-feature').forEach(x=>x.checked=false);$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='none';$('#toggleCreateEmployeeBtn').textContent='＋';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
 };
 
 async function enforceActiveSession(){
@@ -4704,30 +4671,45 @@ function v17ApplyFunctionUI(){
 const v17BaseApplyRoleUI=applyRoleUI;
 applyRoleUI=function(){v17BaseApplyRoleUI();v17ApplyFunctionUI();};
 function v17AddPermissionButtons(){
- if(currentProfile?.role!=='admin')return;
- document.querySelectorAll('.employeeCompact').forEach(card=>{
-  const actions=card.querySelector('.empMiniActions');if(!actions||actions.querySelector('.emp-v17perm'))return;
-  const any=actions.querySelector('[data-id]');if(!any)return;
-  const b=document.createElement('button');b.className='btn gray emp-v17perm';b.textContent='系統權限';b.dataset.id=any.dataset.id;b.dataset.name=any.dataset.name||'';
-  b.onclick=()=>v17EditEmployee(b.dataset.id,b.dataset.name);actions.insertBefore(b,actions.firstChild);
- });
+ // 170F：權限按鈕已固定在「權限設定」區，禁止再插入基本資料。
 }
 function v17FuncPage(key){return ({'order.work':'stall','packing.work':'packing','delivery.work':'delivery','delivery.manage':'delivery','accounting.work':'accounting','announcement.manage':'home'})[key]||'';}
 function v17NotifyPage(key){return ({packing:'packing',delivery:'delivery',accounting:'accounting'})[key]||'';}
-async function v17EditEmployee(uid,name){
+async function v17PermissionRow(uid){
+ const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();
+ if(error)throw error;
+ return {pages:data?.page_permissions||[],funcs:(data?.function_permissions||[]).filter(x=>V17_FUNC_OPTIONS.some(o=>o[0]===x))};
+}
+function v17EmployeeIsAdmin(uid){
+ const b=[...document.querySelectorAll('.emp-permission')].find(x=>x.dataset.id===uid);
+ return b?.dataset.role==='admin';
+}
+async function v17EditPages(uid,name){
  try{
-  const empCard=[...document.querySelectorAll('.emp-admin-toggle')].find(x=>x.dataset.id===uid);
-  if(empCard?.dataset.role==='admin'){setEmployeeMsg('管理員自動擁有全部頁面與功能權限，不需要另外勾選。',true);return;}
-  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();if(error)throw error;
-  const pages=data?.page_permissions||[],funcs=(data?.function_permissions||[]).filter(x=>V17_FUNC_OPTIONS.some(o=>o[0]===x));
-  const pageSel=await chooseOptions(name,pages,'頁面權限｜決定看得到哪些分頁',V17_PAGE_OPTIONS.map(([value,label])=>({value,label})),false);if(pageSel===null)return;
-  const allowedFuncs=V17_FUNC_OPTIONS.filter(([value])=>v17FuncPage(value)==='home'||pageSel.includes(v17FuncPage(value)));
-  const funcSel=await chooseOptions(name,funcs.filter(f=>v17FuncPage(f)==='home'||pageSel.includes(v17FuncPage(f))),'功能權限｜決定可以操作哪些功能',allowedFuncs.map(([value,label])=>({value,label})),false);if(funcSel===null)return;
-  const {error:re}=await sb.rpc('set_employee_permissions_v17',{p_user_id:uid,p_page_permissions:pageSel,p_function_permissions:funcSel});if(re)throw re;
-  const notifyBtn=document.querySelector(`.emp-notification[data-id="${CSS.escape(uid)}"]`);
-  if(notifyBtn){const current=(notifyBtn.dataset.notifications||'').split(',').filter(Boolean);const cleaned=current.filter(n=>pageSel.includes(v17NotifyPage(n)));if(cleaned.length!==current.length)await callEmployeeManager('set_notification_permissions',{user_id:uid,notification_permissions:cleaned});}
-  setEmployeeMsg('系統權限已更新',true);await loadEmployees();if(uid===currentUser?.id){v17LoadedFor='';await v17LoadMine();}
- }catch(e){setEmployeeMsg('權限更新失敗：'+(e?.message||e),false);}
+  if(v17EmployeeIsAdmin(uid)){setEmployeeMsg('管理員自動擁有全部頁面權限。',true);return;}
+  const row=await v17PermissionRow(uid);
+  const pageSel=await chooseOptions(name,row.pages,'頁面權限｜決定看得到哪些分頁',V17_PAGE_OPTIONS.map(([value,label])=>({value,label})),false);
+  if(pageSel===null)return;
+  const cleanedFuncs=row.funcs.filter(f=>v17FuncPage(f)==='home'||pageSel.includes(v17FuncPage(f)));
+  const {error}=await sb.rpc('set_employee_permissions_v17',{p_user_id:uid,p_page_permissions:pageSel,p_function_permissions:cleanedFuncs});
+  if(error)throw error;
+  setEmployeeMsg('頁面權限已更新',true);await loadEmployees();
+  if(uid===currentUser?.id){v17LoadedFor='';await v17LoadMine();}
+ }catch(e){setEmployeeMsg('頁面權限更新失敗：'+(e?.message||e),false);}
+}
+async function v17EditFunctions(uid,name){
+ try{
+  if(v17EmployeeIsAdmin(uid)){setEmployeeMsg('管理員自動擁有全部功能權限。',true);return;}
+  const row=await v17PermissionRow(uid);
+  const allowed=V17_FUNC_OPTIONS.filter(([value])=>v17FuncPage(value)==='home'||row.pages.includes(v17FuncPage(value)));
+  const current=row.funcs.filter(f=>v17FuncPage(f)==='home'||row.pages.includes(v17FuncPage(f)));
+  const funcSel=await chooseOptions(name,current,'功能權限｜決定可以操作哪些功能',allowed.map(([value,label])=>({value,label})),false);
+  if(funcSel===null)return;
+  const {error}=await sb.rpc('set_employee_permissions_v17',{p_user_id:uid,p_page_permissions:row.pages,p_function_permissions:funcSel});
+  if(error)throw error;
+  setEmployeeMsg('功能權限已更新',true);await loadEmployees();
+  if(uid===currentUser?.id){v17LoadedFor='';await v17LoadMine();}
+ }catch(e){setEmployeeMsg('功能權限更新失敗：'+(e?.message||e),false);}
 }
 const v17Observer=new MutationObserver(()=>v17AddPermissionButtons());
 window.addEventListener('load',()=>{
