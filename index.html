@@ -3636,9 +3636,7 @@ async function startApp(user){
     if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
   }
   // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
-  await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
-  // 第171N：帳務雲端載入延後到整份腳本完成初始化後執行，避免 acctCloudRecords / acctLoad 的 TDZ 影響登入。
-  setTimeout(()=>{loadAccountingCloud().catch(e=>console.warn('帳務雲端載入失敗',e));},0);
+  await loadDelivery();await loadAccountingCloud();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
   activateTab(getRememberedTab(),{save:false});}
   catch(e){
     console.error(e);
@@ -3791,10 +3789,10 @@ $('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_q
 let acctDraftItems=[];
 let acctExternalDraftItems=[];
 let acctQueryFilter='all';
-const acctLoad=(key,fallback=[])=>{try{return JSON.parse(localStorage.getItem(key)||'null')||fallback}catch(e){return fallback}};
+function acctLoad(key,fallback=[]){try{return JSON.parse(localStorage.getItem(key)||'null')||fallback}catch(e){return fallback}}
 const acctMoney=n=>'$'+Math.round(Number(n)||0).toLocaleString('zh-TW');
 function acctCatalog(){return acctLoad('xinru_acct_test_products',{})}
-let acctCloudRecords=null;
+var acctCloudRecords=null;
 function acctRecords(){return acctCloudRecords===null?acctLoad('xinru_acct_test_records',[]):acctCloudRecords}
 async function loadAccountingCloud(){
   if(!currentUser)return;
