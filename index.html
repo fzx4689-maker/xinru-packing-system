@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第168S階段｜DOM結構修正版</title>
+<title>第169A階段｜權限資料入口整理</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1731,8 +1731,6 @@ body.wall-focus #wall .wallOrderNote{
     <div class="employeeHead"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
     <div class="actions" style="margin:8px 0 12px;gap:8px">
       <button id="employeeTabBtn" class="btn blue">👥 人員</button>
-      <button id="permissionTabBtn" class="btn gray">🔐 權限說明</button>
-      <button id="jobTemplateTabBtn" class="btn gray">🧩 職位／權限模板</button>
     </div>
 
     <div id="employeeTabPanel">
@@ -1745,24 +1743,10 @@ body.wall-focus #wall .wallOrderNote{
           <div class="field"><label class="label">姓名</label><input id="empName" class="input" autocomplete="off"></div>
           <div class="field"><label class="label">員工帳號</label><input id="empLoginName" class="input" type="text" autocomplete="off"></div>
           <div class="field"><label class="label">初始密碼</label><input id="empPassword" class="input" type="password" autocomplete="new-password"></div>
-          <div class="field"><label class="label">系統權限</label><select id="empRole" class="input"><option value="operator">主管</option><option value="viewer">一般使用者</option><option value="admin">管理員</option></select></div>
+          <div class="field"><label class="label">帳號類型</label><select id="empRole" class="input"><option value="viewer">一般帳號</option><option value="admin">管理員</option></select></div>
         </div>
-        <div class="workRoles">
-          <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="stall" checked> 🏢 總部</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="packing" checked> 📦 包裝部</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="driver"> 🚚 貨運</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="accounting"> 💰 帳務區</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="liuhe"> 🥬 六禾</label>
-        </div>
-        <div class="helper" style="margin-top:8px"><b>額外加開功能</b>（不會改變職務，可不勾）</div>
-        <div class="workRoles">
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="stall_order"> 📋 派工</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="packing"> 📦 包裝部</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="delivery"> 🚚 貨運部</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="accounting"> 💰 帳務</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="announcement"> 📢 公告管理</label>
-        </div>
-        <div class="helper" style="margin-top:8px"><b>接收通知</b>（跟職務、功能分開設定）</div>
+        <div class="helper" style="margin-top:8px"><b>頁面／功能權限</b>：帳號建立後，到該人員的「系統權限」設定；管理員自動擁有全部權限。</div>
+        <div class="helper" style="margin-top:8px"><b>接收通知</b>（獨立設定）</div>
         <div class="workRoles">
           <label class="workRoleChip"><input type="checkbox" class="new-notification" value="packing"> 📦 包裝通知</label>
           <label class="workRoleChip"><input type="checkbox" class="new-notification" value="delivery"> 🚚 貨運通知</label>
@@ -1774,7 +1758,7 @@ body.wall-focus #wall .wallOrderNote{
       <div id="employeeList" class="employeeList"><div class="empty">讀取中…</div></div>
     </div>
 
-    <div id="permissionTabPanel" style="display:none">
+    <div id="permissionTabPanel" style="display:none!important" aria-hidden="true">
       <div style="display:grid;gap:10px;font-size:14px;line-height:1.6;padding:4px 2px">
         <div><b>系統管理層級</b>：管理員／主管／一般使用者，決定可管理系統到什麼程度。</div>
         <div><b>人員類型</b>：正職員工／兼職工讀／臨時人員／外部合作人員，表示人員與公司的用工關係，不會自動改變系統管理層級。</div>
@@ -1786,7 +1770,7 @@ body.wall-focus #wall .wallOrderNote{
       </div>
     </div>
 
-    <div id="jobTemplateTabPanel" style="display:none">
+    <div id="jobTemplateTabPanel" style="display:none!important" aria-hidden="true">
       <div class="helper" style="margin:4px 0 10px">設定各職位的預設「頁面／功能／通知」。修改員工職位時會先詢問是否套用，不會直接覆蓋個別權限。</div>
       <div id="jobTemplateMsg" class="employeeMsg"></div>
       <div id="jobTemplateList" style="display:grid;gap:10px"><div class="empty">讀取中…</div></div>
@@ -3139,7 +3123,7 @@ async function loadJobTemplateManager(){
 async function editJobTemplate(job,row){
  const name=JOB_TITLE_LABEL[job]||job,pages=row?.page_permissions||[],funcs=row?.function_permissions||[],notify=row?.notification_permissions||[];
  const pageSel=await chooseOptions(name,pages,'職位模板｜頁面權限',V17_PAGE_OPTIONS.map(([value,label])=>({value,label})),false);if(pageSel===null)return;
- const allowedFuncs=V17_FUNC_OPTIONS.filter(([value])=>pageSel.includes(v17FuncPage(value)));
+ const allowedFuncs=V17_FUNC_OPTIONS.filter(([value])=>v17FuncPage(value)==='home'||pageSel.includes(v17FuncPage(value)));
  const funcSel=await chooseOptions(name,funcs.filter(f=>pageSel.includes(v17FuncPage(f))),'職位模板｜功能權限',allowedFuncs.map(([value,label])=>({value,label})),false);if(funcSel===null)return;
  const notifyOpts=[{value:'packing',label:'📦 包裝通知',page:'packing'},{value:'delivery',label:'🚚 貨運通知',page:'delivery'},{value:'accounting',label:'💰 帳務通知',page:'accounting'}].filter(o=>pageSel.includes(o.page));
  const notifySel=await chooseOptions(name,notify.filter(n=>notifyOpts.some(o=>o.value===n)),'職位模板｜通知設定',notifyOpts,false);if(notifySel===null)return;
@@ -3151,46 +3135,50 @@ function renderEmployeeList(list=[]){
   const count=$('#employeeCount');if(count)count.textContent=`共 ${list.length} 位｜使用中 ${active}｜停用 ${disabled}${pending?`｜待審 ${pending}`:''}`;
   if(!list.length){box.innerHTML='<div class="empty">目前沒有員工帳號</div>';return;}
   list=[...list].sort((a,b)=>{const ra=a.role==='admin'?0:1,rb=b.role==='admin'?0:1;if(ra!==rb)return ra-rb;return String(a.display_name||'').localeCompare(String(b.display_name||''),'zh-Hant');});
+  const adminCount=list.filter(e=>e.role==='admin').length;
   box.innerHTML=list.map(e=>`<div class="employeeCompact">
-    <div class="employeeCompactTop"><div><b style="font-size:16px">${esc(e.display_name||'未命名')}</b><div class="empAccount">帳號：${e.login_name?esc(e.login_name):'尚未設定'}</div><div class="empAccount"><b>系統管理層級：</b>${ROLE_LABEL[e.role]||e.role}</div><div class="empAccount"><b>人員類型：</b>${PERSON_TYPE_LABEL[e.person_type]||'未設定'}</div><div class="rolesCell"><b class="empFieldLabel">職位：</b>${jobTitleBadges(employeeJobTitles(e))}${e.template_status==='same'?'<span class="templateStatus same">✓ 符合模板</span>':e.template_status==='diff'?'<span class="templateStatus diff">⚠ 個別調整</span>':''}</div><div class="rolesCell"><b class="empFieldLabel">工作區：</b>${workRoleBadges(e.work_roles||[])}</div><div class="empAccount"><b>計薪：</b>${e.payroll_enabled===true?(PAY_TYPE_LABEL[e.pay_type]||'是'):e.payroll_enabled===false?'否':'未設定'}</div><div class="rolesCell"><b class="empFieldLabel">通知：</b>${notificationBadges(e.notification_permissions||[])}</div></div><div class="employeeStatus ${e.is_active?'on':'off'}">${e.is_active?'● 使用中':(e.registration_status==='pending'?'● 待審核':'● 已停用')}</div></div>
+    <div class="employeeCompactTop"><div><b style="font-size:16px">${esc(e.display_name||'未命名')}</b><div class="empAccount">帳號：${e.login_name?esc(e.login_name):'尚未設定'}</div><div class="empAccount"><b>帳號類型：</b>${e.role==='admin'?'管理員':'一般帳號'}</div><div class="rolesCell"><b class="empFieldLabel">通知：</b>${notificationBadges(e.notification_permissions||[])}</div></div><div class="employeeStatus ${e.is_active?'on':'off'}">${e.is_active?'● 使用中':(e.registration_status==='pending'?'● 待審核':'● 已停用')}</div></div>
     <div class="empMiniActions">
       <button class="btn gray emp-name" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">姓名</button>
       <button class="btn gray emp-account" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-login="${esc(e.login_name||'')}">帳號</button>
       <button class="btn blue emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">密碼</button>
-      <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">系統管理層級</button>
-      <button class="btn gray emp-person-type" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-value="${esc(e.person_type||'')}">人員類型</button>
-      <button class="btn gray emp-job-title" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-values="${esc(employeeJobTitles(e).join(','))}">職位</button>
-      <button class="btn blue emp-work" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-roles="${esc((e.work_roles||[]).join(','))}">工作區</button>
-      <button class="btn gray emp-payroll" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-enabled="${e.payroll_enabled===true?'1':e.payroll_enabled===false?'0':''}" data-paytype="${esc(e.pay_type||'')}">計薪</button>
+      <button class="btn gray emp-admin-toggle" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}" data-admin-count="${adminCount}">${e.role==='admin'?'取消管理員':'設為管理員'}</button>
       <button class="btn gray emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">系統權限</button>
       <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">通知設定</button>
-      <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'停用':(e.registration_status==='pending'?'核准':'啟用')}</button>
-      <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>刪除</button>
+      <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" data-role="${esc(e.role)}" data-admin-count="${adminCount}">${e.is_active?'停用':(e.registration_status==='pending'?'核准':'啟用')}</button>
+      <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}" data-admin-count="${adminCount}">刪除</button>
     </div>
   </div>`).join('');
+
   box.querySelectorAll('.emp-v17perm').forEach(el=>el.onclick=()=>v17EditEmployee(el.dataset.id,el.dataset.name));
   box.querySelectorAll('.emp-name').forEach(el=>el.onclick=async()=>{const v=prompt(`修改「${el.dataset.name}」的顯示姓名`,el.dataset.name||'');if(v===null)return;const display_name=v.trim();if(!display_name){setEmployeeMsg('姓名不能空白');return;}if(display_name===el.dataset.name)return;try{await callEmployeeManager('set_display_name',{user_id:el.dataset.id,display_name});setEmployeeMsg(`姓名已更新：${display_name}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-account').forEach(el=>el.onclick=async()=>{const v=prompt(`設定「${el.dataset.name}」的員工帳號`,el.dataset.login||'');if(v===null)return;const login_name=v.trim().toLowerCase();if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號格式不正確');return;}try{await callEmployeeManager('set_login_name',{user_id:el.dataset.id,login_name});setEmployeeMsg('帳號已更新',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
-  box.querySelectorAll('.emp-person-type').forEach(el=>el.onclick=async()=>{const opts=[{value:'full_time',label:'正職員工'},{value:'part_time',label:'兼職／工讀'},{value:'temporary',label:'臨時人員'},{value:'external_partner',label:'外部合作人員'}];const v=prompt(`設定「${el.dataset.name}」的人員類型\n1 正職員工\n2 兼職／工讀\n3 臨時人員\n4 外部合作人員`,el.dataset.value==='full_time'?'1':el.dataset.value==='part_time'?'2':el.dataset.value==='temporary'?'3':el.dataset.value==='external_partner'?'4':'');if(v===null)return;const person_type=opts[Number(v)-1]?.value;if(!person_type){setEmployeeMsg('請輸入 1～4');return;}try{await setHRProfile(el.dataset.id,{person_type});setEmployeeMsg('人員類型已更新',true);await loadEmployees();}catch(e){setEmployeeMsg('人員類型更新失敗：'+(e?.message||e),false);}});
-  box.querySelectorAll('.emp-job-title').forEach(el=>el.onclick=async()=>{
-    const cur=(el.dataset.values||'').split(',').filter(Boolean);
-    const jobs=await chooseOptions(el.dataset.name,cur,'設定職位（可複選）',JOB_TITLE_OPTIONS,true,async(selected)=>{await setEmployeeJobTitlesV32(el.dataset.id,selected);});
-    if(jobs===null)return;
-    try{
-      const names=jobs.map(j=>JOB_TITLE_LABEL[j]||j).join('＋');
-      const useTemplate=confirm(`職位已改成「${names}」。\n\n要合併套用這些職位的預設「頁面／功能／通知」嗎？\n\n確定＝合併模板後套用\n取消＝只改職位，保留目前個別權限`);
-      if(useTemplate){await applyMergedJobPermissionTemplates(el.dataset.id,jobs);setEmployeeMsg('職位已更新，並已合併套用職位模板',true);}else{setEmployeeMsg('職位已更新；原本個別權限已保留',true);}
-      await loadEmployees();if(el.dataset.id===currentUser?.id){v17LoadedFor='';currentProfile=await loadMyProfile(currentUser);await v17LoadMine();applyRoleUI();}
-    }catch(e){setEmployeeMsg('職位／預設權限更新失敗：'+(e?.message||e),false);}
+  box.querySelectorAll('.emp-admin-toggle').forEach(el=>el.onclick=async()=>{
+    const isAdmin=el.dataset.role==='admin',adminCount=Number(el.dataset.adminCount||0);
+    if(isAdmin&&adminCount<=1){setEmployeeMsg('系統至少必須保留一位管理員。請先將另一位人員設為管理員。');return;}
+    const role=isAdmin?'viewer':'admin';
+    if(!confirm(isAdmin?`確定取消「${el.dataset.name}」的管理員權限？`:`確定將「${el.dataset.name}」設為管理員？`))return;
+    try{await callEmployeeManager('set_role',{user_id:el.dataset.id,role});setEmployeeMsg(isAdmin?'已改為一般帳號':'已設為管理員',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}
   });
-  box.querySelectorAll('.emp-payroll').forEach(el=>el.onclick=async()=>{const yn=prompt(`「${el.dataset.name}」是否計薪？\n1 是\n2 否`,el.dataset.enabled==='1'?'1':el.dataset.enabled==='0'?'2':'1');if(yn===null)return;if(!['1','2'].includes(yn.trim())){setEmployeeMsg('請輸入 1 或 2');return;}if(yn.trim()==='2'){try{await setHRProfile(el.dataset.id,{payroll_enabled:false,pay_type:''});setEmployeeMsg('計薪設定已更新',true);await loadEmployees();}catch(e){setEmployeeMsg('計薪設定失敗：'+(e?.message||e),false);}return;}const vals=['monthly','daily','hourly','per_trip','piece','other'];const pt=prompt('計薪方式\n1 月薪\n2 日薪\n3 時薪\n4 按趟\n5 計件\n6 其他',String(Math.max(0,vals.indexOf(el.dataset.paytype))+1));if(pt===null)return;const pay_type=vals[Number(pt)-1];if(!pay_type){setEmployeeMsg('請輸入 1～6');return;}try{await setHRProfile(el.dataset.id,{payroll_enabled:true,pay_type});setEmployeeMsg('計薪設定已更新',true);await loadEmployees();}catch(e){setEmployeeMsg('計薪設定失敗：'+(e?.message||e),false);}});
-  box.querySelectorAll('.emp-work').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.roles||'').split(',').filter(Boolean);const roles=await chooseWorkRoles(el.dataset.name,cur,'設定工作區',async(selected)=>{await setEmployeeWorkRolesV32(el.dataset.id,selected);});if(roles===null)return;setEmployeeMsg('工作區已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
-  box.querySelectorAll('.emp-feature').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.features||'').split(',').filter(Boolean);const features=await chooseFeatures(el.dataset.name,cur,async(selected)=>{await callEmployeeManager('set_feature_permissions',{user_id:el.dataset.id,feature_permissions:selected});});if(features===null)return;setEmployeeMsg('額外功能已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
   box.querySelectorAll('.emp-notification').forEach(el=>el.onclick=async()=>{try{const {data,error}=await sb.from('employee_permission_v17').select('page_permissions').eq('user_id',el.dataset.id).maybeSingle();if(error)throw error;const pages=data?.page_permissions||[];const cur=(el.dataset.notifications||'').split(',').filter(Boolean);const opts=[{value:'packing',label:'📦 包裝通知',page:'packing'},{value:'delivery',label:'🚚 貨運通知',page:'delivery'},{value:'accounting',label:'💰 帳務通知',page:'accounting'}].filter(o=>pages.includes(o.page));const notifications=await chooseOptions(el.dataset.name,cur.filter(n=>opts.some(o=>o.value===n)),'通知設定｜只顯示已開啟頁面的通知',opts,false,async(selected)=>{await callEmployeeManager('set_notification_permissions',{user_id:el.dataset.id,notification_permissions:selected});});if(notifications===null)return;setEmployeeMsg('通知設定已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);}}catch(e){setEmployeeMsg('通知設定失敗：'+(e?.message||e),false);}});
-  box.querySelectorAll('.emp-permission').forEach(el=>el.onclick=async()=>{const map=ROLE_LABEL;const choices='1 管理員\n2 主管\n3 一般使用者';const v=prompt(`設定「${el.dataset.name}」的系統管理層級\n${choices}\n\n此設定只代表系統管理層級，不等於人員類型或職位。`,el.dataset.role==='admin'?'1':el.dataset.role==='operator'?'2':'3');if(v===null)return;const role=v.trim()==='1'?'admin':v.trim()==='2'?'operator':v.trim()==='3'?'viewer':null;if(!role){setEmployeeMsg('請輸入 1、2 或 3');return;}if(el.dataset.id===currentUser?.id && el.dataset.role==='admin' && role!=='admin'){const admins=[...box.querySelectorAll('.emp-permission')].filter(b=>b.dataset.role==='admin');if(admins.length<=1){setEmployeeMsg('目前只有你一位管理員權限帳號。請先把另一位人員設成管理員，再調整自己的權限。');return;}}try{await callEmployeeManager('set_role',{user_id:el.dataset.id,role});setEmployeeMsg(`系統管理層級已更新：${map[role]}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-password').forEach(el=>el.onclick=async()=>{const p1=prompt(`請輸入「${el.dataset.name}」的新密碼（至少 6 碼）`);if(p1===null)return;if(p1.length<6){setEmployeeMsg('新密碼至少要 6 碼');return;}const p2=prompt('請再輸入一次新密碼確認');if(p2===null||p1!==p2){setEmployeeMsg('兩次輸入的密碼不一致');return;}try{await callEmployeeManager('change_password',{user_id:el.dataset.id,password:p1});setEmployeeMsg('密碼已更新',true);}catch(e){setEmployeeMsg(e.message,false);}});
-  box.querySelectorAll('.emp-active').forEach(el=>el.onclick=async()=>{const active=el.dataset.active==='1',isPending=!active&&el.textContent.trim()==='核准';try{if(isPending){const name=el.closest('.employeeCompact')?.querySelector('b')?.textContent||'新員工';const roles=await chooseWorkRoles(name,[],'核准人員・選擇工作區',async(selected)=>{await callEmployeeManager('approve',{user_id:el.dataset.id,work_roles:selected});});if(roles===null)return;}else await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
-  box.querySelectorAll('.emp-delete').forEach(el=>el.onclick=async()=>{if(!confirm(`確定刪除「${el.dataset.name}」？`))return;try{await callEmployeeManager('delete',{user_id:el.dataset.id});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
+  box.querySelectorAll('.emp-active').forEach(el=>el.onclick=async()=>{
+    const active=el.dataset.active==='1',isPending=!active&&el.textContent.trim()==='核准',isAdmin=el.dataset.role==='admin',adminCount=Number(el.dataset.adminCount||0);
+    if(active&&isAdmin&&adminCount<=1){setEmployeeMsg('系統至少必須保留一位啟用中的管理員，不能停用最後一位管理員。');return;}
+    try{
+      if(isPending){
+        /* 169A：核准不再要求選工作區；舊 work_roles 保留在資料層，待169C貨運遷移。 */
+        await callEmployeeManager('approve',{user_id:el.dataset.id,work_roles:[]});
+      }else await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});
+      await loadEmployees();
+    }catch(e){setEmployeeMsg(e.message,false);}
+  });
+  box.querySelectorAll('.emp-delete').forEach(el=>el.onclick=async()=>{
+    const isAdmin=el.dataset.role==='admin',adminCount=Number(el.dataset.adminCount||0);
+    if(isAdmin&&adminCount<=1){setEmployeeMsg('系統至少必須保留一位管理員，不能刪除最後一位管理員。');return;}
+    if(!confirm(`確定刪除「${el.dataset.name}」？`))return;
+    try{await callEmployeeManager('delete',{user_id:el.dataset.id});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}
+  });
 }
 function updatePendingEmployeeBadge(list=[]){
   const badge=$('#pendingEmployeeBadge'); if(!badge)return;
@@ -3209,7 +3197,7 @@ async function loadEmployees(){
  const keepScroll=scrollBox?scrollBox.scrollTop:0;
  if(listEl)listEl.innerHTML='<div class="empty">讀取中…</div>';
  try{
-  const data=await callEmployeeManager('list');const [hr,permRows,templateRows]=await Promise.all([loadHRProfiles(),loadEmployeePermissionRows(),loadJobTemplateRows()]);const hm=new Map((hr||[]).map(x=>[x.user_id,x])),pm=new Map((permRows||[]).map(x=>[x.user_id,x])),tm=new Map((templateRows||[]).map(x=>[x.job_title,x]));const employees=(data.employees||[]).map(e=>{const x=Object.assign({},e,hm.get(e.user_id)||{}),p=pm.get(e.user_id),jobs=employeeJobTitles(x);if(p&&jobs.length){const pages=new Set(),funcs=new Set(),notify=new Set();jobs.forEach(j=>{const t=tm.get(j)||JOB_PERMISSION_TEMPLATE[j];if(!t)return;(t.page_permissions||t.pages||[]).forEach(v=>pages.add(v));(t.function_permissions||t.funcs||[]).forEach(v=>funcs.add(v));(t.notification_permissions||t.notify||[]).forEach(v=>notify.add(v));});x.template_status=samePermissionSet(p.page_permissions,[...pages])&&samePermissionSet(p.function_permissions,[...funcs])&&samePermissionSet(x.notification_permissions,[...notify])?'same':'diff';}else x.template_status='';return x;});updatePendingEmployeeBadge(employees);renderEmployeeList(employees);
+  const data=await callEmployeeManager('list');const permRows=await loadEmployeePermissionRows();const pm=new Map((permRows||[]).map(x=>[x.user_id,x]));const employees=(data.employees||[]).map(e=>Object.assign({},e,{v17_configured:pm.has(e.user_id)}));updatePendingEmployeeBadge(employees);renderEmployeeList(employees);
   if(scrollBox)requestAnimationFrame(()=>{scrollBox.scrollTop=keepScroll;});
  }catch(e){if(listEl)listEl.innerHTML=`<div class="empty" style="color:#b4232c">${esc(e.message)}</div>`;if(scrollBox)requestAnimationFrame(()=>{scrollBox.scrollTop=keepScroll;});}
 }
@@ -3221,16 +3209,16 @@ $('#jobTemplateTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='
 $('#toggleCreateEmployeeBtn').onclick=()=>{const sec=$('#createEmployeeSection');const open=sec.style.display==='none'||!sec.style.display;sec.style.display=open?'block':'none';$('#employeeList').style.display=open?'none':'block';$('#refreshEmployeesBtn').style.display=open?'none':'inline-block';$('#toggleCreateEmployeeBtn').textContent=open?'收起新增員工':'＋ 新增員工';setEmployeeMsg('');};
 $('#employeeModal').addEventListener('click',e=>{if(e.target===$('#employeeModal'))$('#employeeModal').classList.remove('show');});
 $('#refreshEmployeesBtn').onclick=()=>loadEmployees();
-$('#empRole').onchange=()=>{if($('#empRole').value==='admin')$$('.new-work-role').forEach(x=>x.checked=true);};
+$('#empRole').onchange=()=>{};
 $('#createEmployeeBtn').onclick=async()=>{
   const display_name=$('#empName').value.trim(),login_name=$('#empLoginName').value.trim().toLowerCase(),password=$('#empPassword').value,role=$('#empRole').value;
-  const work_roles=$$('.new-work-role').filter(x=>x.checked).map(x=>x.value);
-  const feature_permissions=$$('.new-feature').filter(x=>x.checked).map(x=>x.value);
+  const work_roles=[];
+  const feature_permissions=[];
   const notification_permissions=$$('.new-notification').filter(x=>x.checked).map(x=>x.value);
   if(!display_name||!login_name||!password){setEmployeeMsg('姓名、員工帳號、密碼都要填寫');return;}
   if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號請用英文字母、數字、點、底線或減號，2～30字');return;}
   const btn=$('#createEmployeeBtn');btn.disabled=true;btn.textContent='建立中…';
-  try{const core_work_roles=work_roles.filter(r=>r!=='liuhe');const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles:core_work_roles,feature_permissions,notification_permissions});if(work_roles.includes('liuhe')&&created?.user_id){await setEmployeeWorkRolesV32(created.user_id,work_roles);}$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='operator';$$('.new-work-role').forEach(x=>x.checked=['stall','packing'].includes(x.value));$$('.new-feature').forEach(x=>x.checked=false);$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
+  try{const created=await callEmployeeManager('create',{display_name,login_name,password,role,work_roles,feature_permissions,notification_permissions});$('#empName').value='';$('#empLoginName').value='';$('#empPassword').value='';$('#empRole').value='viewer';$$('.new-notification').forEach(x=>x.checked=false);$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='inline-block';$('#toggleCreateEmployeeBtn').textContent='＋ 新增員工';setEmployeeMsg('員工帳號建立成功',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}finally{btn.disabled=false;btn.textContent='建立帳號';}
 };
 
 async function enforceActiveSession(){
@@ -4451,7 +4439,7 @@ let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Re
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentUser)loadStage9()});window.addEventListener('focus',()=>{if(currentUser)loadStage9()});window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},10000);
 </script>
 <script>
-/* 第十七階段：頁面權限＋功能權限。獨立權限表，不修改登入/Auth 核心。 */
+/* 第169A階段：權限資料入口整理。沿用 employee_permission_v17；本階段不改業務功能判斷/Auth。 */
 const V17_PAGE_OPTIONS=[
  ['accounting','💰 帳務中心'],
  ['stall','📋 派工'],
@@ -4459,10 +4447,20 @@ const V17_PAGE_OPTIONS=[
  ['delivery','🚚 貨運部']
 ];
 const V17_FUNC_OPTIONS=[
- ['order.create','派工｜新增訂單'],['order.edit','派工｜修改訂單'],
- ['packing.work','包裝｜勾選／回覆／完成'],['delivery.work','貨運｜配送作業'],
- ['accounting.entry','帳務｜登帳／收款'],['accounting.export','帳務｜匯出／列印'],
- ['procurement.work','商品｜庫存作業']
+ ['order.create','派工｜新增訂單'],
+ ['order.edit','派工｜修改訂單'],
+ ['order.delete','派工｜刪除訂單'],
+ ['packing.work','包裝｜勾選／回覆／完成'],
+ ['packing.manage','包裝｜接單／管理'],
+ ['delivery.work','貨運｜本人配送作業'],
+ ['delivery.manage','貨運｜管理／指派司機'],
+ ['delivery.edit','貨運｜修改貨運單'],
+ ['delivery.delete','貨運｜刪除貨運單'],
+ ['accounting.entry','帳務｜登帳／收款'],
+ ['accounting.export','帳務｜匯出／列印'],
+ ['announcement.create','公告｜新增'],
+ ['announcement.edit','公告｜修改／結束'],
+ ['announcement.delete','公告｜刪除']
 ];
 let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
 const v17Has=(k)=>isManager()||!v17Perm.configured||v17Perm.funcs.includes(k);
@@ -4506,17 +4504,21 @@ function v17AddPermissionButtons(){
 }
 function v17FuncPage(key){
  return ({
-  'order.create':'stall','order.edit':'stall','packing.work':'packing','delivery.work':'delivery',
-  'accounting.entry':'accounting','accounting.export':'accounting','procurement.work':'procurement'
+  'order.create':'stall','order.edit':'stall','order.delete':'stall',
+  'packing.work':'packing','packing.manage':'packing',
+  'delivery.work':'delivery','delivery.manage':'delivery','delivery.edit':'delivery','delivery.delete':'delivery',
+  'accounting.entry':'accounting','accounting.export':'accounting',
+  'announcement.create':'home','announcement.edit':'home','announcement.delete':'home'
  })[key]||'';
 }
 function v17NotifyPage(key){return ({packing:'packing',delivery:'delivery',accounting:'accounting'})[key]||'';}
 async function v17EditEmployee(uid,name){
  try{
+  const empCard=[...document.querySelectorAll('.emp-admin-toggle')].find(x=>x.dataset.id===uid);if(empCard?.dataset.role==='admin'){setEmployeeMsg('管理員自動擁有全部頁面與功能權限，不需要另外勾選。',true);return;}
   const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();if(error)throw error;
   const pages=data?.page_permissions||[],funcs=data?.function_permissions||[];
   const pageSel=await chooseOptions(name,pages,'頁面權限｜決定看得到哪些分頁',V17_PAGE_OPTIONS.map(([value,label])=>({value,label})),false);if(pageSel===null)return;
-  const allowedFuncs=V17_FUNC_OPTIONS.filter(([value])=>pageSel.includes(v17FuncPage(value)));
+  const allowedFuncs=V17_FUNC_OPTIONS.filter(([value])=>v17FuncPage(value)==='home'||pageSel.includes(v17FuncPage(value)));
   const funcSel=await chooseOptions(name,funcs.filter(f=>pageSel.includes(v17FuncPage(f))),'功能權限｜只顯示已開啟頁面的操作',allowedFuncs.map(([value,label])=>({value,label})),false);if(funcSel===null)return;
   const {error:re}=await sb.rpc('set_employee_permissions_v17',{p_user_id:uid,p_page_permissions:pageSel,p_function_permissions:funcSel});if(re)throw re;
   const notifyBtn=document.querySelector(`.emp-notification[data-id="${CSS.escape(uid)}"]`);
