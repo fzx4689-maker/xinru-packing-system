@@ -1537,6 +1537,45 @@ body.wall-focus #wall .wallOrderNote{
 .emp-notify-check{transition:none!important}
 .empNotifyCheck{transition:none!important}
 </style>
+
+<style id="stage171g-mobile-announcement-top-actions">
+/* 第171G階段：只調整公告手機版右上角功能鍵；電腦版不變 */
+@media(max-width:600px){
+  #home .card>div:first-child{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:8px!important;
+  }
+  #home .card>div:first-child>h3{
+    flex:1 1 auto!important;
+    min-width:0!important;
+  }
+  #home .homeNoticeTopActions{
+    flex:0 0 auto!important;
+    width:auto!important;
+    gap:5px!important;
+    flex-wrap:nowrap!important;
+    margin-left:auto!important;
+  }
+  #home .homeNoticeTopBtn{
+    flex:0 0 auto!important;
+    width:40px!important;
+    min-width:40px!important;
+    max-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    border-radius:10px!important;
+    font-size:0!important;
+    line-height:1!important;
+    overflow:hidden!important;
+  }
+  #homeNoticeAddBtn::before{content:'➕';font-size:20px!important;line-height:1!important}
+  #homeDoneToggleBtn::before{content:'🔍';font-size:20px!important;line-height:1!important}
+}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
