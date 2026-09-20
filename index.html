@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170H階段｜人員權限通知直覺版</title>
+<title>欣儒系統｜第170L階段｜人員權限大分頁排序版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1315,14 +1315,14 @@ body.wall-focus #wall .wallOrderNote{
 /* 170G 人員管理：單一正式規格，不疊用 170C~170F 人員 CSS */
 .employeeBox{box-sizing:border-box}
 .employeeHead{position:relative!important}
-.employeeTopActions{position:absolute!important;display:flex!important;flex-flow:row nowrap!important;align-items:center!important;margin:0!important}
+.employeeTopActions{position:static!important;display:flex!important;flex-flow:row nowrap!important;align-items:center!important;margin:0 0 0 auto!important}
 #employeeTabBtn,#jobTemplateTabBtn{display:none!important}
 #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{
  position:static!important;inset:auto!important;margin:0!important;padding:0!important;
  display:flex!important;align-items:center!important;justify-content:center!important;
  font-weight:900!important;line-height:1!important;flex:0 0 auto!important;
 }
-#closeEmployeeModal{position:absolute!important;right:0!important;top:0!important}
+#closeEmployeeModal{position:static!important}
 .empSettingsPanel{display:none}
 .empSettingsPanel.open{display:block!important;background:#fff!important;border:3px solid #2563eb!important;border-radius:16px!important}
 .empMiniActions{display:flex!important;flex-flow:row nowrap!important;align-items:center!important;gap:6px!important;min-width:0!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;scrollbar-width:none}
@@ -1337,9 +1337,9 @@ body.wall-focus #wall .wallOrderNote{
  .employeeHead{height:48px!important;min-height:48px!important;padding:0 142px 0 2px!important;margin:0 0 8px!important;display:block!important}
  .employeeHead h2{font-size:20px!important;line-height:42px!important;margin:0!important;white-space:nowrap!important}
  .employeeHead .employeeCount{display:none!important}
- .employeeTopActions{top:0!important;right:47px!important;gap:5px!important}
+ .employeeTopActions{position:static!important;gap:5px!important}
  #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:40px!important;height:40px!important;min-width:40px!important;border-radius:11px!important;font-size:21px!important}
- #closeEmployeeModal{right:0!important;top:0!important}
+ #closeEmployeeModal{position:static!important}
  #employeeMsg{font-size:12px!important;margin:3px 0 5px!important}
  .employeeCompact{padding:9px 2px!important;border-bottom:1px solid #e5e7eb!important}
  .employeeCompactTop{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 8px!important;align-items:center!important}
@@ -1364,7 +1364,7 @@ body.wall-focus #wall .wallOrderNote{
 @media(min-width:701px) and (max-width:1099px){
  .employeeBox{width:min(900px,96vw)!important;padding:18px!important}
  .employeeHead{min-height:48px!important;padding-right:158px!important}
- .employeeTopActions{top:0!important;right:52px!important;gap:6px!important}
+ .employeeTopActions{position:static!important;gap:6px!important}
  #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:44px!important;height:44px!important;min-width:44px!important;border-radius:12px!important;font-size:22px!important}
  .empSettingsPanel.open{padding:12px 14px!important}
  .empSettingGroup{display:grid!important;grid-template-columns:90px minmax(0,1fr)!important;gap:10px!important;align-items:center!important;padding:9px 0!important;border-bottom:1px solid #e5e7eb!important}
@@ -1375,7 +1375,7 @@ body.wall-focus #wall .wallOrderNote{
 @media(min-width:1100px){
  .employeeBox{width:min(1000px,94vw)!important;padding:22px!important}
  .employeeHead{min-height:50px!important;padding-right:166px!important}
- .employeeTopActions{top:0!important;right:54px!important;gap:7px!important}
+ .employeeTopActions{position:static!important;gap:7px!important}
  #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{width:46px!important;height:46px!important;min-width:46px!important;border-radius:13px!important;font-size:23px!important}
  .empSettingsPanel.open{padding:14px 16px!important}
  .empSettingGroup{display:grid!important;grid-template-columns:105px minmax(0,1fr)!important;gap:12px!important;align-items:center!important;padding:10px 0!important;border-bottom:1px solid #e5e7eb!important}
@@ -1389,6 +1389,91 @@ body.wall-focus #wall .wallOrderNote{
 @media(max-width:700px){.empNotifyCheck{padding:5px!important;font-size:11px!important}}
 @media(min-width:701px){.empNotifyCheck{font-size:13px!important;padding:6px 9px!important}}
 </style>
+
+<style id="stage170I-employee-header-structure">
+.employeeHead{
+ display:flex!important;
+ flex-direction:row!important;
+ flex-wrap:nowrap!important;
+ align-items:center!important;
+ justify-content:space-between!important;
+ gap:10px!important;
+ padding-right:0!important;
+ height:auto!important;
+}
+.employeeHeadTitle{
+ display:flex!important;
+ flex-direction:row!important;
+ align-items:center!important;
+ gap:10px!important;
+ min-width:0!important;
+ flex:1 1 auto!important;
+}
+.employeeHeadTitle h2{margin:0!important;white-space:nowrap!important}
+.employeeHeadTitle .employeeCount{flex:0 0 auto!important}
+.employeeTopActions{
+ position:static!important;
+ inset:auto!important;
+ display:flex!important;
+ flex-flow:row nowrap!important;
+ align-items:center!important;
+ justify-content:flex-end!important;
+ gap:6px!important;
+ margin:0!important;
+ width:auto!important;
+ flex:0 0 auto!important;
+}
+#toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{
+ position:static!important;
+ inset:auto!important;
+ margin:0!important;
+ flex:0 0 auto!important;
+}
+@media(max-width:700px){
+ .employeeHead{min-height:44px!important;margin:0 0 8px!important}
+ .employeeHeadTitle h2{font-size:20px!important;line-height:1.2!important}
+ .employeeHeadTitle .employeeCount{display:none!important}
+ .employeeTopActions{gap:4px!important}
+ #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{
+  width:40px!important;height:40px!important;min-width:40px!important;font-size:21px!important;border-radius:11px!important
+ }
+}
+@media(min-width:701px) and (max-width:1099px){
+ .employeeHead{min-height:46px!important}
+ #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{
+  width:44px!important;height:44px!important;min-width:44px!important
+ }
+}
+@media(min-width:1100px){
+ .employeeHead{min-height:48px!important}
+ #toggleCreateEmployeeBtn,#permissionTabBtn,#closeEmployeeModal{
+  width:46px!important;height:46px!important;min-width:46px!important
+ }
+}
+</style>
+
+
+<style id="stage170K-desktop-danger-note">
+@media(min-width:1100px){
+  .empSettingGroup{
+    grid-template-columns:105px minmax(0,1fr)!important;
+  }
+  .empSettingGroup .empMiniActions{
+    overflow:visible!important;
+  }
+  .empDangerNote{
+    grid-column:2!important;
+    display:inline-block!important;
+    width:auto!important;
+    max-width:none!important;
+    margin:5px 0 0!important;
+    font-size:12px!important;
+    line-height:1.5!important;
+    white-space:normal!important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1823,12 +1908,15 @@ body.wall-focus #wall .wallOrderNote{
 
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
-    <div class="employeeHead"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray employeeIconBtn" title="關閉" aria-label="關閉">×</button></div>
-    <div class="actions employeeTopActions">
-      <button id="employeeTabBtn" class="btn blue" style="display:none">👥 人員</button>
-      <button id="toggleCreateEmployeeBtn" class="btn primary" style="padding:8px 11px;font-size:13px" title="新增員工" aria-label="新增員工">＋</button>
-      <button id="permissionTabBtn" class="btn gray employeeIconBtn" title="權限說明" aria-label="權限說明">?</button>
-      <button id="jobTemplateTabBtn" class="btn gray" style="display:none">🧩 職位／權限模板</button>
+    <div class="employeeHead">
+      <div class="employeeHeadTitle"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span></div>
+      <div class="actions employeeTopActions">
+        <button id="employeeTabBtn" class="btn blue" style="display:none">👥 人員</button>
+        <button id="toggleCreateEmployeeBtn" class="btn primary" title="新增員工" aria-label="新增員工">＋</button>
+        <button id="permissionTabBtn" class="btn gray employeeIconBtn" title="權限說明" aria-label="權限說明">?</button>
+        <button id="jobTemplateTabBtn" class="btn gray" style="display:none">🧩 職位／權限模板</button>
+        <button id="closeEmployeeModal" class="btn gray employeeIconBtn" title="關閉" aria-label="關閉">×</button>
+      </div>
     </div>
 
     <div id="employeeTabPanel">
@@ -3339,15 +3427,23 @@ function renderEmployeeList(list=[]){
     const card=el.closest('.employeeCompact');
     const checks=[...card.querySelectorAll('.emp-notify-check')];
     const selected=checks.filter(x=>x.checked).map(x=>x.value);
+    const before=checks.map(x=>({el:x,checked:x.checked}));
+    // 170J：直接原地儲存，不重新 render 員工清單，避免每勾一次畫面閃動。
     checks.forEach(x=>x.disabled=true);
     try{
       await callEmployeeManager('set_notification_permissions',{user_id:uid,notification_permissions:selected});
+      // 同步目前登入者的記憶體資料，但不重畫人員清單。
+      if(uid===currentUser?.id){
+        currentProfile.notification_permissions=[...selected];
+      }
       setEmployeeMsg('通知設定已更新',true);
-      if(uid===currentUser?.id)currentProfile=await loadMyProfile(currentUser);
     }catch(e){
+      // 只有失敗才把本次操作還原，不整頁刷新。
       el.checked=!el.checked;
       setEmployeeMsg('通知設定失敗：'+(e?.message||e),false);
-    }finally{checks.forEach(x=>x.disabled=false);}
+    }finally{
+      checks.forEach(x=>x.disabled=false);
+    }
   });
   box.querySelectorAll('.emp-permission').forEach(el=>el.onclick=async()=>{
     const isNowAdmin=el.dataset.role==='admin', makeAdmin=!isNowAdmin;
@@ -4648,12 +4744,12 @@ const V17_PAGE_OPTIONS=[
  ['delivery','🚚 貨運部']
 ];
 const V17_FUNC_OPTIONS=[
+ ['announcement.manage','公告｜管理'],
+ ['accounting.work','帳務｜帳務作業'],
  ['order.work','派工｜作業'],
  ['packing.work','包裝｜作業'],
  ['delivery.work','貨運｜配送作業'],
- ['delivery.manage','貨運｜管理'],
- ['accounting.work','帳務｜帳務作業'],
- ['announcement.manage','公告｜管理']
+ ['delivery.manage','貨運｜管理']
 ];
 function v17ApplyFunctionUI(){
  if(!currentUser)return;
