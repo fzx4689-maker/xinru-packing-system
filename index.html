@@ -1576,6 +1576,48 @@ body.wall-focus #wall .wallOrderNote{
   #homeDoneToggleBtn::before{content:'🔍';font-size:20px!important;line-height:1!important}
 }
 </style>
+
+<style id="stage171H-history-mobile-one-row">
+/* 第171H階段：只改手機版歷史派工單工具列；桌機維持原版 */
+@media(max-width:600px){
+  #today .queryToolbar{
+    display:grid!important;
+    grid-template-columns:36px minmax(118px,42%) minmax(0,1fr)!important;
+    gap:5px!important;
+    align-items:center!important;
+    width:100%!important;
+    flex-wrap:nowrap!important;
+  }
+  #todayBackHomeBtn{
+    grid-column:1!important;
+    width:36px!important;min-width:36px!important;max-width:36px!important;
+    height:40px!important;min-height:40px!important;
+    padding:0!important;font-size:0!important;overflow:hidden!important;
+  }
+  #todayBackHomeBtn::before{content:'←';font-size:22px!important;line-height:1!important}
+  #departmentHistoryTitle,#queryPackingBtn,#queryDeliveryBtn{display:none!important}
+  #packingQueryControls{
+    display:contents!important;
+  }
+  #packingQueryControls #queryDate{grid-column:2!important}
+  #packingQueryControls #orderQueryKeyword{grid-column:3!important}
+  #deliveryQueryControls{
+    display:contents!important;
+  }
+  #deliveryQueryControls>.actions{display:contents!important}
+  #deliveryQueryControls #deliveryQueryDate{grid-column:2!important}
+  #deliveryQueryControls #deliveryQueryKeyword{grid-column:3!important}
+  #queryDate,#deliveryQueryDate,#orderQueryKeyword,#deliveryQueryKeyword{
+    box-sizing:border-box!important;
+    width:100%!important;max-width:none!important;min-width:0!important;
+    height:40px!important;min-height:40px!important;
+    margin:0!important;padding:5px 6px!important;
+    font-size:12px!important;border-radius:10px!important;
+  }
+  #orderQueryKeyword,#deliveryQueryKeyword{padding-left:7px!important;padding-right:5px!important}
+  #deliveryQueryDriverFilters{grid-column:1 / -1!important;margin-top:3px!important}
+}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -3837,6 +3879,20 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
 <!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
+
+<script id="stage171H-history-mobile-placeholder">
+(function(){
+  function syncHistoryMobilePlaceholder(){
+    const mobile=window.matchMedia('(max-width:600px)').matches;
+    const p=mobile?'🔎 關鍵字':'🔎 關鍵字搜尋（一個字即可）';
+    const a=document.getElementById('orderQueryKeyword');
+    const b=document.getElementById('deliveryQueryKeyword');
+    if(a)a.placeholder=p;if(b)b.placeholder=p;
+  }
+  syncHistoryMobilePlaceholder();
+  window.addEventListener('resize',syncHistoryMobilePlaceholder,{passive:true});
+})();
+</script>
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
