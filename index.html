@@ -5116,6 +5116,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 
 <script>
+// 第172G階段：產農今日入貨直接讀取正式快速做帳交易；不新增重複資料；不修改登入/Auth與其他穩定頁面。
 // 第172F階段：待補價格直接回寫原快速做帳交易；不新增重複帳；不修改登入/Auth與其他穩定頁面。
 // 第172E階段：快速做帳正式交易欄位與 Supabase accounting_records 儲存；不修改登入/Auth與其他穩定頁面。
 // 第172C階段：只新增快速做帳正式輸入第一版；不修改登入/Auth與其他穩定頁面。
@@ -5180,6 +5181,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     });
   }
   function renderQuickToday(work){const day=qToday(),rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.mode==='quick_v2'&&x.date===day&&x.status!=='void');work.innerHTML='<div class="quickV2"><b>📋 今日做帳紀錄｜'+day+'</b><div class="helper" style="display:block!important;margin-top:5px">只顯示新快速做帳已儲存紀錄；正式資料不提供刪除。</div><div id="quickV2TodayList">'+(rows.length?rows.map(r=>'<div class="quickV2Record"><div class="quickV2RecordTop"><b>'+qEsc(r.customer)+'｜'+qEsc(r.type||'')+'</b><b>$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b></div><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name+'×'+x.qty+(x.price===''?'（待補價）':'')).join('、'))+'</div></div>').join(''):'<div class="empty" style="padding:18px">今天尚無快速做帳紀錄</div>')+'</div></div>'}
+  function renderFarmerToday(work){
+    const day=qToday(),rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.mode==='quick_v2'&&x.date===day&&x.status!=='void'&&x.type==='產農');
+    const total=rows.reduce((sum,r)=>sum+(Number(r.total)||0),0),pending=rows.reduce((sum,r)=>sum+(Array.isArray(r.items)?r.items.filter(x=>x&&x.price==='').length:0),0);
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧑‍🌾 今日入貨｜'+day+'</b><div class="helper" style="display:block!important;margin-top:5px">直接讀取今天已儲存、對象類型為「產農」的快速做帳資料，不重複建立第二筆。</div></div><div style="text-align:right"><b>共 '+rows.length+' 筆｜$'+Math.round(total).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important">'+(pending?'待補價格 '+pending+' 項':'價格已完整')+'</div></div></div><div id="farmerTodayList">'+(rows.length?rows.map(r=>'<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+qEsc(r.customer)+'</b><div class="helper" style="display:block!important">'+qEsc(r.createdBy||'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><b>$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b></div><div class="quickV2Table" style="margin-top:10px"><div class="quickV2Row quickV2Labels" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 110px 90px 120px"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>單價</span><span>籃數</span><span>金額</span></div>'+((r.items||[]).map((x,i)=>'<div class="quickV2Row" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 110px 90px 120px"><b>'+(i+1)+'</b><b>'+qEsc(x.name||'')+'</b><span>'+qEsc(x.kg===''?'—':x.kg)+'</span><span>'+qEsc(x.qty??'')+'</span><span>'+(x.price===''?'待補價':'$'+Math.round(Number(x.price)||0).toLocaleString('zh-TW'))+'</span><span>'+qEsc(x.basket===''?'—':x.basket)+'</span><b>'+(x.amount===''?'—':'$'+Math.round(Number(x.amount)||0).toLocaleString('zh-TW'))+'</b></div>').join(''))+'</div></div>').join(''):'<div class="empty" style="padding:18px">今天尚無產農入貨資料</div>')+'</div></div>';
+  }
   stage.addEventListener('click',e=>{
     const b=e.target.closest('[data-acct-stage-action]');if(!b)return;
     const a=b.dataset.acctStageAction, work=document.getElementById('acctStageWork');if(!work)return;
@@ -5192,6 +5198,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       return;
     }
     if(a==='今日做帳紀錄'){renderQuickToday(work);return;}
+    if(a==='今日入貨'){renderFarmerToday(work);return;}
     if(a==='待補價格'){renderPendingPrices(work);return;}
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
   });
