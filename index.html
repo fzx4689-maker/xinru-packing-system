@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170L階段｜人員權限大分頁排序版</title>
+<title>欣儒系統｜第170O階段｜人員說明頁返回鍵版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -3488,9 +3488,30 @@ async function loadEmployees(){
 $('#employeeManageBtn').onclick=async()=>{if(currentProfile?.role!=='admin')return;setEmployeeMsg('');$('#employeeModal').classList.add('show');$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';await loadEmployees();};
 $('#closeEmployeeModal').onclick=()=>$('#employeeModal').classList.remove('show');
 $('#employeeTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='block';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn blue';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn gray';$('#createEmployeeSection').style.display='none';$('#employeeList').style.display='block';$('#refreshEmployeesBtn').style.display='none';$('#toggleCreateEmployeeBtn').textContent='＋';await loadEmployees();};
-$('#permissionTabBtn').onclick=()=>{$('#employeeTabPanel').style.display='none';$('#permissionTabPanel').style.display='block';$('#jobTemplateTabPanel').style.display='none';$('#employeeTabBtn').className='btn gray';$('#permissionTabBtn').className='btn blue';$('#jobTemplateTabBtn').className='btn gray';};
+$('#permissionTabBtn').onclick=()=>{
+ const isHelp=$('#permissionTabPanel').style.display==='block';
+ if(!isHelp){
+  $('#employeeTabPanel').style.display='none';
+  $('#permissionTabPanel').style.display='block';
+  $('#jobTemplateTabPanel').style.display='none';
+  $('#permissionTabBtn').textContent='←';
+  $('#permissionTabBtn').title='返回人員管理';
+  $('#permissionTabBtn').setAttribute('aria-label','返回人員管理');
+  $('#permissionTabBtn').className='btn blue';
+ }else{
+  $('#permissionTabPanel').style.display='none';
+  $('#employeeTabPanel').style.display='block';
+  $('#jobTemplateTabPanel').style.display='none';
+  $('#permissionTabBtn').textContent='?';
+  $('#permissionTabBtn').title='權限說明';
+  $('#permissionTabBtn').setAttribute('aria-label','權限說明');
+  $('#permissionTabBtn').className='btn gray';
+ }
+ $('#employeeTabBtn').className='btn gray';
+ $('#jobTemplateTabBtn').className='btn gray';
+};
 $('#jobTemplateTabBtn').onclick=async()=>{$('#employeeTabPanel').style.display='none';$('#permissionTabPanel').style.display='none';$('#jobTemplateTabPanel').style.display='block';$('#employeeTabBtn').className='btn gray';$('#permissionTabBtn').className='btn gray';$('#jobTemplateTabBtn').className='btn blue';await loadJobTemplateManager();};
-$('#toggleCreateEmployeeBtn').onclick=()=>{const sec=$('#createEmployeeSection');const open=sec.style.display==='none'||!sec.style.display;sec.style.display=open?'block':'none';$('#employeeList').style.display=open?'none':'block';$('#refreshEmployeesBtn').style.display=open?'none':'inline-block';$('#toggleCreateEmployeeBtn').textContent=open?'−':'＋';$('#toggleCreateEmployeeBtn').title=open?'收起新增員工':'新增員工';$('#toggleCreateEmployeeBtn').setAttribute('aria-label',open?'收起新增員工':'新增員工');setEmployeeMsg('');};
+$('#toggleCreateEmployeeBtn').onclick=()=>{const sec=$('#createEmployeeSection');const open=sec.style.display==='none'||!sec.style.display;sec.style.display=open?'block':'none';$('#employeeList').style.display=open?'none':'block';$('#refreshEmployeesBtn').style.display=open?'none':'inline-block';$('#toggleCreateEmployeeBtn').textContent=open?'←':'＋';$('#toggleCreateEmployeeBtn').title=open?'返回人員管理':'新增員工';$('#toggleCreateEmployeeBtn').setAttribute('aria-label',open?'返回人員管理':'新增員工');setEmployeeMsg('');};
 $('#employeeModal').addEventListener('click',e=>{if(e.target===$('#employeeModal'))$('#employeeModal').classList.remove('show');});
 $('#refreshEmployeesBtn').onclick=()=>loadEmployees();
 $('#empRole').onchange=()=>{if($('#empRole').value==='admin')$$('.new-work-role').forEach(x=>x.checked=true);};
