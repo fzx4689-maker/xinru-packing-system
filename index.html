@@ -1618,6 +1618,36 @@ body.wall-focus #wall .wallOrderNote{
   #deliveryQueryDriverFilters{grid-column:1 / -1!important;min-width:0!important}
 }
 </style>
+
+<style id="stage171i-history-mobile-icon-row">
+/* 第171I階段：手機歷史派工第一排＝返回｜部門圖示｜日期｜關鍵字；電腦版不變 */
+@media(max-width:600px){
+  #today .queryToolbar{
+    display:grid!important;
+    grid-template-columns:38px 38px minmax(118px,1.15fr) minmax(92px,.85fr)!important;
+    gap:5px!important;align-items:stretch!important;width:100%!important;
+  }
+  #todayBackHomeBtn{grid-column:1!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:40px!important;min-height:40px!important;padding:0!important;font-size:0!important}
+  #todayBackHomeBtn::before{content:'←'!important;font-size:22px!important;line-height:1!important}
+  #departmentHistoryTitle{
+    display:flex!important;grid-column:2!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:40px!important;min-height:40px!important;
+    margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;
+    border:1px solid #cfe0f4!important;border-radius:12px!important;background:#eef6ff!important;
+    font-size:0!important;line-height:1!important;overflow:hidden!important;box-sizing:border-box!important;
+  }
+  #departmentHistoryTitle::before{content:'📦';font-size:19px!important}
+  #today[data-history-mode="delivery"] #departmentHistoryTitle::before{content:'🚚'!important}
+  #packingQueryControls{display:contents!important}
+  #packingQueryControls #queryDate{grid-column:3!important}
+  #packingQueryControls #orderQueryKeyword{grid-column:4!important}
+  #queryDate,#orderQueryKeyword{
+    box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:none!important;
+    height:40px!important;min-height:40px!important;margin:0!important;padding:5px 6px!important;font-size:12px!important;
+  }
+  #orderQueryKeyword{padding-left:7px!important}
+  #queryPackingBtn,#queryDeliveryBtn,#deliveryQueryControls{display:none!important}
+}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -2954,6 +2984,7 @@ async function loadDeliveryHistoryForDate(date,kw=''){
 }
 function renderToday(){
   const b=$('#todayBody');if(!b)return;
+  const todayPanel=$('#today');if(todayPanel)todayPanel.dataset.historyMode=orderQueryMode;
   const historyTitle=$('#departmentHistoryTitle');
   if(historyTitle)historyTitle.textContent=orderQueryMode==='delivery'?'🚚 貨運部｜歷史派工單':'📦 包裝部｜歷史派工單';
   const historyBack=$('#todayBackHomeBtn');
@@ -3049,6 +3080,7 @@ function openDepartmentHistory(mode){
   if(mode!=='packing'&&mode!=='delivery')return;
   if(!canSeeTab(mode)){activateTab(firstVisibleTab(),{save:true});return;}
   orderQueryMode=mode;
+  const todayPanel=$('#today');if(todayPanel)todayPanel.dataset.historyMode=mode;
   departmentHistoryReturnTab=mode;
   try{localStorage.setItem('xinru_order_query_mode',mode)}catch(e){}
   const title=$('#departmentHistoryTitle');
