@@ -3636,7 +3636,9 @@ async function startApp(user){
     if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
   }
   // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
-  await loadDelivery();await loadAccountingCloud();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
+  await loadDelivery();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
+  // 第171N：帳務雲端載入延後到整份腳本完成初始化後執行，避免 acctCloudRecords / acctLoad 的 TDZ 影響登入。
+  setTimeout(()=>{loadAccountingCloud().catch(e=>console.warn('帳務雲端載入失敗',e));},0);
   activateTab(getRememberedTab(),{save:false});}
   catch(e){
     console.error(e);
