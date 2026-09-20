@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170O階段｜人員說明頁返回鍵版</title>
+<title>欣儒系統｜第170R階段｜帳號狀態說明排版修正版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1474,6 +1474,46 @@ body.wall-focus #wall .wallOrderNote{
 }
 </style>
 
+
+<style id="stage170R-status-note-layout">
+.empSettingGroup:has(.empDangerNote){
+  align-items:start!important;
+}
+.empSettingGroup:has(.empDangerNote) .empMiniActions{
+  grid-column:2!important;
+  grid-row:1!important;
+}
+.empSettingGroup:has(.empDangerNote) .empDangerNote{
+  grid-column:2!important;
+  grid-row:2!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:4px 0 0!important;
+  white-space:normal!important;
+  overflow-wrap:normal!important;
+  word-break:keep-all!important;
+  line-height:1.45!important;
+}
+@media(min-width:1100px){
+ .empSettingGroup:has(.empDangerNote){
+   grid-template-columns:105px minmax(0,1fr)!important;
+ }
+ .empSettingGroup:has(.empDangerNote) .empDangerNote{
+   font-size:12px!important;
+ }
+}
+@media(min-width:701px) and (max-width:1099px){
+ .empSettingGroup:has(.empDangerNote) .empDangerNote{
+   font-size:11px!important;
+ }
+}
+@media(max-width:700px){
+ .empSettingGroup:has(.empDangerNote) .empDangerNote{
+   font-size:10px!important;
+ }
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1937,20 +1977,6 @@ body.wall-focus #wall .wallOrderNote{
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="driver"> 🚚 貨運</label>
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="accounting"> 💰 帳務區</label>
           <label class="workRoleChip"><input type="checkbox" class="new-work-role" value="liuhe"> 🥬 六禾</label>
-        </div>
-        <div class="helper" style="margin-top:8px"><b>額外加開功能</b>（不會改變職務，可不勾）</div>
-        <div class="workRoles">
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="stall_order"> 📋 派工</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="packing"> 📦 包裝部</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="delivery"> 🚚 貨運部</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="accounting"> 💰 帳務</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-feature" value="announcement"> 📢 公告管理</label>
-        </div>
-        <div class="helper" style="margin-top:8px"><b>接收通知</b>（跟職務、功能分開設定）</div>
-        <div class="workRoles">
-          <label class="workRoleChip"><input type="checkbox" class="new-notification" value="packing"> 📦 包裝通知</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-notification" value="delivery"> 🚚 貨運通知</label>
-          <label class="workRoleChip"><input type="checkbox" class="new-notification" value="accounting"> 💰 帳務通知</label>
         </div>
         <button id="createEmployeeBtn" class="btn primary" style="width:100%">建立帳號</button>
       </div>
@@ -3498,6 +3524,7 @@ $('#permissionTabBtn').onclick=()=>{
   $('#permissionTabBtn').title='返回人員管理';
   $('#permissionTabBtn').setAttribute('aria-label','返回人員管理');
   $('#permissionTabBtn').className='btn blue';
+  $('#toggleCreateEmployeeBtn').style.display='none';
  }else{
   $('#permissionTabPanel').style.display='none';
   $('#employeeTabPanel').style.display='block';
@@ -3506,6 +3533,7 @@ $('#permissionTabBtn').onclick=()=>{
   $('#permissionTabBtn').title='權限說明';
   $('#permissionTabBtn').setAttribute('aria-label','權限說明');
   $('#permissionTabBtn').className='btn gray';
+  $('#toggleCreateEmployeeBtn').style.display='flex';
  }
  $('#employeeTabBtn').className='btn gray';
  $('#jobTemplateTabBtn').className='btn gray';
