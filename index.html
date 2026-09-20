@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第169C3階段｜登入後權限同步版</title>
+<title>欣儒系統｜第170A階段｜人員管理簡潔版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1294,6 +1294,17 @@ body.wall-focus #wall .wallOrderNote{
   body.wall-focus #wall .wallOrderNote{font-size:18px!important;margin-top:7px!important;padding:7px 9px!important;}
 }
 </style>
+
+<style id="stage170A-personnel-ui">
+.employeeCompact{padding:16px 4px;border-bottom:1px solid var(--line)}
+.employeeCompactTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.employeeCompactMain{min-width:0;flex:1}.employeeCompactName{font-size:18px;font-weight:900;margin-bottom:5px}
+.employeeCompactMeta{font-size:13px;line-height:1.65;color:#475467}.employeeCompactSummary{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.empSummaryChip{background:#f2f4f7;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}.empSettingsBtn{min-width:82px}
+.empSettingsPanel{display:none;margin-top:12px;padding:12px;border-radius:14px;background:#f8fafc;border:1px solid var(--line)}.empSettingsPanel.open{display:block}
+.empSettingsTitle{font-weight:900;margin-bottom:9px}.empMiniActions{display:flex;flex-wrap:wrap;gap:7px}#jobTemplateTabPanel{display:none!important}
+@media(max-width:700px){.employeeCompactName{font-size:17px}.employeeCompactMeta{font-size:12px}.empSettingsBtn{min-width:72px;padding:8px 10px}.empMiniActions .btn{flex:1 1 calc(50% - 8px);min-width:120px}.employeeBox{padding:14px}.employeeHead{align-items:flex-start;flex-wrap:wrap}}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1732,13 +1743,13 @@ body.wall-focus #wall .wallOrderNote{
     <div class="actions" style="margin:8px 0 12px;gap:8px">
       <button id="employeeTabBtn" class="btn blue">👥 人員</button>
       <button id="permissionTabBtn" class="btn gray">🔐 權限說明</button>
-      <button id="jobTemplateTabBtn" class="btn gray">🧩 職位／權限模板</button>
+      <button id="jobTemplateTabBtn" class="btn gray" style="display:none">🧩 職位／權限模板</button>
     </div>
 
     <div id="employeeTabPanel">
       <div class="actions" style="justify-content:space-between;align-items:center;margin-bottom:8px">
         <button id="toggleCreateEmployeeBtn" class="btn primary" style="padding:8px 11px;font-size:13px">＋ 新增員工</button>
-        <button id="refreshEmployeesBtn" class="btn gray" style="padding:8px 11px;font-size:13px">重新整理</button>
+        <button id="refreshEmployeesBtn" class="btn gray" style="display:none;padding:8px 11px;font-size:13px">重新整理</button>
       </div>
       <div id="createEmployeeSection" class="card" style="display:none;box-shadow:none;margin-bottom:10px;padding:12px">
         <div class="grid2">
@@ -3173,23 +3184,42 @@ function renderEmployeeList(list=[]){
   const count=$('#employeeCount');if(count)count.textContent=`共 ${list.length} 位｜使用中 ${active}｜停用 ${disabled}${pending?`｜待審 ${pending}`:''}`;
   if(!list.length){box.innerHTML='<div class="empty">目前沒有員工帳號</div>';return;}
   list=[...list].sort((a,b)=>{const ra=a.role==='admin'?0:1,rb=b.role==='admin'?0:1;if(ra!==rb)return ra-rb;return String(a.display_name||'').localeCompare(String(b.display_name||''),'zh-Hant');});
-  box.innerHTML=list.map(e=>`<div class="employeeCompact">
-    <div class="employeeCompactTop"><div><b style="font-size:16px">${esc(e.display_name||'未命名')}</b><div class="empAccount">帳號：${e.login_name?esc(e.login_name):'尚未設定'}</div><div class="empAccount"><b>系統管理層級：</b>${ROLE_LABEL[e.role]||e.role}</div><div class="empAccount"><b>人員類型：</b>${PERSON_TYPE_LABEL[e.person_type]||'未設定'}</div><div class="rolesCell"><b class="empFieldLabel">職位：</b>${jobTitleBadges(employeeJobTitles(e))}${e.template_status==='same'?'<span class="templateStatus same">✓ 符合模板</span>':e.template_status==='diff'?'<span class="templateStatus diff">⚠ 個別調整</span>':''}</div><div class="rolesCell"><b class="empFieldLabel">工作區：</b>${workRoleBadges(e.work_roles||[])}</div><div class="empAccount"><b>計薪：</b>${e.payroll_enabled===true?(PAY_TYPE_LABEL[e.pay_type]||'是'):e.payroll_enabled===false?'否':'未設定'}</div><div class="rolesCell"><b class="empFieldLabel">通知：</b>${notificationBadges(e.notification_permissions||[])}</div></div><div class="employeeStatus ${e.is_active?'on':'off'}">${e.is_active?'● 使用中':(e.registration_status==='pending'?'● 待審核':'● 已停用')}</div></div>
-    <div class="empMiniActions">
-      <button class="btn gray emp-name" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">姓名</button>
-      <button class="btn gray emp-account" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-login="${esc(e.login_name||'')}">帳號</button>
-      <button class="btn blue emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">密碼</button>
-      <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">系統管理層級</button>
-      <button class="btn gray emp-person-type" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-value="${esc(e.person_type||'')}">人員類型</button>
-      <button class="btn gray emp-job-title" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-values="${esc(employeeJobTitles(e).join(','))}">職位</button>
-      <button class="btn blue emp-work" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-roles="${esc((e.work_roles||[]).join(','))}">工作區</button>
-      <button class="btn gray emp-payroll" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-enabled="${e.payroll_enabled===true?'1':e.payroll_enabled===false?'0':''}" data-paytype="${esc(e.pay_type||'')}">計薪</button>
-      <button class="btn gray emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">系統權限</button>
-      <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">通知設定</button>
-      <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'停用':(e.registration_status==='pending'?'核准':'啟用')}</button>
-      <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>刪除</button>
-    </div>
-  </div>`).join('');
+  box.innerHTML=list.map(e=>{
+    const status=e.registration_status==='pending'&&!e.is_active?'待審核':e.is_active?'使用中':'暫時停用';
+    const statusClass=e.is_active?'on':'off';
+    const pages=(e.page_permissions||[]).map(x=>({stall:'派工',packing:'包裝',delivery:'貨運',accounting:'帳務'}[x]||x));
+    const notices=(e.notification_permissions||[]).map(x=>({packing:'包裝通知',delivery:'貨運通知',accounting:'帳務通知'}[x]||x));
+    return `<div class="employeeCompact">
+      <div class="employeeCompactTop">
+        <div class="employeeCompactMain"><div class="employeeCompactName">${esc(e.display_name||'未命名')}</div>
+          <div class="employeeCompactMeta">帳號：${e.login_name?esc(e.login_name):'尚未設定'}　｜　${ROLE_LABEL[e.role]||e.role}</div>
+          <div class="employeeCompactSummary">${pages.length?`<span class="empSummaryChip">頁面：${esc(pages.join('／'))}</span>`:''}${notices.length?`<span class="empSummaryChip">通知：${esc(notices.join('／'))}</span>`:''}</div>
+        </div>
+        <div style="display:grid;gap:8px;justify-items:end"><div class="employeeStatus ${statusClass}">● ${status}</div><button class="btn blue emp-settings empSettingsBtn" data-id="${esc(e.user_id)}">設定</button></div>
+      </div>
+      <div class="empSettingsPanel" data-settings-for="${esc(e.user_id)}"><div class="empSettingsTitle">${esc(e.display_name||'未命名')}｜設定</div><div class="empMiniActions">
+        <button class="btn gray emp-name" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">姓名</button>
+        <button class="btn gray emp-account" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-login="${esc(e.login_name||'')}">帳號</button>
+        <button class="btn blue emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">密碼</button>
+        <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">管理員設定</button>
+        <button class="btn gray emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">系統權限</button>
+        <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">通知設定</button>
+        <button class="btn gray emp-person-type" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-value="${esc(e.person_type||'')}">人員類型</button>
+        <button class="btn gray emp-job-title" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-values="${esc(employeeJobTitles(e).join(','))}">職位資料</button>
+        <button class="btn gray emp-payroll" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-enabled="${e.payroll_enabled===true?'1':e.payroll_enabled===false?'0':''}" data-paytype="${esc(e.pay_type||'')}">計薪</button>
+        <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'暫時停用':(e.registration_status==='pending'?'核准':'重新啟用')}</button>
+        <button class="btn red emp-delete" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" ${e.user_id===currentUser?.id?'disabled':''}>永久刪除</button>
+        <button class="emp-work" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-roles="${esc((e.work_roles||[]).join(','))}" style="display:none"></button>
+      </div></div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.emp-settings').forEach(el=>el.onclick=()=>{
+    const panel=box.querySelector(`[data-settings-for="${el.dataset.id}"]`);
+    const willOpen=!panel?.classList.contains('open');
+    box.querySelectorAll('.empSettingsPanel.open').forEach(x=>x.classList.remove('open'));
+    box.querySelectorAll('.emp-settings').forEach(x=>x.textContent='設定');
+    if(panel&&willOpen){panel.classList.add('open');el.textContent='收起';}
+  });
   box.querySelectorAll('.emp-v17perm').forEach(el=>el.onclick=()=>v17EditEmployee(el.dataset.id,el.dataset.name));
   box.querySelectorAll('.emp-name').forEach(el=>el.onclick=async()=>{const v=prompt(`修改「${el.dataset.name}」的顯示姓名`,el.dataset.name||'');if(v===null)return;const display_name=v.trim();if(!display_name){setEmployeeMsg('姓名不能空白');return;}if(display_name===el.dataset.name)return;try{await callEmployeeManager('set_display_name',{user_id:el.dataset.id,display_name});setEmployeeMsg(`姓名已更新：${display_name}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-account').forEach(el=>el.onclick=async()=>{const v=prompt(`設定「${el.dataset.name}」的員工帳號`,el.dataset.login||'');if(v===null)return;const login_name=v.trim().toLowerCase();if(!/^[a-z0-9._-]{2,30}$/.test(login_name)){setEmployeeMsg('帳號格式不正確');return;}try{await callEmployeeManager('set_login_name',{user_id:el.dataset.id,login_name});setEmployeeMsg('帳號已更新',true);await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
