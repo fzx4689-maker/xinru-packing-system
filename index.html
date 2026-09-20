@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第169A2階段｜大權限定義版</title>
+<title>第169C1階段｜登入啟動順序修正版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1821,6 +1821,9 @@ let deliveryJobs=[]; let deliveryHistoryJobs=[]; let deliveryHistoryQueryToken=0
 let orderQueryMode='packing';
 try{const savedQueryMode=localStorage.getItem('xinru_order_query_mode');if(savedQueryMode==='delivery'||savedQueryMode==='packing')orderQueryMode=savedQueryMode;}catch(e){}
 let deliveryAssignmentBaselineReady=false; let knownMyAssignedJobIds=new Set();
+/* 第169C1階段：v17 權限核心提前建立，避免 Auth/startApp 啟動時先呼叫尚未宣告的 v17Has。 */
+var v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
+function v17Has(k){return isAdmin()||(v17Perm.configured&&v17Perm.funcs.includes(k));}
 const ROLE_LABEL={admin:'管理員',operator:'主管',viewer:'一般使用者'};
 const canWrite=()=>isAdmin()||v17Has('order.work')||v17Has('delivery.manage');
 const isAdmin=()=>currentProfile?.role==='admin';
@@ -4456,8 +4459,7 @@ const V17_FUNC_OPTIONS=[
  ['accounting.work','帳務｜帳務作業'],
  ['announcement.manage','公告｜管理']
 ];
-let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
-const v17Has=(k)=>isAdmin()||(v17Perm.configured&&v17Perm.funcs.includes(k));
+/* 169C1：v17Perm / v17Has 已於登入啟動區之前建立；此處不重複宣告。 */
 async function v17LoadMine(){
  if(!currentUser||v17LoadedFor===currentUser.id)return;
  v17LoadedFor=currentUser.id;
