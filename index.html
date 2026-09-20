@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>第169A階段｜權限資料入口整理</title>
+<title>第169A1階段｜登入修正版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1731,6 +1731,8 @@ body.wall-focus #wall .wallOrderNote{
     <div class="employeeHead"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
     <div class="actions" style="margin:8px 0 12px;gap:8px">
       <button id="employeeTabBtn" class="btn blue">👥 人員</button>
+      <button id="permissionTabBtn" class="btn gray" style="display:none!important" aria-hidden="true" tabindex="-1">🔐 權限說明</button>
+      <button id="jobTemplateTabBtn" class="btn gray" style="display:none!important" aria-hidden="true" tabindex="-1">🧩 職位／權限模板</button>
     </div>
 
     <div id="employeeTabPanel">
