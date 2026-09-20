@@ -726,7 +726,7 @@ body.wall-focus #wall .progress{height:8px!important}
 #today .deliveryQueryMobileCard .freightSlipPhoto{display:block;width:100%!important;height:auto!important;max-height:420px!important;object-fit:contain!important;margin:0 auto}
 #today .deliveryQueryMobileCard a{overflow-wrap:anywhere}
 @media(min-width:900px){
-  #today .deliveryQueryMobileWrap{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+  #today .deliveryQueryMobileWrap{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
   #today .deliveryQueryMobileCard{margin:0}
 }
 @media(max-width:600px){
@@ -1638,6 +1638,38 @@ body.wall-focus #wall .wallOrderNote{
   .unifiedHistoryToolbar .unifiedHistoryDate,
   .unifiedHistoryToolbar .homeDoneDateBox #homeDoneDateFilter{padding-left:5px!important;padding-right:3px!important;font-size:13px!important}
   .unifiedHistoryToolbar .unifiedHistoryKeyword{padding:6px 8px!important;font-size:13px!important}
+}
+</style>
+<style id="stage171P-final-scoped-layout">
+/* 171P：只處理已確認的歷史工具列、現場回報右上入口、貨運歷史卡片欄數。 */
+.unifiedHistoryToolbar{
+  grid-template-columns:46px 190px minmax(220px,360px)!important;
+  gap:8px!important;
+  justify-content:start!important;
+}
+#stallFieldCard .fieldReportHead{width:100%!important;display:flex!important;align-items:flex-start!important}
+#stallFieldCard .fieldReportHead>div{width:100%!important;min-width:0!important}
+#stallFieldCard .fieldReportTitleRow{width:100%!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}
+#stallFieldCard .fieldHistoryTopBtn{
+  width:auto!important;min-width:0!important;max-width:none!important;
+  flex:0 0 auto!important;white-space:nowrap!important;
+  padding-left:12px!important;padding-right:12px!important;
+}
+@media (min-width:900px){
+  #today .deliveryQueryMobileWrap{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media (max-width:600px){
+  .unifiedHistoryToolbar{
+    grid-template-columns:40px 145px minmax(0,1fr)!important;
+    gap:6px!important;width:100%!important;max-width:100%!important;
+  }
+  .unifiedHistoryToolbar .unifiedHistoryDate,
+  .unifiedHistoryToolbar .homeDoneDateBox,
+  .unifiedHistoryToolbar .homeDoneDateBox #homeDoneDateFilter{
+    font-size:14px!important;padding-left:5px!important;padding-right:3px!important;
+  }
+  #today .deliveryQueryMobileWrap{display:block!important}
+  #stallFieldCard .fieldHistoryTopBtn{padding-left:10px!important;padding-right:10px!important}
 }
 </style>
 </head>
@@ -3037,6 +3069,13 @@ function activateTab(tabName,{save=true}={}){
 function setStallMode(mode='create'){
   if(mode==='manage')mode='packing';
   if(!['create','packing','delivery','field'].includes(mode))mode='create';
+  if(mode!=='field'){
+    document.body.classList.remove('field-report-history-third-level');
+    document.getElementById('stallFieldCard')?.classList.remove('field-history-mode');
+    const historyPanel=document.getElementById('freightHistoryPanel');
+    if(historyPanel)historyPanel.style.display='none';
+    try{localStorage.setItem('xinru_field_report_level','main')}catch(e){}
+  }
   try{localStorage.setItem('xinru_stall_mode',mode)}catch(e){}
   const create=mode==='create',manage=mode==='packing'||mode==='delivery',field=mode==='field';
   const c=$('#stallCreateCard'),t=$('#stallTransCard'),m=$('#stallManageCard'),f=$('#stallFieldCard');
@@ -3062,6 +3101,8 @@ function openDepartmentHistory(mode){
   try{localStorage.setItem('xinru_order_query_mode',mode)}catch(e){}
   const back=$('#todayBackHomeBtn');
   if(back)back.textContent='←';
+  const qd=$('#queryDate');
+  if(qd&&!qd.value)qd.value=taipeiDate();
   activateTab('today',{save:true});
   renderToday();
 }
@@ -4718,7 +4759,11 @@ window.setFieldReportHistoryLevel=function(open){
   card.classList.toggle('field-history-mode',!!open);
   p.style.display=open?'block':'none';
   try{localStorage.setItem('xinru_field_report_level',open?'history':'main')}catch(e){}
-  if(open)renderFreightHistory();
+  if(open){
+    const d=document.getElementById('freightHistoryDate');
+    if(d&&!d.value)d.value=taipeiDate();
+    renderFreightHistory();
+  }
 };
 try{
   if(localStorage.getItem('xinru_stall_mode')==='field'){
@@ -5016,7 +5061,7 @@ function setHomeQueryMode(on){
  if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.setProperty('display',on?'none':'flex','important');if(title)title.style.display=on?'none':'block';
  try{localStorage.setItem('xinru_home_notice_view',on?'history':'main');}catch(e){}
 }
-function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{homeDoneVisibleCount=20;setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);try{if(localStorage.getItem('xinru_home_notice_view')==='history')setHomeQueryMode(true);}catch(e){}['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){const rerender=()=>{homeDoneVisibleCount=20;render();};el.addEventListener('input',rerender);el.addEventListener('change',rerender);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});homeDoneVisibleCount=20;render();};const more=document.getElementById('homeDoneLoadMore');if(more)more.onclick=()=>{homeDoneVisibleCount+=20;render();};load();}
+function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{const d=document.getElementById('homeDoneDateFilter');if(d&&!d.value)d.value=taipeiDate();homeDoneVisibleCount=20;setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);try{if(localStorage.getItem('xinru_home_notice_view')==='history')setHomeQueryMode(true);}catch(e){}['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){const rerender=()=>{homeDoneVisibleCount=20;render();};el.addEventListener('input',rerender);el.addEventListener('change',rerender);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});homeDoneVisibleCount=20;render();};const more=document.getElementById('homeDoneLoadMore');if(more)more.onclick=()=>{homeDoneVisibleCount+=20;render();};load();}
 document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,0);});window.homeLoadV58=load;window.homeLoadV79=load;
 })();
 
