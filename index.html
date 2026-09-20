@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第169C2階段｜六大權限正式接管版</title>
+<title>欣儒系統｜第169C3階段｜登入後權限同步版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2032,6 +2032,23 @@ function isDriverOnly(){const r=currentProfile?.work_roles||[];return currentPro
    僅管理員自動全權限；一般帳號必須等 employee_permission_v17 載入後才放行。 */
 let v17Perm={pages:[],funcs:[],configured:false},v17LoadedFor='';
 const v17Has=(k)=>isAdmin()||!!(v17Perm.configured&&v17Perm.funcs.includes(k));
+async function v17LoadMine(){
+  if(!currentUser)return;
+  const uid=currentUser.id;
+  if(v17LoadedFor===uid)return;
+  try{
+    const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();
+    if(error)throw error;
+    if(!currentUser||currentUser.id!==uid)return;
+    v17LoadedFor=uid;
+    v17Perm={pages:data?.page_permissions||[],funcs:data?.function_permissions||[],configured:true};
+  }catch(e){
+    v17LoadedFor='';
+    v17Perm={pages:[],funcs:[],configured:false};
+    console.error('第169C3權限讀取失敗：',e);
+    throw e;
+  }
+}
 
 function canSeeTab(tab){
   if(!currentProfile)return false;
@@ -3295,7 +3312,7 @@ function showApp(){
   updatePwaPushButton();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);applyNotificationSoundDefault();showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
+  try{currentUser=user;currentProfile=await loadMyProfile(user);v17LoadedFor='';v17Perm={pages:[],funcs:[],configured:false};await v17LoadMine();applyNotificationSoundDefault();showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
     // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
     // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
     const saved=localStorage.getItem('xinru_delivery_driver_filter');
@@ -3313,7 +3330,8 @@ async function startApp(user){
     if(msg.includes('員工帳號已停用')){
       await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
     }else{
-      showLogin('連線暫時不穩定，登入資料已保留，請重新整理');
+      console.error('第169C3啟動失敗：',e);
+      showLogin('登入後初始化失敗：'+msg);
     }
   }
 }
@@ -4456,7 +4474,7 @@ let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Re
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentUser)loadStage9()});window.addEventListener('focus',()=>{if(currentUser)loadStage9()});window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},10000);
 </script>
 <script>
-/* 第169C2階段：六大權限正式接管。
+/* 第169C3階段：六大權限正式接管＋登入後同步權限。
    頁面權限＝能看；功能權限＝能做。
    不修改登入/Auth/startApp；不使用 operator/work_roles 作為功能放行來源。 */
 const V17_PAGE_OPTIONS=[
@@ -4473,24 +4491,6 @@ const V17_FUNC_OPTIONS=[
  ['accounting.work','帳務｜帳務作業'],
  ['announcement.manage','公告｜管理']
 ];
-async function v17LoadMine(){
- if(!currentUser||v17LoadedFor===currentUser.id)return;
- const uid=currentUser.id;
- try{
-  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();
-  if(error)throw error;
-  if(!currentUser||currentUser.id!==uid)return;
-  v17LoadedFor=uid;
-  v17Perm={pages:data?.page_permissions||[],funcs:data?.function_permissions||[],configured:true};
-  if(typeof applyRoleUI==='function')applyRoleUI();
-  if(typeof renderAll==='function')renderAll();
-  if(typeof renderDelivery==='function')renderDelivery();
- }catch(e){
-  v17LoadedFor='';
-  v17Perm={pages:[],funcs:[],configured:false};
-  console.error('第169C2權限讀取失敗：',e);
- }
-}
 function v17ApplyFunctionUI(){
  if(!currentUser)return;
  const orderOK=v17Has('order.work');
@@ -4535,7 +4535,7 @@ async function v17EditEmployee(uid,name){
 const v17Observer=new MutationObserver(()=>v17AddPermissionButtons());
 window.addEventListener('load',()=>{
  const el=document.getElementById('employeeList');if(el)v17Observer.observe(el,{childList:true,subtree:true});
- v17LoadMine();v17AddPermissionButtons();
+ if(currentUser){v17LoadMine().then(()=>{applyRoleUI();renderAll();}).catch(()=>{});}v17AddPermissionButtons();
 });
 </script>
 
