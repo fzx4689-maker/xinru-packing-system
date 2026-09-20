@@ -765,6 +765,9 @@ body.wall-focus #wall .progress{height:8px!important}
   #delivery .deliverySettleBtn{flex:0 0 auto;padding:6px 8px;font-size:12px}
 }
 
+
+/* 第172A階段：帳務中心最終九入口與第二層導覽；不碰登入/Auth */
+.acctStageHead{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}.acctStageHead h3{margin:2px 0 5px;font-size:22px}.acctStageGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.acctStageBtn{min-height:78px;border:1px solid #dbe3ec;border-radius:14px;background:#fff;padding:14px;text-align:left;cursor:pointer;font-size:15px}.acctStageBtn b{font-size:16px}.acctStageBtn span{display:block;color:#64748b;font-size:12px;margin-top:5px}.acctStageLocked{background:#f3f4f6;color:#7a8490;cursor:not-allowed}.acctStageWork{margin-top:12px}.acctWorkPlaceholder{border:1px dashed #cbd5df;border-radius:12px;background:#fff;padding:16px}.acctManagementHome>.helper{margin-bottom:8px}@media(max-width:760px){.acctStageHead{display:block}.acctStageHead .btn{margin-bottom:10px}.acctStageGrid{grid-template-columns:1fr 1fr}.acctManagementGrid{grid-template-columns:1fr 1fr!important}.acctManagementBtn{padding:12px!important}.acctManagementBtn b{font-size:15px!important}.acctManagementBtn span{font-size:11px!important}}@media(max-width:430px){.acctStageGrid,.acctManagementGrid{grid-template-columns:1fr!important}}
 </style>
 
 
@@ -1934,15 +1937,17 @@ body.wall-focus #wall .wallOrderNote{
         <h2>💰 帳務中心</h2>
         <div class="helper">所有帳集中在這裡；第一層先選工作，日常做帳以快速輸入介面為主。</div>
         <div class="acctManagementGrid" id="acctManagementGrid">
-          <button type="button" class="acctManagementBtn active" data-acct-manage="entry"><b>✍️ 快速做帳</b><span>先選對象，再開啟對應的快速輸入介面</span></button>
-          <button type="button" class="acctManagementBtn" data-acct-manage="ledger"><b>📒 帳本查詢</b><span>客戶／超市／供應商／產農帳本集中查詢</span></button>
-          <button type="button" class="acctManagementBtn" data-acct-manage="payment"><b>💵 收款／付款</b><span>客戶收款、供應商／產農付款、儲值</span></button>
-          <button type="button" class="acctManagementBtn" data-acct-manage="turnover"><b>🧺 籃子／鐵架／其他往來</b><span>欠出、歸還、餘數與其他往來</span></button>
-          <button type="button" class="acctManagementBtn" data-acct-manage="expense"><b>🧾 公司內帳／支出</b><span>油錢、餐費、人事、租金、水電、修繕等</span></button>
-          <button type="button" class="acctManagementBtn" data-acct-manage="vehicle"><b>🚚 車輛管理</b><span>車輛資料、加油、保養、維修、保險、驗車</span></button>
-          <button type="button" class="acctManagementBtn" data-acct-manage="report"><b>📊 管理報表</b><span>後續由帳務資料自動彙整，不重複輸入</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="entry"><b>✍️ 快速做帳</b><span>日常帳務快速輸入；不與貨運派工自動連動</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="farmer"><b>🧑‍🌾 產農入貨／週帳</b><span>今日入貨、待補價格、本週週帳、待領款</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="vendor"><b>🏭 廠商進貨／對帳</b><span>叫貨、到貨簽收、異常處理、廠商對帳</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="payment"><b>💰 收款／付款</b><span>所有真正收到或付出去的錢都從這裡處理</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="ledger"><b>📒 帳本查詢</b><span>搜尋往來對象，查看完整應收／應付與帳本</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="turnover"><b>🧺 周轉物管理</b><span>籃子、鐵架、棧板的進出、盤點與差異</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="contacts"><b>👥 往來資料</b><span>客戶、超市、中盤、產農、廠商基本資料</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="receipt"><b>🧾 農民收據</b><span>分類確認、待開農收、已開農收、歷史與分類管理</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="vehicle"><b>🚚 車輛管理</b><span>公司車輛、固定司機、用車紀錄與到期提醒</span></button>
         </div>
-        <div id="acctManagementStage" class="acctManagementStage"><div><b>✍️ 快速做帳</b><div class="helper" style="margin-top:5px">下一階段先做「超市帳」電腦高速輸入介面。</div></div></div>
+        <div id="acctManagementStage" class="acctManagementStage" style="display:none"></div>
       </div>
       <div class="card acctLegacyArea" style="display:none">
         <h2>💰 舊帳務介面</h2>
@@ -5071,22 +5076,47 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 
 <script>
-// 第77階段：帳務中心第一層只做介面骨架，不寫入任何新資料表。
+// 第172A階段：帳務中心依最新確認規格改為九個第一層入口；不修改登入/Auth。
 (function(){
-  const labels={
-    entry:['✍️ 快速做帳','下一階段先做「超市帳」電腦高速輸入介面。'],
-    ledger:['📒 帳本查詢','所有帳以帳本為核心查詢，不建立銷售單查詢。'],
-    payment:['💵 收款／付款','客戶收款、供應商／產農付款與儲值集中處理。'],
-    turnover:['🧺 籃子／鐵架／其他往來','管理欠出、歸還、目前欠數／餘數。'],
-    expense:['🧾 公司內帳／支出','公司日常支出集中管理。'],
-    vehicle:['🚚 車輛管理','車輛資料、加油、保養、維修、保險與驗車。'],
-    report:['📊 管理報表','後續由已輸入帳務自動彙整。']
+  const defs={
+    entry:{title:'✍️ 快速做帳',desc:'日常帳務由帳務人員自行輸入；已取消貨運派工自動進帳。',items:['開始快速做帳','今日做帳紀錄']},
+    farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'每日入貨可先不填價格；週帳與實際付款分開。',items:['今日入貨','待補價格','本週週帳','待領款']},
+    vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','異常處理','廠商對帳']},
+    payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 收支查詢','🏦 資金帳戶','📊 報表']},
+    ledger:{title:'📒 帳本查詢',desc:'先搜尋往來對象，再查看完整帳本、應收／應付與來源。',items:['🔍 搜尋帳本','應收統計','應付統計']},
+    turnover:{title:'🧺 周轉物管理',desc:'正常進出由發生處輸入一次；這裡負責查詢、盤點與特殊補登。',items:['🔍 周轉物查詢','📥📤 進出紀錄','📋 盤點／差異','⚙️ 周轉物設定']},
+    contacts:{title:'👥 往來資料',desc:'同一個往來對象只建立一份主資料，內部以固定ID關聯。',items:['🔍 搜尋往來資料','＋ 新增往來對象']},
+    receipt:{title:'🧾 農民收據',desc:'農收分類只服務農民收據，不建立第二套商品管理。',items:['待分類確認','待開農收','已開農收','歷史查詢','⚙️ 分類管理']},
+    vehicle:{title:'🚚 車輛管理',desc:'公司車輛設定固定司機；實際付費仍從收款／付款登記。',items:['車輛資料','用車紀錄','車輛費用紀錄','保養／到期提醒']}
   };
-  document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>{
-    document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
-    const v=labels[btn.dataset.acctManage]||['帳務中心',''];const box=document.getElementById('acctManagementStage');
-    if(box)box.innerHTML='<div><b>'+v[0]+'</b><div class="helper" style="margin-top:5px">'+v[1]+'</div></div>';
-  }));
+  const grid=document.getElementById('acctManagementGrid'), stage=document.getElementById('acctManagementStage');
+  if(!grid||!stage)return;
+  function home(){grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));}
+  function open(key){
+    const d=defs[key];if(!d)return;
+    grid.style.display='none';stage.style.display='block';
+    const bankLocked=(key==='payment' && !(typeof isAdmin==='function'&&isAdmin()));
+    const items=d.items.map(x=>{
+      const isBank=x.includes('資金帳戶');
+      if(isBank&&bankLocked)return '<button type="button" class="acctStageBtn acctStageLocked" disabled><b>'+x+'</b><span>僅管理員可查看與操作</span></button>';
+      return '<button type="button" class="acctStageBtn" data-acct-stage-action="'+x.replace(/"/g,'&quot;')+'"><b>'+x+'</b></button>';
+    }).join('');
+    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div><div class="acctStageGrid">'+items+'</div><div id="acctStageWork" class="acctStageWork"></div>';
+    document.getElementById('acctStageBack')?.addEventListener('click',home);
+  }
+  document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>open(btn.dataset.acctManage)));
+  stage.addEventListener('click',e=>{
+    const b=e.target.closest('[data-acct-stage-action]');if(!b)return;
+    const a=b.dataset.acctStageAction, work=document.getElementById('acctStageWork');if(!work)return;
+    if(a==='開始快速做帳'){
+      document.querySelector('.acctLegacyArea')?.style.setProperty('display','block');
+      document.querySelectorAll('.acctSubPage').forEach(p=>p.classList.toggle('active',p.dataset.acctPagePanel==='quick'));
+      document.querySelector('.acctLegacyArea')?.scrollIntoView({behavior:'smooth',block:'start'});
+      return;
+    }
+    work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
+  });
+  home();
 })();
 </script>
 
