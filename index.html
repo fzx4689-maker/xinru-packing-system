@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170B階段｜人員管理正式架構</title>
+<title>欣儒系統｜第170C階段｜人員管理手機精簡版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1310,6 +1310,43 @@ body.wall-focus #wall .wallOrderNote{
 #refreshEmployeesBtn{display:none!important}.permissionExplain170B{display:grid;gap:12px;font-size:14px;line-height:1.65;padding:6px 2px}.permissionExplain170B>div{padding:11px 13px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.empSettingGroup{padding:11px 0;border-top:1px solid var(--line)}.empSettingGroup:first-of-type{border-top:0;padding-top:2px}.empSettingGroupTitle{font-size:13px;font-weight:900;color:#475467;margin-bottom:8px}.empDangerNote{font-size:11px;color:#667085;line-height:1.5;margin-top:7px}.empSettingsPanel .empMiniActions .btn{min-height:40px}.empSettingsPanel .emp-delete{color:#b4232c;background:#fff1f1}.employeeCompactSummary .empSummaryChip:first-child{background:#eef4ff}
 @media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
 </style>
+
+<style id="stage170C-personnel-compact">
+.employeeTopActions{margin:4px 0 10px!important;gap:6px!important;align-items:center}
+.employeeIconBtn{width:46px!important;height:46px!important;min-width:46px!important;padding:0!important;border-radius:14px!important;font-size:26px!important;line-height:1!important;font-weight:900!important}
+#permissionTabBtn{font-size:22px!important}
+#toggleCreateEmployeeBtn{width:46px!important;height:42px!important;min-width:46px!important;padding:0!important;font-size:25px!important;border-radius:14px!important}
+.employeeCompact{padding:12px 4px!important}
+.employeeCompactTop{align-items:center!important}
+.employeeCompactName{margin-bottom:2px!important}
+.employeeCompactMeta{margin-bottom:3px!important}
+.employeeCompactSummary{margin-top:2px!important}
+.empNoticeIcons{font-size:18px!important;padding:3px 8px!important;letter-spacing:3px}
+.empSettingsBtn{min-width:58px!important;width:58px!important;height:46px!important;padding:0!important;font-size:23px!important;border-radius:14px!important}
+.empSettingsPanel.open{display:block!important;margin:10px 0 4px!important;padding:15px!important;background:#fff!important;border:3px solid #2563eb!important;border-radius:18px!important;box-shadow:0 10px 26px rgba(37,99,235,.18)!important}
+.empSettingsTitle{font-size:18px!important;font-weight:900!important;padding-bottom:10px!important;border-bottom:2px solid #dbeafe!important}
+.empSettingGroup{padding:10px 0!important}
+.empSettingGroupTitle{font-weight:900!important;margin-bottom:7px!important}
+@media(max-width:700px){
+ .employeeBox{padding:14px 12px!important}
+ .employeeHead{display:grid!important;grid-template-columns:1fr auto!important;gap:6px 8px!important;align-items:center!important}
+ .employeeHead h2{font-size:23px!important;margin:0!important;white-space:nowrap}
+ .employeeHead .employeeCount{grid-column:1/2;font-size:13px!important;width:max-content}
+ #closeEmployeeModal{grid-column:2;grid-row:1/3;justify-self:end;align-self:start}
+ .employeeTopActions{margin:6px 0!important;justify-content:flex-end!important}
+ #toggleCreateEmployeeBtn{margin:0 0 6px!important}
+ .employeeCompactTop{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:5px 8px!important}
+ .employeeCompactName{font-size:18px!important}
+ .employeeCompactMeta{font-size:13px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+ .employeeCompactSummary{min-height:24px!important}
+ .employeeCompactTop>div:last-child{gap:3px!important}
+ .employeeStatus{font-size:14px!important;white-space:nowrap}
+ .empSettingsPanel.open{padding:12px!important}
+ .empMiniActions{display:flex!important;flex-wrap:wrap!important;gap:7px!important}
+ .empMiniActions .btn{flex:0 0 auto!important;min-width:0!important;padding:9px 11px!important;font-size:14px!important}
+}
+</style>
+
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -1744,16 +1781,16 @@ body.wall-focus #wall .wallOrderNote{
 
 <div id="employeeModal" class="employeeModal">
   <div class="employeeBox">
-    <div class="employeeHead"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray">關閉</button></div>
-    <div class="actions" style="margin:8px 0 12px;gap:8px">
-      <button id="employeeTabBtn" class="btn blue">👥 人員</button>
-      <button id="permissionTabBtn" class="btn gray">🔐 權限說明</button>
+    <div class="employeeHead"><h2>👥 人員／權限管理</h2><span id="employeeCount" class="employeeCount">共 0 位</span><button id="closeEmployeeModal" class="btn gray employeeIconBtn" title="關閉" aria-label="關閉">×</button></div>
+    <div class="actions employeeTopActions">
+      <button id="employeeTabBtn" class="btn blue" style="display:none">👥 人員</button>
+      <button id="permissionTabBtn" class="btn gray employeeIconBtn" title="權限說明" aria-label="權限說明">?</button>
       <button id="jobTemplateTabBtn" class="btn gray" style="display:none">🧩 職位／權限模板</button>
     </div>
 
     <div id="employeeTabPanel">
       <div class="actions" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-        <button id="toggleCreateEmployeeBtn" class="btn primary" style="padding:8px 11px;font-size:13px">＋ 新增員工</button>
+        <button id="toggleCreateEmployeeBtn" class="btn primary" style="padding:8px 11px;font-size:13px" title="新增員工" aria-label="新增員工">＋</button>
         <button id="refreshEmployeesBtn" class="btn gray" style="display:none;padding:8px 11px;font-size:13px">重新整理</button>
       </div>
       <div id="createEmployeeSection" class="card" style="display:none;box-shadow:none;margin-bottom:10px;padding:12px">
@@ -3195,10 +3232,10 @@ function renderEmployeeList(list=[]){
     return `<div class="employeeCompact">
       <div class="employeeCompactTop">
         <div class="employeeCompactMain"><div class="employeeCompactName">${esc(e.display_name||'未命名')}</div>
-          <div class="employeeCompactMeta">帳號：${e.login_name?esc(e.login_name):'尚未設定'}　｜　${ROLE_LABEL[e.role]||e.role}</div>
-          <div class="employeeCompactSummary">${pages.length?`<span class="empSummaryChip">頁面：${esc(pages.join('／'))}</span>`:''}${notices.length?`<span class="empSummaryChip">通知：${esc(notices.join('／'))}</span>`:''}</div>
+          <div class="employeeCompactMeta">${e.login_name?esc(e.login_name):'尚未設定'}　｜　${e.role==='admin'?'管理員':'一般使用者'}</div>
+          <div class="employeeCompactSummary">${notices.length?`<span class="empSummaryChip empNoticeIcons" title="${esc(notices.join('／'))}">${(e.notification_permissions||[]).map(x=>({packing:'📦',delivery:'🚚',accounting:'💰'}[x]||'🔔')).join(' ')}</span>`:''}</div>
         </div>
-        <div style="display:grid;gap:8px;justify-items:end"><div class="employeeStatus ${statusClass}">● ${status}</div><button class="btn blue emp-settings empSettingsBtn" data-id="${esc(e.user_id)}">設定</button></div>
+        <div style="display:grid;gap:8px;justify-items:end"><div class="employeeStatus ${statusClass}">● ${status}</div><button class="btn blue emp-settings empSettingsBtn" data-id="${esc(e.user_id)}" title="設定" aria-label="設定">⚙️</button></div>
       </div>
       <div class="empSettingsPanel" data-settings-for="${esc(e.user_id)}"><div class="empSettingsTitle">${esc(e.display_name||'未命名')}｜設定</div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">基本資料</div><div class="empMiniActions">
@@ -3206,12 +3243,12 @@ function renderEmployeeList(list=[]){
           <button class="btn gray emp-account" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-login="${esc(e.login_name||'')}">登入帳號</button>
           <button class="btn gray emp-password" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">重設密碼</button>
         </div></div>
-        <div class="empSettingGroup"><div class="empSettingGroupTitle">系統權限</div><div class="empMiniActions">
-          <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">管理員設定</button>
+        <div class="empSettingGroup"><div class="empSettingGroupTitle">權限設定</div><div class="empMiniActions">
+          <button class="btn gray emp-permission" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-role="${esc(e.role)}">${e.role==='admin'?'👑 管理員：是':'👤 管理員：否'}</button>
           <button class="btn blue emp-v17perm" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}">頁面／功能權限</button>
         </div></div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">通知設定</div><div class="empMiniActions">
-          <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">工作通知</button>
+          <button class="btn gray emp-notification" data-id="${esc(e.user_id)}" data-name="${esc(e.display_name)}" data-notifications="${esc((e.notification_permissions||[]).join(','))}">🔔 通知</button>
         </div></div>
         <div class="empSettingGroup"><div class="empSettingGroupTitle">帳號狀態</div><div class="empMiniActions">
           <button class="btn ${e.is_active?'red':'primary'} emp-active" data-id="${esc(e.user_id)}" data-active="${e.is_active?'1':'0'}" ${e.user_id===currentUser?.id?'disabled':''}>${e.is_active?'暫時停用':(e.registration_status==='pending'?'核准':'重新啟用')}</button>
@@ -3228,8 +3265,8 @@ function renderEmployeeList(list=[]){
     const panel=box.querySelector(`[data-settings-for="${el.dataset.id}"]`);
     const willOpen=!panel?.classList.contains('open');
     box.querySelectorAll('.empSettingsPanel.open').forEach(x=>x.classList.remove('open'));
-    box.querySelectorAll('.emp-settings').forEach(x=>x.textContent='設定');
-    if(panel&&willOpen){panel.classList.add('open');el.textContent='收起';}
+    box.querySelectorAll('.emp-settings').forEach(x=>x.textContent='⚙️');
+    if(panel&&willOpen){panel.classList.add('open');el.textContent='⌃';}
   });
   box.querySelectorAll('.emp-v17perm').forEach(el=>el.onclick=()=>v17EditEmployee(el.dataset.id,el.dataset.name));
   box.querySelectorAll('.emp-name').forEach(el=>el.onclick=async()=>{const v=prompt(`修改「${el.dataset.name}」的顯示姓名`,el.dataset.name||'');if(v===null)return;const display_name=v.trim();if(!display_name){setEmployeeMsg('姓名不能空白');return;}if(display_name===el.dataset.name)return;try{await callEmployeeManager('set_display_name',{user_id:el.dataset.id,display_name});setEmployeeMsg(`姓名已更新：${display_name}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
@@ -3250,7 +3287,21 @@ function renderEmployeeList(list=[]){
   box.querySelectorAll('.emp-work').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.roles||'').split(',').filter(Boolean);const roles=await chooseWorkRoles(el.dataset.name,cur,'設定工作區',async(selected)=>{await setEmployeeWorkRolesV32(el.dataset.id,selected);});if(roles===null)return;setEmployeeMsg('工作區已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
   box.querySelectorAll('.emp-feature').forEach(el=>el.onclick=async()=>{const cur=(el.dataset.features||'').split(',').filter(Boolean);const features=await chooseFeatures(el.dataset.name,cur,async(selected)=>{await callEmployeeManager('set_feature_permissions',{user_id:el.dataset.id,feature_permissions:selected});});if(features===null)return;setEmployeeMsg('額外功能已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}});
   box.querySelectorAll('.emp-notification').forEach(el=>el.onclick=async()=>{try{const {data,error}=await sb.from('employee_permission_v17').select('page_permissions').eq('user_id',el.dataset.id).maybeSingle();if(error)throw error;const pages=data?.page_permissions||[];const cur=(el.dataset.notifications||'').split(',').filter(Boolean);const opts=[{value:'packing',label:'📦 包裝通知',page:'packing'},{value:'delivery',label:'🚚 貨運通知',page:'delivery'},{value:'accounting',label:'💰 帳務通知',page:'accounting'}].filter(o=>pages.includes(o.page));const notifications=await chooseOptions(el.dataset.name,cur.filter(n=>opts.some(o=>o.value===n)),'通知設定｜只顯示已開啟頁面的通知',opts,false,async(selected)=>{await callEmployeeManager('set_notification_permissions',{user_id:el.dataset.id,notification_permissions:selected});});if(notifications===null)return;setEmployeeMsg('通知設定已更新',true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);}}catch(e){setEmployeeMsg('通知設定失敗：'+(e?.message||e),false);}});
-  box.querySelectorAll('.emp-permission').forEach(el=>el.onclick=async()=>{const map=ROLE_LABEL;const choices='1 管理員\n2 主管\n3 一般使用者';const v=prompt(`設定「${el.dataset.name}」的系統管理層級\n${choices}\n\n此設定只代表系統管理層級，不等於人員類型或職位。`,el.dataset.role==='admin'?'1':el.dataset.role==='operator'?'2':'3');if(v===null)return;const role=v.trim()==='1'?'admin':v.trim()==='2'?'operator':v.trim()==='3'?'viewer':null;if(!role){setEmployeeMsg('請輸入 1、2 或 3');return;}if(el.dataset.id===currentUser?.id && el.dataset.role==='admin' && role!=='admin'){const admins=[...box.querySelectorAll('.emp-permission')].filter(b=>b.dataset.role==='admin');if(admins.length<=1){setEmployeeMsg('目前只有你一位管理員權限帳號。請先把另一位人員設成管理員，再調整自己的權限。');return;}}try{await callEmployeeManager('set_role',{user_id:el.dataset.id,role});setEmployeeMsg(`系統管理層級已更新：${map[role]}`,true);await loadEmployees();if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}}catch(e){setEmployeeMsg(e.message,false);}});
+  box.querySelectorAll('.emp-permission').forEach(el=>el.onclick=async()=>{
+    const isNowAdmin=el.dataset.role==='admin', makeAdmin=!isNowAdmin;
+    if(el.dataset.id===currentUser?.id && isNowAdmin){
+      const admins=[...box.querySelectorAll('.emp-permission')].filter(b=>b.dataset.role==='admin');
+      if(admins.length<=1){setEmployeeMsg('目前只有你一位管理員。請先設定另一位管理員，才能取消自己的管理員資格。');return;}
+    }
+    if(!confirm(`確定將「${el.dataset.name}」設定為${makeAdmin?'管理員':'一般使用者'}？`))return;
+    try{
+      const role=makeAdmin?'admin':'viewer';
+      await callEmployeeManager('set_role',{user_id:el.dataset.id,role});
+      setEmployeeMsg(`已更新：${makeAdmin?'管理員':'一般使用者'}`,true);
+      await loadEmployees();
+      if(el.dataset.id===currentUser?.id){currentProfile=await loadMyProfile(currentUser);applyRoleUI();}
+    }catch(e){setEmployeeMsg(e.message,false);}
+  });
   box.querySelectorAll('.emp-password').forEach(el=>el.onclick=async()=>{const p1=prompt(`請輸入「${el.dataset.name}」的新密碼（至少 6 碼）`);if(p1===null)return;if(p1.length<6){setEmployeeMsg('新密碼至少要 6 碼');return;}const p2=prompt('請再輸入一次新密碼確認');if(p2===null||p1!==p2){setEmployeeMsg('兩次輸入的密碼不一致');return;}try{await callEmployeeManager('change_password',{user_id:el.dataset.id,password:p1});setEmployeeMsg('密碼已更新',true);}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-active').forEach(el=>el.onclick=async()=>{const active=el.dataset.active==='1',isPending=!active&&el.textContent.trim()==='核准';try{if(isPending){const name=el.closest('.employeeCompact')?.querySelector('b')?.textContent||'新員工';const roles=await chooseWorkRoles(name,[],'核准人員・選擇工作區',async(selected)=>{await callEmployeeManager('approve',{user_id:el.dataset.id,work_roles:selected});});if(roles===null)return;}else await callEmployeeManager('set_active',{user_id:el.dataset.id,is_active:!active});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
   box.querySelectorAll('.emp-delete').forEach(el=>el.onclick=async()=>{if(!confirm(`確定刪除「${el.dataset.name}」？`))return;try{await callEmployeeManager('delete',{user_id:el.dataset.id});await loadEmployees();}catch(e){setEmployeeMsg(e.message,false);}});
