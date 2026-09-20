@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜第170S階段｜說明頁工具列狀態修正版</title>
+<title>欣儒系統｜第170T階段｜通知勾選穩定版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1521,6 +1521,10 @@ body.wall-focus #wall .wallOrderNote{
 }
 </style>
 
+<style id="stage170T-notify-stable">
+.emp-notify-check{transition:none!important}
+.empNotifyCheck{transition:none!important}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -3460,22 +3464,16 @@ function renderEmployeeList(list=[]){
     const card=el.closest('.employeeCompact');
     const checks=[...card.querySelectorAll('.emp-notify-check')];
     const selected=checks.filter(x=>x.checked).map(x=>x.value);
-    const before=checks.map(x=>({el:x,checked:x.checked}));
-    // 170J：直接原地儲存，不重新 render 員工清單，避免每勾一次畫面閃動。
-    checks.forEach(x=>x.disabled=true);
+    const changed=el;
+    const wanted=el.checked;
+    // 170T：不 disable checkbox、不重畫清單、不顯示成功訊息造成版面位移。
+    // 勾選立即留在原位，背景靜默儲存；只有失敗才還原該格並顯示錯誤。
     try{
       await callEmployeeManager('set_notification_permissions',{user_id:uid,notification_permissions:selected});
-      // 同步目前登入者的記憶體資料，但不重畫人員清單。
-      if(uid===currentUser?.id){
-        currentProfile.notification_permissions=[...selected];
-      }
-      setEmployeeMsg('通知設定已更新',true);
+      if(uid===currentUser?.id) currentProfile.notification_permissions=[...selected];
     }catch(e){
-      // 只有失敗才把本次操作還原，不整頁刷新。
-      el.checked=!el.checked;
+      changed.checked=!wanted;
       setEmployeeMsg('通知設定失敗：'+(e?.message||e),false);
-    }finally{
-      checks.forEach(x=>x.disabled=false);
     }
   });
   box.querySelectorAll('.emp-permission').forEach(el=>el.onclick=async()=>{
