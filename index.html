@@ -388,64 +388,26 @@ body.field-single-role .wrap{padding-top:8px}
 /* 商品／庫存不得承接現場回報通知 */
 #procurementNoticeBadge{display:none!important}
 
-/* 第49階段：包裝部三功能真正縮成同一排；只改版型，不改功能 */
+/* 第172J階段：包裝／貨運三功能改回單一原生 details 結構。
+   手機與桌機都直接點 summary 開啟內容，不再使用第二套 mobileTabs／mobileActive，避免按鈕與功能脫鉤。 */
 #packing.packingCompactPanel .packingMainCard{padding:12px 14px}
 #packing .packingCompactHead{display:flex;align-items:center;margin:0 0 8px}
 #packing .packingCompactHead h2{margin:0;font-size:22px}
-#packing .packingQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:start;margin:0 0 10px}
-#packing .packingQuickTools>.shortageQuick{margin:0;padding:0;border:0;background:transparent;border-radius:0;min-width:0}
-#packing .packingQuickTools>.shortageQuick>summary{list-style:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:38px;padding:7px 8px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:14px;font-weight:900;cursor:pointer;white-space:nowrap}
-#packing .packingQuickTools>.shortageQuick>summary::-webkit-details-marker{display:none}
-#packing .packingQuickTools>.shortageQuick[open]{width:auto;border:1px solid #d8dee7;border-radius:12px;background:#fff;padding:0 8px 8px}
-#packing .packingQuickTools>.shortageQuick[open]>summary{width:100%;margin:8px 0;border-color:#b9c8da;background:#eef5ff}
-#packing .packingToolBody{margin-top:4px}
+#packing .packingQuickTools,#delivery .deliveryQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:start;margin:0 0 10px}
+#packing .packingQuickTools>details.shortageQuick,#delivery .deliveryQuickTools>details.shortageQuick{margin:0;padding:0;min-width:0;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;overflow:hidden}
+#packing .packingQuickTools>details.shortageQuick>summary,#delivery .deliveryQuickTools>details.shortageQuick>summary{list-style:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:44px;padding:7px 8px;border:0;background:#f7f9fb;font-size:14px;font-weight:900;cursor:pointer;text-align:center}
+#packing .packingQuickTools>details.shortageQuick>summary::-webkit-details-marker,#delivery .deliveryQuickTools>details.shortageQuick>summary::-webkit-details-marker{display:none}
+#packing .packingQuickTools>details.shortageQuick[open]>summary,#delivery .deliveryQuickTools>details.shortageQuick[open]>summary{background:#eef5ff;border-bottom:1px solid #d8dee7}
+#packing .packingToolBody,#delivery .deliveryToolBody{box-sizing:border-box;width:100%;margin:0;padding:10px;background:#fff}
 #packing #packingOrders{margin-top:2px}
 @media(max-width:700px){
-#packing .packingQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;align-items:start}
-#packing .packingQuickTools>.shortageQuick{display:contents!important}
-#packing .packingQuickTools>.shortageQuick>summary{grid-row:1;width:100%;min-width:0;min-height:44px;padding:6px 4px;font-size:12px;white-space:normal;text-align:center;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb}
-#packing .packingQuickTools>.shortageQuick[open]>summary{margin:0!important;background:#eef5ff;border-color:#9eb8d8}
-#packing .packingQuickTools>.shortageQuick>.packingToolBody{grid-column:1/-1;grid-row:2;width:100%;min-width:0;box-sizing:border-box;margin-top:4px;padding:10px;border:1px solid #d8dee7;border-radius:12px;background:#fff}
-#packing .packingQuickTools>.shortageQuick:not([open])>.packingToolBody{display:none!important}
-#packing .packingToolBody .shortageGrid{grid-template-columns:1fr!important}
-#packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn{max-width:none;width:100%;box-sizing:border-box}
-#packing .packingCompactHead h2{font-size:20px}
-}
-
-/* 第54階段：只修手機包裝部。桌機沿用第53版；手機改為獨立三鍵＋單一滿版內容，避開 iPhone Safari details/display:contents 三欄問題。 */
-#packing .packingMobileTabs{display:none}
-@media(max-width:700px){
-  #packing .packingMobileTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;margin:0 0 7px}
-  #packing .packingMobileTab{min-width:0;min-height:48px;padding:6px 3px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:12px;font-weight:900;line-height:1.25;text-align:center}
-  #packing .packingMobileTab.active{background:#eef5ff;border-color:#9eb8d8}
-  #packing .packingQuickTools{display:block!important;width:100%!important;margin:0 0 10px!important}
-  #packing .packingQuickTools>details.shortageQuick{display:none!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important}
-  #packing .packingQuickTools>details.shortageQuick.mobileActive{display:block!important}
-  #packing .packingQuickTools>details.shortageQuick>summary{display:none!important}
-  #packing .packingQuickTools>details.shortageQuick>.packingToolBody{display:block!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;margin:0!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:12px!important;background:#fff!important}
-  #packing .packingQuickTools>details.shortageQuick.mobileActive>.packingToolBody{display:block!important}
-  #packing .packingToolBody .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
-  #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn,#packing .packingToolBody .shortageList{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
-}
-
-/* 第55階段：貨運中心套用第54包裝部的手機三鍵＋單一滿版內容。 */
-#delivery .deliveryMobileTabs{display:none}
-#delivery .deliveryQuickTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:start;margin:0 0 10px}
-#delivery .deliveryQuickTools>details.shortageQuick{margin:0;min-width:0}
-#delivery .deliveryToolBody{margin-top:4px}
-@media(max-width:700px){
-  #delivery .deliveryMobileTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;margin:0 0 7px}
-  #delivery .deliveryMobileTab{min-width:0;min-height:48px;padding:6px 3px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:12px;font-weight:900;line-height:1.25;text-align:center}
-  #delivery .deliveryMobileTab.active{background:#eef5ff;border-color:#9eb8d8}
-  #delivery .deliveryQuickTools{display:block!important;width:100%!important;margin:0 0 10px!important}
-  #delivery .deliveryQuickTools>details.shortageQuick{display:none!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important}
-  #delivery .deliveryQuickTools>details.shortageQuick.mobileActive{display:block!important}
-  #delivery .deliveryQuickTools>details.shortageQuick>summary{display:none!important}
-  #delivery .deliveryQuickTools>details.shortageQuick>.deliveryToolBody{display:block!important;width:100%!important;min-width:0!important;box-sizing:border-box!important;margin:0!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:12px!important;background:#fff!important}
-  #delivery .deliveryToolBody .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
+  #packing .packingQuickTools,#delivery .deliveryQuickTools{grid-template-columns:1fr!important;gap:6px!important;width:100%!important}
+  #packing .packingQuickTools>details.shortageQuick,#delivery .deliveryQuickTools>details.shortageQuick{display:block!important;width:100%!important}
+  #packing .packingQuickTools>details.shortageQuick>summary,#delivery .deliveryQuickTools>details.shortageQuick>summary{display:flex!important;justify-content:flex-start!important;min-height:48px!important;padding:9px 12px!important;font-size:14px!important}
+  #packing .packingToolBody .shortageGrid,#delivery .deliveryToolBody .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
+  #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn,#packing .packingToolBody .shortageList,
   #delivery .deliveryToolBody .field,#delivery .deliveryToolBody .input,#delivery .deliveryToolBody .actions,#delivery .deliveryToolBody .btn,#delivery .deliveryToolBody .shortageList{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
 }
-
 
 /* 第69階段：包裝部訂單修改提醒／確認 */
 .orderChangeNotice{margin:12px 0;padding:12px 14px;border:2px solid #f59e0b;border-radius:14px;background:#fff7ed}
@@ -1904,11 +1866,6 @@ body.wall-focus #wall .wallOrderNote{
   <h2>包裝部</h2>
   <button type="button" id="packingHistoryBtn" class="btn gray">🔎 歷史派工單</button>
 </div>
-        <div class="packingMobileTabs" aria-label="包裝部手機功能">
-          <button type="button" class="packingMobileTab" data-packing-mobile="0">💬 現場詢問</button>
-          <button type="button" class="packingMobileTab" data-packing-mobile="1">📦 寄車回報公斤</button>
-          <button type="button" class="packingMobileTab" data-packing-mobile="2">⚠️ 缺貨回報／催貨</button>
-        </div>
         <div class="packingQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
           <details class="shortageQuick"><summary>📦 寄車回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button></div></details>
@@ -1931,11 +1888,6 @@ body.wall-focus #wall .wallOrderNote{
         <div class="deliveryHead">
           <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
           <button type="button" id="deliveryHistoryBtn" class="btn gray">🔎 歷史派工單</button>
-        </div>
-        <div class="deliveryMobileTabs" aria-label="貨運中心手機功能">
-          <button type="button" class="deliveryMobileTab" data-delivery-mobile="0">💬 現場詢問</button>
-          <button type="button" class="deliveryMobileTab" data-delivery-mobile="1">📦 寄車回報公斤</button>
-          <button type="button" class="deliveryMobileTab" data-delivery-mobile="2">⚠️ 缺貨回報／催貨</button>
         </div>
         <div class="deliveryQuickTools">
           <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></details>
@@ -4148,31 +4100,15 @@ function refreshSalesFieldMirror(){
   if(typeof loadStage9==='function')loadStage9();
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.fieldReportTab');if(!b)return;const view=b.dataset.fieldView;document.querySelectorAll('.fieldReportTab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.fieldReportPanel').forEach(x=>x.classList.toggle('active',x.dataset.fieldPanel===view));});
-// 第54階段：包裝部桌機保留 details；手機用獨立三鍵切換單一滿版內容。只作用於包裝部，不碰登入/Auth/Supabase。
-const packingToolDetails=[...document.querySelectorAll('#packing .packingQuickTools > details.shortageQuick')];
-packingToolDetails.forEach(d=>d.addEventListener('toggle',()=>{if(window.innerWidth<=700)return;if(!d.open)return;packingToolDetails.forEach(x=>{if(x!==d)x.open=false})}));
-function setPackingMobileTool(index){
-  const tabs=[...document.querySelectorAll('#packing .packingMobileTab')];
-  const same=index>=0&&tabs[index]?.classList.contains('active');
-  const next=same?-1:index;
-  packingToolDetails.forEach((d,i)=>{const on=i===next;d.classList.toggle('mobileActive',on);d.open=on});
-  tabs.forEach((b,i)=>b.classList.toggle('active',i===next));
-}
-document.querySelectorAll('#packing .packingMobileTab').forEach((b,i)=>b.addEventListener('click',()=>setPackingMobileTool(i)));
-if(window.innerWidth<=700)setPackingMobileTool(-1);
-
-// 第55階段：貨運中心桌機保留 details；手機同步包裝部三鍵切換單一滿版內容。
-const deliveryToolDetails=[...document.querySelectorAll('#delivery .deliveryQuickTools > details.shortageQuick')];
-deliveryToolDetails.forEach(d=>d.addEventListener('toggle',()=>{if(window.innerWidth<=700)return;if(!d.open)return;deliveryToolDetails.forEach(x=>{if(x!==d)x.open=false})}));
-function setDeliveryMobileTool(index){
-  const tabs=[...document.querySelectorAll('#delivery .deliveryMobileTab')];
-  const same=index>=0&&tabs[index]?.classList.contains('active');
-  const next=same?-1:index;
-  deliveryToolDetails.forEach((d,i)=>{const on=i===next;d.classList.toggle('mobileActive',on);d.open=on});
-  tabs.forEach((b,i)=>b.classList.toggle('active',i===next));
-}
-document.querySelectorAll('#delivery .deliveryMobileTab').forEach((b,i)=>b.addEventListener('click',()=>setDeliveryMobileTool(i)));
-if(window.innerWidth<=700)setDeliveryMobileTool(-1);
+// 第172J階段：包裝／貨運三功能使用原生 details/summary 作為唯一控制。
+// 只負責同區一次開一項；開關本身由瀏覽器原生 details 處理。
+['#packing .packingQuickTools','#delivery .deliveryQuickTools'].forEach(sel=>{
+  const group=[...document.querySelectorAll(sel+' > details.shortageQuick')];
+  group.forEach(d=>d.addEventListener('toggle',()=>{
+    if(!d.open)return;
+    group.forEach(x=>{if(x!==d)x.open=false});
+  }));
+});
 
 document.getElementById('salesQueryPackingBtn')?.addEventListener('click',()=>{orderQueryMode='packing';activateTab('today',{save:true});renderToday()});
 document.getElementById('salesQueryDeliveryBtn')?.addEventListener('click',()=>{orderQueryMode='delivery';activateTab('today',{save:true});renderToday()});
