@@ -388,27 +388,28 @@ body.field-single-role .wrap{padding-top:8px}
 /* 商品／庫存不得承接現場回報通知 */
 #procurementNoticeBadge{display:none!important}
 
-/* 第172K階段：包裝／貨運三功能維持同一排；直接使用原生 details，不建立第二套假按鈕。 */
+/* 第172M階段：包裝／貨運三功能＝固定三鍵列＋獨立全寬內容區。
+   不再使用 details + display:contents，避免 iPhone Safari 將內容壓在單一欄。 */
 #packing.packingCompactPanel .packingMainCard{padding:12px 14px}
 #packing .packingCompactHead{display:flex;align-items:center;margin:0 0 8px}
 #packing .packingCompactHead h2{margin:0;font-size:22px}
-#packing .packingQuickTools,#delivery .deliveryQuickTools{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;align-items:start!important;margin:0 0 10px!important}
-#packing .packingQuickTools>details.shortageQuick,#delivery .deliveryQuickTools>details.shortageQuick{display:contents!important}
-#packing .packingQuickTools>details.shortageQuick>summary,#delivery .deliveryQuickTools>details.shortageQuick>summary{list-style:none!important;display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:44px!important;margin:0!important;padding:7px 6px!important;border:1px solid #d8dee7!important;border-radius:10px!important;background:#f7f9fb!important;font-size:14px!important;font-weight:900!important;cursor:pointer!important;text-align:center!important;line-height:1.2!important}
-#packing .packingQuickTools>details.shortageQuick:nth-of-type(1)>summary,#delivery .deliveryQuickTools>details.shortageQuick:nth-of-type(1)>summary{grid-column:1;grid-row:1}
-#packing .packingQuickTools>details.shortageQuick:nth-of-type(2)>summary,#delivery .deliveryQuickTools>details.shortageQuick:nth-of-type(2)>summary{grid-column:2;grid-row:1}
-#packing .packingQuickTools>details.shortageQuick:nth-of-type(3)>summary,#delivery .deliveryQuickTools>details.shortageQuick:nth-of-type(3)>summary{grid-column:3;grid-row:1}
-#packing .packingQuickTools>details.shortageQuick>summary::-webkit-details-marker,#delivery .deliveryQuickTools>details.shortageQuick>summary::-webkit-details-marker{display:none}
-#packing .packingQuickTools>details.shortageQuick[open]>summary,#delivery .deliveryQuickTools>details.shortageQuick[open]>summary{background:#eef5ff!important;border-color:#8eb8ef!important}
-#packing .packingQuickTools>details.shortageQuick>.packingToolBody,#delivery .deliveryQuickTools>details.shortageQuick>.deliveryToolBody{grid-column:1/-1!important;grid-row:2!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;margin:0!important;padding:10px!important;border:1px solid #d8dee7!important;border-radius:10px!important;background:#fff!important}
+#packing .packingQuickTools,#delivery .deliveryQuickTools{margin:0 0 10px!important}
+#packing .quickToolTabs,#delivery .quickToolTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
+#packing .quickToolTab,#delivery .quickToolTab{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;padding:7px 6px;border:1px solid #d8dee7;border-radius:10px;background:#f7f9fb;font-size:14px;font-weight:900;cursor:pointer;text-align:center;line-height:1.2}
+#packing .quickToolTab.active,#delivery .quickToolTab.active{background:#eef5ff;border-color:#8eb8ef}
+#packing .quickToolPanels,#delivery .quickToolPanels{width:100%;margin-top:8px}
+#packing .quickToolPanel,#delivery .quickToolPanel{display:none;box-sizing:border-box;width:100%;min-width:0;padding:10px;border:1px solid #d8dee7;border-radius:10px;background:#fff}
+#packing .quickToolPanel.active,#delivery .quickToolPanel.active{display:block}
 #packing #packingOrders{margin-top:2px}
 .freightOwnList{margin-top:10px}.freightEditNotice{margin:9px 0;padding:10px 12px;border:2px solid #f59e0b;border-radius:12px;background:#fff7ed}.freightEditNotice .title{font-weight:900;color:#b45309}.freightEditHistory{margin-top:7px;font-size:13px;color:#64748b}.freightEditHistory details{margin-top:5px}.freightEditHistory pre{white-space:pre-wrap;margin:6px 0 0;font-family:inherit}
+.freightInlineEdit{margin-top:10px;padding:12px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc}.freightInlineEdit .freightBulkText{min-height:180px;resize:vertical;white-space:pre-wrap}.freightInlineEdit .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 @media(max-width:700px){
-  #packing .packingQuickTools,#delivery .deliveryQuickTools{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;width:100%!important}
-  #packing .packingQuickTools>details.shortageQuick>summary,#delivery .deliveryQuickTools>details.shortageQuick>summary{min-height:48px!important;padding:6px 3px!important;font-size:12px!important;justify-content:center!important;white-space:normal!important}
-  #packing .packingToolBody .shortageGrid,#delivery .deliveryToolBody .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
-  #packing .packingToolBody .field,#packing .packingToolBody .input,#packing .packingToolBody .actions,#packing .packingToolBody .btn,#packing .packingToolBody .shortageList,
-  #delivery .deliveryToolBody .field,#delivery .deliveryToolBody .input,#delivery .deliveryToolBody .actions,#delivery .deliveryToolBody .btn,#delivery .deliveryToolBody .shortageList{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+ #packing .quickToolTabs,#delivery .quickToolTabs{gap:5px}
+ #packing .quickToolTab,#delivery .quickToolTab{min-height:48px;padding:6px 3px;font-size:12px;white-space:normal}
+ #packing .quickToolPanel .shortageGrid,#delivery .quickToolPanel .shortageGrid{display:grid!important;grid-template-columns:1fr!important;width:100%!important}
+ #packing .quickToolPanel .field,#packing .quickToolPanel .input,#packing .quickToolPanel .actions,#packing .quickToolPanel .btn,#packing .quickToolPanel .shortageList,
+ #delivery .quickToolPanel .field,#delivery .quickToolPanel .input,#delivery .quickToolPanel .actions,#delivery .quickToolPanel .btn,#delivery .quickToolPanel .shortageList{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+ .freightInlineEdit .freightBulkText{min-height:220px}
 }
 
 /* 第69階段：包裝部訂單修改提醒／確認 */
@@ -1868,10 +1869,17 @@ body.wall-focus #wall .wallOrderNote{
   <h2>包裝部</h2>
   <button type="button" id="packingHistoryBtn" class="btn gray">🔎 歷史派工單</button>
 </div>
-        <div class="packingQuickTools">
-          <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車回報公斤</summary><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button><div id="packingFreightReports" class="freightOwnList"></div></div></details>
-          <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></details>
+        <div class="packingQuickTools" data-quick-source="packing">
+          <div class="quickToolTabs">
+            <button type="button" class="quickToolTab" data-tool="question">💬 現場詢問</button>
+            <button type="button" class="quickToolTab" data-tool="freight">📦 寄車回報公斤</button>
+            <button type="button" class="quickToolTab" data-tool="shortage">⚠️ 缺貨回報／催貨</button>
+          </div>
+          <div class="quickToolPanels">
+            <div class="quickToolPanel" data-panel="question"><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></div>
+            <div class="quickToolPanel" data-panel="freight"><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button><div id="packingFreightReports" class="freightOwnList"></div></div></div>
+            <div class="quickToolPanel" data-panel="shortage"><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></div>
+          </div>
         </div>
         <div id="packingOrders"></div>
       </div>
@@ -1891,10 +1899,17 @@ body.wall-focus #wall .wallOrderNote{
           <div><h2 style="margin-bottom:4px">🚚 貨運部</h2></div>
           <button type="button" id="deliveryHistoryBtn" class="btn gray">🔎 歷史派工單</button>
         </div>
-        <div class="deliveryQuickTools">
-          <details class="shortageQuick"><summary>💬 現場詢問</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></details>
-          <details class="shortageQuick"><summary>📦 寄車回報公斤</summary><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button><div id="deliveryFreightReports" class="freightOwnList"></div></div></details>
-          <details class="shortageQuick"><summary>⚠️ 缺貨回報／催貨</summary><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div><div id="deliveryShortageReplies" class="shortageList"></div></div></details>
+        <div class="deliveryQuickTools" data-quick-source="delivery">
+          <div class="quickToolTabs">
+            <button type="button" class="quickToolTab" data-tool="question">💬 現場詢問</button>
+            <button type="button" class="quickToolTab" data-tool="freight">📦 寄車回報公斤</button>
+            <button type="button" class="quickToolTab" data-tool="shortage">⚠️ 缺貨回報／催貨</button>
+          </div>
+          <div class="quickToolPanels">
+            <div class="quickToolPanel" data-panel="question"><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></div>
+            <div class="quickToolPanel" data-panel="freight"><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button><div id="deliveryFreightReports" class="freightOwnList"></div></div></div>
+            <div class="quickToolPanel" data-panel="shortage"><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div><div id="deliveryShortageReplies" class="shortageList"></div></div></div>
+          </div>
         </div>
         <div id="driverFilters" class="driverFilters"></div>
         <div id="deliveryBody"></div>
@@ -4703,28 +4718,56 @@ function freightLogsFor(batch){return freightChangeLogs.filter(x=>String(x.batch
 function freightPendingLog(batch){return freightLogsFor(batch).find(x=>!x.is_acknowledged)}
 function freightChangeHtml(batch,officeView=false){const logs=freightLogsFor(batch),p=freightPendingLog(batch);let html='';if(p&&officeView)html+='<div class="freightEditNotice"><div class="title">⚠️ 回報已修改</div><div class="orderChangeDiff">'+esc(p.diff_text||'內容已更新')+'</div><div class="orderChangeMeta">修改：'+esc(p.changed_by_name||'')+'｜'+stage9Time(p.changed_at)+'</div><div class="actions" style="margin-top:8px"><button type="button" class="btn primary freight-change-ack-btn" data-log="'+esc(String(p.id))+'">✓ 已確認修改</button></div></div>';if(logs.length)html+='<div class="freightEditHistory"><details><summary style="cursor:pointer;font-weight:900">修改紀錄 ('+logs.length+')</summary>'+logs.map(x=>'<div style="padding:7px 0;border-bottom:1px solid #edf0f2"><b>'+esc(x.changed_by_name||'')+'</b>｜'+stage9Time(x.changed_at)+'<pre>'+esc(x.diff_text||'內容已更新')+'</pre></div>').join('')+'</details></div>';return html}
 function freightDiff(before,customer,items){const out=[];if(String(before.customer||'')!==String(customer||''))out.push('客戶：'+(before.customer||'空白')+' → '+(customer||'空白'));before.items.forEach((x,i)=>{const y=items[i];if(!y)return;const a=(x.item_text||'')+'｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0),b=(y.item||'')+'｜'+Number(y.kg||0)+' KG × '+Number(y.qty||0);if(a!==b)out.push('第 '+(i+1)+' 項：'+a+' → '+b)});return out.join('\n')||'內容已更新'}
-window.editFreightBatch=async function(batch){
+let freightEditingBatch='';
+function freightParseEditText(raw){
+  const lines=String(raw||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],bad=[];
+  lines.forEach((line,index)=>{
+    let body=line.replace(/，/g,',').replace(/＊/g,'*').trim(),qty=1;
+    const qm=body.match(/(?:\*|x|X|×)\s*(\d+(?:\.\d+)?)\s*$/);
+    if(qm){qty=Number(qm[1]);body=body.slice(0,qm.index).trim()}
+    const km=[...body.matchAll(/(\d+(?:\.\d+)?)\s*(?:KG|Kg|kg|K|k|公斤)/g)].pop();
+    if(!km){bad.push(index+1);return}
+    const kg=Number(km[1]),item=(body.slice(0,km.index)+body.slice(km.index+km[0].length)).trim();
+    if(!item||kg<=0||qty<=0){bad.push(index+1);return}
+    rows.push({item,qty,kg,total_kg:Math.round(kg*qty*100)/100});
+  });
+  return {rows,bad};
+}
+function freightEditHtml(group){
+  const h=group.rows[0]||{};
+  return '<div class="freightInlineEdit" data-edit-batch="'+esc(String(group.batch))+'">'+
+    '<div class="field"><label class="label">客戶</label><input class="input freight-edit-customer" value="'+esc(h.customer||'')+'"></div>'+
+    '<div class="field"><label class="label">修改公斤內容（每行一項）</label><textarea class="input freightBulkText freight-edit-text">'+esc(freightGroupText(group))+'</textarea></div>'+
+    '<div class="meta" style="margin-top:7px">直接修改品名、公斤、件數；每個品項一行。</div>'+
+    '<div class="actions"><button type="button" class="btn primary freight-edit-save-btn" data-batch="'+esc(String(group.batch))+'">儲存修改</button><button type="button" class="btn gray freight-edit-cancel-btn">取消修改</button></div></div>';
+}
+window.editFreightBatch=function(batch){
   if(!currentUser)return alert('請先登入');
   const g=freightGroups().find(x=>String(x.batch)===String(batch));if(!g)return alert('找不到這張回報單');
   if(String(batch).startsWith('old-'))return alert('舊版單筆回報沒有 batch_id，先保留原紀錄，不直接改寫');
-  const before=freightGroupSnapshot(g);
-  const customer=prompt('修改客戶',before.customer);if(customer===null)return;if(!customer.trim())return alert('客戶不能空白');
-  const raw=prompt('修改公斤內容（每行一項）',freightGroupText(g));if(raw===null)return;
-  const temp=document.createElement('textarea');temp.id='xrFreightEditTemp';temp.value=raw;temp.style.display='none';document.body.appendChild(temp);
-  const fakeSource='xr';const oldGet=document.getElementById.bind(document);let p;
-  try{
-    const lines=String(raw||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],bad=[];
-    lines.forEach((line,index)=>{let body=line.replace(/，/g,',').replace(/＊/g,'*').trim(),qty=1;const qm=body.match(/(?:\*|x|X|×)\s*(\d+(?:\.\d+)?)\s*$/);if(qm){qty=Number(qm[1]);body=body.slice(0,qm.index).trim()}const km=[...body.matchAll(/(\d+(?:\.\d+)?)\s*(?:KG|Kg|kg|K|k|公斤)/g)].pop();if(!km){bad.push(index+1);return}const kg=Number(km[1]),item=(body.slice(0,km.index)+body.slice(km.index+km[0].length)).trim();if(!item||kg<=0||qty<=0){bad.push(index+1);return}rows.push({item,qty,kg,total_kg:Math.round(kg*qty*100)/100})});p={rows,bad};
-  }finally{temp.remove()}
+  freightEditingBatch=String(batch);
+  renderFreightFor(g.rows[0]?.source||'packing');
+  requestAnimationFrame(()=>document.querySelector('[data-edit-batch="'+CSS.escape(String(batch))+'"] .freight-edit-text')?.focus());
+};
+window.cancelFreightBatchEdit=function(){freightEditingBatch='';renderFreightFor('packing');renderFreightFor('delivery')};
+window.saveFreightBatchEdit=async function(batch){
+  if(!currentUser)return alert('請先登入');
+  const g=freightGroups().find(x=>String(x.batch)===String(batch));if(!g)return alert('找不到這張回報單');
+  const root=document.querySelector('[data-edit-batch="'+CSS.escape(String(batch))+'"]');if(!root)return alert('找不到修改區');
+  const customer=root.querySelector('.freight-edit-customer')?.value.trim()||'';
+  const raw=root.querySelector('.freight-edit-text')?.value||'';
+  if(!customer)return alert('客戶不能空白');
+  const p=freightParseEditText(raw);
   if(p.bad.length)return alert('第 '+p.bad.join('、')+' 行格式無法辨識');
   if(!p.rows.length)return alert('請輸入公斤內容');
-  if(p.rows.length!==g.rows.length)return alert('為保護原本穩定資料，這版修改時品項行數要與原回報相同；可以修改客戶、品名、公斤與件數。');
-  const diff=freightDiff(before,customer.trim(),p.rows);if(!confirm('確定修改這張寄車回報？\n\n'+diff))return;
-  const after={customer:customer.trim(),items:p.rows.map(x=>({item_text:x.item,qty:x.qty,piece_kg:x.kg,total_kg:x.total_kg}))};
+  if(p.rows.length!==g.rows.length)return alert('為保護原本穩定資料，修改時品項行數要與原回報相同；可以修改客戶、品名、公斤與件數。');
+  const before=freightGroupSnapshot(g),diff=freightDiff(before,customer,p.rows);
+  if(!confirm('確定修改這張寄車回報？\n\n'+diff))return;
+  const after={customer,items:p.rows.map(x=>({item_text:x.item,qty:x.qty,piece_kg:x.kg,total_kg:x.total_kg}))};
   const logPayload={batch_id:String(batch),before_data:before,after_data:after,diff_text:diff,changed_by:currentUser.id,changed_by_name:currentProfile?.display_name||'',changed_at:new Date().toISOString(),is_acknowledged:false};
   const lr=await sb.from('freight_receipt_change_logs').insert(logPayload);if(lr.error)return alert('修改紀錄寫入失敗，原回報尚未修改：'+lr.error.message);
-  for(let i=0;i<g.rows.length;i++){const x=g.rows[i],y=p.rows[i];const r=await sb.from('freight_receipts').update({customer:customer.trim(),item_text:y.item,qty:y.qty,piece_kg:y.kg,total_kg:y.total_kg,status:'reported',confirmed_at:null,confirmed_by:null,confirmed_by_name:null}).eq('id',Number(x.id));if(r.error)return alert('第 '+(i+1)+' 項修改失敗：'+r.error.message+'。修改紀錄已保留，請不要重複操作並通知管理員。')}
-  await loadStage9();alert('寄車回報已修改，原 batch 保留，修改前後內容已記錄');
+  for(let i=0;i<g.rows.length;i++){const x=g.rows[i],y=p.rows[i];const r=await sb.from('freight_receipts').update({customer,item_text:y.item,qty:y.qty,piece_kg:y.kg,total_kg:y.total_kg,status:'reported',confirmed_at:null,confirmed_by:null,confirmed_by_name:null}).eq('id',Number(x.id));if(r.error)return alert('第 '+(i+1)+' 項修改失敗：'+r.error.message+'。修改紀錄已保留，請不要重複操作並通知管理員。')}
+  freightEditingBatch='';await loadStage9();alert('已修改並重新送派工確認');
 };
 window.ackFreightChange=async function(id){if(!currentUser)return;const r=await sb.from('freight_receipt_change_logs').update({is_acknowledged:true,acknowledged_by:currentUser.id,acknowledged_by_name:currentProfile?.display_name||'',acknowledged_at:new Date().toISOString()}).eq('id',Number(id));if(r.error)return alert('確認修改失敗：'+r.error.message);await loadStage9()};
 function renderFreightFor(source){
@@ -4743,7 +4786,7 @@ function freightBatchCard(group,completed=false,fieldView=false){
   return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(fullyCompleted?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
     arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');return '<div class="freightConfirmItem"><div><b>'+esc(x.item_text||'')+'</b>｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0)+' ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':(officeView?'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>':'<span class="badge gray">待派工確認</span>'))+'</div>'}).join('')+
     '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG</div>'+
-    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button></div>':'')+
+    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&String(freightEditingBatch)===String(group.batch)?freightEditHtml(group):(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button></div>':''))+
     (officeView&&!fullyCompleted&&allChecked?'<div class="shortageActions"><button type="button" class="btn primary freight-complete-btn" data-batch="'+esc(group.batch)+'">✅ 整單完成</button></div>':'')+
     (fullyCompleted?'<div class="meta" style="color:#18703c;font-weight:900">✅ 已整單完成｜'+stage9Time(h.confirmed_at||'')+'</div>':'')+'</div>';
 }
@@ -4799,7 +4842,7 @@ window.renderFreightHistory=function(){
   groups=groups.filter(g=>{const h=g.rows[0],d=(h.confirmed_at||h.created_at||'').slice(0,10),text=g.rows.map(x=>[x.customer,x.item_text,x.reported_by_name,x.confirmed_by_name,x.source_label].join(' ')).join(' ').toLowerCase();return(!date||d===date)&&(!kw||text.includes(kw))});
   box.innerHTML=groups.length?groups.map(g=>freightBatchCard(g,true)).join(''):'<div class="empty">沒有符合條件的歷史回報</div>';
 };
-document.addEventListener('click',e=>{const a=e.target.closest?.('.freight-item-confirm-btn');if(a)confirmFreightItem(a.dataset.id);const b=e.target.closest?.('.freight-complete-btn');if(b)completeFreightBatch(b.dataset.batch);const c=e.target.closest?.('.freight-edit-btn');if(c)editFreightBatch(c.dataset.batch);const d=e.target.closest?.('.freight-change-ack-btn');if(d)ackFreightChange(d.dataset.log)});
+document.addEventListener('click',e=>{const a=e.target.closest?.('.freight-item-confirm-btn');if(a)confirmFreightItem(a.dataset.id);const b=e.target.closest?.('.freight-complete-btn');if(b)completeFreightBatch(b.dataset.batch);const c=e.target.closest?.('.freight-edit-btn');if(c)editFreightBatch(c.dataset.batch);const d=e.target.closest?.('.freight-change-ack-btn');if(d)ackFreightChange(d.dataset.log);const sv=e.target.closest?.('.freight-edit-save-btn');if(sv)saveFreightBatchEdit(sv.dataset.batch);const cc=e.target.closest?.('.freight-edit-cancel-btn');if(cc)cancelFreightBatchEdit()});
 window.renderConversationHistory=function(){
   const box=document.getElementById('conversationHistoryList');if(!box)return;
   const date=document.getElementById('historyDate')?.value||'';
@@ -4874,7 +4917,7 @@ document.addEventListener('touchmove',e=>{if(!xrPullStartY||window.scrollY>1||xr
 document.addEventListener('touchend',()=>{if(xrPullReady)xrRefreshVisibleData();else{const el=xrPullEl();if(el)el.style.transform='translate(-50%,-70px)'}xrPullStartY=0},{passive:true});
 
 let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Realtime)return;stage9Realtime=sb.channel('xinru-stage10-live').on('postgres_changes',{event:'*',schema:'public',table:'field_questions'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'field_question_messages'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipts'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipt_change_logs'},loadStage9).subscribe()}
-document.addEventListener('toggle',e=>{const d=e.target;if(!(d instanceof HTMLDetailsElement)||!d.open)return;const p=d.parentElement;if(!p||(!p.classList.contains('packingQuickTools')&&!p.classList.contains('deliveryQuickTools')))return;p.querySelectorAll(':scope > details[open]').forEach(x=>{if(x!==d)x.open=false})},true);
+document.addEventListener('click',e=>{const btn=e.target.closest?.('.quickToolTab');if(!btn)return;const root=btn.closest('.packingQuickTools,.deliveryQuickTools');if(!root)return;const tool=btn.dataset.tool,was=btn.classList.contains('active');root.querySelectorAll('.quickToolTab').forEach(x=>x.classList.remove('active'));root.querySelectorAll('.quickToolPanel').forEach(x=>x.classList.remove('active'));if(!was){btn.classList.add('active');root.querySelector('.quickToolPanel[data-panel="'+tool+'"]')?.classList.add('active')}});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentUser)loadStage9()});window.addEventListener('focus',()=>{if(currentUser)loadStage9()});window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},10000);
 </script>
 <script>
