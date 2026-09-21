@@ -2943,8 +2943,8 @@ $('#saveDeliveryEdit').onclick=async()=>{
   $('#deliveryEditModal').classList.remove('show');await loadDelivery();
 };
 window.deleteDelivery=async id=>{
-  if(!isManager())return;const j=deliveryJobs.find(x=>Number(x.id)===Number(id));if(!j)return;
-  if(j.status==='completed'&&!isManager()){alert('已送達訂單只有管理員或主管可以刪除');return;}
+  if(!canManageFreight())return;const j=deliveryJobs.find(x=>Number(x.id)===Number(id));if(!j)return;
+  if(j.status==='completed'&&!canManageFreight()){alert('已送達訂單只有貨運管理權限可以刪除');return;}
   if(!confirm(`確定刪除「${j.customer||j.delivery_no}」貨運單？\n刪除後無法復原。`))return;
   const {error}=await sb.from('delivery_jobs').delete().eq('id',id);
   if(error){alert('刪除失敗：'+error.message);return;}
