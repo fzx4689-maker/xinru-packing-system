@@ -4701,7 +4701,7 @@ function freightGroupText(group){return group.rows.map(x=>(x.item_text||'')+Numb
 function freightGroupSnapshot(group){return {customer:group.rows[0]?.customer||'',items:group.rows.map(x=>({id:x.id,item_text:x.item_text||'',qty:Number(x.qty||0),piece_kg:Number(x.piece_kg||0),total_kg:Number(x.total_kg||0)}))}}
 function freightLogsFor(batch){return freightChangeLogs.filter(x=>String(x.batch_id)===String(batch))}
 function freightPendingLog(batch){return freightLogsFor(batch).find(x=>!x.is_acknowledged)}
-function freightChangeHtml(batch){const logs=freightLogsFor(batch),p=freightPendingLog(batch);let html='';if(p)html+='<div class="freightEditNotice"><div class="title">⚠️ 回報已修改</div><div class="orderChangeDiff">'+esc(p.diff_text||'內容已更新')+'</div><div class="orderChangeMeta">修改：'+esc(p.changed_by_name||'')+'｜'+stage9Time(p.changed_at)+'</div><div class="actions" style="margin-top:8px"><button type="button" class="btn primary freight-change-ack-btn" data-log="'+esc(String(p.id))+'">✓ 已確認修改</button></div></div>';if(logs.length)html+='<div class="freightEditHistory"><details><summary style="cursor:pointer;font-weight:900">修改紀錄 ('+logs.length+')</summary>'+logs.map(x=>'<div style="padding:7px 0;border-bottom:1px solid #edf0f2"><b>'+esc(x.changed_by_name||'')+'</b>｜'+stage9Time(x.changed_at)+'<pre>'+esc(x.diff_text||'內容已更新')+'</pre></div>').join('')+'</details></div>';return html}
+function freightChangeHtml(batch,officeView=false){const logs=freightLogsFor(batch),p=freightPendingLog(batch);let html='';if(p&&officeView)html+='<div class="freightEditNotice"><div class="title">⚠️ 回報已修改</div><div class="orderChangeDiff">'+esc(p.diff_text||'內容已更新')+'</div><div class="orderChangeMeta">修改：'+esc(p.changed_by_name||'')+'｜'+stage9Time(p.changed_at)+'</div><div class="actions" style="margin-top:8px"><button type="button" class="btn primary freight-change-ack-btn" data-log="'+esc(String(p.id))+'">✓ 已確認修改</button></div></div>';if(logs.length)html+='<div class="freightEditHistory"><details><summary style="cursor:pointer;font-weight:900">修改紀錄 ('+logs.length+')</summary>'+logs.map(x=>'<div style="padding:7px 0;border-bottom:1px solid #edf0f2"><b>'+esc(x.changed_by_name||'')+'</b>｜'+stage9Time(x.changed_at)+'<pre>'+esc(x.diff_text||'內容已更新')+'</pre></div>').join('')+'</details></div>';return html}
 function freightDiff(before,customer,items){const out=[];if(String(before.customer||'')!==String(customer||''))out.push('客戶：'+(before.customer||'空白')+' → '+(customer||'空白'));before.items.forEach((x,i)=>{const y=items[i];if(!y)return;const a=(x.item_text||'')+'｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0),b=(y.item||'')+'｜'+Number(y.kg||0)+' KG × '+Number(y.qty||0);if(a!==b)out.push('第 '+(i+1)+' 項：'+a+' → '+b)});return out.join('\n')||'內容已更新'}
 window.editFreightBatch=async function(batch){
   if(!currentUser)return alert('請先登入');
@@ -4727,23 +4727,31 @@ window.editFreightBatch=async function(batch){
   await loadStage9();alert('寄車回報已修改，原 batch 保留，修改前後內容已記錄');
 };
 window.ackFreightChange=async function(id){if(!currentUser)return;const r=await sb.from('freight_receipt_change_logs').update({is_acknowledged:true,acknowledged_by:currentUser.id,acknowledged_by_name:currentProfile?.display_name||'',acknowledged_at:new Date().toISOString()}).eq('id',Number(id));if(r.error)return alert('確認修改失敗：'+r.error.message);await loadStage9()};
-function renderFreightFor(source){const box=document.getElementById(source+'FreightReports');if(!box)return;const groups=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at));box.innerHTML=groups.length?'<div class="meta" style="margin:10px 0 5px;font-weight:900">今日寄車回報</div>'+groups.map(g=>freightBatchCard(g,false,true)).join(''):''}
+function renderFreightFor(source){
+  const box=document.getElementById(source+'FreightReports');if(!box)return;
+  const groups=freightGroups().filter(g=>{
+    const h=g.rows[0]||{};
+    return h.source===source&&fieldIsToday(h.created_at)&&!g.rows.every(x=>(x.status||'')==='completed');
+  });
+  box.innerHTML=groups.length?'<div class="meta" style="margin:10px 0 5px;font-weight:900">今日寄車回報</div>'+groups.map(g=>freightBatchCard(g,false,true)).join(''):'';
+}
 function freightBatchCard(group,completed=false,fieldView=false){
   const arr=group.rows,h=arr[0],pieces=arr.reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0);
   const doneCount=arr.filter(x=>['confirmed','completed'].includes(x.status||'reported')).length;
   const allChecked=doneCount===arr.length, fullyCompleted=arr.every(x=>(x.status||'')==='completed');
+  const officeView=!fieldView;
   return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(fullyCompleted?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
-    arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');return '<div class="freightConfirmItem"><div><b>'+esc(x.item_text||'')+'</b>｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0)+' ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>')+'</div>'}).join('')+
+    arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');return '<div class="freightConfirmItem"><div><b>'+esc(x.item_text||'')+'</b>｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0)+' ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':(officeView?'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>':'<span class="badge gray">待派工確認</span>'))+'</div>'}).join('')+
     '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG</div>'+
-    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch)+(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button></div>':'')+
-    (!fullyCompleted&&allChecked?'<div class="shortageActions"><button type="button" class="btn primary freight-complete-btn" data-batch="'+esc(group.batch)+'">✅ 整單完成</button></div>':'')+
+    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button></div>':'')+
+    (officeView&&!fullyCompleted&&allChecked?'<div class="shortageActions"><button type="button" class="btn primary freight-complete-btn" data-batch="'+esc(group.batch)+'">✅ 整單完成</button></div>':'')+
     (fullyCompleted?'<div class="meta" style="color:#18703c;font-weight:900">✅ 已整單完成｜'+stage9Time(h.confirmed_at||'')+'</div>':'')+'</div>';
 }
 function renderFreightOffice(){
   const box=document.getElementById('freightOfficeList');if(!box)return;
   const groups=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at));
   const pending=groups.filter(g=>!g.rows.every(x=>(x.status||'')==='completed'));
-  box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false)).join(''):'<div class="empty">今天目前沒有待確認的寄車公斤回報</div>';
+  box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false,false)).join(''):'<div class="empty">今天目前沒有待確認的寄車公斤回報</div>';
 }
 window.confirmFreightItem=async function(id){
   if(!currentUser)return alert('請先登入');
