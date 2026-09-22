@@ -4116,13 +4116,50 @@ document.addEventListener('keydown',e=>{if(e.key==='F2'){const panel=document.qu
 
 $('#acctDate').value=taipeiDate();renderAcctDraft();renderAcctRecords();
   // loadOrders 會在登入驗證成功後啟動。
-const AUTO_REFRESH_MS=10000;
+// 第175A階段：iPhone/PWA 回前景同步＋多人使用效能穩定化。
+// Auth / startApp / Supabase client 不修改；Realtime 為即時主通道，30 秒只做安全補抓。
+const AUTO_REFRESH_MS=30000;
 setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();enforceActiveSession();}},AUTO_REFRESH_MS);
-// 第172P階段：貨運即時更新交給 Realtime；保留上方 10 秒安全補抓與回到前景同步。
-// 移除貨運頁每 2 秒整表重抓，降低多人同時使用時的重複請求與競態。
 setInterval(()=>{if(currentUser&&currentProfile?.role==='admin'&&document.visibilityState==='visible')refreshPendingEmployeeBadge();},60000);
-document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();loadAccountingCloud();enforceActiveSession();}});
-window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery();loadAccountingCloud();enforceActiveSession();}});
+
+let xrResumeSyncBusy=false,xrResumeSyncTimer=0,xrResumeSyncLastAt=0;
+async function xrResumeSync(reason='resume'){
+  if(!currentUser||document.visibilityState!=='visible')return;
+  const now=Date.now();
+  if(xrResumeSyncBusy||now-xrResumeSyncLastAt<1200)return;
+  xrResumeSyncBusy=true;xrResumeSyncLastAt=now;
+  try{
+    // iOS 背景可能讓 WebSocket heartbeat 停止；只恢復既有 Realtime client，不建立第二個 client。
+    try{
+      if(sb?.realtime&&typeof sb.realtime.isConnected==='function'&&!sb.realtime.isConnected()&&typeof sb.realtime.connect==='function')sb.realtime.connect();
+    }catch(e){console.warn('Realtime reconnect skipped',e)}
+    try{if(typeof startShortageRealtime==='function')startShortageRealtime()}catch(e){}
+    try{if(typeof startStage9Realtime==='function')startStage9Realtime()}catch(e){}
+
+    const tab=(typeof getRememberedTab==='function'?getRememberedTab():'home');
+    const tasks=[];
+    // 只補抓目前工作區需要的資料；首頁/派工需更新跨部門紅點，因此抓必要的兩個主資料源。
+    if(['home','stall','today'].includes(tab)){tasks.push(loadOrders(),loadDelivery())}
+    else if(['packing','wall'].includes(tab)){tasks.push(loadOrders())}
+    else if(tab==='delivery'){tasks.push(loadDelivery())}
+    else if(tab==='accounting'&&typeof loadAccountingCloud==='function'){tasks.push(loadAccountingCloud())}
+    if(['home','stall','packing','delivery'].includes(tab)){
+      if(typeof loadStage9==='function')tasks.push(loadStage9());
+      if(typeof loadShortageReports==='function')tasks.push(loadShortageReports());
+    }
+    await Promise.allSettled(tasks);
+    // 保留原本的帳號有效性檢查，但只在一次合併後的回前景流程執行一次。
+    try{await Promise.resolve(enforceActiveSession())}catch(e){console.warn('session check failed on resume',e)}
+  }finally{xrResumeSyncBusy=false}
+}
+function xrQueueResumeSync(reason){
+  if(!currentUser||document.visibilityState!=='visible')return;
+  clearTimeout(xrResumeSyncTimer);
+  xrResumeSyncTimer=setTimeout(()=>xrResumeSync(reason),180);
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')xrQueueResumeSync('visibility')});
+window.addEventListener('focus',()=>xrQueueResumeSync('focus'));
+window.addEventListener('pageshow',()=>xrQueueResumeSync('pageshow'));
 
 
 // 第39階段：開單／收銀子頁切換。
@@ -4624,9 +4661,8 @@ function startShortageRealtime(){
     .subscribe();
 }
 function refreshShortageOnReturn(){if(currentUser){startShortageRealtime();loadShortageReports();}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshShortageOnReturn()});
-window.addEventListener('focus',refreshShortageOnReturn);
-setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadShortageReports()},10000);
+// 第175A階段：回前景改由共用 xrResumeSync 去重處理，避免 visibility/focus 重複查詢。
+setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadShortageReports()},30000);
 window.addEventListener('load',()=>{setTimeout(()=>{loadShortageReports();startShortageRealtime()},1800)});
 document.addEventListener('click',e=>{if(e.target?.dataset?.tab==='procurement')setTimeout(loadShortageReports,100)});
 </script>
@@ -4939,7 +4975,8 @@ document.addEventListener('touchend',()=>{if(xrPullReady)xrRefreshVisibleData();
 
 let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Realtime)return;stage9Realtime=sb.channel('xinru-stage10-live').on('postgres_changes',{event:'*',schema:'public',table:'field_questions'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'field_question_messages'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipts'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipt_change_logs'},loadStage9).subscribe()}
 document.addEventListener('click',e=>{const btn=e.target.closest?.('.quickToolTab');if(!btn)return;const root=btn.closest('.packingQuickTools,.deliveryQuickTools');if(!root)return;const tool=btn.dataset.tool,was=btn.classList.contains('active');root.querySelectorAll('.quickToolTab').forEach(x=>x.classList.remove('active'));root.querySelectorAll('.quickToolPanel').forEach(x=>x.classList.remove('active'));if(!was){btn.classList.add('active');root.querySelector('.quickToolPanel[data-panel="'+tool+'"]')?.classList.add('active')}});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentUser)loadStage9()});window.addEventListener('focus',()=>{if(currentUser)loadStage9()});window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},10000);
+// 第175A階段：回前景改由共用 xrResumeSync 去重處理；保留原本登入後初始化。
+window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},30000);
 </script>
 <script>
 /* 第169C3階段：六大權限正式接管＋登入後同步權限。
@@ -5197,81 +5234,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   document.querySelector('.tab[data-tab="accounting"]')?.addEventListener('click',home);
   function qEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
   function qToday(){const d=new Date(Date.now()+8*3600000);return d.toISOString().slice(0,10)}
-  function qProfiles(){try{const a=JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]');return Array.isArray(a)?a.filter(x=>x&&x.active!==false):[]}catch(e){return []}}
+  function qProfiles(){try{return JSON.parse(localStorage.getItem('xinru_customer_profiles_v1')||'[]')||[]}catch(e){return []}}
   function qMoney(v){const n=Number(v);return Number.isFinite(n)?n:0}
-  function qRowHtml(i,profile){
-    const pricing=(profile?.pricingDefault&&profile.pricingDefault!=='不指定')?profile.pricingDefault:'件';
-    const freight=(profile?.freightDefault==='不計')?'不計':((profile?.freightDefault&&profile.freightDefault!=='做帳時決定')?'往來資料規則':'不計');
-    const opts=(arr,cur)=>arr.map(v=>'<option '+(v===cur?'selected':'')+'>'+qEsc(v)+'</option>').join('');
-    return '<div class="quickV2Row quickV3Row" data-qrow="'+i+'"><b class="quickV2No">'+(i+1)+'</b><input class="input qName" placeholder="品名"><input class="input qKg" inputmode="decimal" placeholder="公斤"><input class="input qQty" inputmode="decimal" value="1" placeholder="數量"><select class="input qPricing">'+opts(['件','公斤','台斤','固定金額'],pricing)+'</select><select class="input qSource">'+opts(['欣儒自有','外店代購','外店代寄','其他'],'欣儒自有')+'</select><input class="input qCost" inputmode="decimal" placeholder="成本"><input class="input qPrice" inputmode="decimal" placeholder="入帳單價"><select class="input qFreight">'+opts(['不計','往來資料規則','公斤','件','固定運費','待補'],freight)+'</select><div class="quickV2Num qAmount">—</div><button type="button" class="btn gray qRemove" title="移除此列">×</button></div>'
-  }
-  function qRecalc(work){
-    const profile=qProfiles().find(x=>String(x.name).trim()===String(work.querySelector('#quickV2Entity')?.value||'').trim());
-    let total=0,pending=0;
-    work.querySelectorAll('[data-qrow]').forEach(r=>{
-      const qty=qMoney(r.querySelector('.qQty').value||1),kg=qMoney(r.querySelector('.qKg').value),pv=r.querySelector('.qPrice').value.trim(),price=qMoney(pv),method=r.querySelector('.qPricing').value;
-      let base=qty;if(method==='公斤')base=kg;if(method==='台斤')base=kg*1.6666666667;if(method==='固定金額')base=1;
-      const goods=pv===''?null:base*price;
-      let freight=0, fm=r.querySelector('.qFreight').value;
-      if(fm==='公斤')freight=kg*2;else if(fm==='件')freight=qty*2;
-      else if(fm==='往來資料規則'&&profile){
-        const name=r.querySelector('.qName').value.trim();
-        const rule=(profile.freightRules||[]).find(x=>name&&x.name&&(name.includes(x.name)||String(x.name).includes(name)));
-        if(rule)freight=qMoney(rule.amount)*(rule.unit==='公斤'?kg:rule.unit==='件'?qty:1);
-      }
-      if(goods===null){pending++;r.querySelector('.qAmount').textContent='待補價'}else{total+=goods+freight;r.querySelector('.qAmount').textContent='$'+Math.round(goods+freight).toLocaleString('zh-TW')}
-    });
-    const t=work.querySelector('#quickV2Total');if(t)t.textContent='$'+Math.round(total).toLocaleString('zh-TW');
-    const p=work.querySelector('#quickV2Pending');if(p)p.textContent=pending?'待補價格 '+pending+' 項':'價格已完整'
-  }
-  function qAddRow(work,focus=true){const body=work.querySelector('#quickV2Rows');const i=body.querySelectorAll('[data-qrow]').length;const profile=qProfiles().find(x=>String(x.name).trim()===String(work.querySelector('#quickV2Entity')?.value||'').trim());body.insertAdjacentHTML('beforeend',qRowHtml(i,profile));qBindRows(work);qRecalc(work);if(focus)body.lastElementChild.querySelector('.qName').focus()}
-  function qBindRows(work){work.querySelectorAll('[data-qrow]').forEach((r,i)=>{r.dataset.qrow=i;r.querySelector('.quickV2No').textContent=i+1;r.querySelectorAll('input,select').forEach(inp=>{if(inp.dataset.qbound)return;inp.dataset.qbound='1';inp.addEventListener('input',()=>qRecalc(work));inp.addEventListener('change',()=>qRecalc(work));inp.addEventListener('keydown',ev=>{if(ev.isComposing||ev.key!=='Enter')return;ev.preventDefault();const fields=[...r.querySelectorAll('input,select')],idx=fields.indexOf(inp);if(idx<fields.length-1)fields[idx+1].focus();else qAddRow(work,true)})});const rm=r.querySelector('.qRemove');if(!rm.dataset.qbound){rm.dataset.qbound='1';rm.onclick=()=>{if(work.querySelectorAll('[data-qrow]').length===1){r.querySelectorAll('input').forEach(x=>x.value=x.classList.contains('qQty')?'1':'');qRecalc(work);return}r.remove();qBindRows(work);qRecalc(work)}}})}
-  function renderQuickV2(work){
-    const ps=qProfiles(),opts=ps.map(x=>'<option value="'+qEsc(x.name)+'"></option>').join('');
-    work.innerHTML='<div class="quickV2"><div class="quickV2Head"><div class="field"><label class="label">日期</label><input id="quickV2Date" class="input" type="date" value="'+qToday()+'"></div><div class="field quickEntityField"><label class="label">往來對象＊</label><input id="quickV2Entity" class="input" list="quickV2EntityList" autocomplete="off" placeholder="從往來資料選擇"><datalist id="quickV2EntityList">'+opts+'</datalist></div><div class="field"><label class="label">交易方向</label><select id="quickV2Direction" class="input"><option value="receivable">對方應付欣儒</option><option value="payable">欣儒應付對方</option></select></div><div class="field"><label class="label">備註</label><input id="quickV2Note" class="input" placeholder="可不填"></div></div><div id="quickV3Profile" class="quickV3Profile">請先選擇往來對象</div><div class="quickV2Table quickV3Table"><div class="quickV2Row quickV2Labels quickV3Row"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>計價</span><span>來源</span><span>成本</span><span>入帳單價</span><span>運費</span><span>小計</span><span></span></div><div id="quickV2Rows">'+qRowHtml(0,null)+'</div></div><details class="quickV3Turn"><summary>🧺 周轉物（有使用再展開）</summary><div class="quickV3TurnGrid"><select id="qTurnType" class="input"><option value="">無</option><option>籃子</option><option>鐵架</option><option>棧板</option><option>其他</option></select><select id="qTurnAction" class="input"><option value="">動作</option><option>欠用</option><option>歸還</option><option>買斷</option><option>調整</option></select><input id="qTurnQty" class="input" inputmode="decimal" placeholder="數量"><input id="qTurnPrice" class="input" inputmode="decimal" placeholder="買斷單價"></div></details><div class="quickV2Foot"><button id="quickV2Add" type="button" class="btn blue">＋ 新增一列</button><span id="quickV2Pending" class="quickV2Pending">待補價格 1 項</span><button id="quickV2Clear" type="button" class="btn gray">清空</button><button id="quickV2Save" type="button" class="btn primary">💾 完成做帳</button><div class="quickV2Total">本次金額 <span id="quickV2Total">$0</span></div></div><div class="helper" style="display:block!important;margin-top:10px">同一對象＋同一天可持續追加；原始交易各自保留。單價空白會進待補價格。成本只供內部帳務，不會作為客戶帳單價格。</div></div>';
-    qBindRows(work);qRecalc(work);
-    const ent=work.querySelector('#quickV2Entity');
-    ent.addEventListener('change',()=>{
-      const x=qProfiles().find(v=>String(v.name).trim()===ent.value.trim()),box=work.querySelector('#quickV3Profile');
-      if(!x){box.textContent='找不到往來資料，請先到「👥 往來資料」建立';return}
-      box.innerHTML='<b>'+qEsc(x.name)+'</b>｜'+qEsc(x.identity||'')+'｜'+qEsc(x.accountMode||'')+'｜'+qEsc(x.settlement||'')+(x.payer?'｜付款方：'+qEsc(x.payer):'');
-      work.querySelector('#quickV2Direction').value=(x.accountMode==='產農入貨'||x.identity==='產農'||(x.identity==='廠商'&&x.accountMode!=='一般銷貨'))?'payable':'receivable';
-      work.querySelectorAll('[data-qrow]').forEach(r=>{if(x.pricingDefault&&x.pricingDefault!=='不指定')r.querySelector('.qPricing').value=x.pricingDefault;if(x.freightDefault==='不計')r.querySelector('.qFreight').value='不計';else if(x.freightDefault&&x.freightDefault!=='做帳時決定')r.querySelector('.qFreight').value='往來資料規則'});
-      if(x.turnover?.basket)work.querySelector('#qTurnPrice').value=x.turnover.basketPrice??50;
-      qRecalc(work)
-    });
-    work.querySelector('#quickV2Add').onclick=()=>qAddRow(work,true);
-    work.querySelector('#quickV2Clear').onclick=()=>{if(confirm('確定清空目前尚未儲存的內容嗎？'))renderQuickV2(work)};
-    work.querySelector('#quickV2Save').onclick=()=>qSave(work)
-  }
-  async function qSave(work){
-    const entity=work.querySelector('#quickV2Entity').value.trim(),date=work.querySelector('#quickV2Date').value,profile=qProfiles().find(x=>String(x.name).trim()===entity);
-    if(!profile){alert('請先從「往來資料」選擇已建立的對象');work.querySelector('#quickV2Entity').focus();return}
-    const items=[];let invalid=false;
-    work.querySelectorAll('[data-qrow]').forEach(r=>{
-      const name=r.querySelector('.qName').value.trim(),kgv=r.querySelector('.qKg').value.trim(),qtyv=r.querySelector('.qQty').value.trim(),pv=r.querySelector('.qPrice').value.trim(),cv=r.querySelector('.qCost').value.trim();
-      if(!name&&!kgv&&!pv&&!cv)return;
-      const qty=qMoney(qtyv||1),kg=kgv===''?'':qMoney(kgv),price=pv===''?'':qMoney(pv),cost=cv===''?'':qMoney(cv),pricingMethod=r.querySelector('.qPricing').value,source=r.querySelector('.qSource').value,freightMode=r.querySelector('.qFreight').value;
-      if(!name||!(qty>0)){invalid=true;return}
-      let base=qty;if(pricingMethod==='公斤')base=qMoney(kg);if(pricingMethod==='台斤')base=qMoney(kg)*1.6666666667;if(pricingMethod==='固定金額')base=1;
-      let freight=0;if(freightMode==='公斤')freight=qMoney(kg)*2;else if(freightMode==='件')freight=qty*2;else if(freightMode==='往來資料規則'){const rule=(profile.freightRules||[]).find(x=>name&&x.name&&(name.includes(x.name)||String(x.name).includes(name)));if(rule)freight=qMoney(rule.amount)*(rule.unit==='公斤'?qMoney(kg):rule.unit==='件'?qty:1)}
-      const goods=price===''?'':base*price;
-      items.push({name,kg,qty,unit:'件',pricingMethod,source,cost,price,goods,freightMode,freight,amount:goods===''?'':goods+freight})
-    });
-    if(invalid||!items.length){alert('請至少輸入一筆完整品名與數量');return}
-    const pending=items.some(x=>x.price===''&&x.source!=='外店代寄');
-    if(pending&&!confirm('有單價空白，儲存後會進入「待補價格」。確定繼續？'))return;
-    const tt=work.querySelector('#qTurnType').value,tq=qMoney(work.querySelector('#qTurnQty').value),turnover=tt&&tq?{type:tt,action:work.querySelector('#qTurnAction').value,qty:tq,buyoutPrice:qMoney(work.querySelector('#qTurnPrice').value)}:null;
-    const goods=items.reduce((s,x)=>s+(x.goods===''?0:qMoney(x.goods)),0),freight=items.reduce((s,x)=>s+qMoney(x.freight),0),turnoverCharge=turnover?.action==='買斷'?turnover.qty*turnover.buyoutPrice:0,total=goods+freight+turnoverCharge,now=new Date().toISOString();
-    const record={id:(globalThis.crypto?.randomUUID?crypto.randomUUID():('qv3-'+Date.now()+'-'+Math.random().toString(36).slice(2))),schemaVersion:3,date,customer:entity,contactId:profile.id,type:profile.identity||'一般客戶',accountMode:profile.accountMode||'一般銷貨',settlement:profile.settlement||'',payer:profile.payer||entity,groupName:profile.groupName||'',mode:'quick_v3',txnType:'quick_entry',txnTypeLabel:'快速做帳',accountDirection:work.querySelector('#quickV2Direction').value,items,turnover,goods,freight,turnoverCharge,total,paid:0,due:total,pricingStatus:pending?'pending_price':'priced',settlementStatus:pending?'pending_price':'open',note:work.querySelector('#quickV2Note').value.trim(),status:'active',testData:false,createdAt:now,updatedAt:now,createdBy:(window.currentProfile?.display_name||window.currentUser?.email||''),audit:[{action:'create',at:now,by:(window.currentProfile?.display_name||window.currentUser?.email||'')}]};
-    try{
-      if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');
-      await saveAccountingCloud(record);
-      if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
-      alert(pending?'已儲存；缺價品項已進待補價格。':'本筆做帳已完成。');
-      renderQuickV2(work);work.querySelector('#quickV2Entity').value=entity;work.querySelector('#quickV2Entity').dispatchEvent(new Event('change'))
-    }catch(e){alert('儲存失敗：'+e.message)}
-  }
+  function qRowHtml(i){return '<div class="quickV2Row" data-qrow="'+i+'"><b class="quickV2No">'+(i+1)+'</b><input class="input qName" placeholder="品名"><input class="input qKg" inputmode="decimal" placeholder="公斤"><input class="input qQty" inputmode="decimal" value="1" placeholder="數量"><input class="input qPrice" inputmode="decimal" placeholder="單價可空白"><input class="input qBasket" inputmode="numeric" placeholder="籃數"><div class="quickV2Num qAmount">—</div><button type="button" class="btn gray qRemove" title="移除此列">×</button></div>'}
+  function qRecalc(work){let total=0,pending=0;work.querySelectorAll('[data-qrow]').forEach(r=>{const qty=qMoney(r.querySelector('.qQty').value),pv=r.querySelector('.qPrice').value.trim(),price=qMoney(pv),amt=pv===''?null:qty*price;if(amt===null){pending++;r.querySelector('.qAmount').textContent='待補價'}else{total+=amt;r.querySelector('.qAmount').textContent='$'+Math.round(amt).toLocaleString('zh-TW')}});const t=work.querySelector('#quickV2Total');if(t)t.textContent='$'+Math.round(total).toLocaleString('zh-TW');const p=work.querySelector('#quickV2Pending');if(p)p.textContent=pending?'待補價格 '+pending+' 項':'價格已完整'}
+  function qAddRow(work,focus=true){const body=work.querySelector('#quickV2Rows');const i=body.querySelectorAll('[data-qrow]').length;body.insertAdjacentHTML('beforeend',qRowHtml(i));qBindRows(work);qRecalc(work);if(focus)body.lastElementChild.querySelector('.qName').focus()}
+  function qBindRows(work){work.querySelectorAll('[data-qrow]').forEach((r,i)=>{r.dataset.qrow=i;r.querySelector('.quickV2No').textContent=i+1;r.querySelectorAll('input').forEach(inp=>{if(inp.dataset.qbound)return;inp.dataset.qbound='1';inp.addEventListener('input',()=>qRecalc(work));inp.addEventListener('keydown',ev=>{if(ev.isComposing||ev.key!=='Enter')return;ev.preventDefault();const fields=[...r.querySelectorAll('input')],idx=fields.indexOf(inp);if(idx<fields.length-1)fields[idx+1].focus();else qAddRow(work,true)})});const rm=r.querySelector('.qRemove');if(!rm.dataset.qbound){rm.dataset.qbound='1';rm.onclick=()=>{if(work.querySelectorAll('[data-qrow]').length===1){r.querySelectorAll('input').forEach(x=>x.value=x.classList.contains('qQty')?'1':'');qRecalc(work);return}r.remove();qBindRows(work);qRecalc(work)}}})}
+  function renderQuickV2(work){const ps=qProfiles();const opts=ps.map(x=>'<option value="'+qEsc(x.name)+'"></option>').join('');work.innerHTML='<div class="quickV2"><div class="quickV2Head"><div class="field"><label class="label">日期</label><input id="quickV2Date" class="input" type="date" value="'+qToday()+'"></div><div class="field quickEntityField"><label class="label">往來對象／識別名稱＊</label><input id="quickV2Entity" class="input" list="quickV2EntityList" autocomplete="off" placeholder="例如：0299、仁和、長青"><datalist id="quickV2EntityList">'+opts+'</datalist></div><div class="field"><label class="label">對象類型</label><select id="quickV2Type" class="input"><option>客戶</option><option>超市</option><option>中盤</option><option>產農</option><option>廠商</option></select></div><div class="field"><label class="label">備註</label><input id="quickV2Note" class="input" placeholder="可不填"></div></div><div class="quickV2Table"><div class="quickV2Row quickV2Labels"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>單價</span><span>籃數</span><span>金額</span><span></span></div><div id="quickV2Rows">'+qRowHtml(0)+'</div></div><div class="quickV2Foot"><button id="quickV2Add" type="button" class="btn blue">＋ 新增一列</button><span id="quickV2Pending" class="quickV2Pending">待補價格 1 項</span><button id="quickV2Clear" type="button" class="btn gray">清空</button><button id="quickV2Save" type="button" class="btn primary">💾 儲存本筆</button><div class="quickV2Total">本次金額 <span id="quickV2Total">$0</span></div></div><div class="helper" style="display:block!important;margin-top:10px">單價可以空白後補；籃數只有實際有籃子時才輸入。這裡不讀取貨運派工資料。</div></div>';qBindRows(work);qRecalc(work);const ent=work.querySelector('#quickV2Entity');ent.addEventListener('change',()=>{const x=qProfiles().find(v=>String(v.name).trim()===ent.value.trim());if(x&&x.type){const sel=work.querySelector('#quickV2Type');if([...sel.options].some(o=>o.value===x.type))sel.value=x.type}});work.querySelector('#quickV2Add').onclick=()=>qAddRow(work,true);work.querySelector('#quickV2Clear').onclick=()=>{if(!confirm('確定清空目前尚未儲存的內容嗎？'))return;renderQuickV2(work)};work.querySelector('#quickV2Save').onclick=()=>qSave(work)}
+  async function qSave(work){const entity=work.querySelector('#quickV2Entity').value.trim(),date=work.querySelector('#quickV2Date').value,type=work.querySelector('#quickV2Type').value;if(!entity){alert('請輸入往來對象／識別名稱');work.querySelector('#quickV2Entity').focus();return}const items=[];let invalid=false;work.querySelectorAll('[data-qrow]').forEach(r=>{const name=r.querySelector('.qName').value.trim(),kgv=r.querySelector('.qKg').value.trim(),qtyv=r.querySelector('.qQty').value.trim(),pv=r.querySelector('.qPrice').value.trim(),bv=r.querySelector('.qBasket').value.trim();if(!name&&!kgv&&!pv&&!bv)return;const qty=qMoney(qtyv||1);if(!name||!(qty>0)){invalid=true;return}items.push({name,kg:kgv===''?'':qMoney(kgv),qty,price:pv===''?'':qMoney(pv),basket:bv===''?'':qMoney(bv),amount:pv===''?'':qty*qMoney(pv)})});if(invalid||!items.length){alert('請至少輸入一筆完整品名與數量');return}const total=items.reduce((s,x)=>s+(x.amount===''?0:Number(x.amount)||0),0),record={id:(globalThis.crypto?.randomUUID?crypto.randomUUID():('qv2-'+Date.now()+'-'+Math.random().toString(36).slice(2))),schemaVersion:2,date,customer:entity,type,mode:'quick_v2',txnType:'quick_entry',txnTypeLabel:'快速做帳',accountDirection:(['產農','廠商'].includes(type)?'payable':'receivable'),items,goods:total,total,paid:0,due:total,pricingStatus:items.some(x=>x.price==='')?'pending_price':'priced',settlementStatus:items.some(x=>x.price==='')?'pending_price':'open',note:work.querySelector('#quickV2Note').value.trim(),status:'active',testData:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),createdBy:(window.currentProfile?.display_name||window.currentUser?.email||''),audit:[{action:'create',at:new Date().toISOString(),by:(window.currentProfile?.display_name||window.currentUser?.email||'')}]};const rows=(typeof acctRecords==='function'?acctRecords():[]).slice();rows.unshift(record);localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));if(typeof acctCloudRecords!=='undefined'&&acctCloudRecords!==null)acctCloudRecords=rows;try{if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');await saveAccountingCloud(record);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();alert('已正式儲存到帳務資料；可在「今日做帳紀錄」查看。');renderQuickV2(work);work.querySelector('#quickV2Entity').value=entity;work.querySelector('#quickV2Type').value=type}catch(e){alert('本機已暫存，但雲端同步失敗：'+e.message)}}
   function qPendingRecords(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='quick_v2'&&r.status!=='void'&&Array.isArray(r.items)&&r.items.some(x=>x&&x.price===''))}
   function renderPendingPrices(work){
     const rows=qPendingRecords();
@@ -5292,12 +5262,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       });
     });
   }
-  function renderQuickToday(work){
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&(x.mode==='quick_v3'||x.mode==='quick_v2')&&x.status!=='void').slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
-    work.innerHTML='<div class="quickV2"><b>📋 做帳紀錄／待處理</b><div class="quickV3Tabs"><button class="btn gray" data-qfilter="all">全部</button><button class="btn gray" data-qfilter="pending">待補價格</button><button class="btn gray" data-qfilter="done">已完成</button></div><div id="quickV2TodayList"></div></div>';
-    const paint=f=>{let a=rows;if(f==='pending')a=a.filter(r=>r.pricingStatus==='pending_price');if(f==='done')a=a.filter(r=>r.pricingStatus!=='pending_price');work.querySelector('#quickV2TodayList').innerHTML=a.length?a.map(r=>'<div class="quickV2Record"><div class="quickV2RecordTop"><b>'+qEsc(r.date)+'｜'+qEsc(r.customer)+'｜'+qEsc(r.type||'')+'</b><b>$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b></div><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name+'×'+x.qty+(x.price===''?'（待補價）':'')).join('、'))+'</div></div>').join(''):'<div class="empty" style="padding:18px">目前沒有資料</div>'};
-    work.querySelectorAll('[data-qfilter]').forEach(b=>b.onclick=()=>paint(b.dataset.qfilter));paint('all')
-  }
+  function renderQuickToday(work){const day=qToday(),rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.mode==='quick_v2'&&x.date===day&&x.status!=='void');work.innerHTML='<div class="quickV2"><b>📋 今日做帳紀錄｜'+day+'</b><div class="helper" style="display:block!important;margin-top:5px">只顯示新快速做帳已儲存紀錄；正式資料不提供刪除。</div><div id="quickV2TodayList">'+(rows.length?rows.map(r=>'<div class="quickV2Record"><div class="quickV2RecordTop"><b>'+qEsc(r.customer)+'｜'+qEsc(r.type||'')+'</b><b>$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b></div><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name+'×'+x.qty+(x.price===''?'（待補價）':'')).join('、'))+'</div></div>').join(''):'<div class="empty" style="padding:18px">今天尚無快速做帳紀錄</div>')+'</div></div>'}
   function qActor(){return (window.currentProfile?.display_name||window.currentUser?.email||'')}
   async function qUpdateOriginal(record, before, action){
     record.updatedAt=new Date().toISOString();
