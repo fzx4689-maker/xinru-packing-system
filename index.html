@@ -3959,29 +3959,6 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
 <!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
-
-<style id="xrQuick174AStyle">
-/* 174A：快速做帳介面安全版；不接觸登入/Auth初始化與既有帳務全域變數。 */
-.xr174aNote{border:1px solid #b9ddca;background:#fbfffd;border-radius:12px;padding:12px;margin:8px 0}
-.xr174aNote b{display:block;margin-bottom:5px}
-</style>
-
-<script id="xrQuick174AScript">
-(()=>{
-  function install174A(){
-    const stage=document.getElementById('acctManagementStage');
-    if(!stage || stage.dataset.xr174aInstalled==='1') return;
-    stage.dataset.xr174aInstalled='1';
-    /* 僅標記新版快速做帳入口已準備；實際帳務資料仍走173原本穩定流程。 */
-  }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',install174A,{once:true});
-  }else{
-    install174A();
-  }
-})();
-</script>
-
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
