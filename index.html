@@ -3187,8 +3187,13 @@ $('#submitOrder').onclick=async()=>{
       if(error)throw error;
       if(lines.length){const items=lines.map(text=>({order_id:order.id,item_name:text,quantity:null,thai_phonetic:translitLine(text),is_completed:false}));const {error:itemErr}=await sb.from('order_items').insert(items);if(itemErr)throw itemErr;}
       await loadOrders();
-      await sendXinruPush({targetRole:'packing',title:urgent?'🚨 包裝急單':'📦 包裝新單',body:`${customer}${pickup?`｜取貨 ${pickup}`:''}`,url:'https://fzx4689-maker.github.io/xinru-packing-system/#packing',tag:`packing-${order.id}`,kind:'packing',urgent});
-      alert('已送到包裝部與電視牆');
+      try{
+        await sendXinruPush({targetRole:'packing',title:urgent?'🚨 包裝急單':'📦 包裝新單',body:`${customer}${pickup?`｜取貨 ${pickup}`:''}`,url:'https://fzx4689-maker.github.io/xinru-packing-system/#packing',tag:`packing-${order.id}`,kind:'packing',urgent});
+        alert('已送到包裝部與電視牆');
+      }catch(pushErr){
+        console.warn('包裝推播失敗，但訂單已建立',pushErr);
+        alert('✅ 訂單已送到包裝部與電視牆\n⚠️ iPhone 推播暫時失敗，不影響訂單與系統同步');
+      }
     }else{
       const uid=$('#stallDeliveryDriver')?.value||'';
       const driver=deliveryDrivers.find(x=>x.user_id===uid);
@@ -3202,8 +3207,13 @@ $('#submitOrder').onclick=async()=>{
       }).select('id,delivery_no').single();
       if(error)throw error;
       await loadDelivery();
-      await sendXinruPush({targetRole:uid?null:'driver',targetUserId:uid||null,title:urgent?'🚨 貨運急單':'🚚 貨運新單',body:`${customer}${uid&&driver?`｜指定 ${deliveryDisplayName(driver.display_name)}`:'｜尚未指派'}`,url:'./#delivery',tag:`freight-${freight.id}`,kind:'freight',urgent});
-      alert(uid?'已送到貨運部並指定司機':'已送到貨運部，等待司機接單');
+      try{
+        await sendXinruPush({targetRole:uid?null:'driver',targetUserId:uid||null,title:urgent?'🚨 貨運急單':'🚚 貨運新單',body:`${customer}${uid&&driver?`｜指定 ${deliveryDisplayName(driver.display_name)}`:'｜尚未指派'}`,url:'./#delivery',tag:`freight-${freight.id}`,kind:'freight',urgent});
+        alert(uid?'已送到貨運部並指定司機':'已送到貨運部，等待司機接單');
+      }catch(pushErr){
+        console.warn('貨運推播失敗，但貨運單已建立',pushErr);
+        alert((uid?'✅ 已送到貨運部並指定司機':'✅ 已送到貨運部，等待司機接單')+'\n⚠️ iPhone 推播暫時失敗，不影響貨運資料與系統同步');
+      }
     }
     $('#customer').value='';$('#pickupTime').value='';$('#items').value='';$('#note').value='';$('#orderDate').value=taipeiDate();
     if($('#stallDeliveryDriver'))$('#stallDeliveryDriver').value=''; if($('#deliveryPhotoRequired'))$('#deliveryPhotoRequired').checked=false; if($('#deliveryPaymentRequired'))$('#deliveryPaymentRequired').checked=false; if($('#deliveryRequiredAmount')){$('#deliveryRequiredAmount').value='';$('#deliveryRequiredAmount').style.display='none';} if($('#deliveryBasketRequired'))$('#deliveryBasketRequired').checked=false;
