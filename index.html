@@ -2156,6 +2156,7 @@ const MAP={
 '紅甜':'หง เถียน','綠甜':'ลวี่ เถียน','紅捲':'หง เจวี่ยน','綠捲':'ลวี่ เจวี่ยน',
 '聖女':'เซิ่ง หนวี่','小番茄':'เสี่ยว ฟาน เฉีย','蓮藕':'เหลียน โอ่ว','木耳':'มู่ เอ่อร์',
 '白木耳':'ไป๋ มู่ เอ่อร์','黑木耳':'เฮย มู่ เอ่อร์','白蘑菇':'ไป๋ โม๋ กู','鮑魚菇':'เป้า อวี๋ กู',
+'芭樂':'ปา เล่อ','蘋果':'ผิง กั่ว','黃金奇異果':'หวง จิน ฉี อี้ กั่ว','藍莓':'หลาน เหมย','木瓜':'มู่ กวา','甜柿':'เถียน ซื่อ','櫛瓜':'จื้อ กวา','紅莧':'หง เซี่ยน','白莧':'ไป๋ เซี่ยน','青莧':'ชิง เซี่ยน','娃娃菜':'วา วา ไช่','香蕉':'เซียง เจียว','甘露梨':'กาน ลู่ หลี',
 '文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน','紫光山':'จื่อ กวง ซาน','番薯葉':'ฟาน สู่ เย่','五香豆乾':'อู่ เซียง โต้ว กาน','A菜':'เอ ไช่','洋菇':'หยาง กู'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let soundPrefExplicit=false; let knownOrderIds=new Set();
@@ -2571,11 +2572,18 @@ async function loadDelivery(){
   }
   checkDeliveryOverdue();
 }
+window.retryFreightSlipPhoto=function(img){
+ if(!img||img.dataset.retryDone==='1')return;
+ img.dataset.retryDone='1';
+ const original=img.getAttribute('src')||'';
+ if(!original)return;
+ setTimeout(()=>{if(!img.isConnected)return;const sep=original.includes('?')?'&':'?';img.src=original+sep+'xr_retry='+Date.now();},1500);
+};
 function renderFreightSlipPhoto(j,place='normal'){
  if(!j||!j.slip_photo_url)return '';
  const url=esc(j.slip_photo_url);
- if(place==='query')return `<a class="freightSlipPhotoLink" href="${url}" target="_blank" rel="noopener"><img class="deliveryPhoto freightSlipPhoto queryPhoto" src="${url}" alt="貨運派單照片" loading="lazy"></a>`;
- return `<a class="freightSlipPhotoLink" href="${url}" target="_blank" rel="noopener"><img class="deliveryPhoto freightSlipPhoto" src="${url}" alt="貨運派單照片" loading="lazy"></a>`;
+ if(place==='query')return `<a class="freightSlipPhotoLink" href="${url}" target="_blank" rel="noopener"><img class="deliveryPhoto freightSlipPhoto queryPhoto" src="${url}" alt="貨運派單照片" loading="lazy" onerror="retryFreightSlipPhoto(this)"></a>`;
+ return `<a class="freightSlipPhotoLink" href="${url}" target="_blank" rel="noopener"><img class="deliveryPhoto freightSlipPhoto" src="${url}" alt="貨運派單照片" loading="lazy" onerror="retryFreightSlipPhoto(this)"></a>`;
 }
 function renderDelivery(){
   const filters=$('#driverFilters'),body=$('#deliveryBody');
@@ -3801,7 +3809,14 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
 .on('postgres_changes',{event:'*',schema:'public',table:'delivery_jobs'},payload=>{
   if(!currentUser)return;
   const n=payload.new||{};const id=String(n.id||'');
-  if(payload.eventType==='INSERT'&&shouldHearFreightJob(n))playFreightSoundOnce(`new:${id}`);
+  if(payload.eventType==='INSERT'){
+    if(shouldHearFreightJob(n))playFreightSoundOnce(`new:${id}`);
+    // 新貨運單直接合併 Realtime 完整資料（包含派單照片），不必等下一輪查詢。
+    const idx=deliveryJobs.findIndex(j=>String(j.id)===id);
+    if(idx>=0)deliveryJobs[idx]={...deliveryJobs[idx],...n};
+    else if(n&&n.id!=null)deliveryJobs.push(n);
+    renderDelivery();if(orderQueryMode==='delivery')renderToday();
+  }
   if(payload.eventType==='DELETE'){
     // 其他裝置刪除貨運單時，本機也立即移除；DELETE 的 id 由 payload.old 取得。
     const deletedId=String(payload.old?.id||'');
@@ -4096,9 +4111,8 @@ $('#acctDate').value=taipeiDate();renderAcctDraft();renderAcctRecords();
   // loadOrders 會在登入驗證成功後啟動。
 const AUTO_REFRESH_MS=10000;
 setInterval(()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();enforceActiveSession();}},AUTO_REFRESH_MS);
-// 貨運指派需要比一般資料更即時：可見時每 2 秒核對一次目前貨運單。
-// 篩選值存在 localStorage，不會因同步而跳回「懿」或其他預設頁。
-setInterval(()=>{if(currentUser&&document.visibilityState==='visible'&&activeTab==='delivery')loadDelivery();},2000);
+// 第172P階段：貨運即時更新交給 Realtime；保留上方 10 秒安全補抓與回到前景同步。
+// 移除貨運頁每 2 秒整表重抓，降低多人同時使用時的重複請求與競態。
 setInterval(()=>{if(currentUser&&currentProfile?.role==='admin'&&document.visibilityState==='visible')refreshPendingEmployeeBadge();},60000);
 document.addEventListener('visibilitychange',()=>{if(currentUser&&document.visibilityState==='visible'){loadOrders();loadDelivery();loadAccountingCloud();enforceActiveSession();}});
 window.addEventListener('focus',()=>{if(currentUser){loadOrders();loadDelivery();loadAccountingCloud();enforceActiveSession();}});
