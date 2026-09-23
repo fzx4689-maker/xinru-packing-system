@@ -1965,7 +1965,12 @@ body.wall-focus #wall .wallOrderNote{
           <button id="acctGlobalSearchClear" type="button" class="btn gray">清除</button>
         </div>
         <div id="acctGlobalSearchResults" class="acctGlobalSearchResults"></div>
-        <div id="acctWorkBadges" class="acctWorkBadges" aria-label="帳務待辦"></div>
+        <div id="acctWorkBadges" class="acctWorkBadges" aria-label="帳務待辦">
+          <button type="button" class="acctWorkBadge" data-work="dispatch_pending">🔴 待作帳 <strong data-work-count="dispatch_pending">0</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="pending_price">🟠 待補價格 <strong data-work-count="pending_price">0</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="draft">📝 草稿 <strong data-work-count="draft">0</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="money_pending">💰 待收／付款 <strong data-work-count="money_pending">0</strong></button>
+        </div>
         <div class="acctManagementGrid" id="acctManagementGrid">
           <button type="button" class="acctManagementBtn" data-acct-manage="entry"><b>✍️ 快速做帳</b><span>日常帳務快速輸入；不與貨運派工自動連動</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="farmer"><b>🧑‍🌾 產農入貨／週帳</b><span>今日入貨、待補價格、本週週帳、待領款</span></button>
@@ -4076,7 +4081,8 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 #refreshEmployeesBtn{display:none!important}.permissionExplain170B{display:grid;gap:12px;font-size:14px;line-height:1.65;padding:6px 2px}.permissionExplain170B>div{padding:11px 13px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.empSettingGroup{padding:11px 0;border-top:1px solid var(--line)}.empSettingGroup:first-of-type{border-top:0;padding-top:2px}.empSettingGroupTitle{font-size:13px;font-weight:900;color:#475467;margin-bottom:8px}.empDangerNote{font-size:11px;color:#667085;line-height:1.5;margin-top:7px}.empSettingsPanel .empMiniActions .btn{min-height:40px}.empSettingsPanel .emp-delete{color:#b4232c;background:#fff1f1}.employeeCompactSummary .empSummaryChip:first-child{background:#eef4ff}
 @media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
 
-.acctGlobalSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:10px 0 12px}.acctGlobalSearch.hidden{display:none}.acctWorkBadges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acctWorkBadge{border:1px solid #d7e0ea;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.acctWorkBadge:hover{background:#f7fbff}.acctWorkBadge strong{font-size:17px;margin-left:4px}.acctWorkBadge[data-work="dispatch_pending"]{border-color:#f0b4b4}.acctWorkBadge[data-work="pending_price"]{border-color:#f3cc83}.acctWorkBadge[data-work="draft"]{border-color:#a9c6e8}.acctWorkBadge[data-work="money_pending"]{border-color:#acd7bb}@media(max-width:760px){.acctWorkBadges{display:grid;grid-template-columns:1fr 1fr}.acctWorkBadge{width:100%;text-align:left}}
+.acctGlobalSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:10px 0 12px}.acctGlobalSearch.hidden{display:none}.acctSearchSummary{border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;margin:6px 0;background:#fff}.acctSearchSummaryHead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.acctSearchSummaryHead small{color:#52657a}.acctSearchActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.acctSearchActions button,.acctSearchMore{border:1px solid #d7e0ea;background:#f7f9fb;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}.acctSearchRecent{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}.acctSearchRecent>b{width:100%;font-size:13px;color:#52657a}.acctSearchMore{background:#fff}@media(max-width:760px){.acctSearchActions{display:grid;grid-template-columns:1fr 1fr}.acctSearchActions button{width:100%}.acctSearchRecent .acctSearchResult{width:100%;text-align:left}}
+.acctWorkBadges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acctWorkBadge{border:1px solid #d7e0ea;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.acctWorkBadge:hover{background:#f7fbff}.acctWorkBadge strong{font-size:17px;margin-left:4px}.acctWorkBadge[data-work="dispatch_pending"]{border-color:#f0b4b4}.acctWorkBadge[data-work="pending_price"]{border-color:#f3cc83}.acctWorkBadge[data-work="draft"]{border-color:#a9c6e8}.acctWorkBadge[data-work="money_pending"]{border-color:#acd7bb}@media(max-width:760px){.acctWorkBadges{display:grid;grid-template-columns:1fr 1fr}.acctWorkBadge{width:100%;text-align:left}}
 .acctGlobalSearchResults{display:none;border:1px solid #d7e0ea;border-radius:13px;background:#fff;margin:-4px 0 12px;overflow:hidden}.acctSearchResult{width:100%;display:grid;grid-template-columns:auto minmax(120px,.7fr) minmax(0,1.6fr);gap:8px;align-items:center;text-align:left;border:0;border-bottom:1px solid #edf1f5;background:#fff;padding:10px 12px;cursor:pointer}.acctSearchResult:last-child{border-bottom:0}.acctSearchResult:hover{background:#f7fbff}.acctSearchKind{font-size:11px;font-weight:900;background:#eef4ff;color:#245b8f;border-radius:999px;padding:3px 7px}.acctSearchResult small{color:#667085;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quickV2OutputPanel{border:1px solid #b8dfc8;background:#f2fff7;border-radius:14px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:center}.quickV2OutputBtns{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}@media(max-width:760px){.acctGlobalSearch{grid-template-columns:minmax(0,1fr) auto}.acctSearchResult{grid-template-columns:auto 1fr}.acctSearchResult small{grid-column:1/-1;white-space:normal}.quickV2OutputPanel{display:block}.quickV2OutputBtns{margin-top:9px;display:grid;grid-template-columns:1fr 1fr}.quickV2OutputBtns .btn{width:100%}}
 </style>
 
@@ -5331,8 +5337,12 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qPaintWorkBadges(){
     const box=document.getElementById('acctWorkBadges');if(!box)return;
     const c=qWorkCounts();
-    box.innerHTML='<button type="button" class="acctWorkBadge" data-work="dispatch_pending">🔴 待作帳 <strong>'+c.dispatch_pending+'</strong></button><button type="button" class="acctWorkBadge" data-work="pending_price">🟠 待補價格 <strong>'+c.pending_price+'</strong></button><button type="button" class="acctWorkBadge" data-work="draft">📝 草稿 <strong>'+c.draft+'</strong></button><button type="button" class="acctWorkBadge" data-work="money_pending">💰 待收／付款 <strong>'+c.money_pending+'</strong></button>';
-    box.querySelectorAll('[data-work]').forEach(btn=>btn.onclick=()=>{const f=btn.dataset.work;if(f==='money_pending'){open('payment');return}open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qRenderQueue(w,f)},0)});
+    Object.entries(c).forEach(([key,val])=>{const n=box.querySelector('[data-work-count="'+key+'"]');if(n)n.textContent=String(val)});
+    box.querySelectorAll('[data-work]').forEach(btn=>{
+      if(btn.dataset.workBound==='1')return;
+      btn.dataset.workBound='1';
+      btn.addEventListener('click',()=>{const f=btn.dataset.work;if(f==='money_pending'){open('payment');return}open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qRenderQueue(w,f)},0)});
+    });
   }
   function qQueueRows(filter){
     const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void');
@@ -5358,8 +5368,49 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       card.querySelector('[data-act="delete"]')?.addEventListener('click',()=>qDeleteQuickRecord(work,id,()=>qRenderQueue(work,filter)));
     });
   }
-  function qGlobalSearch(term){const q=String(term||'').trim().toLowerCase();if(!q)return[];const out=[];qProfiles().forEach(c=>{const hay=[c.name,c.formalName,c.code,c.phone,c.groupName,c.parentUnit,c.payer,c.identity,c.accountMode,c.settlement,c.customSettlement,c.note,c.outputNote].join(' ').toLowerCase();if(hay.includes(q))out.push({kind:'往來資料',title:c.name,meta:[c.identity,c.accountMode,c.settlement,c.customSettlement].filter(Boolean).join('｜'),contact:c})});(typeof acctRecords==='function'?acctRecords():[]).forEach(r=>{if(!r)return;const hay=[r.customer,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase();if(hay.includes(q))out.push({kind:'交易',title:(r.date||'')+'｜'+(r.customer||''),meta:(r.items||[]).map(x=>x.name).filter(Boolean).join('、')+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW'),record:r})});return out.slice(0,40)}
-  function qPaintGlobalSearch(){const input=document.getElementById('acctGlobalSearchInput'),box=document.getElementById('acctGlobalSearchResults');if(!input||!box)return;const rows=qGlobalSearch(input.value);if(!input.value.trim()){box.innerHTML='';box.style.display='none';return}box.style.display='block';box.innerHTML=rows.length?rows.map((x,i)=>'<button type="button" class="acctSearchResult" data-sidx="'+i+'"><span class="acctSearchKind">'+qEsc(x.kind)+'</span><b>'+qEsc(x.title)+'</b><small>'+qEsc(x.meta||'')+'</small></button>').join(''):'<div class="empty">查無符合資料</div>';box.querySelectorAll('[data-sidx]').forEach(b=>b.onclick=()=>{const x=rows[Number(b.dataset.sidx)];if(x?.contact){open('contacts');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w&&window.xrContactsV2?.renderList){window.xrContactsV2.renderList(w);const si=w.querySelector('#xrContactSearch');if(si){si.value=x.contact.name;si.dispatchEvent(new Event('input'))}}},0)}else if(x?.record){open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qShowRecordDetail(w,x.record.id,'global')},0)}})}
+  function qGlobalSearch(term){
+    const q=String(term||'').trim().toLowerCase();if(!q)return {contacts:[],records:[]};
+    const contacts=qProfiles().filter(c=>[c.name,c.formalName,c.code,c.phone,c.groupName,c.parentUnit,c.payer,c.identity,c.accountMode,c.settlement,c.customSettlement,c.note,c.outputNote].join(' ').toLowerCase().includes(q));
+    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
+    let records=all.filter(r=>[r.customer,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q));
+    records.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+    return {contacts:contacts.slice(0,8),records};
+  }
+  function qOpenContactFromSearch(c){
+    open('contacts');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w&&window.xrContactsV2?.renderList){window.xrContactsV2.renderList(w);const si=w.querySelector('#xrContactSearch');if(si){si.value=c.name;si.dispatchEvent(new Event('input'))}}},0)
+  }
+  function qOpenLedgerFromSearch(name){
+    open('ledger');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(!w)return;const inp=w.querySelector('input');if(inp){inp.value=name;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))}},0)
+  }
+  function qOpenEntryForContact(name){
+    open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(!w)return;renderQuickV2(w);const inp=w.querySelector('#quickV2Entity');if(inp){inp.value=name;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))}},0)
+  }
+  function qOpenPaymentForContact(name){
+    open('payment');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(!w)return;const inp=w.querySelector('input');if(inp){inp.value=name;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))}},0)
+  }
+  function qShowAllSearchTransactions(name,term){
+    open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(!w)return;const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(!name||String(r.customer||'')===String(name))).filter(r=>{if(!term)return true;const q=String(term).toLowerCase();return [r.customer,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q)}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><b>🧾 交易紀錄｜'+qEsc(name||term)+'｜'+all.length+' 筆</b><button type="button" class="btn gray" id="qSearchAllBack">← 返回帳務中心</button></div><div>'+ (all.length?all.map(r=>'<div class="quickV2Record" data-search-record="'+qEsc(r.id)+'" style="cursor:pointer"><b>'+qEsc(r.date||'')+'｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</div></div>').join(''):'<div class="empty">沒有交易紀錄</div>')+'</div></div>';w.querySelector('#qSearchAllBack').onclick=()=>home();w.querySelectorAll('[data-search-record]').forEach(card=>card.onclick=()=>qShowRecordDetail(w,card.dataset.searchRecord,'global'))},0)
+  }
+  function qPaintGlobalSearch(){
+    const input=document.getElementById('acctGlobalSearchInput'),box=document.getElementById('acctGlobalSearchResults');if(!input||!box)return;
+    const term=input.value.trim();if(!term){box.innerHTML='';box.style.display='none';return}
+    const data=qGlobalSearch(term),contacts=data.contacts,records=data.records;
+    box.style.display='block';
+    const primary=contacts[0]||null;
+    const related=primary?records.filter(r=>String(r.customer||'')===String(primary.name)):records;
+    const recent=related.slice(0,3);
+    let html='';
+    if(primary){
+      html+='<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">往來資料</span><b>'+qEsc(primary.name)+'</b><small>'+qEsc([primary.identity,primary.accountMode,primary.settlement,primary.customSettlement].filter(Boolean).join('｜'))+'</small></div><div class="acctSearchActions"><button type="button" data-search-action="ledger">📒 帳本</button><button type="button" data-search-action="entry">✍️ 做帳</button><button type="button" data-search-action="payment">💰 收付款</button><button type="button" data-search-action="contact">👥 查看／編輯</button><button type="button" data-search-action="all">🧾 交易紀錄（'+related.length+'）</button></div></div>';
+    }
+    if(recent.length){
+      html+='<div class="acctSearchRecent"><b>最近交易</b>'+recent.map(r=>'<button type="button" class="acctSearchResult" data-search-record="'+qEsc(r.id)+'"><span class="acctSearchKind">交易</span><b>'+qEsc((r.date||'')+'｜'+(r.customer||''))+'</b><small>'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</small></button>').join('')+(related.length>3?'<button type="button" class="acctSearchMore" data-search-action="all">查看全部 '+related.length+' 筆交易 →</button>':'')+'</div>';
+    }
+    if(!primary&&!recent.length)html='<div class="empty">查無符合資料</div>';
+    box.innerHTML=html;
+    box.querySelectorAll('[data-search-record]').forEach(b=>b.onclick=()=>{open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qShowRecordDetail(w,b.dataset.searchRecord,'global')},0)});
+    box.querySelectorAll('[data-search-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.searchAction,name=primary?.name||'';if(a==='contact'&&primary)return qOpenContactFromSearch(primary);if(a==='ledger')return qOpenLedgerFromSearch(name);if(a==='entry')return qOpenEntryForContact(name);if(a==='payment')return qOpenPaymentForContact(name);if(a==='all')return qShowAllSearchTransactions(name,term)});
+  }
   let qSearchTimer=null;
   function qInitAccountingHomeUi(){
     try{qPaintWorkBadges()}catch(err){console.warn('帳務待辦稍後載入',err)}
