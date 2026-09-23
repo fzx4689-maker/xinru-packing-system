@@ -5339,14 +5339,33 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   async function qShareLine(record){return qPreviewBill(record,true)}
   function qShowOutputs(work,record){const methods=qOutputMethods(record),box=document.createElement('div');box.className='quickV2OutputPanel';box.innerHTML='<div><b>✅ 完成做帳｜'+qEsc(record.customer)+'｜$'+Math.round(Number(record.total)||0).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important;margin-top:4px">常用方式會標示「常用」，五種輸出全部可使用。</div></div><div class="quickV2OutputBtns"><button type="button" class="btn '+(methods.line?'primary':'gray')+'" data-out="line">📱 傳 LINE'+(methods.line?'・常用':'')+'</button><button type="button" class="btn '+(methods.image?'primary':'gray')+'" data-out="image">🖼️ 帳單圖片'+(methods.image?'・常用':'')+'</button><button type="button" class="btn '+(methods.excel?'primary':'gray')+'" data-out="excel">📊 Excel'+(methods.excel?'・常用':'')+'</button><button type="button" class="btn '+(methods.pdf?'primary':'gray')+'" data-out="pdf">📄 PDF'+(methods.pdf?'・常用':'')+'</button><button type="button" class="btn '+(methods.paper80?'primary':'gray')+'" data-out="80">🖨️ 80行報表紙'+(methods.paper80?'・常用':'')+'</button></div>';work.prepend(box);box.querySelector('[data-out="line"]').onclick=()=>qShareLine(record);box.querySelector('[data-out="image"]').onclick=()=>qPreviewBill(record,false);box.querySelector('[data-out="excel"]').onclick=()=>qDownloadExcel(record);box.querySelector('[data-out="pdf"]').onclick=()=>qPrintBill(record,'pdf');box.querySelector('[data-out="80"]').onclick=()=>qPrintBill(record,'80')}
 
+  // 第175B5I：首頁四顆待辦統一由「帳務工作佇列」產生，不再各自寫死跳頁。
+  // 待收／付款必須等正式結帳到期規則成立後才列入；未結清(due>0)本身不等於今天待收／待付。
   function qWorkCounts(){
     const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
     return {
       draft:rows.filter(r=>r.status==='draft').length,
       dispatch_pending:rows.filter(r=>r.status==='dispatch_pending').length,
       pending_price:rows.filter(r=>r.status!=='draft'&&r.status!=='void'&&r.pricingStatus==='pending_price').length,
-      money_pending:rows.filter(r=>r.status==='active'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&Number(r.due)>0).length
+      money_pending:0
     };
+  }
+  function qWorkLabel(filter){return ({draft:'草稿',dispatch_pending:'待作帳',pending_price:'待補價格',money_pending:'待收／付款'})[filter]||'帳務待辦'}
+  function qOpenWorkQueue(filter,skipNavSave=false){
+    if(!skipNavSave)acctNavWrite({layer:'workQueue',section:'',action:filter,recordId:''});
+    grid.style.display='none';stage.style.display='block';
+    document.querySelector('.acctGlobalSearch')?.classList.add('hidden');
+    const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';
+    const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
+    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>📌 帳務待辦｜'+qEsc(qWorkLabel(filter))+'</h3><div class="helper">首頁待辦與正式資料共用同一個工作佇列，不建立第二套資料。</div></div></div><div id="acctStageWork" class="acctStageWork"></div>';
+    document.getElementById('acctStageBack')?.addEventListener('click',()=>home());
+    const work=document.getElementById('acctStageWork');if(!work)return;
+    if(filter==='pending_price'){renderPendingPrices(work);return}
+    if(filter==='money_pending'){
+      work.innerHTML='<div class="acctWorkPlaceholder"><b>💰 目前沒有可判定為「到期待收／待付」的正式待辦</b><div class="helper">未結清不等於現在到期。之後由結帳方式、週期／下趟結上趟等條件與正式收付款交易共同產生待辦。</div></div>';
+      return;
+    }
+    qRenderQueue(work,filter);
   }
   function qPaintWorkBadges(){
     const box=document.getElementById('acctWorkBadges');if(!box)return;
@@ -5355,7 +5374,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     box.querySelectorAll('[data-work]').forEach(btn=>{
       if(btn.dataset.workBound==='1')return;
       btn.dataset.workBound='1';
-      btn.addEventListener('click',()=>{const f=btn.dataset.work;if(f==='money_pending'){open('payment');return}open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qRenderQueue(w,f)},0)});
+      btn.addEventListener('click',()=>qOpenWorkQueue(btn.dataset.work));
     });
   }
   function qQueueRows(filter){
@@ -5367,7 +5386,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return all;
   }
   function qRenderQueue(work,filter='all'){
-    if(filter==='pending_price'){renderPendingPrice(work);return}
+    if(filter==='pending_price'){renderPendingPrices(work);return}
     const rows=qQueueRows(filter).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
     const label={all:'全部',draft:'草稿',dispatch_pending:'派工待做帳',active:'已完成'}[filter]||'全部';
     const admin=currentProfile?.role==='admin';
@@ -5475,7 +5494,6 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       input.dataset.qSearchBound='1';
       input.addEventListener('input',()=>{clearTimeout(qSearchTimer);qSearchTimer=setTimeout(qPaintGlobalSearch,120)});
       input.addEventListener('change',qPaintGlobalSearch);
-      input.addEventListener('keyup',qPaintGlobalSearch);
     }
     const clear=document.getElementById('acctGlobalSearchClear');
     if(clear&&!clear.dataset.qSearchBound){
@@ -5483,7 +5501,6 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       clear.addEventListener('click',()=>{const i=document.getElementById('acctGlobalSearchInput');if(i)i.value='';qPaintGlobalSearch()});
     }
   }
-  document.addEventListener('input',e=>{if(e.target?.id==='acctGlobalSearchInput'){clearTimeout(qSearchTimer);qSearchTimer=setTimeout(qPaintGlobalSearch,120)}});
   document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="accounting"]'))setTimeout(qInitAccountingHomeUi,0)});
   async function qSave(work,status='active'){try{const record=qBuildRecord(work,status),editId=work.dataset.editDraftId;if(editId){const old=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(editId));if(old){record.createdAt=old.createdAt||record.createdAt;record.createdBy=old.createdBy||record.createdBy;record.audit=Array.isArray(old.audit)?old.audit.slice():[];record.audit.push({action:status==='draft'?'edit_draft':'edit',at:new Date().toISOString(),by:qActor()})}}await qPersist(record);qPaintWorkBadges();if(status==='draft'){alert('💾 草稿已儲存，可跨裝置繼續。');renderQuickV2(work);return}renderQuickV2(work);qShowOutputs(work,record)}catch(e){alert(e.message||String(e))}}
   function qEditQuickRecord(work,id){const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}renderQuickV2(work);work.dataset.editDraftId=String(r.id);work.querySelector('#quickV2Date').value=r.date||qToday();work.querySelector('#quickV2Entity').value=r.customer||'';work.querySelector('#quickV2Txn').value=r.txnTypeLabel||(r.txnType==='purchase'?'進貨':'銷貨');work.querySelector('#quickV2Note').value=r.note||'';const body=work.querySelector('#quickV2Rows');body.innerHTML='';(r.items||[]).forEach((it,i)=>{body.insertAdjacentHTML('beforeend',qRowHtml(i));const row=body.lastElementChild;row.querySelector('.qName').value=it.name||'';row.querySelector('.qKg').value=it.kg??'';row.querySelector('.qQty').value=it.qty??1;row.querySelector('.qPricing').value=it.pricing||'piece';row.querySelector('.qSource').value=it.source||'欣儒自有';row.querySelector('.qPrice').value=it.price??'';row.querySelector('.qCost').value=it.cost??'';row.querySelector('.qFreight').value=it.freightMode||'none';row.querySelector('.qFreightRate').value=it.freightRate??''});if(!body.children.length)body.innerHTML=qRowHtml(0);qBindRows(work);qPaintContactInfo(work);qRecalc(work);work.querySelector('#quickV2Save').textContent='💾 儲存修改';work.scrollIntoView({behavior:'smooth',block:'start'})}
@@ -5604,25 +5621,25 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
   });
   const savedAcctNav=acctNavRead();
-  if(savedAcctNav?.section){
-    open(savedAcctNav.section,true);
-    if(savedAcctNav.action){
-      setTimeout(()=>{
+  function qRestoreAccountingNav(){
+    if(savedAcctNav?.layer==='workQueue'&&savedAcctNav.action){qOpenWorkQueue(savedAcctNav.action,true);return}
+    if(savedAcctNav?.section){
+      open(savedAcctNav.section,true);
+      if(savedAcctNav.action){
         const btn=[...stage.querySelectorAll('[data-acct-stage-action]')].find(x=>x.dataset.acctStageAction===savedAcctNav.action);
         if(btn)btn.click();
-        setTimeout(()=>{
-          if(savedAcctNav.layer==='contactEditor'&&window.xrContactsV2?.renderEditor){
-            const work=document.getElementById('acctStageWork');
-            if(work)window.xrContactsV2.renderEditor(work,savedAcctNav.recordId||'');
-          }else if(savedAcctNav.layer==='ledgerContact'&&savedAcctNav.recordId){
-            const work=document.getElementById('acctStageWork');
-            if(work)qRenderLedgerSearch(work,savedAcctNav.recordId,{byId:true});
-          }
-        },80);
-      },450);
+      }
+      if(savedAcctNav.layer==='contactEditor'&&window.xrContactsV2?.renderEditor){
+        const work=document.getElementById('acctStageWork');if(work)window.xrContactsV2.renderEditor(work,savedAcctNav.recordId||'');
+      }else if(savedAcctNav.layer==='ledgerContact'&&savedAcctNav.recordId){
+        const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work,savedAcctNav.recordId,{byId:true});
+      }
+      return;
     }
-  }else home(true);
-  setTimeout(()=>{try{qInitAccountingHomeUi()}catch(err){console.warn(err)}},300);
+    home(true);
+  }
+  qRestoreAccountingNav();
+  try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
   window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open};
 })();
 </script>
