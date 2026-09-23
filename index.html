@@ -5390,12 +5390,47 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     records.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
     return {contacts:contacts.slice(0,8),records};
   }
-  function qRenderLedgerSearch(work,preset=''){
-    const ps=qProfiles(),opts=ps.flatMap(x=>['<option value="'+qEsc(x.name)+'">'+qEsc(x.name)+'</option>',x.code?'<option value="'+qEsc(x.code)+'">'+qEsc(x.name)+'</option>':'',(x.vehicles||[]).map(v=>'<option value="'+qEsc(v.plate)+'">'+qEsc(x.name)+(v.active===false?'（歷史）':'')+'</option>').join('')]).join('');
-    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>📒 帳本查詢</b><div class="helper" style="display:block!important;margin-top:5px">可輸入名稱、編號或任一車號；多個車號都會回到同一往來對象帳本。</div></div></div><div class="field" style="margin-top:10px"><label class="label">往來對象／車號</label><input id="qLedgerEntity" class="input" list="qLedgerEntityList" autocomplete="off" placeholder="例如：0061、6723"><datalist id="qLedgerEntityList">'+opts+'</datalist></div><div id="qLedgerResult" style="margin-top:10px"></div></div>';
+  // 175B5H：正式帳本只讀核心。只從既有 accounting_records 推導，不建立第二份帳本資料。
+  function qLedgerEntry(r){
+    const total=Number(r?.total)||0, isVoid=r?.status==='void', isDraft=r?.status==='draft', pending=r?.pricingStatus==='pending_price';
+    let kind='other', receivable=0, payable=0, signed=0, label=r?.txnTypeLabel||'';
+    if(r?.txnType==='sale'||r?.accountDirection==='receivable'||label==='銷貨'){kind='sale';label=label||'銷貨';receivable=total;signed=total}
+    else if(r?.txnType==='purchase'||r?.accountDirection==='payable'||label==='進貨'){kind='purchase';label=label||'進貨';payable=total;signed=-total}
+    const counts=!isVoid&&!isDraft&&!pending&&(kind==='sale'||kind==='purchase');
+    return {record:r,kind,label,total,receivable:counts?receivable:0,payable:counts?payable:0,signed:counts?signed:0,isVoid,isDraft,pending,counts};
+  }
+  function qLedgerForContact(c,includeVoid=false){
+    const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='draft');
+    const entries=source.map(qLedgerEntry).filter(x=>includeVoid||!x.isVoid).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
+    let running=0;entries.forEach(x=>{running+=x.signed;x.running=running});
+    const active=entries.filter(x=>!x.isVoid), receivable=active.reduce((a,x)=>a+x.receivable,0), payable=active.reduce((a,x)=>a+x.payable,0), pendingCount=active.filter(x=>x.pending).length;
+    return {entries,receivable,payable,net:receivable-payable,pendingCount};
+  }
+  function qLedgerMoney(n){const v=Math.round(Number(n)||0);return (v<0?'-$':'$')+Math.abs(v).toLocaleString('zh-TW')}
+  function qRenderLedgerSearch(work,preset='',opts={}){
+    const ps=qProfiles(),optsHtml=ps.flatMap(x=>['<option value="'+qEsc(x.name)+'">'+qEsc(x.name)+'</option>',x.code?'<option value="'+qEsc(x.code)+'">'+qEsc(x.name)+'</option>':'',(x.vehicles||[]).map(v=>'<option value="'+qEsc(v.plate)+'">'+qEsc(x.name)+(v.active===false?'（歷史）':'')+'</option>').join('')]).join('');
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>📒 帳本查詢</b><div class="helper" style="display:block!important;margin-top:5px">客戶／超市／中盤／廠商／產農共用同一入口；可輸入名稱、編號或任一車號。</div></div></div><div class="field" style="margin-top:10px"><label class="label">往來對象／車號</label><input id="qLedgerEntity" class="input" list="qLedgerEntityList" autocomplete="off" placeholder="例如：民雄、珍、0061、6723"><datalist id="qLedgerEntityList">'+optsHtml+'</datalist></div><div id="qLedgerResult" style="margin-top:10px"></div></div>';
     const inp=work.querySelector('#qLedgerEntity'),box=work.querySelector('#qLedgerResult');
-    const paint=()=>{const hit=qResolveContact(inp.value);if(!hit){box.innerHTML=inp.value.trim()?'<div class="empty">找不到往來對象</div>':'';return}const c=hit.contact,rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));const balance=rows.reduce((sum,r)=>sum+(r.accountDirection==='payable'?-(Number(r.total)||0):(Number(r.total)||0)),0);box.innerHTML='<div class="quickV2ContactInfo show">'+qContactInfoHtml(c)+(hit.matchedBy==='vehicle'?'<div class="quickV2ContactHint"><b>🚙 '+qEsc(hit.vehiclePlate)+'</b> → '+qEsc(c.name)+(hit.vehicleActive===false?'｜歷史／停用車號':'')+'</div>':'')+'</div><div class="quickV2RecordTop" style="margin-top:10px"><b>交易紀錄 '+rows.length+' 筆</b><b>帳面淨額 $'+Math.round(balance).toLocaleString('zh-TW')+'</b></div>'+(rows.length?rows.map(r=>'<div class="quickV2Record" data-ledger-record="'+qEsc(r.id)+'" style="cursor:pointer"><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'')+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+(r.vehiclePlate?'｜車號 '+qEsc(r.vehiclePlate):'')+'</div></div>').join(''):'<div class="empty">目前沒有交易紀錄</div>');box.querySelectorAll('[data-ledger-record]').forEach(card=>card.onclick=()=>qShowRecordDetail(work,card.dataset.ledgerRecord,'ledger'))};
-    inp.addEventListener('input',paint);inp.addEventListener('change',paint);if(preset){inp.value=preset;paint()}
+    const paint=()=>{
+      const hit=qResolveContact(inp.value);if(!hit){box.innerHTML=inp.value.trim()?'<div class="empty">找不到往來對象</div>':'';return}
+      const c=hit.contact,includeVoid=!!box.querySelector('#qLedgerIncludeVoid')?.checked,ledger=qLedgerForContact(c,includeVoid),mode=String(c.accountMode||''),isBilateral=mode==='雙向往來';
+      acctNavWrite({layer:'ledgerContact',section:'ledger',action:'🔍 搜尋帳本',recordId:String(c.id||'')});
+      const summary='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0">'+
+        '<div class="quickV2ContactHint"><b>應收</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivable)+'</div></div>'+
+        '<div class="quickV2ContactHint"><b>應付</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payable)+'</div></div>'+
+        (isBilateral?'<div class="quickV2ContactHint"><b>雙向淨額</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.net)+'</div></div>':'')+
+        '<div class="quickV2ContactHint"><b>正式交易</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+ledger.entries.filter(x=>!x.isVoid).length+' 筆</div></div></div>';
+      const pending=ledger.pendingCount?'<div class="quickV2ContactHint" style="margin:8px 0"><b>⚠️ 待補價格 '+ledger.pendingCount+' 筆</b>｜金額尚未確定，暫不列入應收／應付與餘額。</div>':'';
+      const rows=ledger.entries.slice().reverse();
+      box.innerHTML='<div class="quickV2ContactInfo show">'+qContactInfoHtml(c)+(hit.matchedBy==='vehicle'?'<div class="quickV2ContactHint"><b>🚙 '+qEsc(hit.vehiclePlate)+'</b> → '+qEsc(c.name)+(hit.vehicleActive===false?'｜歷史／停用車號':'')+'</div>':'')+'</div>'+summary+pending+
+        '<label style="display:flex;align-items:center;gap:7px;margin:8px 0;font-weight:800"><input type="checkbox" id="qLedgerIncludeVoid" '+(includeVoid?'checked':'')+'> 顯示作廢紀錄</label>'+
+        '<div style="overflow:auto"><table class="quickV2Table" style="min-width:760px"><thead><tr><th>日期</th><th>類型</th><th>品名／摘要</th><th>車號</th><th>應收</th><th>應付</th><th>餘額</th></tr></thead><tbody>'+
+        (rows.length?rows.map(x=>{const r=x.record,cls=x.isVoid?' style="opacity:.55;text-decoration:line-through"':'',status=x.isVoid?'🚫 作廢':(x.pending?'⚠️ 待補價格':qEsc(x.label||''));return '<tr data-ledger-record="'+qEsc(r.id)+'" style="cursor:pointer"'+cls+'><td>'+qEsc(r.date||'')+'</td><td><b>'+status+'</b></td><td>'+qEsc((r.items||[]).map(i=>i.name).filter(Boolean).join('、')||r.note||'—')+'</td><td>'+qEsc(r.vehiclePlate||'—')+'</td><td>'+(x.receivable?qLedgerMoney(x.receivable):'—')+'</td><td>'+(x.payable?qLedgerMoney(x.payable):'—')+'</td><td><b>'+qLedgerMoney(x.running||0)+'</b></td></tr>'}).join(''):'<tr><td colspan="7" class="empty">目前沒有交易紀錄</td></tr>')+'</tbody></table></div>';
+      box.querySelector('#qLedgerIncludeVoid')?.addEventListener('change',paint);
+      box.querySelectorAll('[data-ledger-record]').forEach(row=>row.onclick=()=>qShowRecordDetail(work,row.dataset.ledgerRecord,'ledger:'+String(c.id||'')));
+    };
+    inp.addEventListener('input',paint);inp.addEventListener('change',paint);
+    if(preset){let value=preset;if(opts.byId){const c=ps.find(x=>String(x.id)===String(preset));if(c)value=c.name||c.code||''}inp.value=value;paint()}
   }
   function qOpenContactFromSearch(c){
     open('contacts');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w&&window.xrContactsV2?.renderList){window.xrContactsV2.renderList(w);const si=w.querySelector('#xrContactSearch');if(si){si.value=c.name;si.dispatchEvent(new Event('input'))}}},0)
@@ -5489,7 +5524,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       (r.status==='void'?'':'<div class="quickV2OutputBtns" style="margin-top:12px"><button type="button" class="btn gray" data-detail-out="line">📱 傳 LINE</button><button type="button" class="btn gray" data-detail-out="image">🖼️ 帳單圖片</button><button type="button" class="btn gray" data-detail-out="excel">📊 Excel</button><button type="button" class="btn gray" data-detail-out="pdf">📄 PDF</button><button type="button" class="btn gray" data-detail-out="80">🖨️ 80行報表紙</button></div>')+'</div>'
   }
   function qShowRecordDetail(work,id,backMode='today'){
-    const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}work.innerHTML=qRecordDetailHtml(r);work.querySelector('#qDetailBack').onclick=()=>{if(backMode==='void')return renderQuickVoids(work);if(backMode==='global')return home();if(String(backMode).startsWith('queue:'))return qRenderQueue(work,String(backMode).slice(6));return renderQuickToday(work)};
+    const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}work.innerHTML=qRecordDetailHtml(r);work.querySelector('#qDetailBack').onclick=()=>{if(backMode==='void')return renderQuickVoids(work);if(backMode==='global')return home();if(String(backMode).startsWith('ledger:'))return qRenderLedgerSearch(work,String(backMode).slice(7),{byId:true});if(String(backMode).startsWith('queue:'))return qRenderQueue(work,String(backMode).slice(6));return renderQuickToday(work)};
     if(r.status!=='void'){work.querySelector('[data-detail-out="line"]')?.addEventListener('click',e=>{e.stopPropagation();qShareLine(r)});work.querySelector('[data-detail-out="image"]')?.addEventListener('click',e=>{e.stopPropagation();qPreviewBill(r,false)});work.querySelector('[data-detail-out="excel"]')?.addEventListener('click',e=>{e.stopPropagation();qDownloadExcel(r)});work.querySelector('[data-detail-out="pdf"]')?.addEventListener('click',e=>{e.stopPropagation();qPrintBill(r,'pdf')});work.querySelector('[data-detail-out="80"]')?.addEventListener('click',e=>{e.stopPropagation();qPrintBill(r,'80')})}
   }
   function renderQuickVoids(work){
@@ -5579,6 +5614,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
           if(savedAcctNav.layer==='contactEditor'&&window.xrContactsV2?.renderEditor){
             const work=document.getElementById('acctStageWork');
             if(work)window.xrContactsV2.renderEditor(work,savedAcctNav.recordId||'');
+          }else if(savedAcctNav.layer==='ledgerContact'&&savedAcctNav.recordId){
+            const work=document.getElementById('acctStageWork');
+            if(work)qRenderLedgerSearch(work,savedAcctNav.recordId,{byId:true});
           }
         },80);
       },450);
