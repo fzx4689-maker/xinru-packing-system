@@ -3235,15 +3235,32 @@ async function unlockAudio(){
 function updateSoundReadyUI(ok){
   let el=document.querySelector('#soundReadyBox');
   if(!el){
-    el=document.createElement('div');el.id='soundReadyBox';
-    el.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:14px;font-weight:900;box-shadow:0 4px 18px rgba(0,0,0,.18);cursor:pointer;user-select:none;font-size:15px';
-    el.onclick=async()=>{
-      if(soundEnabled){soundEnabled=false;soundPrefExplicit=true;try{localStorage.setItem(SOUND_PREF_KEY,'0')}catch(e){}updateSoundReadyUI(soundEnabled);return;}
-      soundEnabled=true;soundPrefExplicit=true;try{localStorage.setItem(SOUND_PREF_KEY,'1')}catch(e){}
-      const good=await unlockAudio();
-      updateSoundReadyUI(true);
-      if(good)playSoundTest();
-    };
+    el=document.createElement('button');el.id='soundReadyBox';el.type='button';
+    el.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:14px;font-weight:900;box-shadow:0 4px 18px rgba(0,0,0,.18);cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;font-size:15px;pointer-events:auto;appearance:none;-webkit-appearance:none';
+    el.addEventListener('click',async(e)=>{
+      e.preventDefault();e.stopPropagation();
+      if(soundEnabled){
+        soundEnabled=false;soundPrefExplicit=true;
+        try{localStorage.setItem(SOUND_PREF_KEY,'0')}catch(err){}
+        updateSoundReadyUI(false);return;
+      }
+      try{
+        if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+        if(audioCtx.state==='suspended')await audioCtx.resume();
+        const good=!!audioCtx&&audioCtx.state==='running';
+        if(!good)throw new Error('AudioContext 尚未啟動');
+        soundEnabled=true;soundPrefExplicit=true;
+        try{localStorage.setItem(SOUND_PREF_KEY,'1')}catch(err){}
+        updateSoundReadyUI(true);
+        playSoundTest();
+      }catch(err){
+        soundEnabled=false;
+        try{localStorage.setItem(SOUND_PREF_KEY,'0')}catch(e2){}
+        updateSoundReadyUI(false);
+        console.warn('無法啟用提醒聲',err);
+        alert('提醒聲尚未啟用，請確認 iPhone 音量不是靜音後再點一次。');
+      }
+    },{passive:false});
     document.body.appendChild(el);
   }
   if(ok){el.textContent='🔊 點一下關閉提醒聲';el.style.background='#dcfce7';el.style.color='#166534';el.style.border='2px solid #86efac';}
