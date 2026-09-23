@@ -5279,10 +5279,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   };
   const grid=document.getElementById('acctManagementGrid'), stage=document.getElementById('acctManagementStage');
   if(!grid||!stage)return;
-  function home(){grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
+  function home(){grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
   function open(key){
     const d=defs[key];if(!d)return;
-    grid.style.display='none';stage.style.display='block';document.querySelector('.acctGlobalSearch')?.classList.add('hidden');const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
+    grid.style.display='none';stage.style.display='block';document.querySelector('.acctGlobalSearch')?.classList.add('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
     const bankLocked=(key==='payment' && !(typeof isAdmin==='function'&&isAdmin()));
     const items=d.items.map(x=>{
       const isBank=x.includes('資金帳戶');
