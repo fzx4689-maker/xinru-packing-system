@@ -5339,7 +5339,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function acctNavWrite(patch){try{const cur=acctNavRead()||{};localStorage.setItem(ACCT_NAV_KEY,JSON.stringify({...cur,...patch,updatedAt:new Date().toISOString()}))}catch(e){}}
   function acctNavClear(){try{localStorage.removeItem(ACCT_NAV_KEY)}catch(e){}}
   function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:''});grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
-  function open(key,skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:''});
+  function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:''});
     const d=defs[key];if(!d)return;
     grid.style.display='none';stage.style.display='block';document.querySelector('.acctGlobalSearch')?.classList.add('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
     const bankLocked=(key==='payment' && !(typeof isAdmin==='function'&&isAdmin()));
@@ -5350,7 +5350,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     }).join('');
     stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div>'+(key==='ledger'?'':'<div class="acctStageGrid">'+items+'</div>')+'<div id="acctStageWork" class="acctStageWork"></div>';
     document.getElementById('acctStageBack')?.addEventListener('click',()=>home());
-    if(key==='ledger'){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
+    if(key==='ledger'&&!opts.deferLedgerRender){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
   }
   document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>open(btn.dataset.acctManage)));
   // 第172D階段：主動按上方帳務中心＝回九入口第一層；重新整理不受影響。
@@ -5714,6 +5714,12 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   const savedAcctNav=acctNavRead();
   function qRestoreAccountingNav(){
     if(savedAcctNav?.layer==='workQueue'&&savedAcctNav.action){qOpenWorkQueue(savedAcctNav.action,true);return}
+    if(savedAcctNav?.layer==='ledgerContact'&&savedAcctNav.recordId){
+      open('ledger',true,{deferLedgerRender:true});
+      const work=document.getElementById('acctStageWork');
+      if(work)qRenderLedgerSearch(work,savedAcctNav.recordId,{byId:true});
+      return;
+    }
     if(savedAcctNav?.section){
       open(savedAcctNav.section,true);
       if(savedAcctNav.action){
@@ -5722,8 +5728,6 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       }
       if(savedAcctNav.layer==='contactEditor'&&window.xrContactsV2?.renderEditor){
         const work=document.getElementById('acctStageWork');if(work)window.xrContactsV2.renderEditor(work,savedAcctNav.recordId||'');
-      }else if(savedAcctNav.layer==='ledgerContact'&&savedAcctNav.recordId){
-        const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work,savedAcctNav.recordId,{byId:true});
       }
       return;
     }
