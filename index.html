@@ -5552,9 +5552,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const term=input.value.trim();if(!term){box.innerHTML='';box.style.display='none';return}
     const data=qGlobalSearch(term),contacts=data.contacts,records=data.records;
     box.style.display='block';
-    const fallbackHit=!contacts.length?qResolveContact(term):null;
-    const primary=contacts[0]||fallbackHit?.contact||null;
-    const primaryIsStored=!!contacts[0]||qProfiles().some(c=>String(c.id)===String(primary?.id));
+    // 175B5N6：先尊重使用者輸入的「精確名稱／編號／車號／舊交易別名」，再考慮模糊搜尋結果。
+    // 避免例如搜尋「仁和」時，因其他客戶的付款方／備註含仁和而誤跳到安中。
+    const exactHit=qResolveContact(term);
+    const primary=exactHit?.contact||contacts[0]||null;
+    const primaryIsStored=!!primary&&qProfiles().some(c=>String(c.id)===String(primary.id));
     const related=primary?records.filter(r=>qRecordBelongsToContact(r,primary)):records;
     const recent=related.slice(0,3);
     let html='';
@@ -5590,7 +5592,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const input=document.getElementById('acctGlobalSearchInput');
     const term=String(input?.value||'').trim();
     const data=term?qGlobalSearch(term):{contacts:[],records:[]};
-    const primary=data.contacts?.[0]||qResolveContact(term)?.contact||null;
+    const primary=qResolveContact(term)?.contact||data.contacts?.[0]||null;
     const name=primary?.name||'';
     const a=actionBtn.dataset.searchAction;
     if(a==='contact'&&primary)return qOpenContactFromSearch(primary);
@@ -5605,7 +5607,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(input&&!input.dataset.qSearchBound){
       input.dataset.qSearchBound='1';
       input.addEventListener('input',()=>{clearTimeout(qSearchTimer);qSearchTimer=setTimeout(qPaintGlobalSearch,120)});
-      input.addEventListener('keydown',e=>{if(e.isComposing||e.key!=='Enter')return;e.preventDefault();qRunGlobalSearchNow();const term=String(input.value||'').trim();if(!term)return;const data=qGlobalSearch(term);if(data.contacts.length===1)qOpenLedgerFromSearch(data.contacts[0].name)});
+      input.addEventListener('keydown',e=>{if(e.isComposing||e.key!=='Enter')return;e.preventDefault();qRunGlobalSearchNow();const term=String(input.value||'').trim();if(!term)return;const exact=qResolveContact(term);if(exact?.contact)return qOpenLedgerFromSearch(exact.contact.name||term);const data=qGlobalSearch(term);if(data.contacts.length===1)qOpenLedgerFromSearch(data.contacts[0].name)});
     }
     const box=document.getElementById('acctGlobalSearchResults');
     if(box&&!box.dataset.qSearchActionBound){
@@ -5762,16 +5764,22 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   qRestoreAccountingNav();
   // 175B5N3：重新整理登入後，等 accounting_records 真正載入完成，再依保存的帳本位置重畫一次。
   // 避免初始階段資料尚未就緒，畫面只留下 0299 搜尋框卻沒有帳本內容。
-  window.addEventListener('xinru:accounting-cloud-loaded',()=>{
+  function qRepaintSavedLedgerAfterData(){
     const nav=acctNavRead();
     if(nav?.layer!=='ledgerContact'||!nav.recordId)return;
     const acctPage=document.getElementById('page-accounting');
-    if(acctPage&&acctPage.classList.contains('active')){
-      open('ledger',true,{deferLedgerRender:true});
-      const work=document.getElementById('acctStageWork');
-      if(work)qRenderLedgerSearch(work,nav.recordId);
-    }
+    if(!acctPage||!acctPage.classList.contains('active'))return;
+    open('ledger',true,{deferLedgerRender:true});
+    const work=document.getElementById('acctStageWork');
+    if(work)qRenderLedgerSearch(work,String(nav.recordId).replace(/^(?:legacy:)+/i,''));
+  }
+  window.addEventListener('xinru:accounting-cloud-loaded',()=>{
+    // 175B5N6：雲端資料事件可能早於帳務頁完成顯示；事件當下與畫面穩定後都重畫一次。
+    qRepaintSavedLedgerAfterData();
+    setTimeout(qRepaintSavedLedgerAfterData,250);
   });
+  // 重新整理時，即使 accounting-cloud-loaded 已在本段監聽器建立前發生，也補做一次。
+  setTimeout(qRepaintSavedLedgerAfterData,350);
   try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
   window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open};
 })();
