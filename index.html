@@ -5483,22 +5483,57 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     }
     if(!primary&&!recent.length)html='<div class="empty">查無符合資料</div>';
     box.innerHTML=html;
-    box.querySelectorAll('[data-search-record]').forEach(b=>b.onclick=()=>{open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qShowRecordDetail(w,b.dataset.searchRecord,'global')},0)});
-    box.querySelectorAll('[data-search-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.searchAction,name=primary?.name||'';if(a==='contact'&&primary)return qOpenContactFromSearch(primary);if(a==='ledger')return qOpenLedgerFromSearch(name);if(a==='entry')return qOpenEntryForContact(name);if(a==='payment')return qOpenPaymentForContact(name);if(a==='all')return qShowAllSearchTransactions(name,term)});
   }
   let qSearchTimer=null;
+  function qRunGlobalSearchNow(){
+    clearTimeout(qSearchTimer);
+    qSearchTimer=null;
+    qPaintGlobalSearch();
+  }
+  function qHandleGlobalSearchResultClick(e){
+    const box=document.getElementById('acctGlobalSearchResults');
+    if(!box||!box.contains(e.target))return;
+    const recordBtn=e.target.closest('[data-search-record]');
+    if(recordBtn){
+      e.preventDefault();
+      const id=recordBtn.dataset.searchRecord;
+      open('entry');
+      setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qShowRecordDetail(w,id,'global')},0);
+      return;
+    }
+    const actionBtn=e.target.closest('[data-search-action]');
+    if(!actionBtn)return;
+    e.preventDefault();
+    const input=document.getElementById('acctGlobalSearchInput');
+    const term=String(input?.value||'').trim();
+    const data=term?qGlobalSearch(term):{contacts:[],records:[]};
+    const primary=data.contacts?.[0]||null;
+    const name=primary?.name||'';
+    const a=actionBtn.dataset.searchAction;
+    if(a==='contact'&&primary)return qOpenContactFromSearch(primary);
+    if(a==='ledger'&&name)return qOpenLedgerFromSearch(name);
+    if(a==='entry'&&name)return qOpenEntryForContact(name);
+    if(a==='payment'&&name)return qOpenPaymentForContact(name);
+    if(a==='all')return qShowAllSearchTransactions(name,term);
+  }
   function qInitAccountingHomeUi(){
     try{qPaintWorkBadges()}catch(err){console.warn('帳務待辦稍後載入',err)}
     const input=document.getElementById('acctGlobalSearchInput');
     if(input&&!input.dataset.qSearchBound){
       input.dataset.qSearchBound='1';
       input.addEventListener('input',()=>{clearTimeout(qSearchTimer);qSearchTimer=setTimeout(qPaintGlobalSearch,120)});
-      input.addEventListener('change',qPaintGlobalSearch);
+      input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();qRunGlobalSearchNow()}});
+      input.addEventListener('change',qRunGlobalSearchNow);
+    }
+    const box=document.getElementById('acctGlobalSearchResults');
+    if(box&&!box.dataset.qSearchActionBound){
+      box.dataset.qSearchActionBound='1';
+      box.addEventListener('click',qHandleGlobalSearchResultClick);
     }
     const clear=document.getElementById('acctGlobalSearchClear');
     if(clear&&!clear.dataset.qSearchBound){
       clear.dataset.qSearchBound='1';
-      clear.addEventListener('click',()=>{const i=document.getElementById('acctGlobalSearchInput');if(i)i.value='';qPaintGlobalSearch()});
+      clear.addEventListener('click',()=>{const i=document.getElementById('acctGlobalSearchInput');if(i)i.value='';qRunGlobalSearchNow()});
     }
   }
   document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="accounting"]'))setTimeout(qInitAccountingHomeUi,0)});
