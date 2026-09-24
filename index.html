@@ -2251,7 +2251,7 @@ const MAP={
 '聖女':'เซิ่ง หนวี่','小番茄':'เสี่ยว ฟาน เฉีย','蓮藕':'เหลียน โอ่ว','木耳':'มู่ เอ่อร์',
 '白木耳':'ไป๋ มู่ เอ่อร์','黑木耳':'เฮย มู่ เอ่อร์','白蘑菇':'ไป๋ โม๋ กู','鮑魚菇':'เป้า อวี๋ กู',
 '芭樂':'ปา เล่อ','蘋果':'ผิง กั่ว','黃金奇異果':'หวง จิน ฉี อี้ กั่ว','藍莓':'หลาน เหมย','木瓜':'มู่ กวา','甜柿':'เถียน ซื่อ','櫛瓜':'จื้อ กวา','紅莧':'หง เซี่ยน','白莧':'ไป๋ เซี่ยน','青莧':'ชิง เซี่ยน','娃娃菜':'วา วา ไช่','香蕉':'เซียง เจียว','甘露梨':'กาน ลู่ หลี',
-'文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน','紫光山':'จื่อ กวง ซาน','番薯葉':'ฟาน สู่ เย่','五香豆乾':'อู่ เซียง โต้ว กาน','A菜':'เอ ไช่','洋菇':'หยาง กู'};
+'文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน','嘉慧':'เจีย ฮุ่ย','綠水晶':'ลวี่ สุ่ย จิง','紅甜脆':'หง เถียน ชุ่ย','滄':'ชาง','峰':'เฟิง','菜頭':'ไช่ โถว','自載':'จื้อ ไจ้','收款':'โซ่ว ข่วน','奶白':'หน่าย ไป๋','紫光山':'จื่อ กวง ซาน','番薯葉':'ฟาน สู่ เย่','五香豆乾':'อู่ เซียง โต้ว กาน','A菜':'เอ ไช่','洋菇':'หยาง กู'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let soundPrefExplicit=false; let knownOrderIds=new Set();
 const SOUND_PREF_KEY='xinru_sound_enabled';
@@ -3986,8 +3986,10 @@ async function loadAccountingCloud(){
   try{
     let {data,error}=await sb.from('accounting_records').select('local_id,payload').order('record_date',{ascending:false}).order('created_at',{ascending:false});
     if(error)throw error;
-    const cloudIds=new Set((data||[]).map(x=>String(x.local_id))),local=acctLoad('xinru_acct_test_records',[]),missing=local.filter(x=>!cloudIds.has(String(x.id)));
-    if(missing.length){const upload=missing.map(x=>({local_id:String(x.id),customer:x.customer,record_date:x.date,customer_type:x.type||null,payload:x,created_by:currentUser.id}));const {error:upErr}=await sb.from('accounting_records').upsert(upload,{onConflict:'local_id'});if(upErr)throw upErr;const reload=await sb.from('accounting_records').select('local_id,payload').order('record_date',{ascending:false}).order('created_at',{ascending:false});if(reload.error)throw reload.error;data=reload.data||[]}
+    // 175B5N2：重新整理時保護剛儲存的新帳。相同 local_id 只有本機 updatedAt/createdAt 明確較新時才回推雲端；其餘以雲端為準。
+    const local=acctLoad('xinru_acct_test_records',[]),cloudMap=new Map((data||[]).map(x=>[String(x.local_id),x.payload]));
+    const localNewer=local.filter(x=>{const cp=cloudMap.get(String(x.id));if(!cp)return true;const lt=Date.parse(x.updatedAt||x.createdAt||'')||0,ct=Date.parse(cp.updatedAt||cp.createdAt||'')||0;return lt>ct});
+    if(localNewer.length){const upload=localNewer.map(x=>({local_id:String(x.id),customer:x.customer,record_date:x.date,customer_type:x.type||null,payload:x,created_by:currentUser.id,updated_at:new Date().toISOString()}));const {error:upErr}=await sb.from('accounting_records').upsert(upload,{onConflict:'local_id'});if(upErr)throw upErr;const reload=await sb.from('accounting_records').select('local_id,payload').order('record_date',{ascending:false}).order('created_at',{ascending:false});if(reload.error)throw reload.error;data=reload.data||[]}
     acctCloudRecords=(data||[]).map(x=>x.payload).filter(Boolean);localStorage.setItem('xinru_acct_test_records',JSON.stringify(acctCloudRecords));renderAcctDraft();renderAcctRecords();
   }catch(e){console.warn('帳務雲端尚未啟用',e);acctCloudRecords=null;}
 }
@@ -4073,6 +4075,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- 第44階段：商品管理＋共享庫存；F2僅扣已建立主檔商品；未修改登入/Auth核心 -->
 <!-- 第56階段：收銀現場回報固定三排／依登入職能顯示回覆身份／六通道短暫讀取失敗保留正常畫面 -->
 <!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
+<!-- 175B5N2：0299/舊往來帳本反查＋帳務刷新同步保護＋新增泰文；不修改 Auth/派工/包裝/貨運核心 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -5366,10 +5369,21 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     let c=ps.find(v=>[v.name,v.formalName,v.code].some(x=>qNormKey(x)===key));
     if(c)return {contact:c,matchedBy:qNormKey(c.name)===key?'name':'code',vehiclePlate:'',vehicleActive:null,input:raw};
     for(const x of ps){const v=(x.vehicles||[]).find(v=>qNormKey(v.plate)===key);if(v)return {contact:x,matchedBy:'vehicle',vehiclePlate:String(v.plate||'').trim(),vehicleActive:v.active!==false,input:raw}}
+    // 175B5N2：舊交易可能已存在 accounting_records，但此裝置沒有對應往來主檔。
+    // 帳本查詢可由既有交易反查同一客戶；只建立記憶體中的搜尋身分，不新增第二份主檔／帳本。
+    const rs=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
+    const matches=rs.filter(r=>[r.customer,r.lookupInput].some(x=>qNormKey(x)===key));
+    if(matches.length){
+      const named=matches.find(r=>qNormKey(r.customer)===key)||matches[0],cid=String(named.contactId||'').trim();
+      const linked=cid?ps.find(x=>String(x.id)===cid):null;
+      if(linked)return {contact:linked,matchedBy:'record',vehiclePlate:'',vehicleActive:null,input:raw};
+      const cname=String(named.customer||raw).trim();
+      return {contact:{id:cid||('legacy:'+qNormKey(cname)),name:cname,formalName:cname,code:qNormKey(cname)===key?raw:'',identity:named.type||'一般客戶',accountMode:''},matchedBy:'record',vehiclePlate:'',vehicleActive:null,input:raw,legacyRecordFallback:true};
+    }
     return null;
   }
   function qContact(entity){return qResolveContact(entity)?.contact||null}
-  function qRecordBelongsToContact(r,c){if(!r||!c)return false;return (r.contactId&&String(r.contactId)===String(c.id))||(!r.contactId&&String(r.customer||'').trim()===String(c.name||'').trim())}
+  function qRecordBelongsToContact(r,c){if(!r||!c)return false;const cid=String(c.id||''),isLegacy=cid.startsWith('legacy:');if(r.contactId&&!isLegacy&&cid&&String(r.contactId)===cid)return true;return qNormKey(r.customer)===qNormKey(c.name)}
   function qTxnDefault(c){const id=String(c?.identity||c?.type||'');return /產農|廠商/.test(id)?'進貨':'銷貨'}
   function qContactInfoHtml(c){if(!c)return '';const bits=[['身分',c.identity||c.type],['帳務模式',c.accountMode],['結帳方式',c.settlement],['付款方',c.payer],['預設運費',c.freightDefault],['預設收付款',c.paymentDefault]].filter(x=>x[1]);const special=(c.freightRules||[]).length?'特殊運費 '+c.freightRules.length+' 項':'';const note=c.outputNote||c.note||'';return '<div class="quickV2ContactInfoHead"><span class="quickV2ContactName">👤 '+qEsc(c.name||'')+'</span></div><div class="quickV2ContactGrid">'+bits.map(x=>'<span><b>'+qEsc(x[0])+'：</b>'+qEsc(x[1])+'</span>').join('')+(special?'<span><b>運費規則：</b>'+qEsc(special)+'</span>':'')+'</div>'+(note?'<div class="quickV2ContactHint"><b>固定備註：</b>'+qEsc(note)+'</div>':'')}
   function qPaintContactInfo(work){const box=work.querySelector('#quickV2ContactInfo');if(!box)return null;const hit=qResolveContact(work.querySelector('#quickV2Entity')?.value),c=hit?.contact||null;box.innerHTML=qContactInfoHtml(c)+(hit?.matchedBy==='vehicle'?'<div class="quickV2ContactHint"><b>🚙 車號：</b>'+qEsc(hit.vehiclePlate)+' → 帳務歸屬 <b>'+qEsc(c.name)+'</b>'+(hit.vehicleActive===false?'｜⚠️ 此為歷史／停用車號':'')+'</div>':'');box.classList.toggle('show',!!c);work.dataset.resolvedContactId=c?.id||'';work.dataset.resolvedVehiclePlate=hit?.vehiclePlate||'';work.dataset.resolvedVehicleActive=hit?.vehicleActive===false?'0':(hit?.vehicleActive===true?'1':'');return c}
