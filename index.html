@@ -1695,6 +1695,39 @@ body.wall-focus #wall .wallOrderNote{
 @media(max-width:760px){.xrContactsToolbar{grid-template-columns:1fr 1fr}.xrContactsToolbar .xrAdd{grid-column:1/-1}.xrContactRow{grid-template-columns:1fr 1fr}.xrContactRow .xrMain{grid-column:1/-1}.xrContactRow .xrActions{text-align:right}.xrGrid2,.xrGrid3{grid-template-columns:1fr 1fr}.xrRuleRow{grid-template-columns:1fr 1fr}.xrRuleRow .xrRuleRemove{grid-column:2}.xrEditorHead{align-items:flex-start}.xrEditorActions .btn{flex:1}.xrSection>summary{padding:10px}}
 @media(max-width:480px){.xrGrid2,.xrGrid3{grid-template-columns:1fr}.xrContactsToolbar{grid-template-columns:1fr}.xrContactsToolbar .xrAdd{grid-column:auto}}
 </style>
+
+<style id="b5l-ledger-ui">
+/* 175B5L：只整理帳本查詢／交易明細畫面，不改資料與帳務邏輯 */
+#accounting .acctGlobalSearch.hidden{display:none!important}
+#accounting #acctGlobalSearchResults{z-index:20}
+#accounting #acctManagementStage{padding-top:0}
+#accounting .acctStageHead{align-items:center;margin-bottom:8px;padding:0 2px}
+#accounting .acctStageHead h3{font-size:21px;margin:0 0 2px}
+#accounting .acctStageHead .helper{margin:0}
+#accounting .acctStageWork{margin-top:6px}
+#accounting #acctStageWork .quickV2{margin-top:6px;padding:12px 14px;border-radius:14px}
+#accounting #acctStageWork .quickV2>.quickV2RecordTop:first-child{margin-bottom:4px}
+#accounting #acctStageWork .quickV2 .field{margin-top:6px!important}
+#accounting #acctStageWork .quickV2ContactInfo{margin:7px 0 8px;padding:8px 10px}
+#accounting #acctStageWork .quickV2ContactGrid{gap:6px}
+#accounting #acctStageWork #qLedgerResult>div[style*="display:grid"]{gap:6px!important;margin:7px 0!important}
+#accounting #acctStageWork #qLedgerResult .quickV2ContactHint{padding:7px 10px}
+#accounting #acctStageWork #qLedgerResult table.quickV2Table{margin-top:7px!important}
+#accounting #acctStageWork table.quickV2Table th,#accounting #acctStageWork table.quickV2Table td{padding:7px 9px;white-space:nowrap}
+#accounting #acctStageWork .quickV2RecordTop+.helper{margin-top:2px!important}
+#accounting #acctStageWork .quickV2Foot{margin-top:8px}
+#accounting #acctStageWork .quickV2OutputBtns{gap:6px}
+@media(min-width:900px){
+ #accounting #acctStageWork .quickV2{padding:12px 18px}
+ #accounting #acctStageWork table.quickV2Table{width:auto;min-width:820px;max-width:100%}
+}
+@media(max-width:760px){
+ #accounting .acctStageHead{display:flex;gap:8px;align-items:flex-start}
+ #accounting .acctStageHead .btn{margin-bottom:0}
+ #accounting #acctStageWork .quickV2{padding:10px}
+ #accounting #acctStageWork table.quickV2Table th,#accounting #acctStageWork table.quickV2Table td{padding:7px 8px}
+}
+</style>
 </head>
 <body>
 <div id="authGate" class="authGate">
@@ -5569,9 +5602,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qRecordDetailHtml(r){
     const items=Array.isArray(r.items)?r.items:[],goods=items.reduce((a,x)=>a+(x.amount===''?0:(Number(x.amount)||0)-(Number(x.freight)||0)),0),freight=items.reduce((a,x)=>a+(Number(x.freight)||0),0),total=Number(r.total)||goods+freight;
-    return '<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧾 交易明細｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||r.type||'')+'｜交易編號：'+qEsc(r.id||'')+'</div></div><button type="button" class="btn gray" id="qDetailBack">← 返回今日做帳</button></div>'+
+    return '<div class="quickV2 qRecordDetailView"><div class="quickV2RecordTop"><div><b>🧾 交易明細｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||r.type||'')+'｜交易編號：'+qEsc(r.id||'')+'</div></div><button type="button" class="btn gray" id="qDetailBack">← 返回今日做帳</button></div>'+
       (r.status==='void'?'<div class="quickV2ContactHint" style="margin-top:10px"><b>🚫 已作廢</b>｜原因：'+qEsc(r.voidReason||'未填')+'｜作廢人：'+qEsc(r.voidedBy||'')+'｜時間：'+qEsc(r.voidedAt?new Date(r.voidedAt).toLocaleString('zh-TW'):'')+'</div>':'')+
-      '<div style="overflow:auto;margin-top:12px"><table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>計價</th><th>單價</th><th>運費</th><th>金額</th></tr></thead><tbody>'+items.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+qEsc(x.name||'')+'</td><td>'+qEsc(x.kg===''?'—':x.kg)+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+qEsc(x.pricing||'')+'</td><td>'+qEsc(x.price===''?'待補':x.price)+'</td><td>'+qEsc(Number(x.freight)||0)+'</td><td>$'+Math.round(Number(x.amount)||0).toLocaleString('zh-TW')+'</td></tr>').join('')+'</tbody></table></div>'+
+      '<div style="overflow:auto;margin-top:12px"><table style="width:100%;border-collapse:collapse;min-width:680px"><thead><tr><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>計價</th><th>單價</th><th>運費</th><th>金額</th></tr></thead><tbody>'+items.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+qEsc(x.name||'')+'</td><td>'+qEsc(x.kg===''?'—':x.kg)+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+qEsc(x.pricing||'')+'</td><td>'+qEsc(x.price===''?'待補':x.price)+'</td><td>'+qEsc(Number(x.freight)||0)+'</td><td>$'+Math.round(Number(x.amount)||0).toLocaleString('zh-TW')+'</td></tr>').join('')+'</tbody></table></div>'+
       '<div class="quickV2Foot" style="justify-content:flex-end;gap:14px;flex-wrap:wrap"><span>貨款小計 <b>$'+Math.round(goods).toLocaleString('zh-TW')+'</b></span>'+(freight?'<span>🚚 運費總計 <b>$'+Math.round(freight).toLocaleString('zh-TW')+'</b></span>':'')+'<span>總計 <b>$'+Math.round(total).toLocaleString('zh-TW')+'</b></span></div>'+
       (r.note?'<div class="quickV2ContactHint"><b>備註：</b>'+qEsc(r.note)+'</div>':'')+
       (r.status==='void'?'':'<div class="quickV2OutputBtns" style="margin-top:12px"><button type="button" class="btn gray" data-detail-out="line">📱 傳 LINE</button><button type="button" class="btn gray" data-detail-out="image">🖼️ 帳單圖片</button><button type="button" class="btn gray" data-detail-out="excel">📊 Excel</button><button type="button" class="btn gray" data-detail-out="pdf">📄 PDF</button><button type="button" class="btn gray" data-detail-out="80">🖨️ 80行報表紙</button></div>')+'</div>'
