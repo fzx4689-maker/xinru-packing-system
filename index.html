@@ -5271,7 +5271,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'每日入貨可先不填價格；週帳與實際付款分開。',items:['今日入貨','待補價格','本週週帳','待領款']},
     vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','異常處理','廠商對帳']},
     payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 收支查詢','🏦 資金帳戶','📊 報表']},
-    ledger:{title:'📒 帳本查詢',desc:'先搜尋往來對象，再查看完整帳本、應收／應付與來源。',items:['🔍 搜尋帳本','應收統計','應付統計']},
+    ledger:{title:'📒 帳本查詢',desc:'搜尋往來對象，直接查看完整應收／應付與帳本。',items:[]},
     turnover:{title:'🧺 周轉物管理',desc:'正常進出由發生處輸入一次；這裡負責查詢、盤點與特殊補登。',items:['🔍 周轉物查詢','📥📤 進出紀錄','📋 盤點／差異','⚙️ 周轉物設定']},
     contacts:{title:'👥 往來資料',desc:'同一個往來對象只建立一份主資料，內部以固定ID關聯。',items:['🔍 搜尋往來資料','＋ 新增往來對象']},
     receipt:{title:'🧾 農民收據',desc:'農收分類只服務農民收據，不建立第二套商品管理。',items:['待分類確認','待開農收','已開農收','歷史查詢','⚙️ 分類管理']},
@@ -5293,8 +5293,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(isBank&&bankLocked)return '<button type="button" class="acctStageBtn acctStageLocked" disabled><b>'+x+'</b><span>僅管理員可查看與操作</span></button>';
       return '<button type="button" class="acctStageBtn" data-acct-stage-action="'+x.replace(/"/g,'&quot;')+'"><b>'+x+'</b></button>';
     }).join('');
-    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div><div class="acctStageGrid">'+items+'</div><div id="acctStageWork" class="acctStageWork"></div>';
+    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div>'+(key==='ledger'?'':'<div class="acctStageGrid">'+items+'</div>')+'<div id="acctStageWork" class="acctStageWork"></div>';
     document.getElementById('acctStageBack')?.addEventListener('click',()=>home());
+    if(key==='ledger'){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
   }
   document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>open(btn.dataset.acctManage)));
   // 第172D階段：主動按上方帳務中心＝回九入口第一層；重新整理不受影響。
@@ -5339,6 +5340,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   async function qShareLine(record){return qPreviewBill(record,true)}
   function qShowOutputs(work,record){const methods=qOutputMethods(record),box=document.createElement('div');box.className='quickV2OutputPanel';box.innerHTML='<div><b>✅ 完成做帳｜'+qEsc(record.customer)+'｜$'+Math.round(Number(record.total)||0).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important;margin-top:4px">常用方式會標示「常用」，五種輸出全部可使用。</div></div><div class="quickV2OutputBtns"><button type="button" class="btn '+(methods.line?'primary':'gray')+'" data-out="line">📱 傳 LINE'+(methods.line?'・常用':'')+'</button><button type="button" class="btn '+(methods.image?'primary':'gray')+'" data-out="image">🖼️ 帳單圖片'+(methods.image?'・常用':'')+'</button><button type="button" class="btn '+(methods.excel?'primary':'gray')+'" data-out="excel">📊 Excel'+(methods.excel?'・常用':'')+'</button><button type="button" class="btn '+(methods.pdf?'primary':'gray')+'" data-out="pdf">📄 PDF'+(methods.pdf?'・常用':'')+'</button><button type="button" class="btn '+(methods.paper80?'primary':'gray')+'" data-out="80">🖨️ 80行報表紙'+(methods.paper80?'・常用':'')+'</button></div>';work.prepend(box);box.querySelector('[data-out="line"]').onclick=()=>qShareLine(record);box.querySelector('[data-out="image"]').onclick=()=>qPreviewBill(record,false);box.querySelector('[data-out="excel"]').onclick=()=>qDownloadExcel(record);box.querySelector('[data-out="pdf"]').onclick=()=>qPrintBill(record,'pdf');box.querySelector('[data-out="80"]').onclick=()=>qPrintBill(record,'80')}
 
+  // 第175B5K：首頁搜尋單擊／Enter、帳本直接入口、待補價格共用工作佇列來源。
   // 第175B5I：首頁四顆待辦統一由「帳務工作佇列」產生，不再各自寫死跳頁。
   // 待收／付款必須等正式結帳到期規則成立後才列入；未結清(due>0)本身不等於今天待收／待付。
   function qWorkCounts(){
@@ -5346,7 +5348,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return {
       draft:rows.filter(r=>r.status==='draft').length,
       dispatch_pending:rows.filter(r=>r.status==='dispatch_pending').length,
-      pending_price:rows.filter(r=>r.status!=='draft'&&r.status!=='void'&&r.pricingStatus==='pending_price').length,
+      pending_price:qQueueRows('pending_price').length,
       money_pending:0
     };
   }
@@ -5381,7 +5383,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void');
     if(filter==='draft')return all.filter(r=>r.status==='draft');
     if(filter==='dispatch_pending')return all.filter(r=>r.status==='dispatch_pending');
-    if(filter==='pending_price')return all.filter(r=>r.status!=='draft'&&r.pricingStatus==='pending_price');
+    if(filter==='pending_price')return all.filter(r=>r.status!=='draft'&&r.pricingStatus==='pending_price'&&Array.isArray(r.items)&&r.items.some(x=>x&&x.price===''));
     if(filter==='active')return all.filter(r=>r.status==='active');
     return all;
   }
@@ -5455,7 +5457,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     open('contacts');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w&&window.xrContactsV2?.renderList){window.xrContactsV2.renderList(w);const si=w.querySelector('#xrContactSearch');if(si){si.value=c.name;si.dispatchEvent(new Event('input'))}}},0)
   }
   function qOpenLedgerFromSearch(name){
-    open('ledger');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(w)qRenderLedgerSearch(w,name)},0)
+    open('ledger');const w=document.getElementById('acctStageWork');if(w)qRenderLedgerSearch(w,name)
   }
   function qOpenEntryForContact(name){
     open('entry');setTimeout(()=>{const w=document.getElementById('acctStageWork');if(!w)return;renderQuickV2(w);const inp=w.querySelector('#quickV2Entity');if(inp){inp.value=name;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))}},0)
@@ -5522,8 +5524,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(input&&!input.dataset.qSearchBound){
       input.dataset.qSearchBound='1';
       input.addEventListener('input',()=>{clearTimeout(qSearchTimer);qSearchTimer=setTimeout(qPaintGlobalSearch,120)});
-      input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();qRunGlobalSearchNow()}});
-      input.addEventListener('change',qRunGlobalSearchNow);
+      input.addEventListener('keydown',e=>{if(e.isComposing||e.key!=='Enter')return;e.preventDefault();qRunGlobalSearchNow();const term=String(input.value||'').trim();if(!term)return;const data=qGlobalSearch(term);if(data.contacts.length===1)qOpenLedgerFromSearch(data.contacts[0].name)});
     }
     const box=document.getElementById('acctGlobalSearchResults');
     if(box&&!box.dataset.qSearchActionBound){
@@ -5548,7 +5549,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   async function qDeleteQuickRecord(work,id,after){if(currentProfile?.role!=='admin'){alert('只有管理員可以永久刪除');return}const src=(typeof acctRecords==='function'?acctRecords():[]),old=src.find(x=>String(x.id)===String(id));if(!old)return;if(!confirm('管理員永久刪除：'+(old.date||'')+'｜'+(old.customer||'')+'？\n刪除後無法復原。'))return;const {error}=await sb.from('accounting_records').delete().eq('local_id',String(id));if(error){alert('刪除失敗：'+error.message);return}const local=src.filter(x=>String(x.id)!==String(id));localStorage.setItem('xinru_acct_test_records',JSON.stringify(local));if(typeof acctCloudRecords!=='undefined'&&acctCloudRecords!==null)acctCloudRecords=local;if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qPaintWorkBadges();if(typeof after==='function')after();else renderQuickToday(work)}
   function renderQuickV2(work){const ps=qProfiles(),opts=ps.flatMap(x=>['<option value="'+qEsc(x.name)+'">'+qEsc(x.name)+'</option>',x.code?'<option value="'+qEsc(x.code)+'">'+qEsc(x.name)+'</option>':'',(x.vehicles||[]).map(v=>'<option value="'+qEsc(v.plate)+'">'+qEsc(x.name)+(v.active===false?'（歷史車號）':'')+'</option>').join('')]).join('');work.innerHTML='<div class="quickV2"><div class="quickV2Head"><div class="field"><label class="label">日期</label><input id="quickV2Date" class="input" type="date" value="'+qToday()+'"></div><div class="field quickEntityField"><label class="label">往來對象＊</label><input id="quickV2Entity" class="input" list="quickV2EntityList" autocomplete="off" placeholder="例如：0299、仁和、長青"><datalist id="quickV2EntityList">'+opts+'</datalist></div><div class="field"><label class="label">交易類型</label><select id="quickV2Txn" class="input"><option>銷貨</option><option>進貨</option></select></div><div class="field"><label class="label">備註</label><input id="quickV2Note" class="input" placeholder="可不填"></div></div><div id="quickV2ContactInfo" class="quickV2ContactInfo"></div><div class="quickV2Queue"><button class="btn on" type="button">全部</button><button class="btn gray" type="button" data-qfilter="draft">草稿</button><button class="btn gray" type="button" data-qfilter="dispatch_pending">派工待做帳</button><button class="btn gray" type="button" data-qfilter="pending_price">待補價格</button><button class="btn gray" type="button" data-qfilter="active">已完成</button></div><div class="quickV2Table"><div class="quickV2Row quickV2Labels"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>計價</span><span>來源</span><span>單價</span><span class="quickV2Cost">成本</span><span>運費</span><span>小計</span><span></span></div><div id="quickV2Rows">'+qRowHtml(0)+'</div></div><details class="quickV2Turn"><summary>🧺 周轉物（有使用再展開）</summary><div class="quickV2TurnGrid"><select id="qTurnType" class="input"><option value="">類型</option><option>籃子</option><option>鐵架</option><option>棧板</option><option>其他</option></select><select id="qTurnAction" class="input"><option value="">動作</option><option>欠用</option><option>歸還</option><option>買斷</option><option>調整</option></select><input id="qTurnQty" class="input" inputmode="decimal" placeholder="數量"><input id="qTurnNote" class="input" placeholder="備註"></div></details><div class="quickV2Foot"><button id="quickV2Add" type="button" class="btn blue">＋ 新增一列</button><span id="quickV2Pending" class="quickV2Pending"></span><button id="quickV2Draft" type="button" class="btn gray">💾 暫存草稿</button><button id="quickV2Clear" type="button" class="btn gray">清空</button><button id="quickV2Save" type="button" class="btn primary">✅ 完成做帳</button><div class="quickV2Total">本次金額 <span id="quickV2Total">$0</span></div></div></div>';qBindRows(work);qRecalc(work);const ent=work.querySelector('#quickV2Entity');const syncEntity=()=>{const c=qPaintContactInfo(work);if(c)work.querySelector('#quickV2Txn').value=qTxnDefault(c);qRecalc(work)};const settleEntity=()=>{const hit=qResolveContact(ent.value);if(hit){ent.dataset.lookupInput=hit.input;ent.dataset.vehiclePlate=hit.matchedBy==='vehicle'?hit.vehiclePlate:'';ent.value=hit.contact.name}syncEntity()};ent.addEventListener('change',settleEntity);ent.addEventListener('blur',settleEntity);ent.addEventListener('input',syncEntity);qPaintContactInfo(work);work.querySelector('#quickV2Add').onclick=()=>qAddRow(work,true);work.querySelector('#quickV2Draft').onclick=()=>qSave(work,'draft');work.querySelector('#quickV2Clear').onclick=()=>{if(confirm('確定清空目前尚未儲存的內容嗎？'))renderQuickV2(work)};work.querySelector('#quickV2Save').onclick=()=>qSave(work,'active');work.querySelectorAll('[data-qfilter]').forEach(b=>b.onclick=()=>qRenderQueue(work,b.dataset.qfilter))}
   function renderPendingPrices(work){
-    const rows=qPendingRecords();
+    const rows=qQueueRows('pending_price');
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>💲 待補價格</b><div class="helper" style="display:block!important;margin-top:5px">只顯示已儲存、仍有單價空白的快速做帳紀錄。補價後直接回寫原交易，不新增第二筆。</div></div><b>共 '+rows.length+' 筆</b></div><div id="quickPendingList">'+(rows.length?rows.map(r=>{const pending=(r.items||[]).map((x,i)=>({x,i})).filter(o=>o.x&&o.x.price==='');return '<div class="quickV2Record" data-pending-record="'+qEsc(r.id)+'"><div class="quickV2RecordTop"><div><b>'+qEsc(r.date)+'｜'+qEsc(r.customer)+'｜'+qEsc(r.type||'')+'</b><div class="helper" style="display:block!important">交易編號：'+qEsc(r.id)+'</div></div><button type="button" class="btn primary qPendingSave">💾 儲存補價</button></div><div class="quickV2Table" style="margin-top:10px"><div class="quickV2Row quickV2Labels" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 130px 120px"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>補單價</span><span>金額</span></div>'+pending.map(o=>'<div class="quickV2Row" data-pending-item="'+o.i+'" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 130px 120px"><b>'+(o.i+1)+'</b><b>'+qEsc(o.x.name)+'</b><span>'+qEsc(o.x.kg===''?'—':o.x.kg)+'</span><span>'+qEsc(o.x.qty)+'</span><input class="input qPendingPrice" inputmode="decimal" placeholder="輸入單價"><b class="qPendingAmount">—</b></div>').join('')+'</div></div>'}).join(''):'<div class="empty" style="padding:18px">目前沒有待補價格資料</div>')+'</div></div>';
     work.querySelectorAll('[data-pending-record]').forEach(card=>{
       card.querySelectorAll('.qPendingPrice').forEach(inp=>{
