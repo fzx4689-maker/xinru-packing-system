@@ -1751,7 +1751,11 @@ body.wall-focus #wall .wallOrderNote{
 </style>
 </style>
 </head>
-<body>
+<body class="auth-booting">
+<style id="auth-boot-no-flash">
+body.auth-booting #authGate,
+body.auth-booting #mainApp{visibility:hidden!important}
+</style>
 <div id="authGate" class="authGate">
   <div class="loginBox">
     <h1>欣儒農產行｜員工系統</h1>
@@ -3797,7 +3801,7 @@ async function loadMyProfile(user){
   if(!data.is_active)throw new Error('這個員工帳號已停用');
   return data;
 }
-function showLogin(msg=''){$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
+function showLogin(msg=''){document.body.classList.remove('auth-booting');$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
   const shownName=(currentProfile.nickname||'').trim()||currentProfile.display_name;
@@ -3829,6 +3833,7 @@ async function startApp(user){
        bootAccountingNav.section)
     );
 
+    document.body.classList.remove('auth-booting');
     showApp();
     if(bootRememberedTab==='accounting'&&bootHasAccountingLayer){
       const mainApp=document.getElementById('mainApp');
