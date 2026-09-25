@@ -4201,15 +4201,16 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 
 .acctGlobalSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:10px 0 8px}
 .acctDateController{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:10px 12px;border:1px solid #d7e0ea;border-radius:13px;background:#f8fafc}
-.acctDateController input[type="date"]{flex:0 0 180px;width:180px;max-width:180px}
+.acctDateController input[type="date"]{flex:0 0 180px!important;width:180px!important;max-width:180px!important;min-width:180px!important}
 .acctDateController>.btn{flex:0 0 auto;width:auto}
 .acctDateController>.helper{display:block!important;flex:0 0 auto;margin:0;color:#52657a;font-weight:700}
 @media(max-width:760px){
-  .acctDateController{display:grid;grid-template-columns:1fr 1fr}
-  .acctDateController>b,.acctDateController>.helper{grid-column:1/-1}
-  .acctDateController>span:not(.helper){display:none}
-  .acctDateController input[type="date"]{width:100%;max-width:none;min-width:0}
-  .acctDateController .btn{width:100%}
+  .acctDateController{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .acctDateController>b{flex:0 0 100%}
+  .acctDateController>span:not(.helper){display:inline}
+  .acctDateController input[type="date"]{flex:0 0 145px!important;width:145px!important;max-width:145px!important;min-width:145px!important}
+  .acctDateController .btn{flex:0 0 auto!important;width:auto!important;padding-left:14px;padding-right:14px}
+  .acctDateController>.helper{flex:0 0 auto}
 }.acctGlobalSearch.hidden{display:none}.acctSearchSummary{border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;margin:6px 0;background:#fff}.acctSearchSummaryHead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.acctSearchSummaryHead small{color:#52657a}.acctSearchActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.acctSearchActions button,.acctSearchMore{border:1px solid #d7e0ea;background:#f7f9fb;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}.acctSearchRecent{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}.acctSearchRecent>b{width:100%;font-size:13px;color:#52657a}.acctSearchMore{background:#fff}@media(max-width:760px){.acctSearchActions{display:grid;grid-template-columns:1fr 1fr}.acctSearchActions button{width:100%}.acctSearchRecent .acctSearchResult{width:100%;text-align:left}}
 .acctWorkBadges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acctWorkBadge{border:1px solid #d7e0ea;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.acctWorkBadge:hover{background:#f7fbff}.acctWorkBadge strong{font-size:17px;margin-left:4px}.acctWorkBadge[data-work="dispatch_pending"]{border-color:#f0b4b4}.acctWorkBadge[data-work="pending_price"]{border-color:#f3cc83}.acctWorkBadge[data-work="draft"]{border-color:#a9c6e8}.acctWorkBadge[data-work="money_pending"]{border-color:#acd7bb}@media(max-width:760px){.acctWorkBadges{display:grid;grid-template-columns:1fr 1fr}.acctWorkBadge{width:100%;text-align:left}}
 .acctGlobalSearchResults{display:none;border:1px solid #d7e0ea;border-radius:13px;background:#fff;margin:-4px 0 12px;overflow:hidden}.acctSearchResult{width:100%;display:grid;grid-template-columns:auto minmax(120px,.7fr) minmax(0,1.6fr);gap:8px;align-items:center;text-align:left;border:0;border-bottom:1px solid #edf1f5;background:#fff;padding:10px 12px;cursor:pointer}.acctSearchResult:last-child{border-bottom:0}.acctSearchResult:hover{background:#f7fbff}.acctSearchKind{font-size:11px;font-weight:900;background:#eef4ff;color:#245b8f;border-radius:999px;padding:3px 7px}.acctSearchResult small{color:#667085;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quickV2OutputPanel{border:1px solid #b8dfc8;background:#f2fff7;border-radius:14px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:center}.quickV2OutputBtns{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}@media(max-width:760px){.acctGlobalSearch{grid-template-columns:minmax(0,1fr) auto}.acctSearchResult{grid-template-columns:auto 1fr}.acctSearchResult small{grid-column:1/-1;white-space:normal}.quickV2OutputPanel{display:block}.quickV2OutputBtns{margin-top:9px;display:grid;grid-template-columns:1fr 1fr}.quickV2OutputBtns .btn{width:100%}}
