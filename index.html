@@ -5858,7 +5858,17 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       '<div class="qDetailTableWrap"><table class="qDetailTable"><colgroup><col class="qdc-seq"><col class="qdc-name"><col class="qdc-kg"><col class="qdc-qty"><col class="qdc-pricing"><col class="qdc-price"><col class="qdc-freight"><col class="qdc-amount"></colgroup><thead><tr><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>計價</th><th>單價</th><th>運費</th><th>金額</th></tr></thead><tbody>'+items.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+qEsc(x.name||'')+'</td><td>'+qEsc(x.kg===''?'—':x.kg)+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+qEsc(x.pricing||'')+'</td><td>'+qEsc(x.price===''?'待補':x.price)+'</td><td>'+qEsc(Number(x.freight)||0)+'</td><td>$'+Math.round(Number(x.amount)||0).toLocaleString('zh-TW')+'</td></tr>').join('')+'</tbody></table></div>'+
       '<div class="quickV2Foot" style="justify-content:flex-end;gap:14px;flex-wrap:wrap"><span>貨款小計 <b>$'+Math.round(goods).toLocaleString('zh-TW')+'</b></span>'+(freight?'<span>🚚 運費總計 <b>$'+Math.round(freight).toLocaleString('zh-TW')+'</b></span>':'')+'<span>總計 <b>$'+Math.round(total).toLocaleString('zh-TW')+'</b></span></div>'+
       (r.note?'<div class="quickV2ContactHint"><b>備註：</b>'+qEsc(r.note)+'</div>':'')+
-      (r.status==='void'?'':'<div class="quickV2OutputBtns" style="margin-top:12px"><button type="button" class="btn gray" data-detail-out="line">📱 傳 LINE</button><button type="button" class="btn gray" data-detail-out="image">🖼️ 帳單圖片</button><button type="button" class="btn gray" data-detail-out="excel">📊 Excel</button><button type="button" class="btn gray" data-detail-out="pdf">📄 PDF</button><button type="button" class="btn gray" data-detail-out="80">🖨️ 80行報表紙</button></div>')+'</div>'
+      (r.status==='void'?'':'<div class="quickV2OutputBtns" style="margin-top:12px"><button type="button" class="btn gray" data-detail-out="line">📱 傳 LINE</button><button type="button" class="btn gray" data-detail-out="image">🖼️ 帳單圖片</button><button type="button" class="btn gray" data-detail-out="excel">📊 Excel</button><button type="button" class="btn gray" data-detail-out="pdf">📄 PDF</button><button type="button" class="btn gray" data-detail-out="80">🖨️ 80行報表紙</button></div>')+
+      '<div class="quickV2OutputBtns" style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px"><b style="margin-right:4px">交易管理</b>'+(r.status==='void'?'':'<button type="button" class="btn gray" data-detail-manage="edit">✏️ 修改</button><button type="button" class="btn gray" data-detail-manage="void">🚫 作廢</button>')+((currentProfile?.role==='admin')?'<button type="button" class="btn red" data-detail-manage="delete">🗑️ 永久刪除</button>':'')+'</div></div>'
+  }
+  function qReturnFromRecordDetail(work,backMode){
+    if(backMode==='void')return renderQuickVoids(work);
+    if(backMode==='global')return home();
+    if(backMode==='daterange'){home();return qPaintDateRangeResults()}
+    if(String(backMode).startsWith('searchall:')){const p=String(backMode).slice(10).split('|');return qShowAllSearchTransactions(p[0]||'',p.slice(1).join('|')||p[0]||'')}
+    if(String(backMode).startsWith('ledger:'))return qRenderLedgerSearch(work,String(backMode).slice(7),{byId:true});
+    if(String(backMode).startsWith('queue:'))return qRenderQueue(work,String(backMode).slice(6));
+    return renderQuickToday(work);
   }
   function qShowRecordDetail(work,id,backMode='today',skipNavSave=false){
     const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}
@@ -5880,8 +5890,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
         backMode:String(backMode||'today')
       });
     }
-    work.innerHTML=qRecordDetailHtml(r);work.querySelector('#qDetailBack').onclick=()=>{if(backMode==='void')return renderQuickVoids(work);if(backMode==='global')return home();if(String(backMode).startsWith('searchall:')){const p=String(backMode).slice(10).split('|');return qShowAllSearchTransactions(p[0]||'',p.slice(1).join('|')||p[0]||'')}if(String(backMode).startsWith('ledger:'))return qRenderLedgerSearch(work,String(backMode).slice(7),{byId:true});if(String(backMode).startsWith('queue:'))return qRenderQueue(work,String(backMode).slice(6));return renderQuickToday(work)};
+    work.innerHTML=qRecordDetailHtml(r);work.querySelector('#qDetailBack').onclick=()=>qReturnFromRecordDetail(work,backMode);
     if(r.status!=='void'){work.querySelector('[data-detail-out="line"]')?.addEventListener('click',e=>{e.stopPropagation();qShareLine(r)});work.querySelector('[data-detail-out="image"]')?.addEventListener('click',e=>{e.stopPropagation();qPreviewBill(r,false)});work.querySelector('[data-detail-out="excel"]')?.addEventListener('click',e=>{e.stopPropagation();qDownloadExcel(r)});work.querySelector('[data-detail-out="pdf"]')?.addEventListener('click',e=>{e.stopPropagation();qPrintBill(r,'pdf')});work.querySelector('[data-detail-out="80"]')?.addEventListener('click',e=>{e.stopPropagation();qPrintBill(r,'80')})}
+    work.querySelector('[data-detail-manage="edit"]')?.addEventListener('click',()=>qEditQuickRecord(work,id));
+    work.querySelector('[data-detail-manage="void"]')?.addEventListener('click',()=>qVoidQuickRecord(work,id,()=>qReturnFromRecordDetail(work,backMode)));
+    work.querySelector('[data-detail-manage="delete"]')?.addEventListener('click',()=>qDeleteQuickRecord(work,id,()=>qReturnFromRecordDetail(work,backMode)));
   }
   function renderQuickVoids(work){
     const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.status==='void'&&Array.isArray(x.items)).sort((a,b)=>String(b.voidedAt||b.updatedAt||'').localeCompare(String(a.voidedAt||a.updatedAt||'')));
