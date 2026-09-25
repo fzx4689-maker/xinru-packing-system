@@ -3492,12 +3492,9 @@ async function sendXinruPush({targetRole=null,targetUserId=null,title='欣儒系
   try{
     const {data,error}=await sb.functions.invoke('send-push',{body:{target_role:targetRole,target_user_id:targetUserId,title,body,url,tag,kind,urgent}});
     if(error)throw error;
-    const sent=Number(data?.sent||0), failed=Number(data?.failed||0), subscriptions=Number(data?.subscriptions||0);
-    // 沒有符合通知權限的帳號／尚未註冊手機，不等於「下單者的 iPhone 推播失敗」。
-    // 只有確實找到已啟用的推播訂閱，且實際發送失敗時，才交由呼叫端顯示推播異常。
-    if(sent>0)return data;
-    if(subscriptions>0 && failed>0)throw new Error(data?.error||'已找到通知手機，但推播實際發送失敗');
-    return data||{ok:true,sent:0,failed:0};
+    if(!data?.ok)throw new Error(data?.error||'推播主機沒有回報成功');
+    if(!Number(data.sent||0))throw new Error(`找不到可接收「${kind||targetRole||'工作'}」通知的手機`);
+    return data;
   }catch(e){
     console.error('推播送出失敗',e);
     throw new Error('訂單已建立，但 iPhone 推播失敗：'+(e?.message||e));
@@ -3819,8 +3816,15 @@ async function startApp(user){
     if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
   }
   // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
-  await loadDelivery();await loadAccountingCloud();if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
-  activateTab(getRememberedTab(),{save:false});}
+  await loadDelivery();
+  await loadAccountingCloud();
+  if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
+  const rememberedTab=getRememberedTab();
+  activateTab(rememberedTab,{save:false});
+  // 帳務重新整理唯一恢復點：Auth/權限/雲端帳務資料/主頁切換都完成後才執行。
+  if(rememberedTab==='accounting'&&window.xrAccountingNav?.restore){
+    window.xrAccountingNav.restore();
+  }}
   catch(e){
     console.error(e);
     const msg=String(e?.message||e||'');
@@ -5412,19 +5416,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qBillRows(record){return (record.items||[]).map((x,i)=>({no:i+1,name:x.name||'',kg:x.kg===''?'':x.kg,qty:x.qty??'',pricing:x.pricing||'',price:x.price===''?'':x.price,freight:Number(x.freight)||0,amount:x.amount===''?'':Number(x.amount)||0}))}
   function qBillText(record){const c=qContact(record.customer),rows=qBillRows(record),hasFreight=rows.some(x=>x.freight);const lines=[qCompanyHeader,'客戶：'+record.customer,'日期：'+record.date,''];rows.forEach(x=>lines.push([x.no,x.name,(x.kg!==''?'公斤 '+x.kg:''),(x.qty!==''?'數量 '+x.qty:''),(x.price!==''?'單價 $'+Math.round(Number(x.price)||0):''),(hasFreight&&x.freight?'運費 $'+Math.round(x.freight):''),'金額 $'+Math.round(Number(x.amount)||0)].filter(Boolean).join('｜')));lines.push('','總計：$'+Math.round(Number(record.total)||0).toLocaleString('zh-TW'));if(c?.outputNote)lines.push('備註：'+c.outputNote);return lines.join('\n')}
   function qDownloadExcel(record){const rows=qBillRows(record),hasFreight=rows.some(x=>x.freight),c=qContact(record.customer),head=['序','品名','公斤','數量','計價','單價'].concat(hasFreight?['運費']:[]).concat(['金額']),csv=[qCompanyHeader,'客戶,'+record.customer,'日期,'+record.date,'',head.join(',')];rows.forEach(x=>csv.push([x.no,x.name,x.kg,x.qty,x.pricing,x.price].concat(hasFreight?[x.freight]:[]).concat([x.amount]).map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')));csv.push('','','總計,'+record.total);if(c?.outputNote)csv.push('備註,'+c.outputNote);const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(record.date+'_'+record.customer+'_欣儒帳單.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-  function qPrintBill(record,mode){const rows=qBillRows(record),hasFreight=rows.some(x=>x.freight),c=qContact(record.customer),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const narrow=mode==='80';const cols='<th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th>'+(hasFreight?'<th>運費</th>':'')+'<th>金額</th>';const body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price)+'</td>'+(hasFreight?'<td>'+qEsc(x.freight||'')+'</td>':'')+'<td>'+qEsc(x.amount)+'</td></tr>').join('');w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 帳單</title><style>@page{size:'+(narrow?'80mm auto':'A4')+';margin:'+(narrow?'4mm':'12mm')+'}body{font-family:'+(narrow?'monospace':'Arial,\"Microsoft JhengHei\",sans-serif')+';font-size:'+(narrow?'11px':'13px')+';margin:0}h2{margin:0 0 6px;text-align:'+(narrow?'center':'left')+'}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border-bottom:1px solid #999;padding:4px 2px;text-align:right}th:nth-child(2),td:nth-child(2){text-align:left}.total{text-align:right;font-size:16px;font-weight:900;margin-top:10px}.note{margin-top:8px}</style>
-<style id="acct-mobile-overflow-fix-175B5N8">
-/* 175B5N8：手機帳務內容只能在自己的表格區橫向捲動，不得把整個頁面撐到右側。 */
-@media(max-width:760px){
-  #accounting{width:100%!important;max-width:100vw!important;overflow-x:hidden!important;box-sizing:border-box!important}
-  #accounting .card,#accounting #acctManagementStage,#accounting #acctStageWork,#accounting .acctStageWork,#accounting .quickV2{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
-  #accounting .quickV2Table,#accounting .table{display:block!important;width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;-webkit-overflow-scrolling:touch!important;box-sizing:border-box!important}
-  #accounting .quickV2Row{width:max-content!important}
-  #accounting #qLedgerResult{min-width:0!important;max-width:100%!important;overflow:hidden!important}
-  #accounting #qLedgerResult .quickV2Table{overflow-x:auto!important}
-}
-</style>
-</head><body><h2>'+qCompanyHeader+'</h2><div>客戶：'+qEsc(record.customer)+'　日期：'+qEsc(record.date)+'</div><table><thead><tr>'+cols+'</tr></thead><tbody>'+body+'</tbody></table><div class="total">總計 $'+Math.round(Number(record.total)||0).toLocaleString('zh-TW')+'</div>'+(c?.outputNote?'<div class="note">備註：'+qEsc(c.outputNote)+'</div>':'')+'<script>window.onload=()=>{window.print()}<\/script></body></html>');w.document.close()}
+  function qPrintBill(record,mode){const rows=qBillRows(record),hasFreight=rows.some(x=>x.freight),c=qContact(record.customer),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const narrow=mode==='80';const cols='<th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th>'+(hasFreight?'<th>運費</th>':'')+'<th>金額</th>';const body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price)+'</td>'+(hasFreight?'<td>'+qEsc(x.freight||'')+'</td>':'')+'<td>'+qEsc(x.amount)+'</td></tr>').join('');w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 帳單</title><style>@page{size:'+(narrow?'80mm auto':'A4')+';margin:'+(narrow?'4mm':'12mm')+'}body{font-family:'+(narrow?'monospace':'Arial,\"Microsoft JhengHei\",sans-serif')+';font-size:'+(narrow?'11px':'13px')+';margin:0}h2{margin:0 0 6px;text-align:'+(narrow?'center':'left')+'}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border-bottom:1px solid #999;padding:4px 2px;text-align:right}th:nth-child(2),td:nth-child(2){text-align:left}.total{text-align:right;font-size:16px;font-weight:900;margin-top:10px}.note{margin-top:8px}</style></head><body><h2>'+qCompanyHeader+'</h2><div>客戶：'+qEsc(record.customer)+'　日期：'+qEsc(record.date)+'</div><table><thead><tr>'+cols+'</tr></thead><tbody>'+body+'</tbody></table><div class="total">總計 $'+Math.round(Number(record.total)||0).toLocaleString('zh-TW')+'</div>'+(c?.outputNote?'<div class="note">備註：'+qEsc(c.outputNote)+'</div>':'')+'<script>window.onload=()=>{window.print()}<\/script></body></html>');w.document.close()}
   function qBillCanvas(record){const rows=qBillRows(record),c=qContact(record.customer),hasFreight=rows.some(x=>x.freight),W=1080,pad=64,rowH=58,headH=250,noteH=c?.outputNote?90:35,H=headH+rowH*(rows.length+2)+noteH+pad,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111';x.textBaseline='middle';x.font='700 42px sans-serif';x.fillText(qCompanyHeader,pad,58);x.font='600 30px sans-serif';x.fillText('客戶：'+record.customer,pad,120);x.font='26px sans-serif';x.fillText('日期：'+record.date,pad,166);x.strokeStyle='#222';x.lineWidth=2;x.beginPath();x.moveTo(pad,205);x.lineTo(W-pad,205);x.stroke();const cols=hasFreight?[['序',45],['品名',255],['公斤',105],['數量',105],['單價',130],['運費',120],['金額',150]]:[['序',50],['品名',315],['公斤',115],['數量',115],['單價',145],['金額',165]];let cy=235,cx=pad;x.font='700 24px sans-serif';cols.forEach(([t,w],i)=>{x.textAlign=i===1?'left':'right';x.fillText(t,cx+w-8,cy);cx+=w});cy+=40;x.font='24px sans-serif';rows.forEach(r=>{cx=pad;const vals=hasFreight?[r.no,r.name,r.kg,r.qty,r.price,r.freight||'',Math.round(Number(r.amount)||0)]:[r.no,r.name,r.kg,r.qty,r.price,Math.round(Number(r.amount)||0)];cols.forEach(([t,w],i)=>{x.textAlign=i===1?'left':'right';let v=String(vals[i]??'');if(i===1&&v.length>12)v=v.slice(0,12)+'…';x.fillText(v,cx+w-8,cy);cx+=w});x.strokeStyle='#ddd';x.beginPath();x.moveTo(pad,cy+28);x.lineTo(W-pad,cy+28);x.stroke();cy+=rowH});x.textAlign='right';x.font='700 36px sans-serif';x.fillText('總計 $'+Math.round(Number(record.total)||0).toLocaleString('zh-TW'),W-pad,cy+18);cy+=75;if(c?.outputNote){x.textAlign='left';x.font='24px sans-serif';x.fillText('備註：'+c.outputNote,pad,cy)}return cv}
   function qCanvasBlob(record){return new Promise((resolve,reject)=>qBillCanvas(record).toBlob(b=>b?resolve(b):reject(new Error('帳單圖片產生失敗')),'image/png'))}
   async function qDownloadBillImage(record){try{const blob=await qCanvasBlob(record),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(record.date+'_'+record.customer+'_欣儒帳單.png').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}catch(e){alert(e.message||e)}}
@@ -5754,13 +5746,13 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
   });
-  const savedAcctNav=acctNavRead();
   function qRestoreAccountingNav(){
+    const savedAcctNav=acctNavRead();
     if(savedAcctNav?.layer==='workQueue'&&savedAcctNav.action){qOpenWorkQueue(savedAcctNav.action,true);return}
     if(savedAcctNav?.layer==='ledgerContact'&&savedAcctNav.recordId){
       open('ledger',true,{deferLedgerRender:true});
       const work=document.getElementById('acctStageWork');
-      if(work)qRenderLedgerSearch(work,savedAcctNav.recordId);
+      if(work)qRenderLedgerSearch(work,String(savedAcctNav.recordId).replace(/^(?:legacy:)+/i,''));
       return;
     }
     if(savedAcctNav?.section){
@@ -5776,28 +5768,12 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     }
     home(true);
   }
-  qRestoreAccountingNav();
-  // 175B5N7：重新整理登入後，等 accounting_records 真正載入完成，再依保存的帳本位置重畫一次。
-  // 修正：帳務頁實際 DOM id 是 accounting；舊版誤寫 page-accounting，導致雲端載入後的重畫永遠被 return 擋掉。
-  // 避免初始階段資料尚未就緒，畫面只留下 0299 搜尋框卻沒有帳本內容。
-  function qRepaintSavedLedgerAfterData(){
-    const nav=acctNavRead();
-    if(nav?.layer!=='ledgerContact'||!nav.recordId)return;
-    const acctPage=document.getElementById('accounting');
-    if(!acctPage||!acctPage.classList.contains('active'))return;
-    open('ledger',true,{deferLedgerRender:true});
-    const work=document.getElementById('acctStageWork');
-    if(work)qRenderLedgerSearch(work,String(nav.recordId).replace(/^(?:legacy:)+/i,''));
-  }
-  window.addEventListener('xinru:accounting-cloud-loaded',()=>{
-    // 175B5N6：雲端資料事件可能早於帳務頁完成顯示；事件當下與畫面穩定後都重畫一次。
-    qRepaintSavedLedgerAfterData();
-    setTimeout(qRepaintSavedLedgerAfterData,250);
-  });
-  // 重新整理時，即使 accounting-cloud-loaded 已在本段監聽器建立前發生，也補做一次。
-  setTimeout(qRepaintSavedLedgerAfterData,350);
+  // 第一階段核心：HTML 載入時只建立帳務首頁骨架，不搶先恢復第三層資料。
+  // 真正恢復由 startApp 在 Auth、權限、accounting_records 全部完成後唯一呼叫一次。
+  home(true);
+  // 第一階段核心：已移除 accounting-cloud-loaded / 250ms / 350ms 重複補畫。
   try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
-  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open};
+  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,restore:qRestoreAccountingNav};
 })();
 </script>
 
