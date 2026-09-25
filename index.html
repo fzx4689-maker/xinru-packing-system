@@ -2023,6 +2023,16 @@ body.auth-booting #mainApp{visibility:hidden!important}
           <input id="acctGlobalSearchInput" class="input" autocomplete="off" placeholder="🔍 搜尋客戶／產農／廠商／帳單／交易紀錄…">
           <button id="acctGlobalSearchClear" type="button" class="btn gray">清除</button>
         </div>
+        <div id="acctDateController" class="acctDateController" aria-label="全帳務共用日期查詢">
+          <b>📅 日期查詢</b>
+          <input id="acctDateFrom" class="input" type="date" aria-label="開始日期">
+          <span>～</span>
+          <input id="acctDateTo" class="input" type="date" aria-label="結束日期">
+          <button id="acctDateApply" type="button" class="btn blue">查詢</button>
+          <button id="acctDateToday" type="button" class="btn gray">今天</button>
+          <button id="acctDateClear" type="button" class="btn gray">清除日期</button>
+          <span id="acctDateStatus" class="helper">全部日期</span>
+        </div>
         <div id="acctGlobalSearchResults" class="acctGlobalSearchResults"></div>
         <div id="acctWorkBadges" class="acctWorkBadges" aria-label="帳務待辦">
           <button type="button" class="acctWorkBadge" data-work="dispatch_pending">🔴 待作帳 <strong data-work-count="dispatch_pending">0</strong></button>
@@ -4189,7 +4199,10 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 #refreshEmployeesBtn{display:none!important}.permissionExplain170B{display:grid;gap:12px;font-size:14px;line-height:1.65;padding:6px 2px}.permissionExplain170B>div{padding:11px 13px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.empSettingGroup{padding:11px 0;border-top:1px solid var(--line)}.empSettingGroup:first-of-type{border-top:0;padding-top:2px}.empSettingGroupTitle{font-size:13px;font-weight:900;color:#475467;margin-bottom:8px}.empDangerNote{font-size:11px;color:#667085;line-height:1.5;margin-top:7px}.empSettingsPanel .empMiniActions .btn{min-height:40px}.empSettingsPanel .emp-delete{color:#b4232c;background:#fff1f1}.employeeCompactSummary .empSummaryChip:first-child{background:#eef4ff}
 @media(max-width:700px){.empSettingGroup{padding:10px 0}.empSettingsPanel{padding:11px}.empSettingsPanel .empMiniActions{display:grid;grid-template-columns:1fr 1fr}.empSettingsPanel .empMiniActions .btn{width:100%;min-width:0}.permissionExplain170B{font-size:13px}}
 
-.acctGlobalSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:10px 0 12px}.acctGlobalSearch.hidden{display:none}.acctSearchSummary{border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;margin:6px 0;background:#fff}.acctSearchSummaryHead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.acctSearchSummaryHead small{color:#52657a}.acctSearchActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.acctSearchActions button,.acctSearchMore{border:1px solid #d7e0ea;background:#f7f9fb;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}.acctSearchRecent{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}.acctSearchRecent>b{width:100%;font-size:13px;color:#52657a}.acctSearchMore{background:#fff}@media(max-width:760px){.acctSearchActions{display:grid;grid-template-columns:1fr 1fr}.acctSearchActions button{width:100%}.acctSearchRecent .acctSearchResult{width:100%;text-align:left}}
+.acctGlobalSearch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:10px 0 8px}
+.acctDateController{display:grid;grid-template-columns:auto minmax(145px,190px) auto minmax(145px,190px) auto auto auto minmax(120px,1fr);gap:8px;align-items:center;margin:0 0 12px;padding:10px 12px;border:1px solid #d7e0ea;border-radius:13px;background:#f8fafc}
+.acctDateController>.helper{display:block!important;margin:0;color:#52657a;font-weight:700}
+@media(max-width:760px){.acctDateController{grid-template-columns:1fr 1fr}.acctDateController>b,.acctDateController>.helper{grid-column:1/-1}.acctDateController>span:not(.helper){display:none}.acctDateController .btn{width:100%}}.acctGlobalSearch.hidden{display:none}.acctSearchSummary{border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;margin:6px 0;background:#fff}.acctSearchSummaryHead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.acctSearchSummaryHead small{color:#52657a}.acctSearchActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.acctSearchActions button,.acctSearchMore{border:1px solid #d7e0ea;background:#f7f9fb;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}.acctSearchRecent{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}.acctSearchRecent>b{width:100%;font-size:13px;color:#52657a}.acctSearchMore{background:#fff}@media(max-width:760px){.acctSearchActions{display:grid;grid-template-columns:1fr 1fr}.acctSearchActions button{width:100%}.acctSearchRecent .acctSearchResult{width:100%;text-align:left}}
 .acctWorkBadges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acctWorkBadge{border:1px solid #d7e0ea;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.acctWorkBadge:hover{background:#f7fbff}.acctWorkBadge strong{font-size:17px;margin-left:4px}.acctWorkBadge[data-work="dispatch_pending"]{border-color:#f0b4b4}.acctWorkBadge[data-work="pending_price"]{border-color:#f3cc83}.acctWorkBadge[data-work="draft"]{border-color:#a9c6e8}.acctWorkBadge[data-work="money_pending"]{border-color:#acd7bb}@media(max-width:760px){.acctWorkBadges{display:grid;grid-template-columns:1fr 1fr}.acctWorkBadge{width:100%;text-align:left}}
 .acctGlobalSearchResults{display:none;border:1px solid #d7e0ea;border-radius:13px;background:#fff;margin:-4px 0 12px;overflow:hidden}.acctSearchResult{width:100%;display:grid;grid-template-columns:auto minmax(120px,.7fr) minmax(0,1.6fr);gap:8px;align-items:center;text-align:left;border:0;border-bottom:1px solid #edf1f5;background:#fff;padding:10px 12px;cursor:pointer}.acctSearchResult:last-child{border-bottom:0}.acctSearchResult:hover{background:#f7fbff}.acctSearchKind{font-size:11px;font-weight:900;background:#eef4ff;color:#245b8f;border-radius:999px;padding:3px 7px}.acctSearchResult small{color:#667085;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quickV2OutputPanel{border:1px solid #b8dfc8;background:#f2fff7;border-radius:14px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:center}.quickV2OutputBtns{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}@media(max-width:760px){.acctGlobalSearch{grid-template-columns:minmax(0,1fr) auto}.acctSearchResult{grid-template-columns:auto 1fr}.acctSearchResult small{grid-column:1/-1;white-space:normal}.quickV2OutputPanel{display:block}.quickV2OutputBtns{margin-top:9px;display:grid;grid-template-columns:1fr 1fr}.quickV2OutputBtns .btn{width:100%}}
 </style>
@@ -5428,8 +5441,34 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qAcctFilterRecords(rows,state=qAcctDateState()){return (Array.isArray(rows)?rows:[]).filter(r=>qAcctRecordInDateRange(r,state))}
   function qAcctDateLabel(state=qAcctDateState()){if(!state.dateFrom&&!state.dateTo)return '全部日期';if(state.dateFrom===state.dateTo)return state.dateFrom;return (state.dateFrom||'最早')+' ～ '+(state.dateTo||'最新')}
-  function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
-  function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});
+  function qAcctSyncDateController(){
+    const box=document.getElementById('acctDateController');if(!box)return;
+    const state=qAcctDateState(),from=document.getElementById('acctDateFrom'),to=document.getElementById('acctDateTo'),status=document.getElementById('acctDateStatus');
+    if(from)from.value=state.dateFrom||'';if(to)to.value=state.dateTo||'';if(status)status.textContent=qAcctDateLabel(state);
+  }
+  function qAcctRefreshCurrentRoute(){
+    const n=acctNavRead()||{};
+    if(n.layer==='globalTransactions'){qShowAllSearchTransactions(n.recordId||'',n.searchTerm||n.recordId||'',true);return}
+    if(n.layer==='detail'&&n.detailId){qRestoreAccountingNav();return}
+    if(n.layer==='ledgerContact'&&n.recordId){open('ledger',true,{deferLedgerRender:true});const w=document.getElementById('acctStageWork');if(w)qRenderLedgerSearch(w,n.recordId);return}
+    if(n.layer==='workQueue'&&n.action){qOpenWorkQueue(n.action,true);return}
+    if(n.section){open(n.section,true,{deferLedgerRender:!!n.action});if(n.action)qRenderAccountingAction(n.section,n.action,true);return}
+    qPaintGlobalSearch();
+  }
+  function qAcctApplyController(){
+    const from=document.getElementById('acctDateFrom')?.value||'',to=document.getElementById('acctDateTo')?.value||'';
+    if(!from&&!to){qAcctClearDateRange()}else qAcctSetDateRange(from,to);
+    qAcctSyncDateController();document.dispatchEvent(new CustomEvent('xinru:accounting-date-change',{detail:qAcctDateState()}));qAcctRefreshCurrentRoute();
+  }
+  function qAcctInitDateController(){
+    qAcctSyncDateController();
+    const apply=document.getElementById('acctDateApply'),today=document.getElementById('acctDateToday'),clear=document.getElementById('acctDateClear');
+    if(apply&&!apply.dataset.bound){apply.dataset.bound='1';apply.onclick=qAcctApplyController}
+    if(today&&!today.dataset.bound){today.dataset.bound='1';today.onclick=()=>{const d=qToday(),f=document.getElementById('acctDateFrom'),t=document.getElementById('acctDateTo');if(f)f.value=d;if(t)t.value=d;qAcctApplyController()}}
+    if(clear&&!clear.dataset.bound){clear.dataset.bound='1';clear.onclick=()=>{const f=document.getElementById('acctDateFrom'),t=document.getElementById('acctDateTo');if(f)f.value='';if(t)t.value='';qAcctApplyController()}}
+  }
+  function home(skipNavSave=false){qAcctSyncDateController();if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
+  function open(key,skipNavSave=false,opts={}){qAcctSyncDateController();if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});
     const d=defs[key];if(!d)return;
     grid.style.display='none';stage.style.display='block';document.querySelector('.acctGlobalSearch')?.classList.add('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
     const bankLocked=(key==='payment' && !(typeof isAdmin==='function'&&isAdmin()));
@@ -5571,7 +5610,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const raw=String(term||'').trim(),q=raw.toLowerCase();if(!q)return {contacts:[],records:[],dateQuery:null};
     const dateQuery=qAcctDateQuery(raw);
     const contacts=dateQuery?[]:qProfiles().filter(c=>[c.name,c.formalName,c.code,c.phone,c.groupName,c.parentUnit,c.payer,c.identity,c.accountMode,c.settlement,c.customSettlement,c.note,c.outputNote,(c.vehicles||[]).map(v=>v.plate).join(' ')].join(' ').toLowerCase().includes(q));
-    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
+    const all=qAcctFilterRecords((typeof acctRecords==='function'?acctRecords():[]).filter(Boolean));
     let records=dateQuery?all.filter(r=>qAcctMatchesDateQuery(r,dateQuery)):all.filter(r=>[r.customer,r.lookupInput,r.vehiclePlate,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q));
     records.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
     return {contacts:contacts.slice(0,8),records,dateQuery};
@@ -5586,7 +5625,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return {record:r,kind,label,total,receivable:counts?receivable:0,payable:counts?payable:0,signed:counts?signed:0,isVoid,isDraft,pending,counts};
   }
   function qLedgerForContact(c,includeVoid=false){
-    const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='draft');
+    const source=qAcctFilterRecords((typeof acctRecords==='function'?acctRecords():[])).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='draft');
     const entries=source.map(qLedgerEntry).filter(x=>includeVoid||!x.isVoid).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
     let running=0;entries.forEach(x=>{running+=x.signed;x.running=running});
     const active=entries.filter(x=>!x.isVoid), receivable=active.reduce((a,x)=>a+x.receivable,0), payable=active.reduce((a,x)=>a+x.payable,0), pendingCount=active.filter(x=>x.pending).length;
@@ -5663,7 +5702,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     open('entry',true);
     const w=document.getElementById('acctStageWork');if(!w)return;
     const c=qContact(publicKey),dateQuery=qAcctDateQuery(publicTerm);
-    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(!publicKey||(c?qRecordBelongsToContact(r,c):String(r.customer||'')===String(publicKey)))).filter(r=>{if(!publicTerm)return true;if(dateQuery)return qAcctMatchesDateQuery(r,dateQuery);const q=String(publicTerm).toLowerCase();return [r.customer,r.lookupInput,r.vehiclePlate,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q)}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    const all=qAcctFilterRecords((typeof acctRecords==='function'?acctRecords():[])).filter(r=>r&&(!publicKey||(c?qRecordBelongsToContact(r,c):String(r.customer||'')===String(publicKey)))).filter(r=>{if(!publicTerm)return true;if(dateQuery)return qAcctMatchesDateQuery(r,dateQuery);const q=String(publicTerm).toLowerCase();return [r.customer,r.lookupInput,r.vehiclePlate,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q)}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
     w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><b>🧾 交易紀錄｜'+qEsc(publicKey||publicTerm)+'｜'+all.length+' 筆</b><button type="button" class="btn gray" id="qSearchAllBack">← 返回帳務中心</button></div><div>'+ (all.length?all.map(r=>'<div class="quickV2Record" data-search-record="'+qEsc(r.id)+'" style="cursor:pointer"><b>'+qEsc(r.date||'')+'｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</div></div>').join(''):'<div class="empty">沒有交易紀錄</div>')+'</div></div>';
     w.querySelector('#qSearchAllBack').onclick=()=>home();
     w.querySelectorAll('[data-search-record]').forEach(card=>card.onclick=()=>qShowRecordDetail(w,card.dataset.searchRecord,'searchall:'+publicKey+'|'+publicTerm));
@@ -5733,6 +5772,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(a==='all')return qShowAllSearchTransactions(name,term);
   }
   function qInitAccountingHomeUi(){
+    try{qAcctInitDateController()}catch(err){console.warn('日期查詢稍後載入',err)}
     try{qPaintWorkBadges()}catch(err){console.warn('帳務待辦稍後載入',err)}
     const input=document.getElementById('acctGlobalSearchInput');
     if(input&&!input.dataset.qSearchBound){
@@ -5955,7 +5995,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   home(true);
   // 第一階段核心：已移除 accounting-cloud-loaded / 250ms / 350ms 重複補畫。
   try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
-  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery}};
+  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery,init:qAcctInitDateController,apply:qAcctApplyController,refresh:qAcctRefreshCurrentRoute}};
 })();
 </script>
 
