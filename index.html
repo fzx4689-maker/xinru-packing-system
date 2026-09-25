@@ -3820,10 +3820,32 @@ async function startApp(user){
   await loadAccountingCloud();
   if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
   const rememberedTab=getRememberedTab();
+  // N10R2：若重新整理時原本就在帳務內層，先隱藏帳務 panel。
+  // 等唯一 restore 完成後才一次顯示，避免先看到帳務中心第一層再跳回原頁。
+  const accountingPanel=document.getElementById('accounting');
+  const savedAccountingNav=(rememberedTab==='accounting'&&window.xrAccountingNav?.read)
+    ? window.xrAccountingNav.read()
+    : null;
+  const hasSavedAccountingLayer=!!(
+    savedAccountingNav &&
+    (savedAccountingNav.layer==='workQueue' ||
+     savedAccountingNav.layer==='ledgerContact' ||
+     savedAccountingNav.layer==='contactEditor' ||
+     savedAccountingNav.section)
+  );
+  if(rememberedTab==='accounting'&&hasSavedAccountingLayer&&accountingPanel){
+    accountingPanel.style.visibility='hidden';
+  }
   activateTab(rememberedTab,{save:false});
   // 帳務重新整理唯一恢復點：Auth/權限/雲端帳務資料/主頁切換都完成後才執行。
   if(rememberedTab==='accounting'&&window.xrAccountingNav?.restore){
-    window.xrAccountingNav.restore();
+    try{
+      window.xrAccountingNav.restore();
+    }finally{
+      if(accountingPanel)accountingPanel.style.visibility='';
+    }
+  }else if(accountingPanel){
+    accountingPanel.style.visibility='';
   }}
   catch(e){
     console.error(e);
