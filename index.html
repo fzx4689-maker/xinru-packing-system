@@ -3807,7 +3807,36 @@ function showApp(){
   updatePwaPushButton();
 }
 async function startApp(user){
-  try{currentUser=user;currentProfile=await loadMyProfile(user);v17LoadedFor='';v17Perm={pages:[],funcs:[],configured:false};await v17LoadMine();applyNotificationSoundDefault();showApp();if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();if(currentIsDriver()){
+  try{
+    currentUser=user;
+    currentProfile=await loadMyProfile(user);
+    v17LoadedFor='';
+    v17Perm={pages:[],funcs:[],configured:false};
+    await v17LoadMine();
+    applyNotificationSoundDefault();
+
+    // N10R3：在主畫面第一次顯示之前就判斷是否要恢復帳務內層。
+    // 若是，整個 mainApp 維持 hidden，直到資料與原頁都恢復完成，避免任何第一層/首頁被畫到螢幕。
+    const bootRememberedTab=getRememberedTab();
+    const bootAccountingNav=(bootRememberedTab==='accounting'&&window.xrAccountingNav?.read)
+      ? window.xrAccountingNav.read()
+      : null;
+    const bootHasAccountingLayer=!!(
+      bootAccountingNav &&
+      (bootAccountingNav.layer==='workQueue' ||
+       bootAccountingNav.layer==='ledgerContact' ||
+       bootAccountingNav.layer==='contactEditor' ||
+       bootAccountingNav.section)
+    );
+
+    showApp();
+    if(bootRememberedTab==='accounting'&&bootHasAccountingLayer){
+      const mainApp=document.getElementById('mainApp');
+      if(mainApp)mainApp.style.visibility='hidden';
+    }
+
+    if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();
+    if(currentIsDriver()){
     // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
     // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
     const saved=localStorage.getItem('xinru_delivery_driver_filter');
@@ -3819,34 +3848,16 @@ async function startApp(user){
   await loadDelivery();
   await loadAccountingCloud();
   if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
-  const rememberedTab=getRememberedTab();
-  // N10R2：若重新整理時原本就在帳務內層，先隱藏帳務 panel。
-  // 等唯一 restore 完成後才一次顯示，避免先看到帳務中心第一層再跳回原頁。
-  const accountingPanel=document.getElementById('accounting');
-  const savedAccountingNav=(rememberedTab==='accounting'&&window.xrAccountingNav?.read)
-    ? window.xrAccountingNav.read()
-    : null;
-  const hasSavedAccountingLayer=!!(
-    savedAccountingNav &&
-    (savedAccountingNav.layer==='workQueue' ||
-     savedAccountingNav.layer==='ledgerContact' ||
-     savedAccountingNav.layer==='contactEditor' ||
-     savedAccountingNav.section)
-  );
-  if(rememberedTab==='accounting'&&hasSavedAccountingLayer&&accountingPanel){
-    accountingPanel.style.visibility='hidden';
-  }
+  const rememberedTab=bootRememberedTab;
   activateTab(rememberedTab,{save:false});
-  // 帳務重新整理唯一恢復點：Auth/權限/雲端帳務資料/主頁切換都完成後才執行。
-  if(rememberedTab==='accounting'&&window.xrAccountingNav?.restore){
-    try{
-      window.xrAccountingNav.restore();
-    }finally{
-      if(accountingPanel)accountingPanel.style.visibility='';
-    }
-  }else if(accountingPanel){
-    accountingPanel.style.visibility='';
-  }}
+
+  // 唯一恢復點：先在不可見狀態完成原頁，再一次顯示整個 App。
+  if(rememberedTab==='accounting'&&bootHasAccountingLayer&&window.xrAccountingNav?.restore){
+    window.xrAccountingNav.restore();
+  }
+  const mainApp=document.getElementById('mainApp');
+  if(mainApp)mainApp.style.visibility='visible';
+  }
   catch(e){
     console.error(e);
     const msg=String(e?.message||e||'');
