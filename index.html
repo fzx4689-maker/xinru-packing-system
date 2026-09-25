@@ -5762,12 +5762,13 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     home(true);
   }
   qRestoreAccountingNav();
-  // 175B5N3：重新整理登入後，等 accounting_records 真正載入完成，再依保存的帳本位置重畫一次。
+  // 175B5N7：重新整理登入後，等 accounting_records 真正載入完成，再依保存的帳本位置重畫一次。
+  // 修正：帳務頁實際 DOM id 是 accounting；舊版誤寫 page-accounting，導致雲端載入後的重畫永遠被 return 擋掉。
   // 避免初始階段資料尚未就緒，畫面只留下 0299 搜尋框卻沒有帳本內容。
   function qRepaintSavedLedgerAfterData(){
     const nav=acctNavRead();
     if(nav?.layer!=='ledgerContact'||!nav.recordId)return;
-    const acctPage=document.getElementById('page-accounting');
+    const acctPage=document.getElementById('accounting');
     if(!acctPage||!acctPage.classList.contains('active'))return;
     open('ledger',true,{deferLedgerRender:true});
     const work=document.getElementById('acctStageWork');
