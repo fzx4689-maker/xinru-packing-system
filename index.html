@@ -4206,15 +4206,6 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 .acctDateController>.btn{flex:0 0 auto;width:auto}
 .acctDateController>.helper{display:block!important;flex:0 0 auto;margin:0;color:#52657a;font-weight:700}
 
-.acctDateController.acctDateNested{padding:7px 10px!important;margin:0 0 10px!important;background:#f8fafc!important}
-.acctDateController.acctDateNested>b,
-.acctDateController.acctDateNested>input,
-.acctDateController.acctDateNested>span:not(.helper),
-.acctDateController.acctDateNested>#acctDateApply,
-.acctDateController.acctDateNested>#acctDateToday{display:none!important}
-.acctDateController.acctDateNested>#acctDateClear{display:inline-flex!important}
-.acctDateController.acctDateNested>.helper{display:inline!important;font-size:13px!important}
-.acctDateController.acctDateNested::before{content:"📅 查詢期間：" attr(data-date-label);font-weight:800;color:#334155}
 .acctDateResults{border:1px solid #d7e0ea;border-radius:12px;background:#fff;padding:10px 12px;margin:0 0 12px}
 .acctDateResultsHead{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .acctDateResult{display:block;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:9px 11px;margin:6px 0;cursor:pointer}
@@ -5460,11 +5451,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qAcctDateLabel(state=qAcctDateState()){if(!state.dateFrom&&!state.dateTo)return '全部日期';if(state.dateFrom===state.dateTo)return state.dateFrom;return (state.dateFrom||'最早')+' ～ '+(state.dateTo||'最新')}
   function qAcctSyncDateController(){
     const box=document.getElementById('acctDateController');if(!box)return;
-    const state=qAcctDateState(),from=document.getElementById('acctDateFrom'),to=document.getElementById('acctDateTo'),status=document.getElementById('acctDateStatus'),nav=acctNavRead()||{},nested=!!(nav.section||nav.layer&&nav.layer!=='home');
+    const state=qAcctDateState(),from=document.getElementById('acctDateFrom'),to=document.getElementById('acctDateTo'),status=document.getElementById('acctDateStatus');
     const label=qAcctDateLabel(state);
     if(from)from.value=state.dateFrom||'';if(to)to.value=state.dateTo||'';if(status)status.textContent=label;
-    box.classList.toggle('acctDateNested',nested);box.dataset.dateLabel=label;
-    box.style.display=(!nested||state.dateFrom||state.dateTo)?'flex':'none';
+    // N20：全帳務共用同一個 Date Controller。第一層、第二層、第三層皆可直接改日期。
+    box.classList.remove('acctDateNested');box.dataset.dateLabel=label;box.style.display='flex';
   }
   function qPaintDateRangeResults(){
     const box=document.getElementById('acctGlobalSearchResults');if(!box)return;
