@@ -5397,7 +5397,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 (function(){
   const defs={
     entry:{title:'✍️ 快速做帳',desc:'銷貨／進貨、運費、草稿、待補價格與周轉物統一在這裡完成。',items:['開始快速做帳','今日做帳紀錄']},
-    farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'每日入貨可先不填價格；週帳與實際付款分開。',items:['今日入貨','待補價格','本週週帳','待領款']},
+    farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'入貨可先不填價格；週帳與實際付款分開。',items:['入貨紀錄','待補價格','本週週帳','待領款']},
     vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','異常處理','廠商對帳']},
     payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 收支查詢','🏦 資金帳戶','📊 報表']},
     ledger:{title:'📒 帳本查詢',desc:'搜尋往來對象，直接查看完整應收／應付與帳本。',items:[]},
@@ -5937,10 +5937,21 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(typeof loadAccountingCloud==='function')await loadAccountingCloud();alert('開發測試帳已清除。');renderFarmerToday(work)
     }catch(e){alert('清除失敗：'+e.message)}
   }
+  function qRecordPartyIdentity(r){
+    const c=qContact(r?.contactId||r?.customer||r?.lookupInput||'');
+    return String(c?.identity||c?.type||r?.type||'').trim();
+  }
+  function qIsFarmerPurchaseRecord(r){
+    if(!r||r.status==='void'||r.status==='draft')return false;
+    if(!/產農/.test(qRecordPartyIdentity(r)))return false;
+    const txn=String(r.txnType||'').toLowerCase(),label=String(r.txnTypeLabel||'');
+    // 新版快速做帳用 purchase/進貨；舊產農紀錄若沒有 txnType，仍依產農身分保留相容。
+    return txn==='purchase'||/進貨/.test(label)||(!txn&&!label);
+  }
   function renderFarmerToday(work){
-    const day=qToday(),dateState=qAcctDateState(),hasDate=!!(dateState.from||dateState.to),source=(typeof acctRecords==='function'?acctRecords():[]),rows=(hasDate?qAcctFilterRecords(source):source.filter(x=>qAcctRecordDate(x)===day)).filter(x=>x&&x.mode==='quick_v2'&&x.status!=='void'&&x.type==='產農');
+    const day=qToday(),dateState=qAcctDateState(),hasDate=!!(dateState.dateFrom||dateState.dateTo),source=(typeof acctRecords==='function'?acctRecords():[]),rows=(hasDate?qAcctFilterRecords(source):source.filter(x=>qAcctRecordDate(x)===day)).filter(qIsFarmerPurchaseRecord).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
     const total=rows.reduce((sum,r)=>sum+(Number(r.total)||0),0),pending=rows.reduce((sum,r)=>sum+(Array.isArray(r.items)?r.items.filter(x=>x&&x.price==='').length:0),0),admin=(typeof isAdmin==='function'&&isAdmin()),dateLabel=hasDate?qAcctDateLabel(dateState):day;
-    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧑‍🌾 入貨紀錄｜'+qEsc(dateLabel)+'</b><div class="helper" style="display:block!important;margin-top:5px">直接讀取今天已儲存的產農交易；修改會回寫原交易，不建立第二筆。</div></div><div style="text-align:right"><b>共 '+rows.length+' 筆｜$'+Math.round(total).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important">'+(pending?'待補價格 '+pending+' 項':'價格已完整')+'</div>'+(admin?'<button type="button" class="btn gray" id="clearDevAcct" style="margin-top:8px">🧹 清除開發測試帳</button>':'')+'</div></div><div id="farmerTodayList">'+(rows.length?rows.map(r=>'<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+qEsc(r.customer)+'</b><div class="helper" style="display:block!important">'+qEsc(r.createdBy||'')+(r.note?'｜'+qEsc(r.note):'')+'｜<span style="font-weight:700">測試資料</span></div></div><div style="display:flex;align-items:center;gap:10px"><b>$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b><button type="button" class="btn blue farmerEditBtn" data-edit-id="'+qEsc(r.id)+'">✏️ 修改</button></div></div><div class="quickV2Table" style="margin-top:10px"><div class="quickV2Row quickV2Labels" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 110px 90px 120px"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>單價</span><span>籃數</span><span>金額</span></div>'+((r.items||[]).map((x,i)=>'<div class="quickV2Row" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 110px 90px 120px"><b>'+(i+1)+'</b><b>'+qEsc(x.name||'')+'</b><span>'+qEsc(x.kg===''?'—':x.kg)+'</span><span>'+qEsc(x.qty??'')+'</span><span>'+(x.price===''?'待補價':'$'+Math.round(Number(x.price)||0).toLocaleString('zh-TW'))+'</span><span>'+qEsc(x.basket===''?'—':x.basket)+'</span><b>'+(x.amount===''?'—':'$'+Math.round(Number(x.amount)||0).toLocaleString('zh-TW'))+'</b></div>').join(''))+'</div></div>').join(''):'<div class="empty" style="padding:18px">今天尚無產農入貨資料</div>')+'</div></div>';
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧑‍🌾 入貨紀錄｜'+qEsc(dateLabel)+'</b><div class="helper" style="display:block!important;margin-top:5px">依共用日期讀取產農進貨；往來身分以主檔為優先，修改會回寫原交易，不建立第二筆。</div></div><div style="text-align:right"><b>共 '+rows.length+' 筆｜$'+Math.round(total).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important">'+(pending?'待補價格 '+pending+' 項':'價格已完整')+'</div>'+(admin?'<button type="button" class="btn gray" id="clearDevAcct" style="margin-top:8px">🧹 清除開發測試帳</button>':'')+'</div></div><div id="farmerTodayList">'+(rows.length?rows.map(r=>'<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+qEsc(r.customer)+'</b><div class="helper" style="display:block!important">'+qEsc(r.createdBy||'')+(r.note?'｜'+qEsc(r.note):'')+'｜<span style="font-weight:700">測試資料</span></div></div><div style="display:flex;align-items:center;gap:10px"><b>$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</b><button type="button" class="btn blue farmerEditBtn" data-edit-id="'+qEsc(r.id)+'">✏️ 修改</button></div></div><div class="quickV2Table" style="margin-top:10px"><div class="quickV2Row quickV2Labels" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 110px 90px 120px"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>單價</span><span>籃數</span><span>金額</span></div>'+((r.items||[]).map((x,i)=>'<div class="quickV2Row" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 110px 90px 120px"><b>'+(i+1)+'</b><b>'+qEsc(x.name||'')+'</b><span>'+qEsc(x.kg===''?'—':x.kg)+'</span><span>'+qEsc(x.qty??'')+'</span><span>'+(x.price===''?'待補價':'$'+Math.round(Number(x.price)||0).toLocaleString('zh-TW'))+'</span><span>'+qEsc(x.basket===''?'—':x.basket)+'</span><b>'+(x.amount===''?'—':'$'+Math.round(Number(x.amount)||0).toLocaleString('zh-TW'))+'</b></div>').join(''))+'</div></div>').join(''):'<div class="empty" style="padding:18px">此日期範圍尚無產農入貨資料</div>')+'</div></div>';
     work.querySelectorAll('.farmerEditBtn').forEach(btn=>btn.onclick=()=>renderFarmerEdit(work,btn.dataset.editId));
     work.querySelector('#clearDevAcct')?.addEventListener('click',()=>qClearDevTestData(work));
   }
@@ -5956,7 +5967,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       return;
     }
     if(a==='今日做帳紀錄'){renderQuickToday(work);return;}
-    if(a==='今日入貨'){renderFarmerToday(work);return;}
+    if(a==='入貨紀錄'||a==='今日入貨'){renderFarmerToday(work);return;}
     if(a==='待補價格'){renderPendingPrices(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
     // 尚未實作資料內容的入口也保存同一個正式 route；未來 renderer 接上後不用重做刷新核心。
