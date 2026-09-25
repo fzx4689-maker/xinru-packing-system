@@ -5392,36 +5392,42 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function acctNavWrite(patch){try{const cur=acctNavRead()||{};localStorage.setItem(ACCT_NAV_KEY,JSON.stringify({...cur,...patch,updatedAt:new Date().toISOString()}))}catch(e){}}
   function acctNavClear(){try{localStorage.removeItem(ACCT_NAV_KEY)}catch(e){}}
 
-  // N14：全帳務共用日期查詢核心。所有帳務模組只讀這一份 dateFrom/dateTo。
+  // N14R：日期核心。完整日期用 ISO；使用者輸入 M/D 時不猜年份，直接以月/日比對正式紀錄。
   function qAcctIsoDate(v){
     const x=String(v||'').trim();if(!x)return '';
-    if(/^\d{4}-\d{2}-\d{2}$/.test(x))return x;
-    const m=x.match(/^(?:(\d{4})[\/-])?(\d{1,2})[\/-](\d{1,2})$/);if(!m)return '';
-    const y=Number(m[1]||new Date().getFullYear()),mo=Number(m[2]),d=Number(m[3]);
-    const dt=new Date(y,mo-1,d);if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d)return '';
+    const m=x.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);if(!m)return '';
+    const y=Number(m[1]),mo=Number(m[2]),d=Number(m[3]),dt=new Date(y,mo-1,d);
+    if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d)return '';
     return String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
   }
+  function qAcctDateQuery(v){
+    const raw=String(v||'').trim(),iso=qAcctIsoDate(raw);
+    if(iso)return {kind:'iso',iso,md:iso.slice(5),label:iso};
+    const m=raw.match(/^(\d{1,2})[\/-](\d{1,2})$/);if(!m)return null;
+    const mo=Number(m[1]),d=Number(m[2]),probe=new Date(2000,mo-1,d);
+    if(probe.getMonth()!==mo-1||probe.getDate()!==d)return null;
+    const md=String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    return {kind:'md',iso:'',md,label:String(mo)+'/'+String(d)};
+  }
+  function qAcctRecordDate(r){return qAcctIsoDate(r?.date||r?.record_date||'')}
+  function qAcctMatchesDateQuery(r,q){
+    if(!q)return false;const d=qAcctRecordDate(r);if(!d)return false;
+    return q.kind==='iso'?d===q.iso:d.slice(5)===q.md;
+  }
   function qAcctDateState(){
-    const n=acctNavRead()||{};
-    return {dateFrom:qAcctIsoDate(n.dateFrom||''),dateTo:qAcctIsoDate(n.dateTo||'')};
+    const n=acctNavRead()||{};return {dateFrom:qAcctIsoDate(n.dateFrom||''),dateTo:qAcctIsoDate(n.dateTo||'')};
   }
   function qAcctSetDateRange(from='',to=''){
-    let f=qAcctIsoDate(from),t=qAcctIsoDate(to);
-    if(f&&!t)t=f;if(t&&!f)f=t;if(f&&t&&f>t){const z=f;f=t;t=z}
-    acctNavWrite({dateFrom:f,dateTo:t});
-    return {dateFrom:f,dateTo:t};
+    let f=qAcctIsoDate(from),t=qAcctIsoDate(to);if(f&&!t)t=f;if(t&&!f)f=t;if(f&&t&&f>t){const z=f;f=t;t=z}
+    acctNavWrite({dateFrom:f,dateTo:t});return {dateFrom:f,dateTo:t};
   }
   function qAcctClearDateRange(){acctNavWrite({dateFrom:'',dateTo:''});return {dateFrom:'',dateTo:''}}
   function qAcctRecordInDateRange(r,state=qAcctDateState()){
-    const d=qAcctIsoDate(r?.date||r?.record_date||'');if(!state.dateFrom&&!state.dateTo)return true;if(!d)return false;
+    const d=qAcctRecordDate(r);if(!state.dateFrom&&!state.dateTo)return true;if(!d)return false;
     return (!state.dateFrom||d>=state.dateFrom)&&(!state.dateTo||d<=state.dateTo);
   }
   function qAcctFilterRecords(rows,state=qAcctDateState()){return (Array.isArray(rows)?rows:[]).filter(r=>qAcctRecordInDateRange(r,state))}
-  function qAcctDateLabel(state=qAcctDateState()){
-    if(!state.dateFrom&&!state.dateTo)return '全部日期';
-    if(state.dateFrom===state.dateTo)return state.dateFrom;
-    return (state.dateFrom||'最早')+' ～ '+(state.dateTo||'最新');
-  }
+  function qAcctDateLabel(state=qAcctDateState()){if(!state.dateFrom&&!state.dateTo)return '全部日期';if(state.dateFrom===state.dateTo)return state.dateFrom;return (state.dateFrom||'最早')+' ～ '+(state.dateTo||'最新')}
   function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
   function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});
     const d=defs[key];if(!d)return;
@@ -5562,13 +5568,13 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     });
   }
   function qGlobalSearch(term){
-    const raw=String(term||'').trim(),q=raw.toLowerCase();if(!q)return {contacts:[],records:[],dateKey:''};
-    const dateKey=qAcctIsoDate(raw);
-    const contacts=dateKey?[]:qProfiles().filter(c=>[c.name,c.formalName,c.code,c.phone,c.groupName,c.parentUnit,c.payer,c.identity,c.accountMode,c.settlement,c.customSettlement,c.note,c.outputNote,(c.vehicles||[]).map(v=>v.plate).join(' ')].join(' ').toLowerCase().includes(q));
+    const raw=String(term||'').trim(),q=raw.toLowerCase();if(!q)return {contacts:[],records:[],dateQuery:null};
+    const dateQuery=qAcctDateQuery(raw);
+    const contacts=dateQuery?[]:qProfiles().filter(c=>[c.name,c.formalName,c.code,c.phone,c.groupName,c.parentUnit,c.payer,c.identity,c.accountMode,c.settlement,c.customSettlement,c.note,c.outputNote,(c.vehicles||[]).map(v=>v.plate).join(' ')].join(' ').toLowerCase().includes(q));
     const all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
-    let records=dateKey?all.filter(r=>qAcctIsoDate(r.date)===dateKey):all.filter(r=>[r.customer,r.lookupInput,r.vehiclePlate,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q));
+    let records=dateQuery?all.filter(r=>qAcctMatchesDateQuery(r,dateQuery)):all.filter(r=>[r.customer,r.lookupInput,r.vehiclePlate,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q));
     records.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
-    return {contacts:contacts.slice(0,8),records,dateKey};
+    return {contacts:contacts.slice(0,8),records,dateQuery};
   }
   // 175B5H：正式帳本只讀核心。只從既有 accounting_records 推導，不建立第二份帳本資料。
   function qLedgerEntry(r){
@@ -5656,8 +5662,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(!skipNavSave)acctNavWrite({layer:'globalTransactions',section:'entry',action:'all',recordId:publicKey,detailId:'',backMode:'',searchTerm:publicTerm});
     open('entry',true);
     const w=document.getElementById('acctStageWork');if(!w)return;
-    const c=qContact(publicKey),dateKey=qAcctIsoDate(publicTerm);
-    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(!publicKey||(c?qRecordBelongsToContact(r,c):String(r.customer||'')===String(publicKey)))).filter(r=>{if(!publicTerm)return true;if(dateKey)return qAcctIsoDate(r.date)===dateKey;const q=String(publicTerm).toLowerCase();return [r.customer,r.lookupInput,r.vehiclePlate,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q)}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    const c=qContact(publicKey),dateQuery=qAcctDateQuery(publicTerm);
+    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(!publicKey||(c?qRecordBelongsToContact(r,c):String(r.customer||'')===String(publicKey)))).filter(r=>{if(!publicTerm)return true;if(dateQuery)return qAcctMatchesDateQuery(r,dateQuery);const q=String(publicTerm).toLowerCase();return [r.customer,r.lookupInput,r.vehiclePlate,r.date,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q)}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
     w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><b>🧾 交易紀錄｜'+qEsc(publicKey||publicTerm)+'｜'+all.length+' 筆</b><button type="button" class="btn gray" id="qSearchAllBack">← 返回帳務中心</button></div><div>'+ (all.length?all.map(r=>'<div class="quickV2Record" data-search-record="'+qEsc(r.id)+'" style="cursor:pointer"><b>'+qEsc(r.date||'')+'｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important">'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</div></div>').join(''):'<div class="empty">沒有交易紀錄</div>')+'</div></div>';
     w.querySelector('#qSearchAllBack').onclick=()=>home();
     w.querySelectorAll('[data-search-record]').forEach(card=>card.onclick=()=>qShowRecordDetail(w,card.dataset.searchRecord,'searchall:'+publicKey+'|'+publicTerm));
@@ -5675,8 +5681,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const related=primary?records.filter(r=>qRecordBelongsToContact(r,primary)):records;
     const recent=related.slice(0,3);
     let html='';
-    if(data.dateKey){
-      html+='<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">日期查詢</span><b>'+qEsc(data.dateKey)+'</b><small>共 '+records.length+' 筆帳務紀錄</small></div><div class="acctSearchActions"><button type="button" data-search-action="dateall">🗓️ 查看當日全部紀錄（'+records.length+'）</button></div></div>';
+    if(data.dateQuery){
+      html+='<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">日期查詢</span><b>'+qEsc(data.dateQuery.label)+'</b><small>共 '+records.length+' 筆帳務紀錄</small></div>'+(records.length?'<div class="acctSearchActions"><button type="button" data-search-action="dateall">🗓️ 查看當日全部紀錄（'+records.length+'）</button></div>':'')+'</div>';
     }
     if(primary){
       html+='<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">往來資料</span><b>'+qEsc(primary.name)+'</b><small>'+qEsc([primary.identity,primary.accountMode,primary.settlement,primary.customSettlement].filter(Boolean).join('｜'))+'</small></div><div class="acctSearchActions"><button type="button" data-search-action="ledger">📒 帳本</button><button type="button" data-search-action="entry">✍️ 做帳</button><button type="button" data-search-action="payment">💰 收付款</button>'+(primaryIsStored?'<button type="button" data-search-action="contact">👥 查看／編輯</button>':'')+'<button type="button" data-search-action="all">🧾 交易紀錄（'+related.length+'）</button></div></div>';
@@ -5684,7 +5690,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(recent.length){
       html+='<div class="acctSearchRecent"><b>最近交易</b>'+recent.map(r=>'<button type="button" class="acctSearchResult" data-search-record="'+qEsc(r.id)+'"><span class="acctSearchKind">交易</span><b>'+qEsc((r.date||'')+'｜'+(r.customer||''))+'</b><small>'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</small></button>').join('')+(related.length>3?'<button type="button" class="acctSearchMore" data-search-action="all">查看全部 '+related.length+' 筆交易 →</button>':'')+'</div>';
     }
-    if(!primary&&!recent.length)html='<div class="empty">查無符合資料</div>';
+    if(!primary&&!recent.length&&!data.dateQuery)html='<div class="empty">查無符合資料</div>';
     box.innerHTML=html;
   }
   let qSearchTimer=null;
@@ -5723,9 +5729,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(a==='ledger'&&name)return qOpenLedgerFromSearch(name);
     if(a==='entry'&&name)return qOpenEntryForContact(name);
     if(a==='payment'&&name)return qOpenPaymentForContact(name);
-    if(a==='dateall'){
-      const d=qAcctIsoDate(term);if(d){qAcctSetDateRange(d,d);return qShowAllSearchTransactions('',d)}
-    }
+    if(a==='dateall')return qShowAllSearchTransactions('',term);
     if(a==='all')return qShowAllSearchTransactions(name,term);
   }
   function qInitAccountingHomeUi(){
@@ -5951,9 +5955,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   home(true);
   // 第一階段核心：已移除 accounting-cloud-loaded / 250ms / 350ms 重複補畫。
   try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
-  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,date:{
-    read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate
-  }};
+  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery}};
 })();
 </script>
 
