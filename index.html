@@ -5391,8 +5391,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function acctNavRead(){try{const x=JSON.parse(localStorage.getItem(ACCT_NAV_KEY)||'null');return x&&typeof x==='object'?x:null}catch(e){return null}}
   function acctNavWrite(patch){try{const cur=acctNavRead()||{};localStorage.setItem(ACCT_NAV_KEY,JSON.stringify({...cur,...patch,updatedAt:new Date().toISOString()}))}catch(e){}}
   function acctNavClear(){try{localStorage.removeItem(ACCT_NAV_KEY)}catch(e){}}
-  function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:''});grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
-  function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:''});
+  function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
+  function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});
     const d=defs[key];if(!d)return;
     grid.style.display='none';stage.style.display='block';document.querySelector('.acctGlobalSearch')?.classList.add('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
     const bankLocked=(key==='payment' && !(typeof isAdmin==='function'&&isAdmin()));
@@ -5481,7 +5481,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qWorkLabel(filter){return ({draft:'草稿',dispatch_pending:'待作帳',pending_price:'待補價格',money_pending:'待收／付款'})[filter]||'帳務待辦'}
   function qOpenWorkQueue(filter,skipNavSave=false){
-    if(!skipNavSave)acctNavWrite({layer:'workQueue',section:'',action:filter,recordId:'',detailId:'',backMode:''});
+    if(!skipNavSave)acctNavWrite({layer:'workQueue',section:'entry',action:filter,recordId:'',detailId:'',backMode:'',searchTerm:''});
     grid.style.display='none';stage.style.display='block';
     document.querySelector('.acctGlobalSearch')?.classList.add('hidden');
     const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';
@@ -5829,23 +5829,29 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     work.querySelector('#clearDevAcct')?.addEventListener('click',()=>qClearDevTestData(work));
   }
 
-  stage.addEventListener('click',e=>{
-    const b=e.target.closest('[data-acct-stage-action]');if(!b)return;
-    const a=b.dataset.acctStageAction, work=document.getElementById('acctStageWork');if(!work)return;
-    acctNavWrite({layer:'action',action:a,recordId:'',detailId:'',backMode:''});
+  function qRenderAccountingAction(section,a,skipNavSave=false){
+    const work=document.getElementById('acctStageWork');if(!work)return;
+    if(!skipNavSave)acctNavWrite({layer:'action',section:section||'',action:a,recordId:'',detailId:'',backMode:'',searchTerm:''});
     if(a==='開始快速做帳'){
-      // 第172B階段：新快速做帳與舊帳務介面完全分離；舊區保留底層程式但不再顯示。
       const legacy=document.querySelector('.acctLegacyArea');
       if(legacy) legacy.style.setProperty('display','none');
       renderQuickV2(work);
-      work.scrollIntoView({behavior:'smooth',block:'start'});
+      if(!skipNavSave)work.scrollIntoView({behavior:'smooth',block:'start'});
       return;
     }
     if(a==='今日做帳紀錄'){renderQuickToday(work);return;}
     if(a==='今日入貨'){renderFarmerToday(work);return;}
     if(a==='待補價格'){renderPendingPrices(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
+    // 尚未實作資料內容的入口也保存同一個正式 route；未來 renderer 接上後不用重做刷新核心。
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
+  }
+  stage.addEventListener('click',e=>{
+    const b=e.target.closest('[data-acct-stage-action]');if(!b)return;
+    const a=b.dataset.acctStageAction;
+    const nav=acctNavRead()||{};
+    const section=nav.section||Object.keys(defs).find(k=>stage.querySelector('.acctStageHead h3')?.textContent===defs[k].title)||'';
+    qRenderAccountingAction(section,a,false);
   });
   function qRestoreAccountingNav(){
     const savedAcctNav=acctNavRead();
@@ -5890,13 +5896,13 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       return;
     }
     if(savedAcctNav?.section){
-      open(savedAcctNav.section,true);
-      if(savedAcctNav.action){
-        const btn=[...stage.querySelectorAll('[data-acct-stage-action]')].find(x=>x.dataset.acctStageAction===savedAcctNav.action);
-        if(btn)btn.click();
-      }
+      open(savedAcctNav.section,true,{deferLedgerRender:!!savedAcctNav.action});
       if(savedAcctNav.layer==='contactEditor'&&window.xrContactsV2?.renderEditor){
         const work=document.getElementById('acctStageWork');if(work)window.xrContactsV2.renderEditor(work,savedAcctNav.recordId||'');
+        return;
+      }
+      if(savedAcctNav.action){
+        qRenderAccountingAction(savedAcctNav.section,savedAcctNav.action,true);
       }
       return;
     }
@@ -5907,7 +5913,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   home(true);
   // 第一階段核心：已移除 accounting-cloud-loaded / 250ms / 350ms 重複補畫。
   try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
-  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,restore:qRestoreAccountingNav};
+  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav};
 })();
 </script>
 
