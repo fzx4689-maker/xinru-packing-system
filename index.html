@@ -4046,11 +4046,12 @@ async function loadAccountingCloud(){
   try{
     let {data,error}=await sb.from('accounting_records').select('local_id,payload').order('record_date',{ascending:false}).order('created_at',{ascending:false});
     if(error)throw error;
-    // 175B5N2：重新整理時保護剛儲存的新帳。相同 local_id 只有本機 updatedAt/createdAt 明確較新時才回推雲端；其餘以雲端為準。
-    const local=acctLoad('xinru_acct_test_records',[]),cloudMap=new Map((data||[]).map(x=>[String(x.local_id),x.payload]));
-    const localNewer=local.filter(x=>{const cp=cloudMap.get(String(x.id));if(!cp)return true;const lt=Date.parse(x.updatedAt||x.createdAt||'')||0,ct=Date.parse(cp.updatedAt||cp.createdAt||'')||0;return lt>ct});
-    if(localNewer.length){const upload=localNewer.map(x=>({local_id:String(x.id),customer:x.customer,record_date:x.date,customer_type:x.type||null,payload:x,created_by:currentUser.id,updated_at:new Date().toISOString()}));const {error:upErr}=await sb.from('accounting_records').upsert(upload,{onConflict:'local_id'});if(upErr)throw upErr;const reload=await sb.from('accounting_records').select('local_id,payload').order('record_date',{ascending:false}).order('created_at',{ascending:false});if(reload.error)throw reload.error;data=reload.data||[]}
-    acctCloudRecords=(data||[]).map(x=>x.payload).filter(Boolean);localStorage.setItem('xinru_acct_test_records',JSON.stringify(acctCloudRecords));renderAcctDraft();renderAcctRecords();try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
+    // N18：Supabase 是帳務正式資料唯一真實來源。
+    // 雲端已不存在的 local_id 視為已刪除，禁止舊瀏覽器 localStorage 自動回傳而把刪除資料「復活」。
+    // 正常新增／修改一律先經 saveAccountingCloud() 成功寫入雲端，再由這裡下載同步。
+    const cloudRows=(data||[]).map(x=>x.payload).filter(Boolean);
+    acctCloudRecords=cloudRows;
+    localStorage.setItem('xinru_acct_test_records',JSON.stringify(cloudRows));renderAcctDraft();renderAcctRecords();try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
   }catch(e){console.warn('帳務雲端尚未啟用',e);acctCloudRecords=null;}
 }
 async function saveAccountingCloud(record){
