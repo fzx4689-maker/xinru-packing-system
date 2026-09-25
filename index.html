@@ -4204,6 +4204,20 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 .acctDateController input[type="date"]{flex:0 0 180px!important;width:180px!important;max-width:180px!important;min-width:180px!important}
 .acctDateController>.btn{flex:0 0 auto;width:auto}
 .acctDateController>.helper{display:block!important;flex:0 0 auto;margin:0;color:#52657a;font-weight:700}
+
+.acctDateController.acctDateNested{padding:7px 10px!important;margin:0 0 10px!important;background:#f8fafc!important}
+.acctDateController.acctDateNested>b,
+.acctDateController.acctDateNested>input,
+.acctDateController.acctDateNested>span:not(.helper),
+.acctDateController.acctDateNested>#acctDateApply,
+.acctDateController.acctDateNested>#acctDateToday{display:none!important}
+.acctDateController.acctDateNested>#acctDateClear{display:inline-flex!important}
+.acctDateController.acctDateNested>.helper{display:inline!important;font-size:13px!important}
+.acctDateController.acctDateNested::before{content:"📅 查詢期間：" attr(data-date-label);font-weight:800;color:#334155}
+.acctDateResults{border:1px solid #d7e0ea;border-radius:12px;background:#fff;padding:10px 12px;margin:0 0 12px}
+.acctDateResultsHead{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.acctDateResult{display:block;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:9px 11px;margin:6px 0;cursor:pointer}
+.acctDateResult small{display:block;color:#64748b;margin-top:3px}
 .acctGlobalSearch.hidden{display:none}.acctSearchSummary{border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;margin:6px 0;background:#fff}.acctSearchSummaryHead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.acctSearchSummaryHead small{color:#52657a}.acctSearchActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.acctSearchActions button,.acctSearchMore{border:1px solid #d7e0ea;background:#f7f9fb;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}.acctSearchRecent{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}.acctSearchRecent>b{width:100%;font-size:13px;color:#52657a}.acctSearchMore{background:#fff}@media(max-width:760px){.acctSearchActions{display:grid;grid-template-columns:1fr 1fr}.acctSearchActions button{width:100%}.acctSearchRecent .acctSearchResult{width:100%;text-align:left}}
 .acctWorkBadges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acctWorkBadge{border:1px solid #d7e0ea;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.acctWorkBadge:hover{background:#f7fbff}.acctWorkBadge strong{font-size:17px;margin-left:4px}.acctWorkBadge[data-work="dispatch_pending"]{border-color:#f0b4b4}.acctWorkBadge[data-work="pending_price"]{border-color:#f3cc83}.acctWorkBadge[data-work="draft"]{border-color:#a9c6e8}.acctWorkBadge[data-work="money_pending"]{border-color:#acd7bb}@media(max-width:760px){.acctWorkBadges{display:grid;grid-template-columns:1fr 1fr}.acctWorkBadge{width:100%;text-align:left}}
 .acctGlobalSearchResults{display:none;border:1px solid #d7e0ea;border-radius:13px;background:#fff;margin:-4px 0 12px;overflow:hidden}.acctSearchResult{width:100%;display:grid;grid-template-columns:auto minmax(120px,.7fr) minmax(0,1.6fr);gap:8px;align-items:center;text-align:left;border:0;border-bottom:1px solid #edf1f5;background:#fff;padding:10px 12px;cursor:pointer}.acctSearchResult:last-child{border-bottom:0}.acctSearchResult:hover{background:#f7fbff}.acctSearchKind{font-size:11px;font-weight:900;background:#eef4ff;color:#245b8f;border-radius:999px;padding:3px 7px}.acctSearchResult small{color:#667085;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quickV2OutputPanel{border:1px solid #b8dfc8;background:#f2fff7;border-radius:14px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:center}.quickV2OutputBtns{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}@media(max-width:760px){.acctGlobalSearch{grid-template-columns:minmax(0,1fr) auto}.acctSearchResult{grid-template-columns:auto 1fr}.acctSearchResult small{grid-column:1/-1;white-space:normal}.quickV2OutputPanel{display:block}.quickV2OutputBtns{margin-top:9px;display:grid;grid-template-columns:1fr 1fr}.quickV2OutputBtns .btn{width:100%}}
@@ -5445,8 +5459,20 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qAcctDateLabel(state=qAcctDateState()){if(!state.dateFrom&&!state.dateTo)return '全部日期';if(state.dateFrom===state.dateTo)return state.dateFrom;return (state.dateFrom||'最早')+' ～ '+(state.dateTo||'最新')}
   function qAcctSyncDateController(){
     const box=document.getElementById('acctDateController');if(!box)return;
-    const state=qAcctDateState(),from=document.getElementById('acctDateFrom'),to=document.getElementById('acctDateTo'),status=document.getElementById('acctDateStatus');
-    if(from)from.value=state.dateFrom||'';if(to)to.value=state.dateTo||'';if(status)status.textContent=qAcctDateLabel(state);
+    const state=qAcctDateState(),from=document.getElementById('acctDateFrom'),to=document.getElementById('acctDateTo'),status=document.getElementById('acctDateStatus'),nav=acctNavRead()||{},nested=!!(nav.section||nav.layer&&nav.layer!=='home');
+    const label=qAcctDateLabel(state);
+    if(from)from.value=state.dateFrom||'';if(to)to.value=state.dateTo||'';if(status)status.textContent=label;
+    box.classList.toggle('acctDateNested',nested);box.dataset.dateLabel=label;
+    box.style.display=(!nested||state.dateFrom||state.dateTo)?'flex':'none';
+  }
+  function qPaintDateRangeResults(){
+    const box=document.getElementById('acctGlobalSearchResults');if(!box)return;
+    const state=qAcctDateState();
+    if(!state.dateFrom&&!state.dateTo){box.innerHTML='';box.style.display='none';return}
+    const rows=qAcctFilterRecords((typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft')).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+    box.style.display='block';
+    box.innerHTML='<div class="acctDateResults"><div class="acctDateResultsHead"><b>📅 '+qEsc(qAcctDateLabel(state))+'｜全部帳務交易</b><span class="helper" style="display:inline!important">共 '+rows.length+' 筆</span></div>'+(rows.length?rows.map(r=>'<button type="button" class="acctDateResult" data-date-record="'+qEsc(r.id)+'"><b>'+qEsc((r.date||'')+'｜'+(r.customer||'')+'｜'+(r.txnTypeLabel||r.type||''))+'</b><small>'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</small></button>').join(''):'<div class="empty">這個日期範圍沒有帳務交易</div>')+'</div>';
+    if(!box.dataset.qDateRangeBound){box.dataset.qDateRangeBound='1';box.addEventListener('click',e=>{const b=e.target.closest('[data-date-record]');if(!b)return;const w=document.getElementById('acctStageWork');open('entry',true);const ww=document.getElementById('acctStageWork');if(ww)qShowRecordDetail(ww,b.dataset.dateRecord,'daterange',false)})}
   }
   function qAcctRefreshCurrentRoute(){
     const n=acctNavRead()||{};
@@ -5460,7 +5486,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qAcctApplyController(){
     const from=document.getElementById('acctDateFrom')?.value||'',to=document.getElementById('acctDateTo')?.value||'';
     if(!from&&!to){qAcctClearDateRange()}else qAcctSetDateRange(from,to);
-    qAcctSyncDateController();document.dispatchEvent(new CustomEvent('xinru:accounting-date-change',{detail:qAcctDateState()}));qAcctRefreshCurrentRoute();
+    qAcctSyncDateController();document.dispatchEvent(new CustomEvent('xinru:accounting-date-change',{detail:qAcctDateState()}));
+    const n=acctNavRead()||{};if(!n.section&&(!n.layer||n.layer==='home'))qPaintDateRangeResults();else qAcctRefreshCurrentRoute();
   }
   function qAcctInitDateController(){
     qAcctSyncDateController();
@@ -5469,8 +5496,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(today&&!today.dataset.bound){today.dataset.bound='1';today.onclick=()=>{const d=qToday(),f=document.getElementById('acctDateFrom'),t=document.getElementById('acctDateTo');if(f)f.value=d;if(t)t.value=d;qAcctApplyController()}}
     if(clear&&!clear.dataset.bound){clear.dataset.bound='1';clear.onclick=()=>{const f=document.getElementById('acctDateFrom'),t=document.getElementById('acctDateTo');if(f)f.value='';if(t)t.value='';qAcctApplyController()}}
   }
-  function home(skipNavSave=false){qAcctSyncDateController();if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr&&document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
-  function open(key,skipNavSave=false,opts={}){qAcctSyncDateController();if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});
+  function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctGlobalSearch')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr){const ds=qAcctDateState();if(ds.dateFrom||ds.dateTo)qPaintDateRangeResults();else if(document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();else{sr.innerHTML='';sr.style.display='none'}}document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
+  function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();
     const d=defs[key];if(!d)return;
     grid.style.display='none';stage.style.display='block';document.querySelector('.acctGlobalSearch')?.classList.add('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
     const bankLocked=(key==='payment' && !(typeof isAdmin==='function'&&isAdmin()));
