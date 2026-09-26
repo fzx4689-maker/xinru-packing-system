@@ -2037,10 +2037,10 @@ body.auth-booting #mainApp{visibility:hidden!important}
         </div>
         <div id="acctGlobalSearchResults" class="acctGlobalSearchResults"></div>
         <div id="acctWorkBadges" class="acctWorkBadges" aria-label="帳務待辦">
-          <button type="button" class="acctWorkBadge" data-work="dispatch_pending">🔴 待作帳 <strong data-work-count="dispatch_pending">0</strong></button>
-          <button type="button" class="acctWorkBadge" data-work="pending_price">🟠 待補價格 <strong data-work-count="pending_price">0</strong></button>
-          <button type="button" class="acctWorkBadge" data-work="draft">📝 草稿 <strong data-work-count="draft">0</strong></button>
-          <button type="button" class="acctWorkBadge" data-work="money_pending">💰 待收／付款 <strong data-work-count="money_pending">0</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="dispatch_pending">🔴 待作帳 <strong data-work-count="dispatch_pending">…</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="pending_price">🟠 待補價格 <strong data-work-count="pending_price">…</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="draft">📝 草稿 <strong data-work-count="draft">…</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="money_pending">💰 待收／付款 <strong data-work-count="money_pending">…</strong></button>
         </div>
         <div class="acctManagementGrid" id="acctManagementGrid">
           <button type="button" class="acctManagementBtn" data-acct-manage="entry"><b>✍️ 快速做帳</b><span>日常帳務快速輸入；不與貨運派工自動連動</span></button>
@@ -5739,6 +5739,12 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qPaintWorkBadges(){
     const box=document.getElementById('acctWorkBadges');if(!box)return;
+    // N50：首次啟動時，Supabase 正式帳務尚未載入完成前，不用舊 localStorage 宣告 0。
+    // acctCloudRecords === null 代表仍在等待雲端；成功載入後 loadAccountingCloud() 會再次呼叫本函式。
+    if(acctCloudRecords===null){
+      box.querySelectorAll('[data-work-count]').forEach(n=>n.textContent='…');
+      return;
+    }
     const c=qWorkCounts();
     Object.entries(c).forEach(([key,val])=>{const n=box.querySelector('[data-work-count="'+key+'"]');if(n)n.textContent=String(val)});
     box.querySelectorAll('[data-work]').forEach(btn=>{
