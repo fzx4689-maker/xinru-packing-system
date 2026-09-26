@@ -5397,7 +5397,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 // 第172C階段：只新增快速做帳正式輸入第一版；不修改登入/Auth與其他穩定頁面。
 (function(){
   const defs={
-    entry:{title:'✍️ 快速做帳',desc:'銷貨／進貨、運費、草稿、待補價格與周轉物統一在這裡完成。',items:['開始快速做帳','今日做帳紀錄']},
+    entry:{title:'✍️ 快速做帳',desc:'銷貨／進貨、運費、草稿、待補價格與周轉物統一在這裡完成。',items:['開始快速做帳','做帳紀錄']},
     farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'入貨可先不填價格；週帳與實際付款分開。',items:['入貨紀錄','待補價格','本週週帳','待領款']},
     vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','異常處理','廠商對帳']},
     payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 收支查詢','🏦 資金帳戶','📊 報表']},
@@ -5977,7 +5977,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(!skipNavSave)work.scrollIntoView({behavior:'smooth',block:'start'});
       return;
     }
-    if(a==='今日做帳紀錄'){renderQuickToday(work);return;}
+    if(a==='做帳紀錄'||a==='今日做帳紀錄'){renderQuickToday(work);return;}
     if(a==='入貨紀錄'||a==='今日入貨'){renderFarmerToday(work);return;}
     if(a==='待補價格'){renderPendingPrices(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
