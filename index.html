@@ -5460,20 +5460,42 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     // N20：全帳務共用同一個 Date Controller。第一層、第二層、第三層皆可直接改日期。
     box.classList.remove('acctDateNested');box.dataset.dateLabel=label;box.style.display='flex';
   }
+  // 175B5N34：帳務中心第一層「往來對象 × 日期」共用篩選 + 周轉物全歷史狀態。
+  function qTurnoverStateForContact(c){
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c)&&r.turnover&&r.turnover.type&&Number(r.turnover.qty));
+    const byType={};
+    rows.forEach(r=>{const t=String(r.turnover.type||'').trim(),a=String(r.turnover.action||'').trim(),q=Math.abs(Number(r.turnover.qty)||0);if(!t||!q)return;const x=byType[t]||(byType[t]={type:t,owed:0,buyout:0,adjust:0,count:0});x.count++;if(a==='欠用')x.owed+=q;else if(a==='歸還')x.owed-=q;else if(a==='買斷')x.buyout+=q;else if(a==='調整')x.adjust+=Number(r.turnover.qty)||0});
+    return {rows,types:Object.values(byType)};
+  }
+  function qTurnoverSummaryHtml(c){
+    if(!c)return '';const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">周轉物：目前無進出紀錄</span>';
+    return st.types.map(x=>{let label=x.owed>0?'欠 '+qEsc(String(x.owed)):x.owed<0?'餘 '+qEsc(String(Math.abs(x.owed))):'0';return '<span class="acctTurnState"><b>'+qEsc(x.type)+'</b> '+label+(x.buyout?'｜買斷 '+qEsc(String(x.buyout)):'')+'</span>'}).join('');
+  }
+  function qOpenTurnoverForContact(name,skipNavSave=false){
+    const publicKey=String(name||'').replace(/^(?:legacy:)+/i,''),c=qContact(publicKey);if(!c)return;
+    if(!skipNavSave)acctNavWrite({layer:'contactTurnover',section:'turnover',action:'contactTurnover',recordId:publicKey,detailId:'',backMode:'',searchTerm:publicKey});
+    open('turnover',true);const w=document.getElementById('acctStageWork');if(!w)return;const st=qTurnoverStateForContact(c),rows=st.rows.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+    w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧺 '+qEsc(c.name)+'｜周轉物明細</b><div class="helper" style="display:block!important;margin-top:5px">目前狀態使用完整歷史計算，不受上方日期查詢影響；下方列出全部周轉物進出。</div></div><button type="button" class="btn gray" id="qTurnBack">← 返回帳務中心</button></div><div class="quickV2ContactHint" style="margin:10px 0">'+qTurnoverSummaryHtml(c)+'</div><div>'+(rows.length?rows.map(r=>'<div class="quickV2Record" data-turn-record="'+qEsc(r.id)+'" style="cursor:pointer"><b>'+qEsc((r.date||'')+'｜'+(r.turnover?.type||'')+'｜'+(r.turnover?.action||''))+'</b><div class="helper" style="display:block!important">數量 '+qEsc(String(r.turnover?.qty||0))+(r.turnover?.note?'｜'+qEsc(r.turnover.note):'')+'</div></div>').join(''):'<div class="empty">目前沒有周轉物進出紀錄</div>')+'</div></div>';
+    w.querySelector('#qTurnBack').onclick=()=>home();w.querySelectorAll('[data-turn-record]').forEach(x=>x.onclick=()=>qShowRecordDetail(w,x.dataset.turnRecord,'turnover:'+publicKey));
+  }
   function qPaintDateRangeResults(){
     const box=document.getElementById('acctGlobalSearchResults');if(!box)return;
-    const state=qAcctDateState();
-    if(!state.dateFrom&&!state.dateTo){box.innerHTML='';box.style.display='none';return}
-    const rows=qAcctFilterRecords((typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft')).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
-    box.style.display='block';
-    box.innerHTML='<div class="acctDateResults"><div class="acctDateResultsHead"><b>📅 '+qEsc(qAcctDateLabel(state))+'｜全部帳務交易</b><span class="helper" style="display:inline!important">共 '+rows.length+' 筆</span></div>'+(rows.length?rows.map(r=>'<button type="button" class="acctDateResult" data-date-record="'+qEsc(r.id)+'"><b>'+qEsc((r.date||'')+'｜'+(r.customer||'')+'｜'+(r.txnTypeLabel||r.type||''))+'</b><small>'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</small></button>').join(''):'<div class="empty">這個日期範圍沒有帳務交易</div>')+'</div>';
-    if(!box.dataset.qDateRangeBound){box.dataset.qDateRangeBound='1';box.addEventListener('click',e=>{const b=e.target.closest('[data-date-record]');if(!b)return;const w=document.getElementById('acctStageWork');open('entry',true);const ww=document.getElementById('acctStageWork');if(ww)qShowRecordDetail(ww,b.dataset.dateRecord,'daterange',false)})}
+    const state=qAcctDateState();if(!state.dateFrom&&!state.dateTo){box.innerHTML='';box.style.display='none';return}
+    const input=document.getElementById('acctGlobalSearchInput'),term=String(input?.value||'').trim(),hit=term?qResolveContact(term):null,c=hit?.contact||null;
+    let rows=qAcctFilterRecords((typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'));
+    if(c)rows=rows.filter(r=>qRecordBelongsToContact(r,c));else if(term){const q=term.toLowerCase();rows=rows.filter(r=>[r.customer,r.lookupInput,r.vehiclePlate,r.note,r.txnTypeLabel,(r.items||[]).map(x=>x.name).join(' ')].join(' ').toLowerCase().includes(q))}
+    rows=rows.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+    box.style.display='block';const title=c?(qEsc(c.name)+'｜'+qEsc(qAcctDateLabel(state))):(term?(qEsc(term)+'｜'+qEsc(qAcctDateLabel(state))):(qEsc(qAcctDateLabel(state))+'｜全部帳務交易'));
+    const contactBlock=c?'<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">往來資料</span><b>'+qEsc(c.name)+'</b><small>'+qEsc([c.identity,c.accountMode,c.settlement,c.customSettlement].filter(Boolean).join('｜'))+'</small></div><div class="quickV2ContactHint" style="margin-top:8px"><b>🧺 目前周轉物：</b> '+qTurnoverSummaryHtml(c)+'</div><div class="acctSearchActions"><button type="button" data-search-action="ledger">📒 帳本</button><button type="button" data-search-action="entry">✍️ 做帳</button><button type="button" data-search-action="payment">💰 收付款</button><button type="button" data-search-action="turnover">🧺 周轉物明細</button><button type="button" data-search-action="contact">👥 查看／編輯</button></div></div>':'';
+    box.innerHTML=contactBlock+'<div class="acctDateResults"><div class="acctDateResultsHead"><b>📅 '+title+'</b><span class="helper" style="display:inline!important">共 '+rows.length+' 筆</span></div>'+(rows.length?rows.map(r=>'<button type="button" class="acctDateResult" data-date-record="'+qEsc(r.id)+'"><b>'+qEsc((r.date||'')+'｜'+(r.customer||'')+'｜'+(r.txnTypeLabel||r.type||''))+'</b><small>'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</small></button>').join(''):'<div class="empty">這個條件沒有帳務交易</div>')+'</div>';
+    if(!box.dataset.qDateRangeBound){box.dataset.qDateRangeBound='1';box.addEventListener('click',e=>{const b=e.target.closest('[data-date-record]');if(b){open('entry',true);const ww=document.getElementById('acctStageWork');if(ww)qShowRecordDetail(ww,b.dataset.dateRecord,'daterange',false);return}const a=e.target.closest('[data-search-action]');if(!a)return;const nm=qResolveContact(document.getElementById('acctGlobalSearchInput')?.value||'')?.contact?.name||'';if(a.dataset.searchAction==='ledger'&&nm)return qOpenLedgerFromSearch(nm);if(a.dataset.searchAction==='entry'&&nm)return qOpenEntryForContact(nm);if(a.dataset.searchAction==='payment'&&nm)return qOpenPaymentForContact(nm);if(a.dataset.searchAction==='turnover'&&nm)return qOpenTurnoverForContact(nm);if(a.dataset.searchAction==='contact'&&nm){const cc=qContact(nm);if(cc)return qOpenContactFromSearch(cc)}})}
   }
   function qAcctRefreshCurrentRoute(){
     const n=acctNavRead()||{};
     if(n.layer==='globalTransactions'){qShowAllSearchTransactions(n.recordId||'',n.searchTerm||n.recordId||'',true);return}
     if(n.layer==='detail'&&n.detailId){qRestoreAccountingNav();return}
     if(n.layer==='ledgerContact'&&n.recordId){open('ledger',true,{deferLedgerRender:true});const w=document.getElementById('acctStageWork');if(w)qRenderLedgerSearch(w,n.recordId);return}
+    if(n.layer==='contactTurnover'&&n.recordId){qOpenTurnoverForContact(n.recordId,true);return}
     if(n.layer==='workQueue'&&n.action){qOpenWorkQueue(n.action,true);return}
     if(n.section){open(n.section,true,{deferLedgerRender:!!n.action});if(n.action)qRenderAccountingAction(n.section,n.action,true);return}
     qPaintGlobalSearch();
@@ -5748,7 +5770,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       html+='<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">日期查詢</span><b>'+qEsc(data.dateQuery.label)+'</b><small>共 '+records.length+' 筆帳務紀錄</small></div>'+(records.length?'<div class="acctSearchActions"><button type="button" data-search-action="dateall">🗓️ 查看當日全部紀錄（'+records.length+'）</button></div>':'')+'</div>';
     }
     if(primary){
-      html+='<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">往來資料</span><b>'+qEsc(primary.name)+'</b><small>'+qEsc([primary.identity,primary.accountMode,primary.settlement,primary.customSettlement].filter(Boolean).join('｜'))+'</small></div><div class="acctSearchActions"><button type="button" data-search-action="ledger">📒 帳本</button><button type="button" data-search-action="entry">✍️ 做帳</button><button type="button" data-search-action="payment">💰 收付款</button>'+(primaryIsStored?'<button type="button" data-search-action="contact">👥 查看／編輯</button>':'')+'<button type="button" data-search-action="all">🧾 交易紀錄（'+related.length+'）</button></div></div>';
+      html+='<div class="acctSearchSummary"><div class="acctSearchSummaryHead"><span class="acctSearchKind">往來資料</span><b>'+qEsc(primary.name)+'</b><small>'+qEsc([primary.identity,primary.accountMode,primary.settlement,primary.customSettlement].filter(Boolean).join('｜'))+'</small></div><div class="quickV2ContactHint" style="margin-top:8px"><b>🧺 目前周轉物：</b> '+qTurnoverSummaryHtml(primary)+'</div><div class="acctSearchActions"><button type="button" data-search-action="ledger">📒 帳本</button><button type="button" data-search-action="entry">✍️ 做帳</button><button type="button" data-search-action="payment">💰 收付款</button><button type="button" data-search-action="turnover">🧺 周轉物明細</button>'+(primaryIsStored?'<button type="button" data-search-action="contact">👥 查看／編輯</button>':'')+'<button type="button" data-search-action="all">🧾 交易紀錄（'+related.length+'）</button></div></div>';
     }
     if(recent.length){
       html+='<div class="acctSearchRecent"><b>最近交易</b>'+recent.map(r=>'<button type="button" class="acctSearchResult" data-search-record="'+qEsc(r.id)+'"><span class="acctSearchKind">交易</span><b>'+qEsc((r.date||'')+'｜'+(r.customer||''))+'</b><small>'+qEsc((r.items||[]).map(x=>x.name).filter(Boolean).join('、'))+'｜$'+Math.round(Number(r.total)||0).toLocaleString('zh-TW')+'</small></button>').join('')+(related.length>3?'<button type="button" class="acctSearchMore" data-search-action="all">查看全部 '+related.length+' 筆交易 →</button>':'')+'</div>';
@@ -5792,6 +5814,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(a==='ledger'&&name)return qOpenLedgerFromSearch(name);
     if(a==='entry'&&name)return qOpenEntryForContact(name);
     if(a==='payment'&&name)return qOpenPaymentForContact(name);
+    if(a==='turnover'&&name)return qOpenTurnoverForContact(name);
     if(a==='dateall')return qShowAllSearchTransactions('',term);
     if(a==='all')return qShowAllSearchTransactions(name,term);
   }
@@ -5801,7 +5824,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const input=document.getElementById('acctGlobalSearchInput');
     if(input&&!input.dataset.qSearchBound){
       input.dataset.qSearchBound='1';
-      input.addEventListener('input',()=>{clearTimeout(qSearchTimer);qSearchTimer=setTimeout(qPaintGlobalSearch,120)});
+      input.addEventListener('input',()=>{clearTimeout(qSearchTimer);qSearchTimer=setTimeout(()=>{const ds=qAcctDateState();if(ds.dateFrom||ds.dateTo)qPaintDateRangeResults();else qPaintGlobalSearch()},120)});
       input.addEventListener('keydown',e=>{if(e.isComposing||e.key!=='Enter')return;e.preventDefault();qRunGlobalSearchNow();const term=String(input.value||'').trim();if(!term)return;const exact=qResolveContact(term);if(exact?.contact)return qOpenLedgerFromSearch(exact.contact.name||term);const data=qGlobalSearch(term);if(data.contacts.length===1)qOpenLedgerFromSearch(data.contacts[0].name)});
     }
     const box=document.getElementById('acctGlobalSearchResults');
@@ -5812,7 +5835,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const clear=document.getElementById('acctGlobalSearchClear');
     if(clear&&!clear.dataset.qSearchBound){
       clear.dataset.qSearchBound='1';
-      clear.addEventListener('click',()=>{const i=document.getElementById('acctGlobalSearchInput');if(i)i.value='';qRunGlobalSearchNow()});
+      clear.addEventListener('click',()=>{const i=document.getElementById('acctGlobalSearchInput');if(i)i.value='';const ds=qAcctDateState();if(ds.dateFrom||ds.dateTo)qPaintDateRangeResults();else qRunGlobalSearchNow()});
     }
   }
   document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="accounting"]'))setTimeout(qInitAccountingHomeUi,0)});
