@@ -4043,9 +4043,11 @@ function acctLoad(key,fallback=[]){try{return JSON.parse(localStorage.getItem(ke
 const acctMoney=n=>'$'+Math.round(Number(n)||0).toLocaleString('zh-TW');
 function acctCatalog(){return acctLoad('xinru_acct_test_products',{})}
 var acctCloudRecords=null;
+var acctCloudReady=false;
 function acctRecords(){return acctCloudRecords===null?acctLoad('xinru_acct_test_records',[]):acctCloudRecords}
 async function loadAccountingCloud(){
   if(!currentUser)return;
+  acctCloudReady=false;
   try{
     let {data,error}=await sb.from('accounting_records').select('local_id,payload').order('record_date',{ascending:false}).order('created_at',{ascending:false});
     if(error)throw error;
@@ -4054,12 +4056,18 @@ async function loadAccountingCloud(){
     // 正常新增／修改一律先經 saveAccountingCloud() 成功寫入雲端，再由這裡下載同步。
     const cloudRows=(data||[]).map(x=>x.payload).filter(Boolean);
     acctCloudRecords=cloudRows;
+    acctCloudReady=true;
     localStorage.setItem('xinru_acct_test_records',JSON.stringify(cloudRows));renderAcctDraft();renderAcctRecords();
     // N49：帳務雲端同步完成後，待辦徽章必須立即依「最新雲端正式資料」重算。
     // qPaintWorkBadges 定義較晚，因此以 typeof 保護啟動階段。
     try{if(typeof qPaintWorkBadges==='function')qPaintWorkBadges()}catch(_e){}
     try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
-  }catch(e){console.warn('帳務雲端尚未啟用',e);acctCloudRecords=null;}
+  }catch(e){
+    console.warn('帳務雲端尚未啟用',e);
+    acctCloudRecords=null;
+    acctCloudReady=true;
+    try{if(typeof qPaintWorkBadges==='function')qPaintWorkBadges()}catch(_e){}
+  }
 }
 async function saveAccountingCloud(record){
   const {error}=await sb.from('accounting_records').upsert({local_id:String(record.id),customer:record.customer,record_date:record.date,customer_type:record.type||null,payload:record,created_by:currentUser?.id||null,updated_at:new Date().toISOString()},{onConflict:'local_id'});
@@ -5739,9 +5747,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qPaintWorkBadges(){
     const box=document.getElementById('acctWorkBadges');if(!box)return;
-    // N50：首次啟動時，Supabase 正式帳務尚未載入完成前，不用舊 localStorage 宣告 0。
-    // acctCloudRecords === null 代表仍在等待雲端；成功載入後 loadAccountingCloud() 會再次呼叫本函式。
-    if(acctCloudRecords===null){
+    // N51：專用 ready 旗標控制首次載入，不再把 acctCloudRecords 的 null 同時當成 loading 狀態。
+    if(!acctCloudReady){
       box.querySelectorAll('[data-work-count]').forEach(n=>n.textContent='…');
       return;
     }
