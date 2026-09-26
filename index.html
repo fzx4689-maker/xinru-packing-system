@@ -4058,15 +4058,14 @@ async function loadAccountingCloud(){
     acctCloudRecords=cloudRows;
     acctCloudReady=true;
     localStorage.setItem('xinru_acct_test_records',JSON.stringify(cloudRows));renderAcctDraft();renderAcctRecords();
-    // N49：帳務雲端同步完成後，待辦徽章必須立即依「最新雲端正式資料」重算。
-    // qPaintWorkBadges 定義較晚，因此以 typeof 保護啟動階段。
-    try{if(typeof qPaintWorkBadges==='function')qPaintWorkBadges()}catch(_e){}
+    // N52：qPaintWorkBadges 位於帳務 IIFE 私有作用域；雲端載入器必須經公開介面要求重算。
+    try{window.xrAccountingNav?.paintWorkBadges?.()}catch(_e){}
     try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
   }catch(e){
     console.warn('帳務雲端尚未啟用',e);
     acctCloudRecords=null;
     acctCloudReady=true;
-    try{if(typeof qPaintWorkBadges==='function')qPaintWorkBadges()}catch(_e){}
+    try{window.xrAccountingNav?.paintWorkBadges?.()}catch(_e){}
   }
 }
 async function saveAccountingCloud(record){
@@ -6336,7 +6335,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   home(true);
   // 第一階段核心：已移除 accounting-cloud-loaded / 250ms / 350ms 重複補畫。
   try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
-  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery,init:qAcctInitDateController,apply:qAcctApplyController,refresh:qAcctRefreshCurrentRoute}};
+  window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,paintWorkBadges:qPaintWorkBadges,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery,init:qAcctInitDateController,apply:qAcctApplyController,refresh:qAcctRefreshCurrentRoute}};
 })();
 </script>
 
