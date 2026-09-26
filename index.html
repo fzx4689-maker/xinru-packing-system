@@ -5460,7 +5460,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     // N20：全帳務共用同一個 Date Controller。第一層、第二層、第三層皆可直接改日期。
     box.classList.remove('acctDateNested');box.dataset.dateLabel=label;box.style.display='flex';
   }
-  // 175B5N34：帳務中心第一層「往來對象 × 日期」共用篩選 + 周轉物全歷史狀態。
+  // 175B5N35：帳務中心第一層使用同一往來對象歷史 ID／別名解析，再套日期篩選；周轉物維持全歷史狀態。
   function qTurnoverStateForContact(c){
     const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c)&&r.turnover&&r.turnover.type&&Number(r.turnover.qty));
     const byType={};
@@ -5555,14 +5555,30 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return {contact:{id:'legacy:'+qNormKey(cname),name:cname,formalName:cname,code:'',identity:matched.type||'一般客戶',accountMode:'',_recordContactId:cid,_ledgerAliases:aliases},matchedBy:qNormKey(matched.vehiclePlate)===key?'vehicle':'record',vehiclePlate:qNormKey(matched.vehiclePlate)===key?String(matched.vehiclePlate||'').trim():'',vehicleActive:null,input:raw,legacyRecordFallback:true};
   }
   function qContact(entity){return qResolveContact(entity)?.contact||null}
+  // N35：同一往來對象的交易歸屬不能只比「目前 contactId」。
+  // 舊交易可能保存舊 contactId／名稱／編號／車號；先從目前主檔建立種子，
+  // 再掃描全部交易做傳遞式合併，找出這個往來對象歷史上用過的 ID 與別名。
+  function qContactLedgerIdentity(c){
+    const ids=new Set(),aliases=new Set();if(!c)return {ids,aliases};
+    const addAlias=v=>{const k=qNormKey(v);if(k)aliases.add(k)};
+    const cid=String(c.id||'').trim(),recordCid=String(c._recordContactId||'').trim();
+    if(cid&&!cid.startsWith('legacy:'))ids.add(cid);if(recordCid)ids.add(recordCid);
+    [c.name,c.formalName,c.code].forEach(addAlias);(c.vehicles||[]).forEach(v=>addAlias(v?.plate));
+    (Array.isArray(c._ledgerAliases)?c._ledgerAliases:[]).forEach(addAlias);
+    const rs=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
+    let changed=true,guard=0;
+    while(changed&&guard++<8){changed=false;for(const r of rs){
+      const rid=String(r?.contactId||'').trim(),ra=qRecordAliases(r);
+      const linked=(rid&&ids.has(rid))||ra.some(a=>aliases.has(a));if(!linked)continue;
+      if(rid&&!rid.startsWith('legacy:')&&!ids.has(rid)){ids.add(rid);changed=true}
+      for(const a of ra){if(a&&!aliases.has(a)){aliases.add(a);changed=true}}
+    }}
+    return {ids,aliases};
+  }
   function qRecordBelongsToContact(r,c){
-    if(!r||!c)return false;
-    const cid=String(c.id||''),recordCid=String(c._recordContactId||'');
-    if(recordCid&&String(r.contactId||'')===recordCid)return true;
-    if(cid&&!cid.startsWith('legacy:')&&r.contactId&&String(r.contactId)===cid)return true;
-    const aliases=Array.isArray(c._ledgerAliases)?c._ledgerAliases:[];
-    if(aliases.length&&qRecordAliases(r).some(x=>aliases.includes(x)))return true;
-    return qNormKey(r.customer)===qNormKey(c.name);
+    if(!r||!c)return false;const ident=qContactLedgerIdentity(c),rid=String(r.contactId||'').trim();
+    if(rid&&ident.ids.has(rid))return true;
+    return qRecordAliases(r).some(a=>ident.aliases.has(a));
   }
   function qTxnDefault(c){const id=String(c?.identity||c?.type||'');return /產農|廠商/.test(id)?'進貨':'銷貨'}
   function qContactInfoHtml(c){if(!c)return '';const methods=Array.isArray(c.paymentMethods)&&c.paymentMethods.length?c.paymentMethods:[c.paymentDefault||'現金'];const turn=[];if(c.turnover?.basket)turn.push('籃子');if(c.turnover?.rack)turn.push('鐵架');if(c.turnover?.pallet)turn.push('棧板');if(c.turnover?.other)turn.push('其他');const bits=[['身分',c.identity||c.type],['帳務模式',c.accountMode],['結帳方式',c.settlement],['付款方',c.payer],['預設運費',c.freightDefault],['收／付款方式',methods.join('＋')],['預設方式',c.paymentDefault],['周轉物',turn.join('、')]].filter(x=>x[1]);const special=(c.freightRules||[]).length?'特殊運費 '+c.freightRules.length+' 項':'';const note=c.outputNote||c.note||'';return '<div class="quickV2ContactInfoHead"><span class="quickV2ContactName">👤 '+qEsc(c.name||'')+'</span></div><div class="quickV2ContactGrid">'+bits.map(x=>'<span><b>'+qEsc(x[0])+'：</b>'+qEsc(x[1])+'</span>').join('')+(special?'<span><b>運費規則：</b>'+qEsc(special)+'</span>':'')+'</div>'+(note?'<div class="quickV2ContactHint"><b>固定備註：</b>'+qEsc(note)+'</div>':'')}
