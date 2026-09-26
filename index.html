@@ -4054,7 +4054,11 @@ async function loadAccountingCloud(){
     // 正常新增／修改一律先經 saveAccountingCloud() 成功寫入雲端，再由這裡下載同步。
     const cloudRows=(data||[]).map(x=>x.payload).filter(Boolean);
     acctCloudRecords=cloudRows;
-    localStorage.setItem('xinru_acct_test_records',JSON.stringify(cloudRows));renderAcctDraft();renderAcctRecords();try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
+    localStorage.setItem('xinru_acct_test_records',JSON.stringify(cloudRows));renderAcctDraft();renderAcctRecords();
+    // N49：帳務雲端同步完成後，待辦徽章必須立即依「最新雲端正式資料」重算。
+    // qPaintWorkBadges 定義較晚，因此以 typeof 保護啟動階段。
+    try{if(typeof qPaintWorkBadges==='function')qPaintWorkBadges()}catch(_e){}
+    try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
   }catch(e){console.warn('帳務雲端尚未啟用',e);acctCloudRecords=null;}
 }
 async function saveAccountingCloud(record){
