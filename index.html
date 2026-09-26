@@ -5802,17 +5802,60 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
         (isBilateral?'<div class="quickV2ContactHint"><b>雙向淨額</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.net)+'</div></div>':'')+
         '<div class="quickV2ContactHint"><b>正式交易</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+ledger.entries.filter(x=>!x.isVoid).length+' 筆</div></div></div>';
       const pending=ledger.pendingCount?'<div class="quickV2ContactHint" style="margin:8px 0"><b>⚠️ 待補價格 '+ledger.pendingCount+' 筆</b>｜金額尚未確定，暫不列入應收／應付與餘額。</div>':'';
+      const shareTools='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button type="button" class="btn primary" id="qLedgerShareImage">📱 LINE 分享帳本</button><button type="button" class="btn gray" id="qLedgerSaveImage">🖼️ 儲存帳本圖片</button></div>';
       const rows=ledger.entries.slice().reverse();
       box.innerHTML='<div class="quickV2ContactInfo show">'+qContactInfoHtml(c)+(hit.matchedBy==='vehicle'?'<div class="quickV2ContactHint"><b>🚙 '+qEsc(hit.vehiclePlate)+'</b> → '+qEsc(c.name)+(hit.vehicleActive===false?'｜歷史／停用車號':'')+'</div>':'')+'</div>'+summary+pending+
-        '<label style="display:flex;align-items:center;gap:7px;margin:8px 0;font-weight:800"><input type="checkbox" id="qLedgerIncludeVoid" '+(includeVoid?'checked':'')+'> 顯示作廢紀錄</label>'+
+        shareTools+'<label style="display:flex;align-items:center;gap:7px;margin:8px 0;font-weight:800"><input type="checkbox" id="qLedgerIncludeVoid" '+(includeVoid?'checked':'')+'> 顯示作廢紀錄</label>'+
         '<div style="overflow:auto"><table class="quickV2Table" style="min-width:760px"><thead><tr><th>日期</th><th>類型</th><th>品名／摘要</th><th>車號</th><th>應收</th><th>應付</th><th>餘額</th></tr></thead><tbody>'+
         (rows.length?rows.map(x=>{const r=x.record,cls=x.isVoid?' style="opacity:.55;text-decoration:line-through"':'',status=x.isVoid?'🚫 作廢':(x.pending?'⚠️ 待補價格':qEsc(x.label||''));return '<tr data-ledger-record="'+qEsc(r.id)+'" style="cursor:pointer"'+cls+'><td>'+qEsc(r.date||'')+'</td><td><b>'+status+'</b></td><td>'+qEsc(r.mode==='money_settlement'?((r.methods||[]).map(m=>m.method+' $'+Math.round(qMoney(m.amount))).join('＋')||r.note||'—'):(((r.items||[]).map(i=>i.name).filter(Boolean).concat((c.ledgerShowTurnover!==false&&r.turnover?.action==='買斷'&&qRecordTurnoverMoney(r).amount>0)?[(r.turnover.type||'周轉物')+'買斷 '+r.turnover.qty+'×$'+Math.round(qRecordTurnoverMoney(r).unitPrice)+'=$'+Math.round(qRecordTurnoverMoney(r).amount)]:[]).join('、'))||r.note||'—'))+'</td><td>'+qEsc(r.vehiclePlate||'—')+'</td><td>'+((x.kind==='receipt')?('-'+qLedgerMoney(x.total)):(x.receivable?qLedgerMoney(x.receivable):'—'))+'</td><td>'+((x.kind==='payment')?('-'+qLedgerMoney(x.total)):(x.payable?qLedgerMoney(x.payable):'—'))+'</td><td><b>'+qLedgerMoney(x.running||0)+'</b></td></tr>'}).join(''):'<tr><td colspan="7" class="empty">目前沒有交易紀錄</td></tr>')+'</tbody></table></div>';
       box.querySelector('#qLedgerIncludeVoid')?.addEventListener('change',paint);
+      box.querySelector('#qLedgerShareImage')?.addEventListener('click',()=>qPreviewLedgerStatement(c,ledger,true));
+      box.querySelector('#qLedgerSaveImage')?.addEventListener('click',()=>qPreviewLedgerStatement(c,ledger,false));
       box.querySelectorAll('[data-ledger-record]').forEach(row=>row.onclick=()=>qShowRecordDetail(work,row.dataset.ledgerRecord,'ledger:'+ledgerNavKey));
     };
     inp.addEventListener('input',paint);inp.addEventListener('change',paint);
     if(preset){let value=String(preset).replace(/^(?:legacy:)+/i,'');if(opts.byId){const c=ps.find(x=>String(x.id)===String(preset));if(c)value=c.name||c.code||'';else{const rr=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r?.contactId||'')===String(preset));if(rr?.customer)value=rr.customer}}inp.value=value;paint()}
   }
+  // N43：正式客戶帳本／對帳單圖片。沿用帳本日期控制器；真實應收／應付仍使用完整歷史。
+  function qLedgerStatementDateLabel(){
+    const f=document.getElementById('acctDateFrom')?.value||'',t=document.getElementById('acctDateTo')?.value||'';
+    return f&&t?(f===t?f:(f+' ～ '+t)):(f||t||'全部期間');
+  }
+  function qLedgerStatementLines(c,ledger){
+    const out=[];
+    ledger.entries.filter(x=>!x.isVoid).forEach(x=>{
+      const r=x.record||{};
+      out.push({kind:'head',left:(r.date||'')+'　'+(x.label||r.txnTypeLabel||r.mode||'交易'),right:(x.kind==='receipt'?'收款 ':x.kind==='payment'?'付款 ':'')+(x.total?qLedgerMoney(x.total):'')});
+      if(r.mode==='money_settlement'){
+        const ms=(r.methods||[]).map(m=>(m.method||'')+' '+qLedgerMoney(m.amount||0)).filter(Boolean).join('＋');
+        if(ms)out.push({kind:'sub',text:'收／付款方式：'+ms});
+        if(r.note)out.push({kind:'sub',text:'備註：'+r.note});
+      }else{
+        (r.items||[]).forEach((it,i)=>{
+          const parts=[];
+          if(it.kg!==''&&it.kg!=null)parts.push('公斤 '+it.kg);
+          if(it.qty!==''&&it.qty!=null)parts.push('數量 '+it.qty);
+          if(it.pricing)parts.push(String(it.pricing));
+          if(it.price!==''&&it.price!=null)parts.push('單價 '+qLedgerMoney(it.price));
+          if(Number(it.freight)||0)parts.push('運費 '+qLedgerMoney(it.freight));
+          out.push({kind:'item',left:(i+1)+'. '+(it.name||'品項')+(parts.length?'　'+parts.join('｜'):''),right:qLedgerMoney(it.amount||0)});
+        });
+        if(c?.billShowTurnover!==false&&r.turnover){const tl=qSettlementTurnoverLine(c,r);if(tl)out.push({kind:'turn',text:'周轉物｜'+tl});}
+      }
+      out.push({kind:'balance',left:'帳本餘額',right:qLedgerMoney(x.running||0)});
+    });
+    return out;
+  }
+  function qLedgerStatementCanvases(c,ledger){
+    const lines=qLedgerStatementLines(c,ledger),W=1240,pad=70,headerH=300,rowH={head:64,item:54,sub:48,turn:48,balance:52},maxH=9000;
+    const pages=[];let cur=[],h=headerH+120;
+    lines.forEach(line=>{const rh=rowH[line.kind]||52;if(cur.length&&h+rh+90>maxH){pages.push(cur);cur=[];h=headerH+120}cur.push(line);h+=rh});
+    if(cur.length||!pages.length)pages.push(cur);
+    return pages.map((page,pi)=>{let H=headerH+120+page.reduce((a,l)=>a+(rowH[l.kind]||52),0);H=Math.max(650,Math.min(maxH,H));const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#111';g.textBaseline='middle';g.font='bold 40px sans-serif';g.fillText('欣儒農產行 0900-767-577',pad,62);g.font='bold 31px sans-serif';g.fillText('客戶帳本／對帳單',pad,116);g.font='26px sans-serif';g.fillText('客戶：'+(c.name||''),pad,166);g.fillText('期間：'+qLedgerStatementDateLabel(),pad,208);g.font='bold 27px sans-serif';g.fillText('目前應收：'+qLedgerMoney(ledger.receivable),pad,254);g.fillText('目前應付：'+qLedgerMoney(ledger.payable),430,254);if(pages.length>1){g.textAlign='right';g.fillText('第 '+(pi+1)+' / '+pages.length+' 頁',W-pad,254);g.textAlign='left'}g.strokeStyle='#999';g.beginPath();g.moveTo(pad,292);g.lineTo(W-pad,292);g.stroke();let y=330;page.forEach(l=>{const rh=rowH[l.kind]||52;if(l.kind==='head'){g.fillStyle='#f1f4f7';g.fillRect(pad-12,y-5,W-pad*2+24,rh-4);g.fillStyle='#111';g.font='bold 25px sans-serif';g.fillText(l.left||'',pad,y+rh/2-4);g.textAlign='right';g.fillText(l.right||'',W-pad,y+rh/2-4);g.textAlign='left'}else if(l.kind==='item'){g.fillStyle='#222';g.font='23px sans-serif';g.fillText(l.left||'',pad+18,y+rh/2);g.textAlign='right';g.fillText(l.right||'',W-pad,y+rh/2);g.textAlign='left'}else if(l.kind==='sub'||l.kind==='turn'){g.fillStyle='#555';g.font='22px sans-serif';g.fillText(l.text||'',pad+35,y+rh/2)}else if(l.kind==='balance'){g.fillStyle='#111';g.font='bold 22px sans-serif';g.fillText(l.left||'',pad+35,y+rh/2);g.textAlign='right';g.fillText(l.right||'',W-pad,y+rh/2);g.textAlign='left';g.strokeStyle='#ddd';g.beginPath();g.moveTo(pad,y+rh-2);g.lineTo(W-pad,y+rh-2);g.stroke()}y+=rh});g.fillStyle='#777';g.font='19px sans-serif';g.fillText('此對帳單依系統帳本資料產生；作廢紀錄不列入。',pad,H-42);return cv});
+  }
+  async function qLedgerCanvasFiles(c,ledger){const cvs=qLedgerStatementCanvases(c,ledger),files=[];for(let i=0;i<cvs.length;i++){const blob=await new Promise((res,rej)=>cvs[i].toBlob(b=>b?res(b):rej(new Error('帳本圖片產生失敗')),'image/png'));files.push(new File([blob],(c.name||'客戶')+'_帳本'+(cvs.length>1?('_'+(i+1)+'-'+cvs.length):'')+'.png',{type:'image/png'}))}return {cvs,files}}
+  async function qDownloadLedgerStatement(c,ledger){const {cvs}=await qLedgerCanvasFiles(c,ledger);cvs.forEach((cv,i)=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=(c.name||'客戶')+'_帳本'+(cvs.length>1?('_'+(i+1)+'-'+cvs.length):'')+'.png';document.body.appendChild(a);a.click();a.remove()})}
+  async function qPreviewLedgerStatement(c,ledger,shareMode=false){try{const {cvs,files}=await qLedgerCanvasFiles(c,ledger),mask=document.createElement('div');mask.style='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99999;overflow:auto;padding:22px';mask.innerHTML='<div style="max-width:900px;margin:auto;background:#fff;border-radius:18px;padding:14px"><div style="display:flex;gap:8px;justify-content:space-between;position:sticky;top:0;background:#fff;padding:4px 0 10px;z-index:2"><button class="btn gray" data-lp="back">← 返回</button><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+(shareMode?'<button class="btn primary" data-lp="share">📱 LINE 分享</button>':'')+'<button class="btn gray" data-lp="save">🖼️ 儲存圖片</button></div></div>'+cvs.map((cv,i)=>'<div style="margin-top:'+(i?'12':'0')+'px"><img alt="帳本第'+(i+1)+'頁" style="display:block;width:100%;height:auto" src="'+cv.toDataURL('image/png')+'"></div>').join('')+'</div>';document.body.appendChild(mask);mask.querySelector('[data-lp="back"]').onclick=()=>mask.remove();mask.querySelector('[data-lp="save"]').onclick=()=>qDownloadLedgerStatement(c,ledger);if(shareMode)mask.querySelector('[data-lp="share"]').onclick=async()=>{try{if(navigator.canShare&&navigator.canShare({files})&&navigator.share){await navigator.share({title:(c.name||'客戶')+' 帳本／對帳單',files})}else{await qDownloadLedgerStatement(c,ledger);alert('這台裝置不支援直接分享圖片，已改為儲存帳本圖片。')}}catch(e){if(e?.name!=='AbortError')alert('分享失敗：'+(e?.message||e))}}}catch(e){alert('帳本圖片產生失敗：'+(e?.message||e))}}
   function qOpenContactFromSearch(c,skipNavSave=false){
     const publicKey=String(c?.name||c?.code||'').replace(/^(?:legacy:)+/i,'');
     if(!skipNavSave)acctNavWrite({layer:'contactSearch',section:'contacts',action:'contact',recordId:publicKey,detailId:'',backMode:'',searchTerm:publicKey});
