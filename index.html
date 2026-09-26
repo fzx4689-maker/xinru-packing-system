@@ -5676,14 +5676,22 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return {determinable:false,dueDate:'',reason:'尚未設定可判定的結帳規則',rule};
   }
   function qMoneyPendingRows(){
-    const today=qIsoLocal(new Date());
+    // N48：以正式交易為主體掃描，不再先繞 qProfiles → qOpenMoneyRows。
+    // 這可避免主檔合併／舊 contactId 狀態讓一筆已存在的正式交易漏出到期待辦。
+    const today=qToday();
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price');
     const out=[];
-    for(const c of qProfiles()){
-      for(const direction of ['receipt','payment']){
-        for(const x of qOpenMoneyRows(c,direction)){
-          const info=qDueInfo(c,x.record,direction);
-          if(info.determinable&&info.dueDate&&info.dueDate<=today)out.push({contact:c,direction,record:x.record,due:x.due,dueInfo:info,overdueDays:Math.max(0,Math.floor((qDateOnly(today)-qDateOnly(info.dueDate))/86400000))});
-        }
+    for(const r of rows){
+      const direction=(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')?'payment':
+                      ((r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')?'receipt':'');
+      if(!direction)continue;
+      const due=qRecordOutstanding(r);if(!(due>0.000001))continue;
+      const c=qContact(r.contactId)||qContact(r.customer);
+      if(!c)continue;
+      const info=qDueInfo(c,r,direction);
+      if(info.determinable&&info.dueDate&&info.dueDate<=today){
+        const td=qDateOnly(today),dd=qDateOnly(info.dueDate);
+        out.push({contact:c,direction,record:r,due,dueInfo:info,overdueDays:(td&&dd)?Math.max(0,Math.floor((td-dd)/86400000)):0});
       }
     }
     return out.sort((a,b)=>String(a.dueInfo.dueDate).localeCompare(String(b.dueInfo.dueDate))||String(a.record.date||'').localeCompare(String(b.record.date||'')));
