@@ -5712,7 +5712,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(!rows.length)return '<div class="acctWorkPlaceholder"><b>💰 目前沒有已到期的待收／待付</b><div class="helper">未結清不等於到期；週結固定星期六，月結固定月底，個別往來資料若另有明確設定則以個別設定優先。</div></div>';
     const totalR=rows.filter(x=>x.direction==='receipt').reduce((a,x)=>a+x.due,0), totalP=rows.filter(x=>x.direction==='payment').reduce((a,x)=>a+x.due,0);
     return '<div class="acctSearchSummary" style="margin-bottom:12px"><b>💰 到期待辦</b><div class="helper">待收 '+qFmt(totalR)+'｜待付 '+qFmt(totalP)+'</div></div>'+
-      '<div class="acctQueueList">'+rows.map(x=>'<div class="acctQueueRow"><div><b>'+qEsc(x.direction==='receipt'?'🟢 待收':'🟠 待付')+'｜'+qEsc(x.contact.name||'')+'</b><div class="helper">交易 '+qEsc(x.record.date||'')+'｜到期 '+qEsc(x.dueInfo.dueDate)+'｜'+qEsc(x.dueInfo.reason)+(x.overdueDays?`｜逾期 ${x.overdueDays} 天`:'｜今日到期')+'</div></div><strong>'+qFmt(x.due)+'</strong></div>').join('')+'</div>';
+      '<div class="acctQueueList">'+rows.map(x=>'<button type="button" class="acctQueueRow" data-money-pending-contact="'+qEsc(x.contact.contactId||x.contact.id||x.contact.code||x.contact.name||'')+'" data-money-pending-dir="'+qEsc(x.direction)+'" style="width:100%;text-align:left;cursor:pointer"><div><b>'+qEsc(x.direction==='receipt'?'🟢 待收':'🟠 待付')+'｜'+qEsc(x.contact.name||'')+'</b><div class="helper">交易 '+qEsc(x.record.date||'')+'｜到期 '+qEsc(x.dueInfo.dueDate)+'｜'+qEsc(x.dueInfo.reason)+(x.overdueDays?`｜逾期 ${x.overdueDays} 天`:'｜今日到期')+'</div></div><div style="display:flex;align-items:center;gap:10px"><strong>'+qFmt(x.due)+'</strong><span>處理 →</span></div></button>').join('')+'</div>';
   }
 
   // 第175B5K：首頁搜尋單擊／Enter、帳本直接入口、待補價格共用工作佇列來源。
@@ -5740,6 +5740,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(filter==='pending_price'){renderPendingPrices(work);return}
     if(filter==='money_pending'){
       work.innerHTML=qMoneyPendingHtml();
+      work.querySelectorAll('[data-money-pending-contact]').forEach(b=>b.addEventListener('click',()=>{
+        const preset=b.dataset.moneyPendingContact||'',dir=b.dataset.moneyPendingDir||'receipt';
+        acctNavWrite({layer:'contactPayment',section:'payment',action:dir==='payment'?'💸 付款':'💰 收款',recordId:preset,detailId:'',backMode:'money_pending',searchTerm:preset});
+        qRenderMoneyCenter(work,preset,dir);
+      }));
       return;
     }
     qRenderQueue(work,filter);
@@ -6249,6 +6254,22 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     work.querySelector('#clearDevAcct')?.addEventListener('click',()=>qClearDevTestData(work));
   }
 
+  function qRenderMoneyHistory(work){
+    const state=qAcctDateState();
+    const rows=qMoneySettlements().filter(r=>qAcctRecordInDateRange(r,state)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    const totalReceipt=rows.filter(r=>r.txnType==='receipt').reduce((a,r)=>a+qMoney(r.amount||r.total),0);
+    const totalPayment=rows.filter(r=>r.txnType==='payment').reduce((a,r)=>a+qMoney(r.amount||r.total),0);
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🔍 收支查詢</b><div class="helper" style="display:block!important;margin-top:5px">只查已實際完成的收款／付款紀錄；日期沿用上方共用日期查詢。</div></div><div style="text-align:right"><b>收款 '+qLedgerMoney(totalReceipt)+'｜付款 '+qLedgerMoney(totalPayment)+'</b><div class="helper">'+qEsc(qAcctDateLabel(state))+'</div></div></div><div class="field" style="margin-top:10px"><label class="label">搜尋往來對象／編號／備註／付款方式</label><input id="qMoneyHistorySearch" class="input" autocomplete="off" placeholder="例如：0299、長青、現金、匯款"></div><div id="qMoneyHistoryList"></div></div>';
+    const inp=work.querySelector('#qMoneyHistorySearch'),list=work.querySelector('#qMoneyHistoryList');
+    const paint=()=>{
+      const key=String(inp?.value||'').trim().toLowerCase();
+      const filtered=rows.filter(r=>{const c=qContact(r.contactId)||qContact(r.customer);const text=[r.date,r.txnTypeLabel,r.customer,c?.name,c?.code,r.note,(r.methods||[]).map(m=>m.method).join(' ')].join(' ').toLowerCase();return !key||text.includes(key)});
+      list.innerHTML=filtered.length?filtered.map(r=>{const c=qContact(r.contactId)||qContact(r.customer);return '<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+(r.txnType==='payment'?'💸 付款':'💰 收款')+'｜'+qEsc(c?.name||r.customer||'')+'</b><div class="helper" style="display:block!important">'+qEsc(r.date||'')+'｜'+qEsc((r.methods||[]).map(m=>m.method+' '+qLedgerMoney(m.amount)).join('＋')||'未填方式')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><div style="display:flex;align-items:center;gap:8px"><b>'+qLedgerMoney(r.amount||r.total)+'</b><button type="button" class="btn gray" data-history-image="'+qEsc(r.id)+'">📷 對帳圖片</button></div></div></div>'}).join(''):'<div class="empty">目前沒有符合條件的收／付款紀錄</div>';
+      list.querySelectorAll('[data-history-image]').forEach(b=>b.onclick=()=>{const sr=qMoneySettlements().find(x=>String(x.id)===String(b.dataset.historyImage));if(!sr)return;const c=qContact(sr.contactId)||qContact(sr.customer);if(c)qPreviewSettlement(c,sr)});
+    };
+    inp?.addEventListener('input',paint);paint();
+  }
+
   function qRenderAccountingAction(section,a,skipNavSave=false){
     const work=document.getElementById('acctStageWork');if(!work)return;
     if(!skipNavSave)acctNavWrite({layer:'action',section:section||'',action:a,recordId:'',detailId:'',backMode:'',searchTerm:''});
@@ -6263,7 +6284,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(a==='入貨紀錄'||a==='今日入貨'){renderFarmerToday(work);return;}
     if(a==='待補價格'){renderPendingPrices(work);return;}
     if(section==='payment'&&(a==='💰 收款'||a==='💸 付款')){qRenderMoneyCenter(work,'',a==='💸 付款'?'payment':'receipt');return;}
-    if(section==='payment'&&a==='🔍 收支查詢'){qRenderMoneyCenter(work);return;}
+    if(section==='payment'&&a==='🔍 收支查詢'){qRenderMoneyHistory(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
     // 尚未實作資料內容的入口也保存同一個正式 route；未來 renderer 接上後不用重做刷新核心。
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
