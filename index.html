@@ -5938,11 +5938,15 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     }catch(e){alert('清除失敗：'+e.message)}
   }
   function qRecordPartyIdentity(r){
-    // contactId 是往來主檔 UUID；先用 ID 精準連回主檔，再相容舊交易名稱。
+    // N24：分類必須跟「目前往來資料主檔」一致。
+    // 舊交易可能保存過舊 contactId；若同名往來資料後來重建/修正身分，
+    // 不能讓舊 UUID 蓋掉目前主檔。先走全系統共用 qResolveContact(名稱/代號/車號)，
+    // 找不到才退回舊 contactId，最後才用交易當時的 type。
+    const byCurrent=qResolveContact(r?.customer||r?.lookupInput||'')?.contact||null;
+    if(byCurrent)return String(byCurrent.identity||byCurrent.type||r?.type||'').trim();
     const ps=qProfiles(),cid=String(r?.contactId||'').trim();
-    let c=cid?ps.find(x=>String(x?.id||'')===cid):null;
-    if(!c)c=qContact(r?.customer||r?.lookupInput||'');
-    return String(c?.identity||c?.type||r?.type||'').trim();
+    const byOldId=cid?ps.find(x=>String(x?.id||'')===cid):null;
+    return String(byOldId?.identity||byOldId?.type||r?.type||'').trim();
   }
   function qIsFarmerPurchaseRecord(r){
     if(!r||r.status==='void'||r.status==='draft')return false;
