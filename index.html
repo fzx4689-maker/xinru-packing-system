@@ -5621,6 +5621,77 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   async function qShareLine(record){return qPreviewBill(record,true)}
   function qShowOutputs(work,record){const methods=qOutputMethods(record),box=document.createElement('div');box.className='quickV2OutputPanel';box.innerHTML='<div><b>✅ 完成做帳｜'+qEsc(record.customer)+'｜$'+Math.round(qRecordTotal(record)).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important;margin-top:4px">常用方式會標示「常用」，五種輸出全部可使用。</div></div><div class="quickV2OutputBtns"><button type="button" class="btn '+(methods.line?'primary':'gray')+'" data-out="line">📱 傳 LINE'+(methods.line?'・常用':'')+'</button><button type="button" class="btn '+(methods.image?'primary':'gray')+'" data-out="image">🖼️ 帳單圖片'+(methods.image?'・常用':'')+'</button><button type="button" class="btn '+(methods.excel?'primary':'gray')+'" data-out="excel">📊 Excel'+(methods.excel?'・常用':'')+'</button><button type="button" class="btn '+(methods.pdf?'primary':'gray')+'" data-out="pdf">📄 PDF'+(methods.pdf?'・常用':'')+'</button><button type="button" class="btn '+(methods.paper80?'primary':'gray')+'" data-out="80">🖨️ 80行報表紙'+(methods.paper80?'・常用':'')+'</button></div>';work.prepend(box);box.querySelector('[data-out="line"]').onclick=()=>qShareLine(record);box.querySelector('[data-out="image"]').onclick=()=>qPreviewBill(record,false);box.querySelector('[data-out="excel"]').onclick=()=>qDownloadExcel(record);box.querySelector('[data-out="pdf"]').onclick=()=>qPrintBill(record,'pdf');box.querySelector('[data-out="80"]').onclick=()=>qPrintBill(record,'80')}
 
+
+  // N46：結帳週期／到期核心。
+  // 原則：未結清 != 到期。只有規則能明確判定時才進「待收／付款」。
+  // 現結：交易日即到期。
+  // 下趟結上趟：同往來對象、同方向出現下一筆正式交易時，上一筆到期。
+  // 週結／月結／短期結／自訂：必須有可解析的 customSettlement 才判定，避免猜測客戶實際結帳日。
+  function qIsoLocal(d){const x=new Date(d);if(Number.isNaN(x.getTime()))return '';const y=x.getFullYear(),m=String(x.getMonth()+1).padStart(2,'0'),day=String(x.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
+  function qDateOnly(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+  function qAddDaysIso(iso,n){const d=qDateOnly(iso);if(!d)return '';d.setDate(d.getDate()+Number(n||0));return qIsoLocal(d)}
+  function qMonthDayIso(iso,day,monthOffset=0){const d=qDateOnly(iso);if(!d)return '';const y=d.getFullYear(),m=d.getMonth()+Number(monthOffset||0);const last=new Date(y,m+1,0).getDate();return qIsoLocal(new Date(y,m,Math.min(Math.max(1,Number(day)||1),last)))}
+  function qNextWeekdayIso(iso,target,allowSame=true){const d=qDateOnly(iso);if(!d)return '';const cur=d.getDay();let add=(Number(target)-cur+7)%7;if(!allowSame&&add===0)add=7;d.setDate(d.getDate()+add);return qIsoLocal(d)}
+  function qSettlementRuleText(c){return String(c?.settlement||c?.rule||'').trim()}
+  function qSettlementScheduleText(c){return String(c?.customSettlement||c?.schedule||'').trim()}
+  function qWeekdayFromText(t){const s=String(t||'');const map=[['日',0],['天',0],['一',1],['二',2],['三',3],['四',4],['五',5],['六',6]];for(const [k,v] of map){if(new RegExp('(?:星期|週|周)'+k).test(s))return v}return null}
+  function qExplicitMonthDay(t){const s=String(t||'');let m=s.match(/(?:每月|月結|固定)?\s*(\d{1,2})\s*[日號]/);if(m){const n=+m[1];if(n>=1&&n<=31)return n}if(/月底|月末/.test(s))return 31;return null}
+  function qExplicitDays(t){const s=String(t||'');const m=s.match(/(\d{1,3})\s*日結/);return m?+m[1]:null}
+  function qSameDirectionTxn(r,direction){return direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')}
+  function qNextTxnDateFor(c,r,direction){
+    const base=String(r?.date||'');
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.mode!=='money_settlement'&&x.status!=='void'&&x.status!=='draft'&&x.pricingStatus!=='pending_price'&&qRecordBelongsToContact(x,c)&&qSameDirectionTxn(x,direction)&&String(x.date||'')>base);
+    rows.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+    return rows[0]?.date||'';
+  }
+  function qDueInfo(c,r,direction){
+    const rule=qSettlementRuleText(c), sched=qSettlementScheduleText(c), tx=String(r?.date||'');
+    if(!tx)return {determinable:false,dueDate:'',reason:'交易日期不足',rule};
+    if(/現結|當日現結/.test(rule))return {determinable:true,dueDate:tx,reason:'現結',rule};
+    if(/下趟結上趟|下次付款/.test(rule)){
+      const next=qNextTxnDateFor(c,r,direction);
+      return next?{determinable:true,dueDate:next,reason:'下趟結上趟',rule}:{determinable:false,dueDate:'',reason:'尚未出現下一趟交易',rule};
+    }
+    const days=qExplicitDays(rule+' '+sched);
+    if(days!==null)return {determinable:true,dueDate:qAddDaysIso(tx,days),reason:`${days}日結`,rule};
+    if(/週結|固定星期結/.test(rule)){
+      const wd=qWeekdayFromText(sched);
+      return wd===null?{determinable:false,dueDate:'',reason:'週結尚未設定星期',rule}:{determinable:true,dueDate:qNextWeekdayIso(tx,wd,true),reason:sched||'週結',rule};
+    }
+    if(/月結/.test(rule)){
+      const md=qExplicitMonthDay(sched);
+      return md===null?{determinable:false,dueDate:'',reason:'月結尚未設定結帳日',rule}:{determinable:true,dueDate:qMonthDayIso(tx,md,0),reason:sched||'月結',rule};
+    }
+    if(/自訂/.test(rule)){
+      const md=qExplicitMonthDay(sched),wd=qWeekdayFromText(sched);
+      if(md!==null)return {determinable:true,dueDate:qMonthDayIso(tx,md,0),reason:sched,rule};
+      if(wd!==null)return {determinable:true,dueDate:qNextWeekdayIso(tx,wd,true),reason:sched,rule};
+      return {determinable:false,dueDate:'',reason:'自訂規則需設定可判定的日期／星期',rule};
+    }
+    if(/儲值/.test(rule))return {determinable:false,dueDate:'',reason:'儲值帳不以一般到期日催收',rule};
+    return {determinable:false,dueDate:'',reason:'尚未設定可判定的結帳規則',rule};
+  }
+  function qMoneyPendingRows(){
+    const today=qIsoLocal(new Date());
+    const out=[];
+    for(const c of qProfiles()){
+      for(const direction of ['receipt','payment']){
+        for(const x of qOpenMoneyRows(c,direction)){
+          const info=qDueInfo(c,x.record,direction);
+          if(info.determinable&&info.dueDate&&info.dueDate<=today)out.push({contact:c,direction,record:x.record,due:x.due,dueInfo:info,overdueDays:Math.max(0,Math.floor((qDateOnly(today)-qDateOnly(info.dueDate))/86400000))});
+        }
+      }
+    }
+    return out.sort((a,b)=>String(a.dueInfo.dueDate).localeCompare(String(b.dueInfo.dueDate))||String(a.record.date||'').localeCompare(String(b.record.date||'')));
+  }
+  function qMoneyPendingHtml(){
+    const rows=qMoneyPendingRows();
+    if(!rows.length)return '<div class="acctWorkPlaceholder"><b>💰 目前沒有已到期的待收／待付</b><div class="helper">未結清不等於到期；週結／月結若沒有設定星期或結帳日，不會被系統猜成逾期。</div></div>';
+    const totalR=rows.filter(x=>x.direction==='receipt').reduce((a,x)=>a+x.due,0), totalP=rows.filter(x=>x.direction==='payment').reduce((a,x)=>a+x.due,0);
+    return '<div class="acctSearchSummary" style="margin-bottom:12px"><b>💰 到期待辦</b><div class="helper">待收 '+qFmt(totalR)+'｜待付 '+qFmt(totalP)+'</div></div>'+
+      '<div class="acctQueueList">'+rows.map(x=>'<div class="acctQueueRow"><div><b>'+qEsc(x.direction==='receipt'?'🟢 待收':'🟠 待付')+'｜'+qEsc(x.contact.name||'')+'</b><div class="helper">交易 '+qEsc(x.record.date||'')+'｜到期 '+qEsc(x.dueInfo.dueDate)+'｜'+qEsc(x.dueInfo.reason)+(x.overdueDays?`｜逾期 ${x.overdueDays} 天`:'｜今日到期')+'</div></div><strong>'+qFmt(x.due)+'</strong></div>').join('')+'</div>';
+  }
+
   // 第175B5K：首頁搜尋單擊／Enter、帳本直接入口、待補價格共用工作佇列來源。
   // 第175B5I：首頁四顆待辦統一由「帳務工作佇列」產生，不再各自寫死跳頁。
   // 待收／付款必須等正式結帳到期規則成立後才列入；未結清(due>0)本身不等於今天待收／待付。
@@ -5630,7 +5701,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       draft:rows.filter(r=>r.status==='draft').length,
       dispatch_pending:rows.filter(r=>r.status==='dispatch_pending').length,
       pending_price:qQueueRows('pending_price').length,
-      money_pending:0
+      money_pending:qMoneyPendingRows().length
     };
   }
   function qWorkLabel(filter){return ({draft:'草稿',dispatch_pending:'待作帳',pending_price:'待補價格',money_pending:'待收／付款'})[filter]||'帳務待辦'}
@@ -5645,7 +5716,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const work=document.getElementById('acctStageWork');if(!work)return;
     if(filter==='pending_price'){renderPendingPrices(work);return}
     if(filter==='money_pending'){
-      work.innerHTML='<div class="acctWorkPlaceholder"><b>💰 目前沒有可判定為「到期待收／待付」的正式待辦</b><div class="helper">未結清不等於現在到期。之後由結帳方式、週期／下趟結上趟等條件與正式收付款交易共同產生待辦。</div></div>';
+      work.innerHTML=qMoneyPendingHtml();
       return;
     }
     qRenderQueue(work,filter);
