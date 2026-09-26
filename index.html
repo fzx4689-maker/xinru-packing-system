@@ -5554,7 +5554,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const aliases=[...new Set(group.flatMap(qRecordAliases))];
     return {contact:{id:'legacy:'+qNormKey(cname),name:cname,formalName:cname,code:'',identity:matched.type||'一般客戶',accountMode:'',_recordContactId:cid,_ledgerAliases:aliases},matchedBy:qNormKey(matched.vehiclePlate)===key?'vehicle':'record',vehiclePlate:qNormKey(matched.vehiclePlate)===key?String(matched.vehiclePlate||'').trim():'',vehicleActive:null,input:raw,legacyRecordFallback:true};
   }
-  function qContact(entity){return qResolveContact(entity)?.contact||null}
+  function qContact(entity){
+    // N37：呼叫端可能傳往來主檔固定 ID（例如帳單 record.contactId），
+    // 先以 ID 精準取得主檔；找不到時才走名稱／編號／車號／歷史交易解析。
+    const raw=String(entity||'').trim();
+    if(!raw)return null;
+    const byId=qProfiles().find(v=>String(v?.id||'').trim()===raw);
+    return byId||qResolveContact(raw)?.contact||null;
+  }
   // N35：同一往來對象的交易歸屬不能只比「目前 contactId」。
   // 舊交易可能保存舊 contactId／名稱／編號／車號；先從目前主檔建立種子，
   // 再掃描全部交易做傳遞式合併，找出這個往來對象歷史上用過的 ID 與別名。
