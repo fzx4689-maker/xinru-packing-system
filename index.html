@@ -5655,12 +5655,16 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const days=qExplicitDays(rule+' '+sched);
     if(days!==null)return {determinable:true,dueDate:qAddDaysIso(tx,days),reason:`${days}日結`,rule};
     if(/週結|固定星期結/.test(rule)){
+      // 欣儒核心規則：週結固定星期六；若個別往來資料另有明確星期設定，仍以個別設定優先。
       const wd=qWeekdayFromText(sched);
-      return wd===null?{determinable:false,dueDate:'',reason:'週結尚未設定星期',rule}:{determinable:true,dueDate:qNextWeekdayIso(tx,wd,true),reason:sched||'週結',rule};
+      const useWd=wd===null?6:wd;
+      return {determinable:true,dueDate:qNextWeekdayIso(tx,useWd,true),reason:wd===null?'週結（星期六）':sched,rule};
     }
     if(/月結/.test(rule)){
+      // 欣儒核心規則：月結固定月底；若個別往來資料另有明確幾號設定，仍以個別設定優先。
       const md=qExplicitMonthDay(sched);
-      return md===null?{determinable:false,dueDate:'',reason:'月結尚未設定結帳日',rule}:{determinable:true,dueDate:qMonthDayIso(tx,md,0),reason:sched||'月結',rule};
+      const useMd=md===null?31:md;
+      return {determinable:true,dueDate:qMonthDayIso(tx,useMd,0),reason:md===null?'月結（月底）':sched,rule};
     }
     if(/自訂/.test(rule)){
       const md=qExplicitMonthDay(sched),wd=qWeekdayFromText(sched);
@@ -5686,7 +5690,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qMoneyPendingHtml(){
     const rows=qMoneyPendingRows();
-    if(!rows.length)return '<div class="acctWorkPlaceholder"><b>💰 目前沒有已到期的待收／待付</b><div class="helper">未結清不等於到期；週結／月結若沒有設定星期或結帳日，不會被系統猜成逾期。</div></div>';
+    if(!rows.length)return '<div class="acctWorkPlaceholder"><b>💰 目前沒有已到期的待收／待付</b><div class="helper">未結清不等於到期；週結固定星期六，月結固定月底，個別往來資料若另有明確設定則以個別設定優先。</div></div>';
     const totalR=rows.filter(x=>x.direction==='receipt').reduce((a,x)=>a+x.due,0), totalP=rows.filter(x=>x.direction==='payment').reduce((a,x)=>a+x.due,0);
     return '<div class="acctSearchSummary" style="margin-bottom:12px"><b>💰 到期待辦</b><div class="helper">待收 '+qFmt(totalR)+'｜待付 '+qFmt(totalP)+'</div></div>'+
       '<div class="acctQueueList">'+rows.map(x=>'<div class="acctQueueRow"><div><b>'+qEsc(x.direction==='receipt'?'🟢 待收':'🟠 待付')+'｜'+qEsc(x.contact.name||'')+'</b><div class="helper">交易 '+qEsc(x.record.date||'')+'｜到期 '+qEsc(x.dueInfo.dueDate)+'｜'+qEsc(x.dueInfo.reason)+(x.overdueDays?`｜逾期 ${x.overdueDays} 天`:'｜今日到期')+'</div></div><strong>'+qFmt(x.due)+'</strong></div>').join('')+'</div>';
