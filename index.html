@@ -5485,15 +5485,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     box.classList.remove('acctDateNested');box.dataset.dateLabel=label;box.style.display='flex';
   }
   // 175B5N35：帳務中心第一層使用同一往來對象歷史 ID／別名解析，再套日期篩選；周轉物維持全歷史狀態。
+  // 容器狀態唯一真相在後方共用 Container Event / Balance Engine；此處不再保留第二套加減算法。
   function qTurnoverStateForContact(c){
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c)&&r.turnover&&r.turnover.type&&Number(r.turnover.qty));
-    const byType={};
-    rows.forEach(r=>{const t=String(r.turnover.type||'').trim(),a=String(r.turnover.action||'').trim(),q=Math.abs(Number(r.turnover.qty)||0);if(!t||!q)return;const x=byType[t]||(byType[t]={type:t,owed:0,buyout:0,adjust:0,count:0});x.count++;if(a==='欠用')x.owed+=q;else if(a==='歸還')x.owed-=q;else if(a==='買斷')x.buyout+=q;else if(a==='調整')x.adjust+=Number(r.turnover.qty)||0});
-    return {rows,types:Object.values(byType)};
+    if(typeof window.qContainerEventsForContact==='function'&&typeof window.qContainerBalance==='function'){const events=window.qContainerEventsForContact(c);return {rows:events.map(e=>e.record),events,types:window.qContainerBalance(events)}}
+    return {rows:[],events:[],types:[]};
   }
   function qTurnoverSummaryHtml(c){
-    if(!c)return '';const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">周轉物：目前無進出紀錄</span>';
-    return st.types.map(x=>{let label=x.owed>0?'欠 '+qEsc(String(x.owed)):x.owed<0?'餘 '+qEsc(String(Math.abs(x.owed))):'0';return '<span class="acctTurnState"><b>'+qEsc(x.type)+'</b> '+label+(x.buyout?'｜買斷 '+qEsc(String(x.buyout)):'')+'</span>'}).join('');
+    if(!c)return '';const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／鐵架／棧板／容器進出紀錄</span>';
+    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),ret=Math.max(0,Number(x.returned)||0);if(x.type==='籃子')return '<span class="acctTurnState"><b>籃子</b>｜欠籃 '+owe+'｜回籃 '+ret+'｜餘籃 '+sur+(x.buyout?'｜買斷 '+x.buyout:'')+'</span>';return '<span class="acctTurnState"><b>'+qEsc(x.type)+'</b>｜使用 '+(x.used||0)+'｜歸還 '+ret+'｜'+(owe>0?'尚欠 '+owe:(sur>0?'餘 '+sur:'結清'))+(x.buyout?'｜買斷 '+x.buyout:'')+'</span>'}).join(' ');
   }
   function qHomeContactAccountSummary(c){
     if(!c)return '';
@@ -6603,7 +6602,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   const oldPreviewBill=qPreviewBill;
   const money=n=>Number(n)||0;
   const esc=s=>qEsc(String(s??''));
-  function normAction(a){a=String(a||'').trim();return (a==='欠用'||a==='借用'||a==='使用')?'使用':(a==='回籃'||a==='歸還')?'歸還':a}
+  function normAction(a){a=String(a||'').trim();const k=a.toLowerCase();if(['欠用','借用','使用','use','borrow','borrowed','out'].includes(k))return '使用';if(['回籃','歸還','return','returned','back','in'].includes(k))return '歸還';if(['買斷','buyout','buy-out','purchase'].includes(k))return '買斷';if(['調整','adjust','adjustment'].includes(k))return '調整';return a}
   function assetName(t){const x=String(t?.type||'').trim();return x&&x!=='其他'?x:String(t?.otherName||t?.customName||t?.name||'其他').trim()||'其他'}
   function assetVerb(type,action){action=normAction(action);if(type==='籃子'){if(action==='使用')return '欠籃';if(action==='歸還')return '回籃';if(action==='買斷')return '買斷'}return action}
   window.qNormalizeTurnAction=normAction;
@@ -6685,10 +6684,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   relabel();new MutationObserver(()=>relabel()).observe(document.body,{childList:true,subtree:true});
 })();
 </script>\n<script>
-// N86：共用容器事件與 Balance Engine 核心。只新增帳務容器事件；不建立 $0 銷貨／進貨，不影響應收應付。
+// N87：唯一共用容器事件與 Balance Engine 核心。只新增帳務容器事件；不建立 $0 銷貨／進貨，不影響應收應付。
 (function(){
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const normAction=v=>({欠用:'使用',使用:'使用',歸還:'歸還',回籃:'歸還',買斷:'買斷',調整:'調整'}[String(v||'').trim()]||String(v||'').trim());
+  const normAction=v=>window.qNormalizeTurnAction?window.qNormalizeTurnAction(v):String(v||'').trim();
   const today=()=>{const d=new Date(Date.now()+8*3600000);return d.toISOString().slice(0,10)};
   function contacts(){try{return (JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]')||[]).filter(x=>x&&x.active!==false)}catch(e){return []}}
   function contactBy(v){const k=String(v||'').trim().toLowerCase();return contacts().find(x=>[x.id,x.name,x.code].some(y=>String(y||'').trim().toLowerCase()===k))||null}
