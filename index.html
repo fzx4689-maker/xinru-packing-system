@@ -5703,10 +5703,19 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qN98RowsFromRecord(record,contact){
     const rows=[];
     (record?.items||[]).forEach((x,i)=>{const freight=qN98Money(x.freight),amount=x.amount===''?'':qN98Money(x.amount);rows.push({kind:'item',date:record.date||'',recordId:record.id||'',no:i+1,name:x.name||'',kg:x.kg??'',qty:x.qty??'',pricing:x.pricing||'',price:x.price??'',goods:amount===''?'':Math.max(0,amount-freight),freight,amount:amount===''?'':amount,contactId:record.contactId||'',contactName:record.customer||contact?.name||''})});
-    const t=record?.turnover||{},tm=qRecordTurnoverMoney(record);
-    if(contact?.billShowTurnover!==false&&t.type&&t.action==='買斷'&&Number(t.qty)){const buyout=true;rows.push({kind:'turnover',date:record.date||'',recordId:record.id||'',no:rows.length+1,name:t.type+'・'+t.action,kg:'',qty:t.qty??'',pricing:t.type||'',price:buyout?(qN98Money(tm.unitPrice)||qN98Money(t.unitPrice)||''):'',goods:buyout?(qN98Money(tm.amount)||qN98Money(t.amount)||0):'',freight:0,amount:buyout?(qN98Money(tm.amount)||qN98Money(t.amount)||0):'',turnoverType:t.type,turnoverAction:t.action,turnoverQty:qN98Money(t.qty),contactId:record.contactId||'',contactName:record.customer||contact?.name||''})}
     return rows;
   }
+  // N107：正式輸出保留每一次容器異動，直接取 N94/N93 canonical 容器事件；每筆帶實際日期。
+  // 不再由交易 record.turnover 另造第二筆，避免買斷或做帳內嵌容器重複。
+  function qN107ContainerRows(contact,range){
+    if(!contact||contact.billShowTurnover===false||typeof window.qContainerEventsForContact!=='function')return [];
+    const from=String(range?.from||''),to=String(range?.to||'');
+    return window.qContainerEventsForContact(contact).filter(e=>(!from||String(e.date||'')>=from)&&(!to||String(e.date||'')<=to)).map(e=>{
+      const tm=e.action==='買斷'?qRecordTurnoverMoney(e.record):{unitPrice:0,amount:0};
+      return {kind:'turnover',date:e.date||'',recordId:e.sourceRecordId||'',no:'',name:String(e.type||'')+'・'+String(e.action||''),kg:'',qty:e.qty??'',pricing:e.type||'',price:e.action==='買斷'?(qN98Money(tm.unitPrice)||qN98Money(e.record?.turnover?.unitPrice)||''):'',goods:e.action==='買斷'?(qN98Money(tm.amount)||qN98Money(e.record?.turnover?.amount)||0):'',freight:0,amount:e.action==='買斷'?(qN98Money(tm.amount)||qN98Money(e.record?.turnover?.amount)||0):0,turnoverType:e.type||'',turnoverAction:e.action||'',turnoverQty:qN98Money(e.qty),contactId:e.contactId||contact.id||'',contactName:e.customer||contact.name||'',createdAt:e.createdAt||''};
+    });
+  }
+  function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.recordId||'').localeCompare(String(b.recordId||'')));}
   function qN98SettlementRow(r,contact){const methods=(r?.methods||[]).map(m=>(m.method||'')+(qN98Money(m.amount)?(' $'+Math.round(qN98Money(m.amount)).toLocaleString('zh-TW')):'')).filter(Boolean).join('＋');return {kind:'settlement',date:r?.date||'',recordId:r?.id||'',name:r?.txnType==='payment'?'付款':'收款',summary:methods||r?.note||'',amount:qN98Money(r?.amount||r?.total),contactId:r?.contactId||'',contactName:r?.customer||contact?.name||''}}
   function qN98Summary(rows,outstanding=0){let goods=0,freight=0,turnoverBuyout=0;const containers={};rows.forEach(x=>{if(x.kind==='item'){goods+=qN98Money(x.goods);freight+=qN98Money(x.freight)}else if(x.kind==='turnover'){turnoverBuyout+=qN98Money(x.amount);const k=x.turnoverType||'周轉物';containers[k]=(containers[k]||0)+(x.turnoverAction==='歸還'?-qN98Money(x.turnoverQty):qN98Money(x.turnoverQty))}});return {goods,freight,turnoverBuyout,total:goods+freight+turnoverBuyout,outstanding:qN98Money(outstanding),containers}}
   // N103：四種正式輸出共用同一個周轉物數量摘要；保留動作，不把買斷／使用／歸還混成單一數字。
@@ -5750,7 +5759,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       const rows=[];groups.forEach(g=>rows.push(...g.rows));
       return {schema:'xinru_complete_output_v1',kind:'farmer_weekly',reportLayout:'farmer_weekly',contact:route.contact,range:route.data?.range||{},groups,rows,settlements:[],summary:qN98Summary(rows),source:route.data};
     }
-    const rows=[];(route.data?.activities||[]).forEach(r=>{if(r.mode==='money_settlement')rows.push(qN98SettlementRow(r,route.contact));else rows.push(...qN98RowsFromRecord(r,route.contact))});
+    let rows=[];(route.data?.activities||[]).forEach(r=>{if(r.mode==='money_settlement')rows.push(qN98SettlementRow(r,route.contact));else rows.push(...qN98RowsFromRecord(r,route.contact))});
+    rows.push(...qN107ContainerRows(route.contact,route.data?.range||{}));rows=qN107SortRows(rows);
     return {schema:'xinru_complete_output_v1',kind:'general',reportLayout:route.reportLayout,contact:route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),source:route.data};
   }
   function qN98RangeLabel(m){return [m?.range?.from,m?.range?.to].filter(Boolean).join(' ～ ')||''}
@@ -5797,7 +5807,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>LQ-310 報表紙</title><style>@page{size:'+PAPER_W+'mm '+PAPER_H+'mm;margin:'+MARGIN_V+'mm 18.9mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:18px auto;background:#fff;position:relative;box-shadow:0 2px 14px #999;font-size:10.5pt;overflow:hidden}.paper{break-after:page;page-break-after:always}.paper:last-child{break-after:auto;page-break-after:auto}header{height:'+HEAD_H+'mm;display:flex;justify-content:space-between;align-items:center;font-size:10.5pt;font-weight:600}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:1.4mm}.twocol table:only-child{grid-column:1/-1}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.5pt}th,td{border:1px solid #333;height:'+ROW_H+'mm;padding:.6mm .7mm;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}thead th{height:'+COLHEAD_H+'mm;font-size:9.5pt}.name{text-align:left}.cash td{font-weight:700}.foot{position:absolute;left:0;right:0;bottom:0;border-top:1.4px solid #222;background:#fff;font-weight:900}.foot.simple{min-height:'+FOOT_H+'mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:2mm;padding:2mm 2.5mm;font-size:13.5pt}.foot.simple .open{font-size:15pt}.foot.simple .container{font-size:12pt;text-align:right}.foot.sign{height:'+FOOT_H+'mm;padding:2.2mm 2.5mm;display:flex;flex-direction:column;justify-content:space-between}.foot.sign .calc{font-size:14pt;line-height:1.35;text-align:right}.foot.sign .signrow{display:flex;align-items:center;justify-content:space-between;gap:4mm;font-size:14.5pt}.foot.sign .signrow b{font-size:16pt}.foot.sign .container{font-size:11.5pt;text-align:left}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="doPrint()">🖨️ 列印 LQ-310</button></div>'+pageHtml+qN101PreviewScript()+'</body></html>');w.document.close();
   }
-  // N106：正式輸出不列使用／歸還／領用等 $0 容器異動；底部只顯示目前結餘。四種輸出細項保留交易日期。
+  // N107：正式輸出保留領用／使用／歸還／買斷／調整等每筆容器異動，逐筆顯示日期；底部另顯示目前最終結餘，供客戶核對。
   // N102：中央圖片／LINE renderer。所有正式圖片輸出共用同一份 N98 完整明細模型。
   function qN102ImageCanvas(model){
     const W=720,pad=34,rowH=38,headH=190,containerText=qN103ContainerText(model),currentContainer=qN105CurrentContainerText(model),buyoutText=qN104BuyoutTextModel(model);
