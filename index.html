@@ -6455,6 +6455,70 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     open('turnover',true);const w=document.getElementById('acctStageWork');if(!w)return;const events=qN93ContainerEventsForContact(c).slice().reverse();
     w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧺 '+qEsc(c.name)+'｜籃子／鐵架／棧板／容器明細</b><div class="helper" style="display:block!important;margin-top:5px">目前狀態使用完整歷史計算；下方列出全部正式進出紀錄。</div></div></div><div class="quickV2ContactHint" style="margin:10px 0">'+qTurnoverSummaryHtml(c)+'</div><div>'+(events.length?events.map(e=>'<div class="quickV2Record"><b>'+qEsc((e.date||'')+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+qEsc(e.source)+(e.note?'｜'+qEsc(e.note):'')+'</div></div>').join(''):'<div class="empty">目前沒有籃子／鐵架／棧板／容器進出紀錄</div>')+'</div></div>';
   };
+  // N96：一般帳「完整明細」資料核心。只建立資料範圍，不改既有沖帳、容器與四種輸出。
+  // 規則：以既有 allocations/paid 計算 cutoff 當下每筆餘額，找最早仍未完全消帳交易；
+  // 再保留該起點到 cutoff 之間的正式交易與正式收/付款，供後續四種輸出共用。
+  function qN96DirectionMatch(r,direction){
+    if(!r)return false;
+    return direction==='payment'
+      ?(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')
+      :(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨');
+  }
+  function qN96SettlementDirection(r){return r?.txnType==='payment'?'payment':'receipt'}
+  function qN96Time(r){return String(r?.createdAt||r?.updatedAt||'')}
+  function qN96Date(r){return String(r?.date||'')}
+  function qN96Cmp(a,b){
+    const d=qN96Date(a).localeCompare(qN96Date(b));
+    if(d)return d;
+    const t=qN96Time(a).localeCompare(qN96Time(b));
+    if(t)return t;
+    return String(a?.id||'').localeCompare(String(b?.id||''));
+  }
+  function qN96AtOrBefore(r,cutoff){return !cutoff||qN96Cmp(r,cutoff)<=0}
+  function qN96AtOrAfter(r,start){return !start||qN96Cmp(r,start)>=0}
+  function qN96FormalRecords(c){
+    return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft');
+  }
+  function qN96ResolveCutoff(c,direction,cutoff){
+    const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price');
+    if(cutoff&&typeof cutoff==='object')return cutoff;
+    const key=String(cutoff||'').trim();
+    if(key){
+      const byId=all.find(r=>String(r.id||'')===key);if(byId)return byId;
+      const dated=all.filter(r=>qN96Date(r)<=key&&(r.mode==='money_settlement'?qN96SettlementDirection(r)===direction:qN96DirectionMatch(r,direction))).sort(qN96Cmp);
+      return dated[dated.length-1]||null;
+    }
+    const eligible=all.filter(r=>r.mode==='money_settlement'?qN96SettlementDirection(r)===direction:qN96DirectionMatch(r,direction)).sort(qN96Cmp);
+    return eligible[eligible.length-1]||null;
+  }
+  function qN96OutstandingAt(c,direction,cutoff){
+    const all=qN96FormalRecords(c),tx=all.filter(r=>r.mode!=='money_settlement'&&r.pricingStatus!=='pending_price'&&qN96DirectionMatch(r,direction)&&qN96AtOrBefore(r,cutoff)).sort(qN96Cmp);
+    const settlements=all.filter(r=>r.mode==='money_settlement'&&qN96SettlementDirection(r)===direction&&qN96AtOrBefore(r,cutoff));
+    return tx.map(r=>{
+      const allocated=settlements.reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===String(r.id||'')).reduce((z,a)=>z+qMoney(a?.amount),0),0);
+      const paid=qMoney(r.paid)+allocated,remain=Math.max(0,qRecordTotal(r)-paid);
+      return {record:r,total:qRecordTotal(r),paid,allocated,remain};
+    });
+  }
+  function qN96GeneralDetail(c,direction='receipt',cutoffInput=null){
+    direction=direction==='payment'?'payment':'receipt';
+    const cutoff=qN96ResolveCutoff(c,direction,cutoffInput),balances=qN96OutstandingAt(c,direction,cutoff);
+    const open=balances.filter(x=>x.remain>0.000001),start=open.length?open[0].record:null;
+    const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price');
+    const activities=start?all.filter(r=>qN96AtOrAfter(r,start)&&qN96AtOrBefore(r,cutoff)&&(r.mode==='money_settlement'?qN96SettlementDirection(r)===direction:qN96DirectionMatch(r,direction))).sort(qN96Cmp):[];
+    const transactionRows=activities.filter(r=>r.mode!=='money_settlement'),settlementRows=activities.filter(r=>r.mode==='money_settlement');
+    return {
+      schema:'xinru_general_complete_detail_v1',kind:'general',direction,contact:c||null,
+      cutoff:cutoff||null,start:start||null,settled:open.length===0,
+      outstanding:open.reduce((sum,x)=>sum+x.remain,0),openRows:open,
+      activities,transactions:transactionRows,settlements:settlementRows,
+      range:{from:start?.date||'',to:cutoff?.date||''}
+    };
+  }
+  window.xrAccountingDetailCore={
+    version:'N96',general:qN96GeneralDetail,outstandingAt:qN96OutstandingAt,
+    formalRecords:qN96FormalRecords,compare:qN96Cmp
+  };
   window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,paintWorkBadges:qPaintWorkBadges,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery,init:qAcctInitDateController,apply:qAcctApplyController,refresh:qAcctRefreshCurrentRoute}};
 })();
 </script>
@@ -6673,4 +6737,5 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
  document.addEventListener('click',e=>{const b=e.target.closest('[data-acct-stage-action]');if(!b)return;const a=b.dataset.acctStageAction;if(a!=='📥📤 進出紀錄'&&a!=='🔍 籃子／鐵架／棧板／容器查詢')return;const h=b.closest('#acctManagementStage')?.querySelector('.acctStageHead h3')?.textContent||'';if(!h.includes('籃子／鐵架／棧板／容器管理'))return;e.stopImmediatePropagation();const w=document.getElementById('acctStageWork');if(!w)return;a==='📥📤 進出紀錄'?renderMovement(w):renderQuery(w);w.scrollIntoView({behavior:'smooth',block:'start'})},true);
 })();
 </script>
+<!-- N96: 一般帳完整明細資料核心；不接四種輸出、不改列印版型。 -->
 </body></html>
