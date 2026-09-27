@@ -6394,6 +6394,65 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   home(true);
   // 第一階段核心：已移除 accounting-cloud-loaded / 250ms / 350ms 重複補畫。
   try{qInitAccountingHomeUi()}catch(err){console.warn(err)}
+  // N93 容器核心：必須位於帳務 IIFE 內，直接使用帳本已成功使用的 acctRecords + qRecordBelongsToContact。
+  // N90~N92 放在 IIFE 外，第一行就因 qBillCanvas 不在全域作用域而 ReferenceError，故那些修改實際從未執行。
+  function qN93TurnAction(v){
+    const k=String(v||'').trim().toLowerCase();
+    if(['use','borrow','borrowed','out','欠用','借用','使用'].includes(k))return '使用';
+    if(['return','returned','back','in','回籃','歸還','返還'].includes(k))return '歸還';
+    if(['buyout','buy-out','purchase','買斷'].includes(k))return '買斷';
+    if(['adjust','adjustment','調整'].includes(k))return '調整';
+    return String(v||'').trim();
+  }
+  function qN93Turnovers(r){
+    const out=[];
+    const add=v=>{if(!v)return;if(typeof v==='string'){try{v=JSON.parse(v)}catch(_){return}}if(Array.isArray(v)){v.forEach(add);return}if(typeof v==='object')out.push(v)};
+    add(r?.turnover);add(r?.turnovers);add(r?.containerEvents);add(r?.container_events);
+    return out;
+  }
+  function qN93AllContainerEvents(){
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft');
+    const ev=[];
+    rows.forEach((r,ri)=>qN93Turnovers(r).forEach((t,ti)=>{
+      const type=String(t?.type??t?.assetType??t?.asset_type??t?.name??'').trim();
+      const action=qN93TurnAction(t?.action??t?.movement??t?.verb??t?.direction);
+      const qty=Math.abs(Number(t?.qty??t?.quantity??t?.count??0)||0);
+      if(!type||!qty||!['使用','歸還','買斷','調整'].includes(action))return;
+      ev.push({id:String(r.id||r.local_id||'')+':'+ti,sourceRecordId:String(r.id||r.local_id||''),record:r,contactId:String(r.contactId||r.contact_id||''),customer:String(r.customer||r.customerName||r.contactName||''),date:String(r.date||''),createdAt:String(r.createdAt||r.created_at||r.updatedAt||r.updated_at||''),type,action,qty,note:String(t?.note||''),balanceDelta:Number(t?.balanceDelta??t?.balance_delta??0)||0,rawQty:Number(t?.qty??t?.quantity??0)||0,source:r.mode==='turnover_event'?'容器管理':'做帳',_order:ri*100+ti});
+    }));
+    return ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.createdAt).localeCompare(String(b.createdAt))||a._order-b._order);
+  }
+  function qN93ContainerEventsForContact(c){
+    if(!c)return[];
+    // 完全沿用帳本已驗證的往來歸屬判斷，不再另造 contactId resolver。
+    return qN93AllContainerEvents().filter(e=>qRecordBelongsToContact(e.record,c));
+  }
+  function qN93ContainerBalance(events){
+    const by={};
+    for(const e of events||[]){
+      const x=by[e.type]||(by[e.type]={type:e.type,owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);
+      if(e.action==='使用'){let q=e.qty,from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}
+      else if(e.action==='歸還'){let q=e.qty,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}
+      else if(e.action==='買斷')x.buyout+=e.qty;
+      else if(e.action==='調整'){const d=e.balanceDelta||e.rawQty||0;if(d>0){let from=Math.min(x.surplus,d);x.surplus-=from;x.owed+=d-from}else if(d<0){let q=Math.abs(d),settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}}
+    }
+    return Object.values(by);
+  }
+  window.qNormalizeTurnAction=qN93TurnAction;
+  window.qAllContainerEvents=qN93AllContainerEvents;
+  window.qContainerEventsForContact=qN93ContainerEventsForContact;
+  window.qContainerBalance=qN93ContainerBalance;
+  qTurnoverStateForContact=function(c){const events=qN93ContainerEventsForContact(c);return {events,rows:[...new Map(events.map(e=>[e.sourceRecordId,e.record])).values()],types:qN93ContainerBalance(events)}};
+  qTurnoverSummaryHtml=function(c){
+    const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／鐵架／棧板／容器進出紀錄</span>';
+    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),buy=Math.max(0,Number(x.buyout)||0),type=qEsc(x.type);let state=owe>0?(x.type==='籃子'?'欠籃 ':'欠'+type+' ')+owe:sur>0?(x.type==='籃子'?'餘籃 ':'餘'+type+' ')+sur:type+'已結清';if(buy>0)state+='｜買斷 '+buy;return '<span class="acctTurnState"><b>'+state+'</b></span>'}).join('　');
+  };
+  qOpenTurnoverForContact=function(entity,skipNavSave=false){
+    const c=qContact(entity);if(!c)return;const publicKey=String(c.name||entity||'').trim();
+    if(!skipNavSave)acctNavWrite({layer:'contactTurnover',section:'turnover',action:'detail',recordId:publicKey,detailId:'',backMode:'',searchTerm:publicKey});
+    open('turnover',true);const w=document.getElementById('acctStageWork');if(!w)return;const events=qN93ContainerEventsForContact(c).slice().reverse();
+    w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧺 '+qEsc(c.name)+'｜籃子／鐵架／棧板／容器明細</b><div class="helper" style="display:block!important;margin-top:5px">目前狀態使用完整歷史計算；下方列出全部正式進出紀錄。</div></div></div><div class="quickV2ContactHint" style="margin:10px 0">'+qTurnoverSummaryHtml(c)+'</div><div>'+(events.length?events.map(e=>'<div class="quickV2Record"><b>'+qEsc((e.date||'')+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+qEsc(e.source)+(e.note?'｜'+qEsc(e.note):'')+'</div></div>').join(''):'<div class="empty">目前沒有籃子／鐵架／棧板／容器進出紀錄</div>')+'</div></div>';
+  };
   window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,paintWorkBadges:qPaintWorkBadges,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery,init:qAcctInitDateController,apply:qAcctApplyController,refresh:qAcctRefreshCurrentRoute}};
 })();
 </script>
@@ -6595,122 +6654,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- 175B5N79：快速做帳與帳本查詢的80行共用同一 reportLayout 決策；密集1–80/一般明細兩邊一致；其他模組不動 -->
 <!-- 175B5N81：PDF與80行共用正式收付款資料；雙向帳應收/應付分區；付款/收款日期、拆分方式、金額完整顯示。 -->
 <!-- 175B5N82：往來資料新增帳務往來模式（單向應收／單向應付／雙向往來）為報表方向來源；保留既有帳務模式相容，不動已成功PDF/80行收付款核心。 -->
-\n<script id="n84-accounting-core-root-fix">
-/* 175B5N84 — 帳務往來／沖帳／未結清輸出核心根修。只改帳務中心。 */
-(function(){
-  const oldBillCanvas=qBillCanvas;
-  const oldPreviewBill=qPreviewBill;
-  const money=n=>Number(n)||0;
-  const esc=s=>qEsc(String(s??''));
-  function normAction(a){a=String(a||'').trim();const k=a.toLowerCase();if(['欠用','借用','使用','use','borrow','borrowed','out'].includes(k))return '使用';if(['回籃','歸還','return','returned','back','in'].includes(k))return '歸還';if(['買斷','buyout','buy-out','purchase'].includes(k))return '買斷';if(['調整','adjust','adjustment'].includes(k))return '調整';return a}
-  function assetName(t){const x=String(t?.type||'').trim();return x&&x!=='其他'?x:String(t?.otherName||t?.customName||t?.name||'其他').trim()||'其他'}
-  function assetVerb(type,action){action=normAction(action);if(type==='籃子'){if(action==='使用')return '欠籃';if(action==='歸還')return '回籃';if(action==='買斷')return '買斷'}return action}
-  window.qNormalizeTurnAction=normAction;
 
-  // 真正的目前未結清資料核心：先依 allocations 算每筆剩餘，再只留下仍未結清的正式交易。
-  function buildOutstanding(c){
-    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft');
-    const tx=all.filter(r=>r.mode!=='money_settlement'&&r.pricingStatus!=='pending_price');
-    const settlements=all.filter(r=>r.mode==='money_settlement');
-    const allocByRecord=new Map();
-    settlements.forEach(s=>(s.allocations||[]).forEach(a=>{const id=String(a?.recordId||'');if(id)allocByRecord.set(id,(allocByRecord.get(id)||0)+money(a?.amount))}));
-    const open=tx.map(r=>{const total=qRecordTotal(r),allocated=(allocByRecord.get(String(r.id||''))||0)+money(r.paid),remaining=Math.max(0,total-allocated);const kind=(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')?'purchase':'sale';return {record:r,kind,total,allocated,remaining}}).filter(x=>x.remaining>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
-    const openIds=new Set(open.map(x=>String(x.record.id||'')));
-    const cash=settlements.map(s=>{const alloc=(s.allocations||[]).filter(a=>openIds.has(String(a?.recordId||'')));const amount=alloc.reduce((z,a)=>z+money(a?.amount),0);if(amount<=0)return null;return {record:s,kind:s.txnType==='payment'?'payment':'receipt',amount,allocations:alloc}}).filter(Boolean).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
-    const receivable=open.filter(x=>x.kind==='sale').reduce((z,x)=>z+x.remaining,0),payable=open.filter(x=>x.kind==='purchase').reduce((z,x)=>z+x.remaining,0);
-    return {contact:c,open,cash,receivable,payable};
-  }
-  window.qBuildOutstandingDataset=buildOutstanding;
-
-  // N90：帳務中心唯一容器資料核心。所有頁面只讀 canonical container events。
-  function qContainerNormAction(v){
-    const x=String(v||'').trim().toLowerCase();
-    if(['use','borrow','欠用','借用','使用'].includes(x))return '使用';
-    if(['return','returned','回籃','歸還','返還'].includes(x))return '歸還';
-    if(['buyout','買斷'].includes(x))return '買斷';
-    if(['adjust','adjustment','調整'].includes(x))return '調整';
-    return String(v||'').trim();
-  }
-  window.qNormalizeTurnAction=qContainerNormAction;
-  function qContainerContacts(){try{return (JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]')||[]).filter(Boolean)}catch(e){return []}}
-  function qContainerContactIdentity(c){
-    const ids=new Set(),aliases=new Set();
-    [c?.id,c?.legacyId].forEach(v=>{v=String(v||'').trim();if(v)ids.add(v)});
-    [c?.name,c?.code,c?.vehicle,c?.plate,c?.carNo].forEach(v=>{v=String(v||'').trim().toLowerCase();if(v)aliases.add(v)});
-    try{if(typeof qContactLedgerIdentity==='function'){const z=qContactLedgerIdentity(c);(z?.ids||[]).forEach(v=>ids.add(String(v)));(z?.aliases||[]).forEach(v=>aliases.add(String(v).trim().toLowerCase()))}}catch(e){}
-    return {id:String(c?.id||c?.name||''),ids,aliases};
-  }
-  function qBuildContainerContactIndex(){
-    const contacts=qContainerContacts(),byId=new Map(),byAlias=new Map(),identities=new Map();
-    contacts.forEach(c=>{const z=qContainerContactIdentity(c);identities.set(z.id,z);z.ids.forEach(v=>byId.set(String(v),c));z.aliases.forEach(v=>byAlias.set(String(v),c))});
-    return {contacts,byId,byAlias,identities};
-  }
-  function qResolveContainerContact(record,index){
-    const rid=String(record?.contactId||record?.contact_id||'').trim();if(rid&&index.byId.has(rid))return index.byId.get(rid);
-    const vals=[record?.customer,record?.customerName,record?.contactName,record?.contact,record?.customerCode,record?.code,record?.vehicle,record?.plate].map(v=>String(v||'').trim().toLowerCase()).filter(Boolean);
-    for(const v of vals)if(index.byAlias.has(v))return index.byAlias.get(v);
-    if(typeof qRecordBelongsToContact==='function')for(const c of index.contacts){try{if(qRecordBelongsToContact(record,c))return c}catch(e){}}
-    return null;
-  }
-  function qContainerCandidates(record){const a=[];if(record?.turnover)a.push(record.turnover);if(Array.isArray(record?.turnovers))a.push(...record.turnovers);if(Array.isArray(record?.containerEvents))a.push(...record.containerEvents);return a}
-  function qBuildContainerEventIndex(){
-    const ci=qBuildContainerContactIndex(),all=[],byContact=new Map(),rows=(typeof acctRecords==='function'?acctRecords():[]);
-    rows.forEach((r,ri)=>{if(!r||r.status==='void'||r.status==='draft')return;const c=qResolveContainerContact(r,ci);const cid=String(c?.id||r.contactId||r.contact_id||r.customer||r.customerName||'').trim();const customer=String(c?.name||r.customer||r.customerName||r.contactName||'').trim();qContainerCandidates(r).forEach((t,ti)=>{const qty=Math.abs(Number(t?.qty??t?.quantity??0)||0),type=String(t?.type??t?.assetType??t?.name??'').trim(),action=qContainerNormAction(t?.action??t?.movement??t?.verb);if(!qty||!type||!['使用','歸還','買斷','調整'].includes(action))return;const ev={id:String(r.id||'')+':'+ti,sourceRecordId:String(r.id||''),record:r,contactId:cid,customer,type,action,qty,rawQty:Number(t?.qty??t?.quantity??0)||0,note:String(t?.note||''),balanceDelta:Number(t?.balanceDelta??0)||0,source:r.mode==='turnover_event'?'容器管理':'做帳',date:String(r.date||''),createdAt:String(r.createdAt||r.updatedAt||''),index:ri*100+ti};all.push(ev);if(cid){if(!byContact.has(cid))byContact.set(cid,[]);byContact.get(cid).push(ev)}})});
-    const sort=(a,b)=>String(a.date).localeCompare(String(b.date))||String(a.createdAt).localeCompare(String(b.createdAt))||a.index-b.index;all.sort(sort);byContact.forEach(v=>v.sort(sort));return {all,byContact,contacts:ci.contacts};
-  }
-  window.qBuildContainerEventIndex=qBuildContainerEventIndex;
-  window.qAllContainerEvents=function(){return qBuildContainerEventIndex().all};
-  function qContainerEventsForContact(c){
-    if(!c)return[];const idx=qBuildContainerEventIndex(),wantId=String(c.id||'').trim().toLowerCase(),wantAliases=new Set([c.id,c.name,c.code,c.vehicle,c.plate,...(Array.isArray(c.vehicles)?c.vehicles.flatMap(v=>[v?.plate,v?.vehicle,v?.name]):[])].map(v=>String(v||'').trim().toLowerCase()).filter(Boolean));
-    return idx.all.filter(e=>{const r=e.record||{},rid=String(r.contactId||r.contact_id||e.contactId||'').trim().toLowerCase();if(wantId&&rid===wantId)return true;const vals=[e.customer,r.customer,r.customerName,r.contactName,r.contact,r.customerCode,r.code,r.lookupInput,r.vehiclePlate,r.vehicle,r.plate].map(v=>String(v||'').trim().toLowerCase()).filter(Boolean);if(vals.some(v=>wantAliases.has(v)))return true;try{return typeof qRecordBelongsToContact==='function'&&qRecordBelongsToContact(r,c)}catch(_){return false}}).slice();
-  }
-  window.qContainerEventsForContact=qContainerEventsForContact;
-  function qContainerBalance(events){const by={};for(const e of events||[]){const x=by[e.type]||(by[e.type]={type:e.type,owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);if(e.action==='使用'){let q=e.qty,from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}else if(e.action==='歸還'){let q=e.qty,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(e.action==='買斷'){x.buyout+=e.qty}else if(e.action==='調整'){const d=e.balanceDelta||e.rawQty||0;if(d>0){let from=Math.min(x.surplus,d);x.surplus-=from;x.owed+=d-from}else if(d<0){let q=Math.abs(d),settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}}}return Object.values(by)}
-  window.qContainerBalance=qContainerBalance;
-  qTurnoverStateForContact=function(c){const events=qContainerEventsForContact(c);return {events,rows:[...new Map(events.map(e=>[e.sourceRecordId,e.record])).values()],types:qContainerBalance(events)}};
-  qTurnoverSummaryHtml=function(c){const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／鐵架／棧板／容器進出紀錄</span>';return st.types.map(x=>{const type=qEsc(x.type),owe=Math.max(0,x.owed),sur=Math.max(0,x.surplus),buy=Math.max(0,x.buyout);let state=owe>0?(x.type==='籃子'?'欠籃 ':'欠'+type+' ')+owe:sur>0?(x.type==='籃子'?'餘籃 ':'餘'+type+' ')+sur:type+'已結清';if(buy>0)state+='｜買斷 '+buy;return '<span class="acctTurnState"><b>'+state+'</b></span>'}).join('　')};
-  qOpenTurnoverForContact=function(entity,skipNavSave=false){const c=qContact(entity);if(!c)return;const publicKey=String(c.name||entity||'').trim();if(!skipNavSave)acctNavWrite({layer:'contactTurnover',section:'turnover',action:'detail',recordId:publicKey,detailId:'',backMode:'',searchTerm:publicKey});open('turnover',true);const w=document.getElementById('acctStageWork');if(!w)return;const events=qContainerEventsForContact(c).slice().reverse();w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧺 '+qEsc(c.name)+'｜籃子／鐵架／棧板／容器明細</b><div class="helper" style="display:block!important;margin-top:5px">目前狀態使用完整歷史計算；下方列出全部正式進出紀錄。</div></div></div><div class="quickV2ContactHint" style="margin:10px 0">'+qTurnoverSummaryHtml(c)+'</div><div>'+(events.length?events.map(e=>'<div class="quickV2Record"><b>'+qEsc((e.date||'')+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+qEsc(e.source)+(e.note?'｜'+qEsc(e.note):'')+'</div></div>').join(''):'<div class="empty">目前沒有籃子／鐵架／棧板／容器進出紀錄</div>')+'</div></div>'};
-
-  // 帳本本身也改吃未結清核心，不再用「全部交易－全部收款」假裝未結清。
-  qLedgerForContact=function(c,includeVoid=false){
-    const ds=buildOutstanding(c),entries=[];
-    ds.open.forEach(x=>entries.push({record:x.record,kind:x.kind,label:x.kind==='sale'?'銷貨':'進貨',total:x.total,originalTotal:x.total,allocated:x.allocated,remaining:x.remaining,receivable:x.kind==='sale'?x.remaining:0,payable:x.kind==='purchase'?x.remaining:0,signed:x.kind==='sale'?x.remaining:-x.remaining,isVoid:false,isDraft:false,pending:false,counts:true}));
-    ds.cash.forEach(x=>entries.push({record:{...x.record,amount:x.amount,total:x.amount},kind:x.kind,label:x.kind==='receipt'?'收款':'付款',total:x.amount,receivable:0,payable:0,signed:x.kind==='receipt'?-x.amount:x.amount,isVoid:false,isDraft:false,pending:false,counts:true}));
-    entries.sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
-    let running=0;entries.forEach(x=>{running+=x.signed;x.running=running});
-    const visible=entries.filter(x=>qAcctRecordInDateRange(x.record));
-    const full=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='draft');
-    return {entries:visible,receivable:ds.receivable,payable:ds.payable,net:ds.receivable-ds.payable,pendingCount:full.filter(r=>r.status!=='void'&&r.pricingStatus==='pending_price').length,allCount:entries.length,outstanding:ds};
-  };
-
-  function turnLine(c,r){if(c?.billShowTurnover===false||!r?.turnover||!Number(r.turnover.qty))return '';const t=r.turnover,type=assetName(t),a=normAction(t.action),q=Math.abs(Number(t.qty)||0),m=qRecordTurnoverMoney(r);if(a==='買斷')return type+'｜買斷 '+q+(money(m.unitPrice)?(' × '+qLedgerMoney(m.unitPrice)):'')+(money(m.amount)?(' = '+qLedgerMoney(m.amount)):'');return type+'｜'+a+' '+q}
-  function openRows(c,ledger){return (ledger?.entries||[]).filter(x=>x.kind==='sale'||x.kind==='purchase').map(x=>{const r=x.record||{},sum=qAmountSummary(r);return {entry:x,record:r,kind:x.kind,date:r.date||'',items:r.items||[],turn:turnLine(c,r),goods:sum.goods||0,freight:sum.freight||0,buyout:sum.turnover||0,total:x.originalTotal||x.total||qRecordTotal(r),allocated:x.allocated||0,remaining:x.remaining??(x.kind==='sale'?x.receivable:x.payable)}})}
-  qLedgerAmountSummary=function(c,ledger){const rows=openRows(c,ledger);return rows.reduce((a,x)=>{a.goods+=x.goods;a.freight+=x.freight;a.turnover+=x.buyout;a.total+=x.total;a.settled+=x.allocated;a.remaining+=x.remaining;return a},{goods:0,freight:0,turnover:0,total:0,settled:0,remaining:0})};
-  qLedgerAmountSummaryHtml=function(c,ledger){const a=qLedgerAmountSummary(c,ledger);return '貨款小計 '+qLedgerMoney(a.goods)+'　｜　運費小計 '+qLedgerMoney(a.freight)+'　｜　買斷小計 '+qLedgerMoney(a.turnover)+'　｜　交易總額 '+qLedgerMoney(a.total)+'　｜　已沖帳 '+qLedgerMoney(a.settled)+'　｜　未結清 '+qLedgerMoney(a.remaining)};
-
-  function basketFooter(c){const st=qTurnoverStateForContact(c);if(!st.types.length)return '';return st.types.map(x=>{const owe=Math.max(0,x.owed),sur=Math.max(0,x.surplus||0),type=String(x.type||'');let t=owe>0?(type==='籃子'?'欠籃 '+owe:'欠'+type+' '+owe):(sur>0?(type==='籃子'?'餘籃 '+sur:'餘'+type+' '+sur):type+'已結清');if(x.buyout)t+='｜買斷 '+x.buyout;return t}).join('　');}
-  function methodsText(r,amountOverride){const arr=r.methods||[];if(!arr.length)return r.note||'—';const total=arr.reduce((z,m)=>z+money(m.amount),0)||1,ratio=amountOverride==null?1:money(amountOverride)/total;return arr.map(m=>(m.method||'')+' '+qLedgerMoney(money(m.amount)*ratio)).join('＋')}
-
-  // Excel：一個事件一列；只輸出目前未結清帳務及仍與它相關的沖帳。
-  qDownloadLedgerExcel=function(c,ledger){const rows=[];openRows(c,ledger).forEach(x=>{x.items.forEach((it,i)=>rows.push([x.date,x.kind==='sale'?'銷貨':'進貨',it.name||'',it.kg??'',it.qty??'',it.price??'',money(it.freight),money(it.amount),i===0?x.allocated:'',i===0?x.remaining:'']));if(x.turn)rows.push([x.date,'籃子／容器',x.turn,'','','','',x.buyout,'',''])});(ledger?.entries||[]).filter(x=>x.kind==='receipt'||x.kind==='payment').forEach(x=>rows.push([x.record.date||'',x.kind==='receipt'?'收款':'付款',methodsText(x.record,x.total),'','','','','',x.total,'']));const csv=[[qCompanyHeader],['往來對象',c.name],['資料範圍','目前未結清帳務'],[],['日期','類型','品名／內容','KG','數量','單價','運費','金額','已沖帳','剩餘未結']];rows.forEach(r=>csv.push(r));const a=qLedgerAmountSummary(c,ledger);csv.push([],['貨款小計',a.goods],['運費小計',a.freight],['買斷小計',a.turnover],['交易總額',a.total],['已沖帳',a.settled],['目前應收',ledger.receivable],['目前應付',ledger.payable],[],[basketFooter(c)]);const text=csv.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'),blob=new Blob(['\\ufeff'+text],{type:'text/csv;charset=utf-8'}),aEl=document.createElement('a');aEl.href=URL.createObjectURL(blob);aEl.download=(c.name+'_目前未結清帳務.csv').replace(/[\\/:*?"<>|]/g,'_');aEl.click();setTimeout(()=>URL.revokeObjectURL(aEl.href),1000)};
-
-  function sectionHtml(c,ledger,kind){const isSale=kind==='sale',title=isSale?'應收帳款明細':'應付帳款明細',bal=isSale?ledger.receivable:ledger.payable,rows=openRows(c,ledger).filter(x=>x.kind===kind);let body='';rows.forEach(x=>{const names=x.items.map(it=>{const bits=[it.name||'',it.kg!==''&&it.kg!=null?('KG '+it.kg):'',it.qty!==''&&it.qty!=null?('數量 '+it.qty):'',it.price!==''&&it.price!=null?('單價 '+qLedgerMoney(it.price)):''];return bits.filter(Boolean).join('｜')}).join('<br>');body+='<tr><td>'+esc(x.date)+'</td><td>'+names+(x.turn?'<div class="asset">'+esc(x.turn)+'</div>':'')+'</td><td>'+qLedgerMoney(x.total)+'</td><td>'+qLedgerMoney(x.allocated)+'</td><td><b>'+qLedgerMoney(x.remaining)+'</b></td></tr>'});const cashKind=isSale?'receipt':'payment';(ledger.entries||[]).filter(x=>x.kind===cashKind).forEach(x=>{body+='<tr class="cash"><td>'+esc(x.record.date||'')+'</td><td><b>'+(isSale?'收款':'付款')+'</b>｜'+esc(methodsText(x.record,x.total))+'</td><td>—</td><td>'+qLedgerMoney(x.total)+'</td><td>—</td></tr>'});return '<section><div class="sec"><b>'+title+'</b><span>'+(isSale?'目前應收 ':'目前應付 ')+qLedgerMoney(bal)+'</span></div><table><thead><tr><th>日期</th><th>品名／內容</th><th>交易金額</th><th>已沖帳</th><th>剩餘未結</th></tr></thead><tbody>'+(body||'<tr><td colspan="5" class="empty">目前沒有未結清資料</td></tr>')+'</tbody></table></section>'}
-  qPrintLedgerStatement=function(c,ledger,mode){if(mode==='80')return qPrintSupermarket80(c,ledger);const bilateral=String(c?.accountRelationMode||(c?.accountMode==='雙向往來'?'雙向往來':''))==='雙向往來',hasSale=ledger.receivable>0||(ledger.entries||[]).some(x=>x.kind==='sale'),hasPay=ledger.payable>0||(ledger.entries||[]).some(x=>x.kind==='purchase'),content=bilateral?(sectionHtml(c,ledger,'sale')+sectionHtml(c,ledger,'purchase')):(hasPay&&!hasSale?sectionHtml(c,ledger,'purchase'):sectionHtml(c,ledger,'sale')),amt=qLedgerAmountSummary(c,ledger),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(c.name)+' 未結清帳務</title><style>@page{size:A4;margin:10mm}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:12px}h2{margin:0}.meta{margin:5px 0 12px}.sec{display:flex;justify-content:space-between;border:1px solid #555;border-bottom:0;padding:7px;background:#f3f3f3;font-size:14px;margin-top:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:5px;vertical-align:top}.asset{margin-top:4px;font-weight:700}.cash td{background:#fafafa}.sum{margin-top:12px;border:1px solid #555;padding:8px;font-weight:800}.empty{text-align:center}.basket{margin-top:8px;font-weight:800}</style></head><body><h2>'+qCompanyHeader+'</h2><div class="meta">往來對象：'+esc(c.name)+'　資料範圍：目前未結清帳務</div>'+content+'<div class="sum">貨款小計 '+qLedgerMoney(amt.goods)+'　｜　運費小計 '+qLedgerMoney(amt.freight)+'　｜　買斷小計 '+qLedgerMoney(amt.turnover)+'　｜　交易總額 '+qLedgerMoney(amt.total)+'　｜　已沖帳 '+qLedgerMoney(amt.settled)+'</div><div class="basket">'+esc(basketFooter(c))+'</div><script>window.onload=()=>window.print()<\\/script></body></html>');w.document.close()};
-
-  // 報表紙：241×280 固定頁框；不再使用 1–80 假格。資料多才分頁，底部固定。
-  qPrintSupermarket80=function(c,ledger){const rows=[];openRows(c,ledger).forEach(x=>{x.items.forEach(it=>rows.push({date:x.date,type:x.kind==='sale'?'銷貨':'進貨',name:it.name||'',kg:it.kg??'',qty:it.qty??'',price:it.price??'',amount:money(it.amount),remaining:''}));if(x.turn)rows.push({date:x.date,type:'籃子／容器',name:x.turn,kg:'',qty:'',price:'',amount:x.buyout||'',remaining:''});rows.push({date:x.date,type:'未結',name:'本筆已沖 '+qLedgerMoney(x.allocated),kg:'',qty:'',price:'',amount:'',remaining:x.remaining})});(ledger.entries||[]).filter(x=>x.kind==='receipt'||x.kind==='payment').forEach(x=>rows.push({date:x.record.date||'',type:x.kind==='receipt'?'收款':'付款',name:methodsText(x.record,x.total),kg:'',qty:'',price:'',amount:x.total,remaining:''}));const cap=28,pages=[];for(let i=0;i<rows.length;i+=cap)pages.push(rows.slice(i,i+cap));if(!pages.length)pages.push([]);const amt=qLedgerAmountSummary(c,ledger),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const html=pages.map((pg,pi)=>'<div class="page"><header><b>'+qCompanyHeader+'</b><span>'+esc(c.name)+'</span><span>目前未結清帳務｜'+(pi+1)+'/'+pages.length+'</span></header><div class="detail"><table><thead><tr><th>日期</th><th>類型</th><th>品名／內容</th><th>KG</th><th>數量</th><th>單價</th><th>金額</th><th>剩餘</th></tr></thead><tbody>'+pg.map(r=>'<tr><td>'+esc(r.date)+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.kg)+'</td><td>'+esc(r.qty)+'</td><td>'+esc(r.price)+'</td><td>'+esc(r.amount)+'</td><td>'+esc(r.remaining)+'</td></tr>').join('')+'</tbody></table></div><footer>'+(pi===pages.length-1?('<div><b>貨款小計 '+qLedgerMoney(amt.goods)+'｜運費小計 '+qLedgerMoney(amt.freight)+'｜買斷小計 '+qLedgerMoney(amt.turnover)+'｜已沖帳 '+qLedgerMoney(amt.settled)+'</b></div><div><b>目前應收 '+qLedgerMoney(ledger.receivable)+'｜目前應付 '+qLedgerMoney(ledger.payable)+'</b></div><div>'+esc(basketFooter(c))+'</div>'):'<div>續下頁</div>')+'</footer></div>').join('');w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(c.name)+' 報表紙</title><style>@page{size:241mm 280mm;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Arial,"Microsoft JhengHei",sans-serif}.page{width:241mm;height:280mm;padding:6mm 18.9mm;page-break-after:always;display:flex;flex-direction:column}.page:last-child{page-break-after:auto}header{height:12mm;display:flex;justify-content:space-between;align-items:center;font-size:10pt}.detail{flex:1;overflow:hidden}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8.5pt}th,td{border:1px solid #333;padding:1.2mm .8mm;text-align:center;height:7mm}th:nth-child(3),td:nth-child(3){text-align:left;width:31%}footer{height:30mm;border-top:1px solid #333;padding-top:2mm;font-size:9pt;line-height:1.8}</style></head><body>'+html+'<script>window.onload=()=>window.print()<\\/script></body></html>');w.document.close()};
-
-  // 快速做帳完成後四種輸出，不再輸出單筆 record；正式交易完成後重新讀該往來對象的目前未結清帳。草稿預覽維持單筆。
-  qDownloadExcel=function(record){const c=qContact(record?.contactId||record?.customer);if(!c)return alert('找不到往來資料');return qDownloadLedgerExcel(c,qLedgerForContact(c,false))};
-  qPrintRecord80=function(record){const c=qContact(record?.contactId||record?.customer);if(!c)return alert('找不到往來資料');return qPrintSupermarket80(c,qLedgerForContact(c,false))};
-  qPrintBill=function(record,mode){const c=qContact(record?.contactId||record?.customer);if(!c)return alert('找不到往來資料');const ledger=qLedgerForContact(c,false);return mode==='80'?qPrintSupermarket80(c,ledger):qPrintLedgerStatement(c,ledger,'pdf')};
-  qBillCanvas=function(record){if(record?.previewDraft)return oldBillCanvas(record);const c=qContact(record?.contactId||record?.customer);if(!c)return oldBillCanvas(record);const cvs=qLedgerStatementCanvases(c,qLedgerForContact(c,false));return cvs[0]||oldBillCanvas(record)};
-
-  // 舊 UI 文字與新動作值同步：不破壞歷史「欠用」，新輸入只產生「使用」。
-  function relabel(root=document){root.querySelectorAll('option').forEach(o=>{if(String(o.textContent).trim()==='欠用'){o.textContent='使用';o.value='使用'}});root.querySelectorAll('[data-out="paper80"],[data-detail-out="80"],#qLedger80').forEach(b=>{if(b)b.textContent='🖨️ 報表紙'});root.querySelectorAll('#qLedgerBillImage').forEach(b=>b.textContent='📱 圖片／LINE');}
-  relabel();new MutationObserver(()=>relabel()).observe(document.body,{childList:true,subtree:true});
-})();
-</script>\n<script>
+<!-- N93: removed dead out-of-scope N84/N90-N92 core; container core is injected inside accounting IIFE below. -->
+<script>
 // N90：容器管理只使用唯一 canonical event index，不直接讀 record.turnover。
 (function(){
  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -6720,7 +6666,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
  function typesFor(c){const t=c?.turnover||{},a=[];if(t.basket)a.push('籃子');if(t.rack)a.push('鐵架');if(t.pallet)a.push('棧板');if(t.other){const z=Array.isArray(t.customTypes)?t.customTypes.map(x=>String(x||'').trim()).filter(Boolean):[];a.push(...(z.length?z:['其他']))}return [...new Set(a)]}
  function records(){return typeof window.qAllContainerEvents==='function'?window.qAllContainerEvents():[]}
  function renderMovement(work,editId=''){const old=editId?records().find(x=>String(x.sourceRecordId)===String(editId)):null,c0=old?contactBy(old.contactId||old.customer):null,cs=contacts().filter(c=>typesFor(c).length);work.innerHTML='<div class="quickV2"><b>📥📤 籃子／鐵架／棧板／容器進出紀錄</b><div class="helper" style="display:block!important;margin:5px 0 10px">使用、歸還、買斷及調整都在這裡登記。單獨登記不建立 $0 銷貨／進貨。</div><div class="quickV2Grid"><div class="field"><label class="label">日期 *</label><input id="ctDate" class="input" type="date" value="'+esc(old?.date||today())+'"></div><div class="field"><label class="label">往來對象 *</label><select id="ctContact" class="input"><option value="">請選擇</option>'+cs.map(c=>'<option value="'+esc(c.id||c.name)+'" '+(c0&&String(c.id||c.name)===String(c0.id||c0.name)?'selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></div><div class="field"><label class="label">種類 *</label><select id="ctType" class="input"></select></div><div class="field"><label class="label">動作 *</label><select id="ctAction" class="input">'+['使用','歸還','買斷','調整'].map(x=>'<option '+(old?.action===x?'selected':'')+'>'+x+'</option>').join('')+'</select></div><div class="field"><label class="label">數量 *</label><input id="ctQty" class="input" type="number" min="0" step="1" value="'+esc(old?.qty||'')+'"></div><div class="field"><label class="label">備註／調整原因</label><input id="ctNote" class="input" value="'+esc(old?.note||'')+'"></div></div><div class="actions"><button id="ctSave" class="btn primary" type="button">'+(old?'儲存修改':'完成登記')+'</button></div><div id="ctRecent" style="margin-top:14px"></div></div>';const ce=work.querySelector('#ctContact'),te=work.querySelector('#ctType');function sync(){const c=contactBy(ce.value),sel=old?.type||te.value;te.innerHTML='<option value="">請選擇</option>'+typesFor(c).map(x=>'<option '+(x===sel?'selected':'')+'>'+esc(x)+'</option>').join('')}sync();ce.onchange=sync;function paint(){const rs=records().slice().reverse().slice(0,100);work.querySelector('#ctRecent').innerHTML='<h4>最近進出紀錄</h4>'+(rs.length?rs.map(e=>'<div class="quickV2Record"><b>'+esc(e.date+'｜'+e.customer+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+'</div>'+(e.source==='容器管理'?'<div class="actions"><button class="btn gray" data-ct-edit="'+esc(e.sourceRecordId)+'">修改</button><button class="btn gray" data-ct-void="'+esc(e.sourceRecordId)+'">作廢</button></div>':'')+'</div>').join(''):'<div class="empty">目前沒有進出紀錄</div>')}paint();work.querySelector('#ctSave').onclick=async()=>{const c=contactBy(ce.value),date=work.querySelector('#ctDate').value,type=te.value,action=work.querySelector('#ctAction').value,qty=Math.abs(Number(work.querySelector('#ctQty').value)||0),note=work.querySelector('#ctNote').value.trim();if(!date||!c||!type||!qty){alert('請完整填寫日期、往來對象、種類、動作與數量');return}if(action==='調整'&&!note){alert('調整必須填寫原因');return}const now=new Date().toISOString(),base=old?.record?{...old.record}:{id:'turn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),createdAt:now};Object.assign(base,{date,customer:c.name,contactId:c.id||'',mode:'turnover_event',txnType:'turnover',txnTypeLabel:'容器進出',accountDirection:'',items:[],total:0,status:'completed',turnover:{type,action,qty,note,balanceDelta:action==='調整'?qty:0},updatedAt:now});try{await saveAccountingCloud(base);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();renderMovement(work)}catch(e){alert('儲存失敗：'+(e?.message||e))}};work.querySelector('#ctRecent').onclick=async e=>{const eb=e.target.closest('[data-ct-edit]');if(eb){renderMovement(work,eb.dataset.ctEdit);return}const vb=e.target.closest('[data-ct-void]');if(!vb)return;const ev=records().find(x=>String(x.sourceRecordId)===String(vb.dataset.ctVoid));if(!ev||!confirm('作廢這筆 '+ev.type+' '+ev.action+' '+ev.qty+'？'))return;try{await saveAccountingCloud({...ev.record,status:'void',voidedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});if(typeof loadAccountingCloud==='function')await loadAccountingCloud();renderMovement(work)}catch(err){alert('作廢失敗：'+(err?.message||err))}}}
- function renderQuery(work){const cs=contacts();work.innerHTML='<div class="quickV2"><b>🔍 籃子／鐵架／棧板／容器查詢</b><div class="quickV2Grid" style="margin-top:10px"><div class="field"><label class="label">往來對象</label><select id="cqContact" class="input"><option value="">全部</option>'+cs.map(c=>'<option value="'+esc(c.id||c.name)+'">'+esc(c.name)+'</option>').join('')+'</select></div><div class="field"><label class="label">種類</label><select id="cqType" class="input"><option value="">全部</option><option>籃子</option><option>鐵架</option><option>棧板</option></select></div><div class="field"><label class="label">開始日期</label><input id="cqFrom" type="date" class="input"></div><div class="field"><label class="label">結束日期</label><input id="cqTo" type="date" class="input"></div></div><div class="actions"><button id="cqGo" class="btn primary" type="button">查詢</button><button id="cqClear" class="btn gray" type="button">清除</button></div><div id="cqResult" style="margin-top:12px"></div></div>';const paint=()=>{const cv=work.querySelector('#cqContact').value,c=contactBy(cv)||(typeof qContact==='function'?qContact(cv):null),type=work.querySelector('#cqType').value,from=work.querySelector('#cqFrom').value,to=work.querySelector('#cqTo').value;let rs=c&&window.qContainerEventsForContact?window.qContainerEventsForContact(c):records();if(type)rs=rs.filter(e=>e.type===type);if(from)rs=rs.filter(e=>e.date>=from);if(to)rs=rs.filter(e=>e.date<=to);rs=rs.slice().reverse();let summary=c&&typeof qTurnoverSummaryHtml==='function'?'<div class="quickV2ContactHint" style="margin-bottom:10px">'+qTurnoverSummaryHtml(c)+'</div>':'';work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>'<div class="quickV2Record"><b>'+esc(e.date+'｜'+e.customer+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+'</div></div>').join(''):'<div class="empty">查無進出紀錄</div>')};work.querySelector('#cqGo').onclick=paint;work.querySelector('#cqClear').onclick=()=>{work.querySelector('#cqContact').value='';work.querySelector('#cqType').value='';work.querySelector('#cqFrom').value='';work.querySelector('#cqTo').value='';paint()};paint()}
+ function renderQuery(work){const cs=contacts();work.innerHTML='<div class="quickV2"><b>🔍 籃子／鐵架／棧板／容器查詢</b><div class="quickV2Grid" style="margin-top:10px"><div class="field"><label class="label">往來對象</label><select id="cqContact" class="input"><option value="">全部</option>'+cs.map(c=>'<option value="'+esc(c.id||c.name)+'">'+esc(c.name)+'</option>').join('')+'</select></div><div class="field"><label class="label">種類</label><select id="cqType" class="input"><option value="">全部</option><option>籃子</option><option>鐵架</option><option>棧板</option></select></div><div class="field"><label class="label">開始日期</label><input id="cqFrom" type="date" class="input"></div><div class="field"><label class="label">結束日期</label><input id="cqTo" type="date" class="input"></div></div><div class="actions"><button id="cqGo" class="btn primary" type="button">查詢</button><button id="cqClear" class="btn gray" type="button">清除</button></div><div id="cqResult" style="margin-top:12px"></div></div>';const paint=()=>{const cv=work.querySelector('#cqContact').value,c=contactBy(cv)||(typeof qContact==='function'?qContact(cv):null),type=work.querySelector('#cqType').value,from=work.querySelector('#cqFrom').value,to=work.querySelector('#cqTo').value;let rs=records();if(c&&window.qContainerEventsForContact)rs=window.qContainerEventsForContact(c);if(type)rs=rs.filter(e=>e.type===type);if(from)rs=rs.filter(e=>e.date>=from);if(to)rs=rs.filter(e=>e.date<=to);rs=rs.slice().reverse();let summary=c&&typeof qTurnoverSummaryHtml==='function'?'<div class="quickV2ContactHint" style="margin-bottom:10px">'+qTurnoverSummaryHtml(c)+'</div>':'';work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>'<div class="quickV2Record"><b>'+esc(e.date+'｜'+e.customer+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+'</div></div>').join(''):'<div class="empty">查無進出紀錄</div>')};work.querySelector('#cqGo').onclick=paint;work.querySelector('#cqClear').onclick=()=>{work.querySelector('#cqContact').value='';work.querySelector('#cqType').value='';work.querySelector('#cqFrom').value='';work.querySelector('#cqTo').value='';paint()};paint()}
  document.addEventListener('click',e=>{const b=e.target.closest('[data-acct-stage-action]');if(!b)return;const a=b.dataset.acctStageAction;if(a!=='📥📤 進出紀錄'&&a!=='🔍 籃子／鐵架／棧板／容器查詢')return;const h=b.closest('#acctManagementStage')?.querySelector('.acctStageHead h3')?.textContent||'';if(!h.includes('籃子／鐵架／棧板／容器管理'))return;e.stopImmediatePropagation();const w=document.getElementById('acctStageWork');if(!w)return;a==='📥📤 進出紀錄'?renderMovement(w):renderQuery(w);w.scrollIntoView({behavior:'smooth',block:'start'})},true);
 })();
 </script>
