@@ -6641,8 +6641,51 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return Object.values(byType);
   }
   window.qContainerBalance=qContainerBalance;
-  qTurnoverStateForContact=function(c){const events=qContainerEventsForContact(c);return {rows:events.map(e=>e.record),events,types:qContainerBalance(events)}};
-  qTurnoverSummaryHtml=function(c){const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／容器進出紀錄</span>';return st.types.map(x=>{const type=esc(x.type),owe=Math.max(0,x.owed),sur=Math.max(0,x.surplus||0);if(x.type==='籃子')return '<span class="acctTurnState"><b>籃子</b>｜欠籃 '+owe+'｜回籃 '+x.returned+'｜餘籃 '+sur+(x.buyout?'｜買斷 '+x.buyout:'')+'</span>';return '<span class="acctTurnState"><b>'+type+'</b>｜使用 '+x.used+'｜歸還 '+x.returned+'｜'+(x.owed>0?'尚欠 '+owe:(sur>0?'餘 '+sur:'結清'))+(x.buyout?'｜買斷 '+x.buyout:'')+'</span>'}).join(' ')};
+
+  // N88：容器事件歸屬不再依賴各頁自己的 record filter。先以固定 contactId，再以主檔名稱／編號／車號／正式名稱比對。
+  function qContainerRecordBelongs(r,c){
+    if(!r||!c)return false;
+    const cid=String(c.id||'').trim(),rid=String(r.contactId||'').trim();
+    if(cid&&rid&&cid===rid)return true;
+    const norm=v=>String(v||'').trim().toLowerCase().replace(/[\s－—_-]+/g,'');
+    const keys=new Set([c.name,c.formalName,c.code,...((c.vehicles||[]).map(v=>v?.plate))].map(norm).filter(Boolean));
+    return [r.customer,r.lookupInput,r.vehiclePlate,r.contactName,r.customerCode].map(norm).filter(Boolean).some(v=>keys.has(v));
+  }
+  function qContainerEventsForContactN88(c){
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qContainerRecordBelongs(r,c));
+    const out=[];
+    rows.forEach((r,index)=>{
+      const candidates=[];
+      if(r.turnover)candidates.push(r.turnover);
+      if(Array.isArray(r.turnovers))candidates.push(...r.turnovers);
+      if(Array.isArray(r.containerEvents))candidates.push(...r.containerEvents);
+      candidates.forEach((t,j)=>{
+        const qty=Math.abs(Number(t?.qty??t?.quantity??0)||0),type=assetName(t),action=normAction(t?.action??t?.movement??t?.verb);
+        if(!qty||!type||!['使用','歸還','買斷','調整'].includes(action))return;
+        out.push({id:String(r.id||'')+':'+j,record:r,type,action,qty,rawQty:Number(t?.qty??t?.quantity??0)||0,note:String(t?.note||''),source:r.mode==='turnover_event'?'容器管理':'做帳',sourceRecordId:String(r.id||''),date:String(r.date||''),createdAt:String(r.createdAt||r.updatedAt||''),index:index*100+j,turnover:t});
+      });
+    });
+    return out.sort((a,b)=>a.date.localeCompare(b.date)||a.createdAt.localeCompare(b.createdAt)||a.index-b.index);
+  }
+  qContainerEventsForContact=qContainerEventsForContactN88;
+  window.qContainerEventsForContact=qContainerEventsForContactN88;
+  qTurnoverStateForContact=function(c){const events=qContainerEventsForContactN88(c);return {rows:events.map(e=>e.record),events,types:qContainerBalance(events)}};
+  qTurnoverSummaryHtml=function(c){
+    const st=qTurnoverStateForContact(c);
+    if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／鐵架／棧板／容器進出紀錄</span>';
+    return st.types.map(x=>{const type=esc(x.type),owe=Math.max(0,x.owed),sur=Math.max(0,x.surplus||0),buy=Math.max(0,x.buyout||0);let state='';if(owe>0)state=(x.type==='籃子'?'欠籃 ':'欠'+type+' ')+owe;else if(sur>0)state=(x.type==='籃子'?'餘籃 ':'餘'+type+' ')+sur;else state=type+'已結清';if(buy>0)state+='｜買斷 '+buy;return '<span class="acctTurnState"><b>'+state+'</b></span>'}).join('　');
+  };
+  // N88：容器明細只吃 canonical events，不再從 raw record.turnover 重畫。
+  qOpenTurnoverForContact=function(entity,skipNavSave=false){
+    const c=qContact(entity);if(!c)return;
+    const publicKey=String(c.name||entity||'').trim();
+    if(!skipNavSave)acctNavWrite({layer:'contactTurnover',section:'turnover',action:'detail',recordId:publicKey,detailId:'',backMode:'',searchTerm:publicKey});
+    open('turnover',true);const w=document.getElementById('acctStageWork');if(!w)return;
+    const st=qTurnoverStateForContact(c),events=st.events.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧺 '+qEsc(c.name)+'｜籃子／鐵架／棧板／容器明細</b><div class="helper" style="display:block!important;margin-top:5px">目前狀態使用完整歷史計算；下方列出全部正式進出紀錄。</div></div><button type="button" class="btn gray" id="qTurnBack">← 返回帳務中心</button></div><div class="quickV2ContactHint" style="margin:10px 0">'+qTurnoverSummaryHtml(c)+'</div><div>'+(events.length?events.map(e=>'<div class="quickV2Record"><b>'+qEsc((e.date||'')+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+qEsc(e.source)+(e.note?'｜'+qEsc(e.note):'')+'</div></div>').join(''):'<div class="empty">目前沒有籃子／鐵架／棧板／容器進出紀錄</div>')+'</div></div>';
+    w.querySelector('#qTurnBack').onclick=()=>{acctNavWrite({layer:'home',section:'home',action:'',recordId:'',detailId:'',backMode:'',searchTerm:publicKey});open('home',true);qPaintHomeSearch(publicKey)};
+  };
+
 
   // 帳本本身也改吃未結清核心，不再用「全部交易－全部收款」假裝未結清。
   qLedgerForContact=function(c,includeVoid=false){
@@ -6661,7 +6704,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   qLedgerAmountSummary=function(c,ledger){const rows=openRows(c,ledger);return rows.reduce((a,x)=>{a.goods+=x.goods;a.freight+=x.freight;a.turnover+=x.buyout;a.total+=x.total;a.settled+=x.allocated;a.remaining+=x.remaining;return a},{goods:0,freight:0,turnover:0,total:0,settled:0,remaining:0})};
   qLedgerAmountSummaryHtml=function(c,ledger){const a=qLedgerAmountSummary(c,ledger);return '貨款小計 '+qLedgerMoney(a.goods)+'　｜　運費小計 '+qLedgerMoney(a.freight)+'　｜　買斷小計 '+qLedgerMoney(a.turnover)+'　｜　交易總額 '+qLedgerMoney(a.total)+'　｜　已沖帳 '+qLedgerMoney(a.settled)+'　｜　未結清 '+qLedgerMoney(a.remaining)};
 
-  function basketFooter(c){const st=qTurnoverStateForContact(c);if(!st.types.length)return '';return st.types.map(x=>x.type==='籃子'?('籃子：欠籃 '+Math.max(0,x.owed)+'｜回籃 '+x.returned+'｜餘籃 '+Math.max(0,x.surplus||0)+(x.buyout?'｜買斷 '+x.buyout:'')):(x.type+'：使用 '+x.used+'｜歸還 '+x.returned+'｜'+(x.owed>0?'尚欠 '+x.owed:((x.surplus||0)>0?'餘 '+(x.surplus||0):'結清'))+(x.buyout?'｜買斷 '+x.buyout:''))).join('　');}
+  function basketFooter(c){const st=qTurnoverStateForContact(c);if(!st.types.length)return '';return st.types.map(x=>{const owe=Math.max(0,x.owed),sur=Math.max(0,x.surplus||0),type=String(x.type||'');let t=owe>0?(type==='籃子'?'欠籃 '+owe:'欠'+type+' '+owe):(sur>0?(type==='籃子'?'餘籃 '+sur:'餘'+type+' '+sur):type+'已結清');if(x.buyout)t+='｜買斷 '+x.buyout;return t}).join('　');}
   function methodsText(r,amountOverride){const arr=r.methods||[];if(!arr.length)return r.note||'—';const total=arr.reduce((z,m)=>z+money(m.amount),0)||1,ratio=amountOverride==null?1:money(amountOverride)/total;return arr.map(m=>(m.method||'')+' '+qLedgerMoney(money(m.amount)*ratio)).join('＋')}
 
   // Excel：一個事件一列；只輸出目前未結清帳務及仍與它相關的沖帳。
