@@ -6644,12 +6644,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 
   // N88：容器事件歸屬不再依賴各頁自己的 record filter。先以固定 contactId，再以主檔名稱／編號／車號／正式名稱比對。
   function qContainerRecordBelongs(r,c){
+    // N89：容器事件不得再建立第二套往來對象比對規則。
+    // 唯一使用帳務中心既有 qRecordBelongsToContact()，讓固定 ID、歷史 ID、名稱、編號、車號與舊別名全部共用同一本帳。
     if(!r||!c)return false;
-    const cid=String(c.id||'').trim(),rid=String(r.contactId||'').trim();
-    if(cid&&rid&&cid===rid)return true;
-    const norm=v=>String(v||'').trim().toLowerCase().replace(/[\s－—_-]+/g,'');
-    const keys=new Set([c.name,c.formalName,c.code,...((c.vehicles||[]).map(v=>v?.plate))].map(norm).filter(Boolean));
-    return [r.customer,r.lookupInput,r.vehiclePlate,r.contactName,r.customerCode].map(norm).filter(Boolean).some(v=>keys.has(v));
+    return typeof qRecordBelongsToContact==='function' ? qRecordBelongsToContact(r,c) : false;
   }
   function qContainerEventsForContactN88(c){
     const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qContainerRecordBelongs(r,c));
@@ -6669,6 +6667,22 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   qContainerEventsForContact=qContainerEventsForContactN88;
   window.qContainerEventsForContact=qContainerEventsForContactN88;
+  window.qContainerEventFromRecord=function(r,index=0){
+    if(!r||r.status==='void'||r.status==='draft')return [];
+    const candidates=[];
+    if(r.turnover)candidates.push(r.turnover);
+    if(Array.isArray(r.turnovers))candidates.push(...r.turnovers);
+    if(Array.isArray(r.containerEvents))candidates.push(...r.containerEvents);
+    return candidates.map((t,j)=>{
+      const qty=Math.abs(Number(t?.qty??t?.quantity??0)||0),type=assetName(t),action=normAction(t?.action??t?.movement??t?.verb);
+      if(!qty||!type||!['使用','歸還','買斷','調整'].includes(action))return null;
+      return {id:String(r.id||'')+':'+j,record:r,type,action,qty,rawQty:Number(t?.qty??t?.quantity??0)||0,note:String(t?.note||''),source:r.mode==='turnover_event'?'容器管理':'做帳',sourceRecordId:String(r.id||''),date:String(r.date||''),createdAt:String(r.createdAt||r.updatedAt||''),index:index*100+j,turnover:t};
+    }).filter(Boolean);
+  };
+  window.qAllContainerEvents=function(){
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft');
+    return rows.flatMap((r,i)=>window.qContainerEventFromRecord(r,i)).sort((a,b)=>a.date.localeCompare(b.date)||a.createdAt.localeCompare(b.createdAt)||a.index-b.index);
+  };
   qTurnoverStateForContact=function(c){const events=qContainerEventsForContactN88(c);return {rows:events.map(e=>e.record),events,types:qContainerBalance(events)}};
   qTurnoverSummaryHtml=function(c){
     const st=qTurnoverStateForContact(c);
@@ -6735,9 +6749,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function contacts(){try{return (JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]')||[]).filter(x=>x&&x.active!==false)}catch(e){return []}}
   function contactBy(v){const k=String(v||'').trim().toLowerCase();return contacts().find(x=>[x.id,x.name,x.code].some(y=>String(y||'').trim().toLowerCase()===k))||null}
   function typesFor(c){const t=c?.turnover||{},a=[];if(t.basket)a.push('籃子');if(t.rack)a.push('鐵架');if(t.pallet)a.push('棧板');if(t.other){const z=Array.isArray(t.customTypes)?t.customTypes.map(x=>String(x||'').trim()).filter(Boolean):[];a.push(...(z.length?z:['其他']))}return [...new Set(a)]}
-  function records(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.turnover&&Number(r.turnover.qty)&&r.status!=='draft')}
+  function rawRecords(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.turnover&&Number(r.turnover.qty)&&r.status!=='draft')}
+  function records(){return typeof window.qAllContainerEvents==='function'?window.qAllContainerEvents():[]}
   function eventSource(r){return r?.mode==='turnover_event'?'容器管理':'做帳'}
-  function belongs(r,c){if(!c)return false;const cid=String(c.id||''),name=String(c.name||'').trim();return (cid&&String(r.contactId||'')===cid)||String(r.customer||'').trim()===name}
+  function belongs(r,c){return !!(c&&typeof window.qContainerEventsForContact==='function'&&window.qContainerEventsForContact(c).some(e=>String(e.sourceRecordId)===String(r?.id||r?.sourceRecordId||'')))}
   function typeOptions(c,selected=''){return typesFor(c).map(x=>'<option '+(x===selected?'selected':'')+'>'+esc(x)+'</option>').join('')}
   function actionOptions(selected=''){return ['使用','歸還','買斷','調整'].map(x=>'<option '+(x===selected?'selected':'')+'>'+x+'</option>').join('')}
   function renderMovement(work,editId=''){
@@ -6747,12 +6762,12 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       '<div class="quickV2ContactHint" style="margin-top:12px"><div class="quickV2Grid"><div class="field"><label class="label">日期 *</label><input id="n85Date" class="input" type="date" value="'+esc(old?.date||today())+'"></div><div class="field"><label class="label">往來對象 *</label><select id="n85Contact" class="input"><option value="">請選擇</option>'+cs.map(c=>'<option value="'+esc(c.id||c.name)+'" '+((c0&&String(c.id)===String(c0.id))?'selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></div><div class="field"><label class="label">種類 *</label><select id="n85Type" class="input"></select></div><div class="field"><label class="label">動作 *</label><select id="n85Action" class="input">'+actionOptions(normAction(old?.turnover?.action))+'</select></div><div class="field"><label class="label">數量 *</label><input id="n85Qty" class="input" type="number" min="0.01" step="0.01" value="'+esc(old?.turnover?.qty||'')+'"></div><div class="field" id="n86AdjustWrap" style="display:none"><label class="label">調整方向 *</label><select id="n86AdjustDirection" class="input"><option value="owed" '+(old?.turnover?.balanceDelta>0?'selected':'')+'>增加欠數</option><option value="surplus" '+(old?.turnover?.balanceDelta<0?'selected':'')+'>增加餘數</option></select></div><div class="field"><label class="label">備註／調整原因</label><input id="n85Note" class="input" value="'+esc(old?.turnover?.note||'')+'" placeholder="可不填"></div></div><div class="actions" style="margin-top:10px"><button id="n85Save" type="button" class="btn primary">'+(old?'儲存修改':'完成登記')+'</button>'+(old?'<button id="n85Cancel" type="button" class="btn gray">取消修改</button>':'')+'</div></div><div id="n85List" style="margin-top:14px"></div></div>';
     const ce=work.querySelector('#n85Contact'),te=work.querySelector('#n85Type');
     function syncType(){const c=contactBy(ce.value),sel=old&&c0&&String(c?.id)===String(c0.id)?String(old.turnover?.type||''):te.value;te.innerHTML='<option value="">請選擇</option>'+typeOptions(c,sel)}syncType();ce.onchange=syncType;const ae=work.querySelector('#n85Action'),aw=work.querySelector('#n86AdjustWrap');function syncAdjust(){if(aw)aw.style.display=ae?.value==='調整'?'block':'none'}ae?.addEventListener('change',syncAdjust);syncAdjust();
-    function paint(){const rows=records().filter(r=>r.status!=='void').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,100);work.querySelector('#n85List').innerHTML='<h4 style="margin:0 0 8px">最近進出紀錄</h4>'+(rows.length?rows.map(r=>'<div class="quickV2Record"><b>'+esc((r.date||'')+'｜'+(r.customer||'')+'｜'+(r.turnover?.type||'')+'｜'+normAction(r.turnover?.action)+' '+Math.abs(Number(r.turnover?.qty)||0))+'</b><div class="helper" style="display:block!important">來源：'+esc(eventSource(r))+'</div>'+(r.turnover?.note?'<div class="helper" style="display:block!important">'+esc(r.turnover.note)+'</div>':'')+'<div class="actions" style="margin-top:6px"><button type="button" class="btn gray" data-n85-edit="'+esc(r.id)+'">修改</button><button type="button" class="btn gray" data-n85-void="'+esc(r.id)+'">作廢</button></div></div>').join(''):'<div class="empty">目前沒有進出紀錄</div>')}paint();
+    function paint(){const rows=records().slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,100);work.querySelector('#n85List').innerHTML='<h4 style="margin:0 0 8px">最近進出紀錄</h4>'+(rows.length?rows.map(e=>{const r=e.record||{},editable=r.mode==='turnover_event';return '<div class="quickV2Record"><b>'+esc((e.date||'')+'｜'+(r.customer||'')+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+'</div>'+(e.note?'<div class="helper" style="display:block!important">'+esc(e.note)+'</div>':'')+(editable?'<div class="actions" style="margin-top:6px"><button type="button" class="btn gray" data-n85-edit="'+esc(r.id)+'">修改</button><button type="button" class="btn gray" data-n85-void="'+esc(r.id)+'">作廢</button></div>':'')+'</div>'}).join(''):'<div class="empty">目前沒有進出紀錄</div>')}paint();
     work.querySelector('#n85Save').onclick=async()=>{const c=contactBy(ce.value),date=work.querySelector('#n85Date').value,type=te.value,action=normAction(work.querySelector('#n85Action').value),qty=Math.abs(Number(work.querySelector('#n85Qty').value)||0),note=work.querySelector('#n85Note').value.trim(),adjustDirection=work.querySelector('#n86AdjustDirection')?.value||'owed';if(!date||!c||!type||!action||!qty){alert('請完整填寫日期、往來對象、種類、動作與數量');return}if(action==='調整'&&!note){alert('調整必須填寫原因');return}const balanceDelta=action==='調整'?(adjustDirection==='surplus'?-qty:qty):0;const now=new Date().toISOString(),r=old?{...old}:{id:'turn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),createdAt:now};Object.assign(r,{date,customer:c.name,contactId:c.id||'',mode:'turnover_event',txnType:'turnover',txnTypeLabel:'容器進出',accountDirection:'',items:[],total:0,status:'completed',turnover:{...(r.turnover||{}),type,action,qty,note,balanceDelta},updatedAt:now});try{await saveAccountingCloud(r);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();renderMovement(work)}catch(e){alert('儲存失敗：'+(e?.message||e))}};
     work.querySelector('#n85Cancel')?.addEventListener('click',()=>renderMovement(work));
-    work.querySelector('#n85List').onclick=async e=>{const eb=e.target.closest('[data-n85-edit]');if(eb){renderMovement(work,eb.dataset.n85Edit);return}const vb=e.target.closest('[data-n85-void]');if(!vb)return;const r=records().find(x=>String(x.id)===String(vb.dataset.n85Void));if(!r||!confirm('作廢這筆 '+(r.turnover?.type||'')+' '+normAction(r.turnover?.action)+' '+Math.abs(Number(r.turnover?.qty)||0)+'？'))return;try{await saveAccountingCloud({...r,status:'void',voidedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});if(typeof loadAccountingCloud==='function')await loadAccountingCloud();renderMovement(work)}catch(err){alert('作廢失敗：'+(err?.message||err))}};
+    work.querySelector('#n85List').onclick=async e=>{const eb=e.target.closest('[data-n85-edit]');if(eb){renderMovement(work,eb.dataset.n85Edit);return}const vb=e.target.closest('[data-n85-void]');if(!vb)return;const r=rawRecords().find(x=>String(x.id)===String(vb.dataset.n85Void));if(!r||!confirm('作廢這筆 '+(r.turnover?.type||'')+' '+normAction(r.turnover?.action)+' '+Math.abs(Number(r.turnover?.qty)||0)+'？'))return;try{await saveAccountingCloud({...r,status:'void',voidedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});if(typeof loadAccountingCloud==='function')await loadAccountingCloud();renderMovement(work)}catch(err){alert('作廢失敗：'+(err?.message||err))}};
   }
-  function renderQuery(work){const rs=records().filter(r=>r.status!=='void').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));work.innerHTML='<div class="quickV2"><b>🔍 籃子／鐵架／棧板／容器查詢</b><div class="helper" style="display:block!important;margin:5px 0 10px">查詢實際種類與進出動作；目前結餘仍由完整歷史計算。</div><div>'+ (rs.length?rs.map(r=>'<div class="quickV2Record"><b>'+esc((r.date||'')+'｜'+(r.customer||'')+'｜'+(r.turnover?.type||'')+'｜'+normAction(r.turnover?.action)+' '+Math.abs(Number(r.turnover?.qty)||0))+'</b><div class="helper" style="display:block!important">來源：'+esc(eventSource(r))+'</div></div>').join(''):'<div class="empty">目前沒有進出紀錄</div>')+'</div></div>'}
+  function renderQuery(work){const rs=records().slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));work.innerHTML='<div class="quickV2"><b>🔍 籃子／鐵架／棧板／容器查詢</b><div class="helper" style="display:block!important;margin:5px 0 10px">查詢實際種類與進出動作；目前結餘由同一套完整歷史核心計算。</div><div>'+ (rs.length?rs.map(e=>'<div class="quickV2Record"><b>'+esc((e.date||'')+'｜'+(e.record?.customer||'')+'｜'+e.type+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+'</div></div>').join(''):'<div class="empty">目前沒有進出紀錄</div>')+'</div></div>'}
   document.addEventListener('click',e=>{const b=e.target.closest('[data-acct-stage-action]');if(!b)return;const a=b.dataset.acctStageAction;if(a!=='📥📤 進出紀錄'&&a!=='🔍 籃子／鐵架／棧板／容器查詢')return;const h=b.closest('#acctManagementStage')?.querySelector('.acctStageHead h3')?.textContent||'';if(!h.includes('籃子／鐵架／棧板／容器管理'))return;e.stopImmediatePropagation();const w=document.getElementById('acctStageWork');if(!w)return;if(a==='📥📤 進出紀錄')renderMovement(w);else renderQuery(w);w.scrollIntoView({behavior:'smooth',block:'start'})},true);
 })();
 </script>
