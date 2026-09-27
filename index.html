@@ -4162,6 +4162,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- 175B5N67：正式完成待補價格需明確勾選＋待補不得顯示已結清＋帳本周轉物全動作＋LQ-310全80行輸出241x280mm安全區＋文字置中 -->
 <!-- 175B5N72：第一層帳本資訊直達＋帳本期間金額畫面與四種輸出共用摘要；保留N71待補價格核心 -->
 <!-- 175B5N75：往來資料設定快照防覆蓋根修；保留N74超市80行合併 -->
+<!-- 175B5N76：往來資料搜尋正式路由恢復；F5 不再產生虛線 placeholder -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -6268,6 +6269,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(section==='payment'&&(a==='💰 收款'||a==='💸 付款')){qRenderMoneyCenter(work,'',a==='💸 付款'?'payment':'receipt');return;}
     if(section==='payment'&&a==='🔍 收支查詢'){qRenderMoneyHistory(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
+    // N76：往來資料搜尋是正式 route。F5 恢復時直接重建名單，不可掉到 placeholder。
+    if(section==='contacts'&&a==='🔍 搜尋往來資料'){
+      if(window.xrContactsV2?.renderList){window.xrContactsV2.renderList(work);return;}
+      work.innerHTML='<div class="acctWorkPlaceholder"><b>🔍 搜尋往來資料</b><div class="helper">往來資料模組尚在載入，請重新進入此頁。</div></div>';return;
+    }
+    if(section==='contacts'&&a==='＋ 新增往來對象'){
+      if(window.xrContactsV2?.renderEditor){window.xrContactsV2.renderEditor(work,'');return;}
+    }
     // 尚未實作資料內容的入口也保存同一個正式 route；未來 renderer 接上後不用重做刷新核心。
     work.innerHTML='<div class="acctWorkPlaceholder"><b>'+a+'</b><div class="helper">入口已依最終帳務架構建立；正式資料功能將沿用同一筆來源資料與「修改／作廢、不刪除」規則。</div></div>';
   }
