@@ -5122,11 +5122,13 @@ window.saveFreightBatchEdit=async function(batch){
 window.ackFreightChange=async function(id){if(!currentUser)return;const r=await sb.from('freight_receipt_change_logs').update({is_acknowledged:true,acknowledged_by:currentUser.id,acknowledged_by_name:currentProfile?.display_name||'',acknowledged_at:new Date().toISOString()}).eq('id',Number(id));if(r.error)return alert('確認修改失敗：'+r.error.message);await loadStage9()};
 function renderFreightFor(source){
   const box=document.getElementById(source+'FreightReports');if(!box)return;
+  // N127：工作區以「尚未整單完成」為準，不再用建立日期限制。
+  // 昨日/更早的未完成回報必須跨日保留，直到整單完成才離開工作區。
   const groups=freightGroups().filter(g=>{
     const h=g.rows[0]||{};
-    return h.source===source&&fieldIsToday(h.created_at)&&!g.rows.every(x=>(x.status||'')==='completed');
+    return h.source===source&&!g.rows.every(x=>(x.status||'')==='completed');
   });
-  box.innerHTML=groups.length?'<div class="meta" style="margin:10px 0 5px;font-weight:900">今日寄車回報</div>'+groups.map(g=>freightBatchCard(g,false,true)).join(''):'';
+  box.innerHTML=groups.length?'<div class="meta" style="margin:10px 0 5px;font-weight:900">未完成寄車回報</div>'+groups.map(g=>freightBatchCard(g,false,true)).join(''):'';
 }
 function freightBatchCard(group,completed=false,fieldView=false){
   const arr=group.rows,h=arr[0],pieces=arr.reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0);
@@ -5142,9 +5144,9 @@ function freightBatchCard(group,completed=false,fieldView=false){
 }
 function renderFreightOffice(){
   const box=document.getElementById('freightOfficeList');if(!box)return;
-  const groups=freightGroups().filter(g=>fieldIsToday(g.rows[0]?.created_at));
-  const pending=groups.filter(g=>!g.rows.every(x=>(x.status||'')==='completed'));
-  box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false,false)).join(''):'<div class="empty">今天目前沒有待確認的寄車公斤回報</div>';
+  // N127：派工/辦公室端與包裝/貨運端共用同一規則：未完成就跨日保留。
+  const pending=freightGroups().filter(g=>!g.rows.every(x=>(x.status||'')==='completed'));
+  box.innerHTML=pending.length?pending.map(g=>freightBatchCard(g,false,false)).join(''):'<div class="empty">目前沒有待確認的寄車公斤回報</div>';
 }
 window.confirmFreightItem=async function(id){
   if(!currentUser)return alert('請先登入');
@@ -7211,4 +7213,5 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- N99: LINE圖片／PDF／LQ-310報表紙呈現修正版；沿用 N98 共用完整明細資料模型。 -->
 <!-- N114: 做帳操作驗證修復：空白新增列不列入缺資料；完成鍵不再因缺資料 disabled，改由 qBuildRecord 逐列提示；待補價格與暫存未完成名稱分流。 -->
 <!-- N126：寄車多規格取最後公斤值；產農週帳固定最多雙欄並統一可讀字級；新增嫩薑泰文。 -->
+<!-- N127: 寄車回報工作區改為未完成跨日保留；包裝/貨運與派工辦公室共用，不改 Supabase 原始資料。 -->
 </body></html>
