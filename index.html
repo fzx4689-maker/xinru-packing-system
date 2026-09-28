@@ -2271,7 +2271,7 @@ const MAP={
 '白木耳':'ไป๋ มู่ เอ่อร์','黑木耳':'เฮย มู่ เอ่อร์','白蘑菇':'ไป๋ โม๋ กู','鮑魚菇':'เป้า อวี๋ กู',
 '芭樂':'ปา เล่อ','蘋果':'ผิง กั่ว','黃金奇異果':'หวง จิน ฉี อี้ กั่ว','藍莓':'หลาน เหมย','木瓜':'มู่ กวา','甜柿':'เถียน ซื่อ','櫛瓜':'จื้อ กวา','紅莧':'หง เซี่ยน','白莧':'ไป๋ เซี่ยน','青莧':'ชิง เซี่ยน','娃娃菜':'วา วา ไช่','香蕉':'เซียง เจียว','甘露梨':'กาน ลู่ หลี',
 '文成':'เหวิน เฉิง','蛋塔':'ตั้น ถ่า','收款':'โซ่ว ข่วน','嘉慧':'เจีย ฮุ่ย','綠水晶':'ลวี่ สุ่ย จิง','紅甜脆':'หง เถียน ชุ่ย','滄':'ชาง','峰':'เฟิง','菜頭':'ไช่ โถว','自載':'จื้อ ไจ้','收款':'โซ่ว ข่วน','奶白':'หน่าย ไป๋','紫光山':'จื่อ กวง ซาน','火龍果':'หั่ว หลง กั่ว','宏常旺':'หง ฉาง วั่ง','彰化':'จาง ฮว่า','冰':'ปิง','市集':'ซื่อ จี๋','台中':'ไถ จง','甲菠':'เจี่ย ปัว','格蘭':'เก๋อ หลาน','收銀台':'โซ่ว หยิน ไถ','卓子':'จัว จื่อ','椅子':'อี่ จื่อ','零錢':'หลิง เฉียน','八格籃':'ปา เก๋อ หลาน','二格籃':'เอ้อร์ เก๋อ หลาน','保麗龍':'เป่า ลี่ หลง','碎冰':'ซุ่ย ปิง','打冰':'ต่า ปิง','水冷扇':'สุ่ย เหลิ่ง ซ่าน','紙箱':'จื่อ เซียง','行動電源':'สิง ต้ง เตี้ยน หยวน','充電線':'ชง เตี้ยน เซี่ยน','延長線':'เหยียน ฉาง เซี่ยน','加工':'เจีย กง','重量':'จ้ง เลี่ยง','杏D':'ซิ่ง ดี','大庫':'ต้า คู่','小庫':'เสี่ยว คู่','涼亭':'เหลียง ถิง','包裝':'เปา จวง','攤位':'ทาน เว่ย','下班':'เซี่ย ปาน','放':'ฟ่าง','包':'เปา','束':'ซู่','根':'เกิน','當天':'ตาง เทียน','掛勾':'กว้า โกว','健康':'เจี้ยน คัง',
-'版圖':'ป่าน ถู','8格籃':'ปา เก๋อ หลาน','長豆':'ฉาง โต้ว','菜豆':'ไช่ โต้ว','小芥菜':'เสี่ยว เจี้ย ไช่','蒜泥':'ซ่วน หนี','不':'ปู้','去絲':'ชวี่ ซือ','洋晨食光':'หยาง เฉิน สือ กวง','空心':'คง ซิน','丁':'ติง','番薯葉':'ฟาน สู่ เย่','五香豆乾':'อู่ เซียง โต้ว กาน','A菜':'เอ ไช่','洋菇':'หยาง กู'};
+'版圖':'ป่าน ถู','8格籃':'ปา เก๋อ หลาน','長豆':'ฉาง โต้ว','菜豆':'ไช่ โต้ว','小芥菜':'เสี่ยว เจี้ย ไช่','蒜泥':'ซ่วน หนี','不':'ปู้','去絲':'ชวี่ ซือ','洋晨食光':'หยาง เฉิน สือ กวง','空心':'คง ซิน','丁':'ติง','番薯葉':'ฟาน สู่ เย่','五香豆乾':'อู่ เซียง โต้ว กาน','A菜':'เอ ไช่','洋菇':'หยาง กู','嫩薑':'เนิ่น เจียง'};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let orders=[]; let urgent=false; let photoFile=null; let editUrgent=false; let audioCtx=null; let soundEnabled=false; let soundPrefExplicit=false; let knownOrderIds=new Set();
 const SOUND_PREF_KEY='xinru_sound_enabled';
@@ -5020,7 +5020,10 @@ function parseFreightBulk(source){
     const qtyMatch=line.match(/(?:\*|[xX×])\s*(\d+(?:\.\d+)?)\s*$/);
     const qty=qtyMatch?Number(qtyMatch[1]):1;
     const body=qtyMatch?line.slice(0,qtyMatch.index).trim():line;
-    const kgMatch=body.match(/(\d+(?:\.\d+)?)\s*(?:KG|K|公斤)/i);
+    // N126：品名／規格原文完整保留；若同一行有多個 K/KG/公斤數值，最後一個才是實際每件公斤。
+    // 例：花瓜12K/14K → 顯示仍為「花瓜12K/14K」，1件按 14KG 計算。
+    const kgMatches=[...body.matchAll(/(\d+(?:\.\d+)?)\s*(?:KG|K|公斤)/gi)];
+    const kgMatch=kgMatches.length?kgMatches[kgMatches.length-1]:null;
     if(!kgMatch){bad.push({line:index+1,text:line});return;}
     const kg=Number(kgMatch[1]);
     const item=body;
@@ -5963,7 +5966,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qN123Pack(cards,pageH){
     const maxRows=Math.max(0,...cards.map(c=>c.rows.length));
-    const cols=maxRows>28?2:3; // 長資料採雙欄；短資料可三欄。字級與行高永遠不變。
+    // N126：週帳不再使用三欄。三欄會讓日期、期間、電話與金額被裁切。
+    // 固定最多雙欄；超長單一產農仍可佔一整欄，其他產農在另一欄上下拼版。
+    const cols=cards.length>1?2:1;
     const pages=[];let pending=cards.slice();
     while(pending.length){
       const bins=Array.from({length:cols},()=>({used:0,cards:[]}));let placed=0;
@@ -5991,7 +5996,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(overflow.length){alert('以下產農本週明細超過單頁固定字級容量，系統不會拆頁或縮字：\n'+overflow.map(c=>c.name+'（'+c.rows.length+' 筆）').join('\n'));return}
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
     const pages=qN123FarmerPagesHtml(model,pageH);
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:'+cssPage+';margin:'+(paper?'4.2mm 18.9mm':'10mm')+'}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.farmerSheet{width:'+pageW+';height:'+pageH+'mm;margin:18px auto;background:#fff;display:grid;gap:2mm;align-items:start;box-shadow:0 2px 14px #999;overflow:hidden;break-after:page;page-break-after:always}.farmerSheet:last-child{break-after:auto;page-break-after:auto}.farmerSheet.cols1{grid-template-columns:1fr}.farmerSheet.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.farmerSheet.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.farmerCol{display:flex;flex-direction:column;gap:2mm;min-width:0}.farmerCard{border:1.2px dashed #555;break-inside:avoid;page-break-inside:avoid;padding:1mm;overflow:hidden}.farmerTitle{text-align:center;font-size:14pt;font-weight:900;line-height:6mm;white-space:nowrap}.farmerMeta{height:6mm;display:flex;align-items:center;justify-content:space-between;gap:1mm;font-size:12pt;white-space:nowrap;overflow:hidden}.farmerCard table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12pt}.farmerCard th,.farmerCard td{border:1px solid #222;height:4.4mm;line-height:4.4mm;padding:0 .35mm;text-align:center;white-space:nowrap;overflow:hidden}.farmerCard th{font-weight:900}.farmerCard th:nth-child(1){width:17%}.farmerCard th:nth-child(2){width:8%}.farmerCard th:nth-child(3){width:31%}.farmerCard th:nth-child(4){width:12%}.farmerCard th:nth-child(5){width:14%}.farmerCard th:nth-child(6){width:18%}.farmerCard .item{text-align:left}.farmerCard .money{text-align:right}.farmerCard tfoot td{font-weight:900;height:5mm;line-height:5mm}.farmerCard tfoot td:first-child{text-align:right;padding-right:1mm}@media print{html,body{background:#fff}.toolbar{display:none!important}.farmerSheet{margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="window.close()">← 返回帳務</button><button onclick="window.print()">'+(paper?'🖨️ 列印 LQ-310':'📄 列印／另存 PDF')+'</button></div>'+pages+'</body></html>');w.document.close();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:'+cssPage+';margin:'+(paper?'4.2mm 18.9mm':'10mm')+'}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.farmerSheet{width:'+pageW+';height:'+pageH+'mm;margin:18px auto;background:#fff;display:grid;gap:2mm;align-items:start;box-shadow:0 2px 14px #999;overflow:hidden;break-after:page;page-break-after:always}.farmerSheet:last-child{break-after:auto;page-break-after:auto}.farmerSheet.cols1{grid-template-columns:1fr}.farmerSheet.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.farmerSheet.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.farmerCol{display:flex;flex-direction:column;gap:2mm;min-width:0}.farmerCard{border:1.2px dashed #555;break-inside:avoid;page-break-inside:avoid;padding:1mm;overflow:hidden}.farmerTitle{text-align:center;font-size:11pt;font-weight:900;line-height:5.2mm;white-space:nowrap}.farmerMeta{height:5.2mm;display:flex;align-items:center;justify-content:space-between;gap:1mm;font-size:9pt;white-space:nowrap;overflow:visible}.farmerCard table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt}.farmerCard th,.farmerCard td{border:1px solid #222;height:4.4mm;line-height:4.4mm;padding:0 .3mm;text-align:center;white-space:nowrap;overflow:hidden}.farmerCard th{font-weight:900}.farmerCard th:nth-child(1){width:23%}.farmerCard th:nth-child(2){width:7%}.farmerCard th:nth-child(3){width:28%}.farmerCard th:nth-child(4){width:11%}.farmerCard th:nth-child(5){width:14%}.farmerCard th:nth-child(6){width:17%}.farmerCard .item{text-align:left}.farmerCard .money{text-align:right}.farmerCard tfoot td{font-weight:900;height:5mm;line-height:5mm}.farmerCard tfoot td:first-child{text-align:right;padding-right:1mm}@media print{html,body{background:#fff}.toolbar{display:none!important}.farmerSheet{margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="window.close()">← 返回帳務</button><button onclick="window.print()">'+(paper?'🖨️ 列印 LQ-310':'📄 列印／另存 PDF')+'</button></div>'+pages+'</body></html>');w.document.close();
   }
   function qN101Pdf(model){
     if(model.kind==='farmer_weekly')return qN123FarmerPrint(model,'pdf');
@@ -7205,4 +7210,5 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 </script>
 <!-- N99: LINE圖片／PDF／LQ-310報表紙呈現修正版；沿用 N98 共用完整明細資料模型。 -->
 <!-- N114: 做帳操作驗證修復：空白新增列不列入缺資料；完成鍵不再因缺資料 disabled，改由 qBuildRecord 逐列提示；待補價格與暫存未完成名稱分流。 -->
+<!-- N126：寄車多規格取最後公斤值；產農週帳固定最多雙欄並統一可讀字級；新增嫩薑泰文。 -->
 </body></html>
