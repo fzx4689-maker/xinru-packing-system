@@ -6825,18 +6825,24 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const groups=farmerRows=>farmerRows.reduce((a,x)=>{const k=String(x.contact?.id||x.contact?.name||'');let g=a.find(v=>v.key===k);if(!g){g={key:k,contact:x.contact,records:[]};a.push(g)}g.records.push(x.record);return a},[]);
     return {schema:'xinru_farmer_weekly_complete_detail_v1',kind:'farmer_weekly',range,rows,groups:groups(rows),farmers:groups(rows).map(g=>g.contact),recordCount:rows.length};
   }
+  function qN97EffectiveReportLayout(c){
+    const raw=String(c?.reportLayout||'').trim();
+    if(raw==='dense80'||raw==='large')return 'large';
+    if(raw==='standard')return 'standard';
+    return c?.identity==='超市'?'large':'standard';
+  }
   function qN97OutputRoute(entity,opts={}){
     const c=(entity&&typeof entity==='object'&&entity.identity)?entity:qContact(entity?.contactId||entity?.customer||entity||'');
     if(!c)return {schema:'xinru_output_route_v1',kind:'missing_contact',contact:null,data:null};
     if(c.identity==='產農')return {schema:'xinru_output_route_v1',kind:'farmer_weekly',contact:c,reportLayout:'farmer_weekly',data:qN97FarmerWeekly(opts.week||opts.date||entity?.date||'')};
     const direction=opts.direction||((entity?.txnType==='purchase'||entity?.accountDirection==='payable'||entity?.txnTypeLabel==='進貨')?'payment':'receipt');
     const cutoff=opts.cutoff||entity?.id||entity?.date||null;
-    return {schema:'xinru_output_route_v1',kind:'general',contact:c,reportLayout:c.reportLayout==='dense80'?'large':'standard',direction,data:qN96GeneralDetail(c,direction,cutoff)};
+    return {schema:'xinru_output_route_v1',kind:'general',contact:c,reportLayout:qN97EffectiveReportLayout(c),direction,data:qN96GeneralDetail(c,direction,cutoff)};
   }
   window.xrAccountingDetailCore={
     version:'N98',general:qN96GeneralDetail,outstandingAt:qN96OutstandingAt,
     formalRecords:qN96FormalRecords,compare:qN96Cmp,farmerWeekly:qN97FarmerWeekly,
-    weekRange:qN97WeekRange,outputRoute:qN97OutputRoute,outputModel:qN98OutputModel
+    weekRange:qN97WeekRange,effectiveReportLayout:qN97EffectiveReportLayout,outputRoute:qN97OutputRoute,outputModel:qN98OutputModel
   };
   window.xrAccountingNav={read:acctNavRead,write:acctNavWrite,clear:acctNavClear,home,open,renderAction:qRenderAccountingAction,restore:qRestoreAccountingNav,paintWorkBadges:qPaintWorkBadges,date:{read:qAcctDateState,set:qAcctSetDateRange,clear:qAcctClearDateRange,match:qAcctRecordInDateRange,filter:qAcctFilterRecords,label:qAcctDateLabel,parse:qAcctIsoDate,query:qAcctDateQuery,init:qAcctInitDateController,apply:qAcctApplyController,refresh:qAcctRefreshCurrentRoute}};
 })();
