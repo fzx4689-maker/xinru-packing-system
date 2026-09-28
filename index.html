@@ -3829,33 +3829,60 @@ function showApp(){
 // N110：往來資料正式雲端主檔核心。contact_master 為跨裝置正式來源；localStorage 只做快取與既有資料遷移。
 const XR_CONTACT_KEY='xinru_contacts_master_v2';
 const XR_CONTACT_SETTINGS_KEY='xinru_contacts_settings_snapshot_v1';
+const XR_CONTACT_SETTINGS_FIELDS=['identity','accountMode','defaultDirection','settlement','customSettlement','groupName','parentUnit','ledgerOwner','payer','independentLedger','consolidatedBilling','pricingDefault','internalPriceRule','freightDefault','freightDefaultRate','freightRules','turnover','paymentMethods','paymentDefault','billShowTurnover','ledgerShowTurnover','usuallyPrintForm','usuallyDriverCollect','usuallyReturnDocs','farmerReceipt','farmerReceiptCycle','farmerReceiptRule','farmerReceiptConfirm','outputNote','reportLayout','outputMethods','active'];
+function xrRawContactCache(){try{const x=JSON.parse(localStorage.getItem(XR_CONTACT_KEY)||'[]');return Array.isArray(x)?x.filter(Boolean):[]}catch(e){return[]}}
+function xrContactSettingsCache(){try{const x=JSON.parse(localStorage.getItem(XR_CONTACT_SETTINGS_KEY)||'{}');return x&&typeof x==='object'&&!Array.isArray(x)?x:{}}catch(e){return{}}}
 function xrContactLocalRows(){
-  let rows=[];try{rows=JSON.parse(localStorage.getItem(XR_CONTACT_KEY)||'[]')||[]}catch(e){rows=[]}
-  if(!Array.isArray(rows))rows=[];
-  let snaps={};try{snaps=JSON.parse(localStorage.getItem(XR_CONTACT_SETTINGS_KEY)||'{}')||{}}catch(e){snaps={}}
-  return rows.filter(Boolean).map(x=>{const z=snaps[String(x?.id||'')];return z&&typeof z==='object'?{...x,...z}:x});
+  const rows=xrRawContactCache(),snaps=xrContactSettingsCache();
+  return rows.map(x=>{const z=snaps[String(x?.id||'')];if(!z)return x;const y={...x};XR_CONTACT_SETTINGS_FIELDS.forEach(k=>{if(Object.prototype.hasOwnProperty.call(z,k))y[k]=z[k]});return y});
 }
-function xrContactTime(x){const t=Date.parse(x?.updatedAt||x?.updated_at||x?.createdAt||'');return Number.isFinite(t)?t:0}
-function xrWriteContactCache(rows){localStorage.setItem(XR_CONTACT_KEY,JSON.stringify((rows||[]).filter(Boolean)))}
+function xrTurnoverEnabled(t){return !!(t&&(t.basket||t.rack||t.pallet||t.other||(Array.isArray(t.customTypes)&&t.customTypes.length)))}
+function xrWriteContactCache(rows){
+  const clean=(rows||[]).filter(Boolean);localStorage.setItem(XR_CONTACT_KEY,JSON.stringify(clean));
+  // N111：本機設定快照同步成雲端正式值，避免舊 snapshot 在 editor read() 時反向覆蓋雲端。
+  const snaps=xrContactSettingsCache(),now=new Date().toISOString();
+  clean.forEach(x=>{if(!x?.id)return;const cfg={};XR_CONTACT_SETTINGS_FIELDS.forEach(k=>{if(Object.prototype.hasOwnProperty.call(x,k))cfg[k]=x[k]});snaps[String(x.id)]={...cfg,savedAt:now}});
+  localStorage.setItem(XR_CONTACT_SETTINGS_KEY,JSON.stringify(snaps));
+}
 async function saveContactMasterCloud(contact){
   if(!contact?.id)throw new Error('往來資料缺少固定 ID');
   const payload={...contact};
   const {error}=await sb.from('contact_master').upsert({contact_id:String(payload.id),name:String(payload.name||''),code:String(payload.code||''),payload,updated_by:currentUser?.id||null,updated_at:new Date().toISOString()},{onConflict:'contact_id'});
   if(error)throw error;
 }
-async function syncLocalContactsToCloud(){
-  if(!currentUser)return xrContactLocalRows();
-  const local=xrContactLocalRows().filter(x=>x?.id);
-  const {data,error}=await sb.from('contact_master').select('contact_id,payload,updated_at');if(error)throw error;
-  const cloud=(data||[]).map(r=>({...r.payload,__cloudUpdatedAt:r.updated_at})).filter(x=>x?.id),cloudBy=new Map(cloud.map(x=>[String(x.id),x])),upload=[];
-  for(const x of local){const c=cloudBy.get(String(x.id));if(!c||xrContactTime(x)>xrContactTime(c))upload.push(x)}
-  if(upload.length){const now=new Date().toISOString(),rows=upload.map(x=>({contact_id:String(x.id),name:String(x.name||''),code:String(x.code||''),payload:{...x},updated_by:currentUser?.id||null,updated_at:now}));const {error:upErr}=await sb.from('contact_master').upsert(rows,{onConflict:'contact_id'});if(upErr)throw upErr}
-  const {data:fresh,error:freshErr}=await sb.from('contact_master').select('contact_id,payload,updated_at').order('name',{ascending:true});if(freshErr)throw freshErr;
-  const finalRows=(fresh||[]).map(r=>r.payload).filter(Boolean);xrWriteContactCache(finalRows);
-  try{window.dispatchEvent(new CustomEvent('xinru:contacts-cloud-loaded'))}catch(_e){}
-  return finalRows;
+async function xrBootstrapContactCloud(local){
+  if(!local.length)return;
+  const now=new Date().toISOString(),rows=local.map(x=>({contact_id:String(x.id),name:String(x.name||''),code:String(x.code||''),payload:{...x},updated_by:currentUser?.id||null,updated_at:now}));
+  const {error}=await sb.from('contact_master').upsert(rows,{onConflict:'contact_id'});if(error)throw error;
 }
-async function loadContactsCloud(){try{return await syncLocalContactsToCloud()}catch(e){console.warn('N110 往來主檔雲端同步失敗，暫用本機快取',e);return xrContactLocalRows()}}
+async function xrRepairMissingContainerSettings(cloudRows){
+  // N111 僅允許「補回缺失的容器啟用設定」，絕不允許舊裝置把雲端已有容器設定關掉。
+  const local=xrContactLocalRows(),byLocal=new Map(local.filter(x=>x?.id).map(x=>[String(x.id),x])),repairs=[];
+  for(const c of cloudRows){const l=byLocal.get(String(c?.id||''));if(!l)continue;if(!xrTurnoverEnabled(c?.turnover)&&xrTurnoverEnabled(l?.turnover)){const fixed={...c,turnover:l.turnover,updatedAt:new Date().toISOString()};repairs.push(fixed)}}
+  for(const fixed of repairs)await saveContactMasterCloud(fixed);
+  return repairs.length;
+}
+async function loadContactsCloud(){
+  if(!currentUser)return xrContactLocalRows();
+  try{
+    const {data,error}=await sb.from('contact_master').select('contact_id,payload,updated_at').order('name',{ascending:true});if(error)throw error;
+    let cloud=(data||[]).map(r=>r.payload).filter(x=>x?.id);
+    // 只有整張雲端主檔完全為空時，才允許以既有本機主檔做第一次 bootstrap。
+    if(!cloud.length){const local=xrContactLocalRows().filter(x=>x?.id);await xrBootstrapContactCloud(local);cloud=local}
+    else{
+      const repaired=await xrRepairMissingContainerSettings(cloud);
+      if(repaired){const again=await sb.from('contact_master').select('contact_id,payload,updated_at').order('name',{ascending:true});if(again.error)throw again.error;cloud=(again.data||[]).map(r=>r.payload).filter(x=>x?.id)}
+    }
+    // 從此方向固定：Supabase → 本機快取。登入／切頁不再把舊裝置 localStorage 自動上傳。
+    xrWriteContactCache(cloud);
+    try{window.dispatchEvent(new CustomEvent('xinru:contacts-cloud-loaded'))}catch(_e){}
+    return cloud;
+  }catch(e){console.warn('N111 往來主檔雲端讀取失敗，暫用本機快取',e);return xrContactLocalRows()}
+}
+async function syncLocalContactsToCloud(){
+  // 相容舊呼叫名稱，但 N111 不再做 local → cloud 自動同步。
+  return loadContactsCloud();
+}
 window.xrContactsCloud={load:loadContactsCloud,syncLocal:syncLocalContactsToCloud,save:saveContactMasterCloud};
 
 async function startApp(user){
@@ -3904,7 +3931,7 @@ async function startApp(user){
   }
   // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
   await loadDelivery();
-  // N110：先同步往來主檔，再載入帳務。qProfiles/qContact/容器核心因此跨裝置共用同一份主檔。
+  // N111：先由 Supabase 下載正式往來主檔，再載入帳務；裝置 localStorage 不得在登入時反向覆蓋雲端。
   await loadContactsCloud();
   await loadAccountingCloud();
   if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
@@ -6948,7 +6975,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
  }
  function options(vals,cur){return vals.map(v=>'<option '+(v===cur?'selected':'')+'>'+esc(v)+'</option>').join('')}
  function allNames(exclude){return read().filter(x=>x.id!==exclude&&x.active!==false).map(x=>x.name).filter(Boolean)}
- function renderList(work){migrate();recoverMissingMasters();try{window.xrContactsCloud?.syncLocal?.().catch(e=>console.warn('往來主檔背景同步失敗',e))}catch(_e){}window.xrAccountingNav?.write({layer:'action',section:'contacts',action:'🔍 搜尋往來資料',recordId:''});const rows=read();work.innerHTML='<div class="xrContactsToolbar"><div class="field"><label class="label">搜尋名稱／編號／電話／車號</label><input id="xrContactSearch" class="input" placeholder="例如：0299、水牛、長青、大統仁和"></div><div class="field"><label class="label">身分</label><select id="xrContactFilter" class="input"><option value="">全部</option>'+['一般客戶','超市','中盤','廠商','產農','內部單位'].map(x=>'<option>'+x+'</option>').join('')+'</select></div><button type="button" class="btn primary xrAdd">＋ 新增往來對象</button></div><div id="xrContactsList" class="xrContactsList"></div>';
+ function renderList(work){migrate();recoverMissingMasters();window.xrAccountingNav?.write({layer:'action',section:'contacts',action:'🔍 搜尋往來資料',recordId:''});const rows=read();work.innerHTML='<div class="xrContactsToolbar"><div class="field"><label class="label">搜尋名稱／編號／電話／車號</label><input id="xrContactSearch" class="input" placeholder="例如：0299、水牛、長青、大統仁和"></div><div class="field"><label class="label">身分</label><select id="xrContactFilter" class="input"><option value="">全部</option>'+['一般客戶','超市','中盤','廠商','產農','內部單位'].map(x=>'<option>'+x+'</option>').join('')+'</select></div><button type="button" class="btn primary xrAdd">＋ 新增往來對象</button></div><div id="xrContactsList" class="xrContactsList"></div>';
   const paint=()=>{const q=work.querySelector('#xrContactSearch').value.trim().toLowerCase(),f=work.querySelector('#xrContactFilter').value;let a=read().filter(x=>(!f||x.identity===f)&&(!q||[x.name,x.formalName,x.code,x.phone,x.groupName,x.parentUnit,x.payer,(x.vehicles||[]).map(v=>v.plate).join(' ')].join(' ').toLowerCase().includes(q)));a.sort((x,y)=>(x.active===false)-(y.active===false)||String(x.name).localeCompare(String(y.name),'zh-Hant'));const box=work.querySelector('#xrContactsList');box.innerHTML=a.length?a.map(x=>'<div class="xrContactRow '+(x.active===false?'xrStatusOff':'')+'"><div class="xrMain"><div class="xrContactName">'+esc(x.name)+'</div><div class="xrContactMeta">'+esc([x.formalName,x.code,x.phone].filter(Boolean).join('｜')||'—')+((x.vehicles||[]).length?'<div class="xrContactMeta">車號：'+(x.vehicles||[]).map(v=>'<span class="xrVehicleTag">'+esc(v.plate)+(v.active===false?'（歷史）':'')+'</span>').join('')+'</div>':'')+'</div></div><div><span class="xrPill">'+esc(x.identity||'未設定')+'</span></div><div><b>'+esc(x.accountMode||'—')+'</b><div class="xrContactMeta">'+esc(x.settlement||'')+'</div></div><div>'+esc(x.groupName?('所屬：'+x.groupName):'')+(x.payer?'<div class="xrContactMeta">付款方：'+esc(x.payer)+'</div>':'')+(x.active===false?'<div class="xrContactMeta">已停用</div>':'')+'</div><div class="xrActions"><button type="button" class="btn gray xrEdit" data-id="'+esc(x.id)+'">查看／編輯</button></div></div>').join(''):'<div class="xrContactEmpty">目前沒有符合的往來資料</div>';box.querySelectorAll('.xrEdit').forEach(b=>b.onclick=()=>renderEditor(work,b.dataset.id));};
   work.querySelector('#xrContactSearch').oninput=paint;work.querySelector('#xrContactFilter').onchange=paint;work.querySelector('.xrAdd').onclick=()=>renderEditor(work,'');paint();
  }
