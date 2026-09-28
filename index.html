@@ -5751,7 +5751,39 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const by=new Map((balances||[]).map(x=>[String(x.type||''),x]));
     return '🧺 目前'+enabled.map(type=>{const x=by.get(type)||{},owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0);let state;if(type==='籃子')state=owe>0?'欠籃 '+owe:(sur>0?'餘籃 '+sur:'0');else state=owe>0?'欠 '+owe:(sur>0?'餘 '+sur:'0');return type+'：'+state}).join('｜');
   }
-  function qN105CurrentContainerText(model){return model?.kind==='general'?qN105CurrentContainerTextForContact(model.contact):''}
+  // N109：目前容器結餘正式進入中央 output model。
+  // 這裡直接使用同一 IIFE 內的 N93 容器核心，不再讓 LINE/Excel/PDF/報表紙各自在 renderer 階段重新查資料。
+  function qN109FormalContact(c){
+    if(!c)return null;
+    const id=String(c.id||'').trim(),name=String(c.name||'').trim(),code=String(c.code||'').trim();
+    const profiles=typeof qProfiles==='function'?qProfiles():[];
+    return profiles.find(x=>id&&String(x?.id||'').trim()===id)
+      ||profiles.find(x=>code&&qNormKey(x?.code)===qNormKey(code))
+      ||profiles.find(x=>name&&qNormKey(x?.name)===qNormKey(name))
+      ||c;
+  }
+  function qN109CurrentContainerSnapshot(c){
+    const contact=qN109FormalContact(c);
+    if(!contact)return {contact:null,enabledTypes:[],balances:[],text:''};
+    const enabledTypes=qN105EnabledContainerTypes(contact);
+    if(!enabledTypes.length)return {contact,enabledTypes:[],balances:[],text:''};
+    const events=qN93ContainerEventsForContact(contact);
+    const balances=qN93ContainerBalance(events);
+    const by=new Map((balances||[]).map(x=>[String(x.type||''),x]));
+    const text='🧺 目前'+enabledTypes.map(type=>{
+      const x=by.get(type)||{},owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0);
+      let state;
+      if(type==='籃子')state=owe>0?'欠籃 '+owe:(sur>0?'餘籃 '+sur:'0');
+      else state=owe>0?'欠 '+owe:(sur>0?'餘 '+sur:'0');
+      return type+'：'+state;
+    }).join('｜');
+    return {contact,enabledTypes,balances,text};
+  }
+  function qN105CurrentContainerText(model){
+    if(model?.kind!=='general')return '';
+    if(Object.prototype.hasOwnProperty.call(model,'currentContainerText'))return model.currentContainerText||'';
+    return qN105CurrentContainerTextForContact(model.contact);
+  }
   // N108：正式輸出中央合併。只有商品列會合併；同日＋同品名＋同單價合成一列，容器/收付款逐筆保留。
   function qN108MergeItemRows(rows){
     const out=[],pos=new Map();
@@ -5779,8 +5811,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       return {schema:'xinru_complete_output_v1',kind:'farmer_weekly',reportLayout:'farmer_weekly',contact:route.contact,range:route.data?.range||{},groups,rows,settlements:[],summary:qN98Summary(rows),source:route.data};
     }
     let rows=[];(route.data?.activities||[]).forEach(r=>{if(r.mode==='money_settlement')rows.push(qN98SettlementRow(r,route.contact));else rows.push(...qN98RowsFromRecord(r,route.contact))});
-    rows.push(...qN107ContainerRows(route.contact,route.data?.range||{}));rows=qN108MergeItemRows(qN107SortRows(rows));
-    return {schema:'xinru_complete_output_v1',kind:'general',reportLayout:route.reportLayout,contact:route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),source:route.data};
+    rows.push(...qN107ContainerRows(route.contact,route.data?.range||{}));
+    // N109 核心順序：正式排序 → 同日同品同價合併 → 依最後顯示順序重新編號。
+    rows=qN108MergeItemRows(qN107SortRows(rows));
+    let displaySeq=0;
+    rows=rows.map(r=>r?.kind==='settlement'?{...r}:{...r,no:++displaySeq,displaySeq});
+    // N109：容器勾選種類與完整歷史結餘只在中央 model 建立一次。
+    const containerSnapshot=qN109CurrentContainerSnapshot(route.contact);
+    return {schema:'xinru_complete_output_v1',kind:'general',reportLayout:route.reportLayout,contact:containerSnapshot.contact||route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),currentContainerText:containerSnapshot.text,currentContainerBalances:containerSnapshot.balances,currentContainerTypes:containerSnapshot.enabledTypes,source:route.data};
   }
   function qN98RangeLabel(m){return [m?.range?.from,m?.range?.to].filter(Boolean).join(' ～ ')||''}
   function qN98CsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
@@ -5788,7 +5826,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),'期間,'+qN98RangeLabel(model),'','往來對象,日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'];
     const pushRows=(rows,cname)=>rows.forEach(x=>csv.push([x.contactName||cname||'',x.date,x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??''].map(qN98CsvCell).join(',')));
     if(model.kind==='farmer_weekly')model.groups.forEach(g=>pushRows(g.rows,g.contact?.name));else pushRows(model.rows,model.contact?.name);
-    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=qN105CurrentContainerText(model);if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general')csv.push('目前未結清,'+model.summary.outstanding);
+    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general')csv.push('目前未結清,'+model.summary.outstanding);
     const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+qN98RangeLabel(model)+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   }
   // N99：修正輸出呈現；資料仍沿用 N98 同一份完整明細模型。
@@ -5811,7 +5849,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const title=model.kind==='farmer_weekly'?'產農週表｜全部產農':((model.contact?.name||'往來')+'｜完整明細');
     const head='<thead><tr><th>日期</th><th>序</th><th>品名／摘要</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead>';
     const blocks=model.kind==='farmer_weekly'?model.groups.map(g=>'<h3>'+qEsc(g.contact?.name||'產農')+'</h3><table>'+head+'<tbody>'+qN99HtmlRows(g.rows)+'</tbody></table>').join(''):'<table>'+head+'<tbody>'+qN99HtmlRows(model.rows)+'</tbody></table>';
-    const containerText=qN103ContainerText(model),currentContainer=qN105CurrentContainerText(model),sum=qN101SummaryText(model)+(model.kind==='general'?('　｜　目前未結清 '+qLedgerMoney(model.summary.outstanding)):'')+(containerText?('<br><span class="containers">'+qEsc(containerText)+'</span>'):'')+(currentContainer?('<br><span class="containers current">'+qEsc(currentContainer)+'</span>'):'');
+    const containerText=qN103ContainerText(model),currentContainer=model.currentContainerText||'',sum=qN101SummaryText(model)+(model.kind==='general'?('　｜　目前未結清 '+qLedgerMoney(model.summary.outstanding)):'')+(containerText?('<br><span class="containers">'+qEsc(containerText)+'</span>'):'')+(currentContainer?('<br><span class="containers current">'+qEsc(currentContainer)+'</span>'):'');
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:A4 portrait;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:12mm;box-shadow:0 2px 14px #999;font-size:12pt}h1{font-size:20pt;margin:0 0 3mm}h3{font-size:14pt;margin:5mm 0 2mm}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5pt}th,td{border:1px solid #555;padding:2.1mm 1.4mm;text-align:center;word-break:break-word}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.sum{margin-top:5mm;border-top:1px solid #444;padding-top:3mm;text-align:right;font-size:12.5pt;font-weight:800;line-height:1.6}.sum .containers{display:block;margin-top:1.5mm;font-size:12pt}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:210mm;min-height:297mm;margin:0;box-shadow:none;padding:12mm;break-after:page}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印／另存 PDF</button></div><section class="sheet"><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　期間：'+qEsc(qN98RangeLabel(model))+'</div>'+blocks+'<div class="sum">'+sum+'</div></section>'+qN101PreviewScript()+'</body></html>');w.document.close();
   }
   function qN101Paper(model){
@@ -5822,14 +5860,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     groups.forEach((g,gi)=>{const rows=g.rows||[],count=Math.max(1,Math.ceil(rows.length/perPage));for(let p=0;p<count;p++)pages.push({group:g,rows:rows.slice(p*perPage,(p+1)*perPage),isLast:p===count-1,page:p+1,count,gi})});
     const rowHtml=r=>r.kind==='settlement'?'<tr class="cash"><td>'+qEsc(r.date)+'</td><td colspan="5"><b>'+qEsc(r.name)+'</b> '+qEsc(r.summary)+'</td><td>'+qLedgerMoney(r.amount)+'</td></tr>':'<tr><td>'+qEsc(r.date)+'</td><td>'+qEsc(r.no||'')+'</td><td class="name">'+qEsc(r.name)+'</td><td>'+qEsc(r.qty??r.kg??'')+'</td><td>'+qEsc(r.price??'')+'</td><td>'+qEsc(r.goods??'')+'</td><td>'+qEsc(r.freight??'')+'</td></tr>';
     const table=arr=>'<table><thead><tr><th>日期</th><th>序</th><th>品名</th><th>數量/KG</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead><tbody>'+arr.map(rowHtml).join('')+'</tbody></table>';
-    const pageHtml=pages.map(pg=>{let body;if(large){const left=pg.rows.slice(0,capacity),right=pg.rows.slice(capacity);body='<div class="twocol">'+table(left)+(right.length?table(right):'')+'</div>'}else body=table(pg.rows);let foot='';if(pg.isLast){const sm=pg.group.summary||model.summary;if(farmer){const ct=qN103ContainerTextFromRows(pg.group.rows||[]);foot='<div class="foot simple"><div>'+qEsc(qN101SummaryText({summary:sm}))+'</div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+'</div>'}else if(large){const ct=qN103ContainerText(model),cur=qN105CurrentContainerText(model);foot='<div class="foot sign"><div class="calc">'+qEsc(qN101SummaryText(model))+'</div><div class="signrow"><b>目前未結清 '+qLedgerMoney(model.summary.outstanding)+'</b><span>付款人：________________</span><span>付款日期：________________</span></div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+(cur?'<div class="container current">'+qEsc(cur)+'</div>':'')+'</div>'}else{const ct=qN103ContainerText(model),cur=qN105CurrentContainerText(model);foot='<div class="foot simple"><div>'+qEsc(qN101SummaryText(model))+'</div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+(cur?'<div class="container current">'+qEsc(cur)+'</div>':'')+'<div class="open">目前未結清 '+qLedgerMoney(model.summary.outstanding)+'</div></div>'}}return '<section class="sheet paper"><header><b>'+qEsc(qCompanyHeader)+'</b><span>'+(farmer?('產農：'+qEsc(pg.group.contact?.name||'')):('往來：'+qEsc(model.contact?.name||'')))+'</span><span>期間：'+qEsc(qN98RangeLabel(model))+'</span><span>第 '+pg.page+'/'+pg.count+' 頁</span></header>'+body+foot+'</section>'}).join('');
+    const pageHtml=pages.map(pg=>{let body;if(large){const left=pg.rows.slice(0,capacity),right=pg.rows.slice(capacity);body='<div class="twocol">'+table(left)+(right.length?table(right):'')+'</div>'}else body=table(pg.rows);let foot='';if(pg.isLast){const sm=pg.group.summary||model.summary;if(farmer){const ct=qN103ContainerTextFromRows(pg.group.rows||[]);foot='<div class="foot simple"><div>'+qEsc(qN101SummaryText({summary:sm}))+'</div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+'</div>'}else if(large){const ct=qN103ContainerText(model),cur=model.currentContainerText||'';foot='<div class="foot sign"><div class="calc">'+qEsc(qN101SummaryText(model))+'</div><div class="signrow"><b>目前未結清 '+qLedgerMoney(model.summary.outstanding)+'</b><span>付款人：________________</span><span>付款日期：________________</span></div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+(cur?'<div class="container current">'+qEsc(cur)+'</div>':'')+'</div>'}else{const ct=qN103ContainerText(model),cur=model.currentContainerText||'';foot='<div class="foot simple"><div>'+qEsc(qN101SummaryText(model))+'</div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+(cur?'<div class="container current">'+qEsc(cur)+'</div>':'')+'<div class="open">目前未結清 '+qLedgerMoney(model.summary.outstanding)+'</div></div>'}}return '<section class="sheet paper"><header><b>'+qEsc(qCompanyHeader)+'</b><span>'+(farmer?('產農：'+qEsc(pg.group.contact?.name||'')):('往來：'+qEsc(model.contact?.name||'')))+'</span><span>期間：'+qEsc(qN98RangeLabel(model))+'</span><span>第 '+pg.page+'/'+pg.count+' 頁</span></header>'+body+foot+'</section>'}).join('');
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>LQ-310 報表紙</title><style>@page{size:'+PAPER_W+'mm '+PAPER_H+'mm;margin:'+MARGIN_V+'mm 18.9mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:18px auto;background:#fff;position:relative;box-shadow:0 2px 14px #999;font-size:10.5pt;overflow:hidden}.paper{break-after:page;page-break-after:always}.paper:last-child{break-after:auto;page-break-after:auto}header{height:'+HEAD_H+'mm;display:flex;justify-content:space-between;align-items:center;font-size:10.5pt;font-weight:600}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:1.4mm}.twocol table:only-child{grid-column:1/-1}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.5pt}th,td{border:1px solid #333;height:'+ROW_H+'mm;padding:.6mm .7mm;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}thead th{height:'+COLHEAD_H+'mm;font-size:9.5pt}.name{text-align:left}.cash td{font-weight:700}.foot{position:absolute;left:0;right:0;bottom:0;border-top:1.4px solid #222;background:#fff;font-weight:900}.foot.simple{min-height:'+FOOT_H+'mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:2mm;padding:2mm 2.5mm;font-size:13.5pt}.foot.simple .open{font-size:15pt}.foot.simple .container{font-size:12pt;text-align:right}.foot.sign{height:'+FOOT_H+'mm;padding:2.2mm 2.5mm;display:flex;flex-direction:column;justify-content:space-between}.foot.sign .calc{font-size:14pt;line-height:1.35;text-align:right}.foot.sign .signrow{display:flex;align-items:center;justify-content:space-between;gap:4mm;font-size:14.5pt}.foot.sign .signrow b{font-size:16pt}.foot.sign .container{font-size:11.5pt;text-align:left}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印 LQ-310</button></div>'+pageHtml+qN101PreviewScript()+'</body></html>');w.document.close();
   }
   // N107：正式輸出保留領用／使用／歸還／買斷／調整等每筆容器異動，逐筆顯示日期；底部另顯示目前最終結餘，供客戶核對。
   // N102：中央圖片／LINE renderer。所有正式圖片輸出共用同一份 N98 完整明細模型。
   function qN102ImageCanvas(model){
-    const W=720,pad=34,rowH=38,headH=190,containerText=qN103ContainerText(model),currentContainer=qN105CurrentContainerText(model),buyoutText=qN104BuyoutTextModel(model);
+    const W=720,pad=34,rowH=38,headH=190,containerText=qN103ContainerText(model),currentContainer=model.currentContainerText||'',buyoutText=qN104BuyoutTextModel(model);
     const rows=model.kind==='farmer_weekly'?model.groups.flatMap(g=>[{kind:'group',name:g.contact?.name||'產農'},...(g.rows||[])]):model.rows;
     // N104：LINE 圖片不是固定紙張；高度完全依「明細列＋結算列」計算，內容增加就自動往下長。
     const footerLines=2+(buyoutText?1:0)+(containerText?1:0)+(currentContainer?1:0)+(model.kind==='general'?1:0);
@@ -5861,7 +5899,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     mask.querySelector('[data-n102="share"]').onclick=async()=>{try{const b=await blob(),f=new File([b],name,{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({title:'完整明細',files:[f]})}else{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);alert('這台裝置不支援直接分享，已改為儲存圖片。')} }catch(e){if(e?.name!=='AbortError')alert('分享失敗：'+(e?.message||e))}};
     mask.querySelector('[data-n102="copy"]').onclick=async()=>{try{const b=await blob();if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')throw new Error('瀏覽器不支援圖片剪貼簿');await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert('圖片已複製，可到 LINE 按 Ctrl＋V 貼上。')}catch(e){alert('無法直接複製圖片：'+(e?.message||e))}};
   }
-  // N108：四種輸出共用同一 model；目前容器結餘與合併後明細不分手機/電腦。
+  // N109：四種輸出共用同一中央 model；容器最終結餘、合併後明細與連續序號皆不分手機／平板／電腦。
   function qN105RunOutput(kind,entity){const model=qN98OutputModel(entity);if(model.kind==='missing_contact'){alert('找不到往來資料，無法輸出');return}if(kind==='bill')return qN102Image(model);if(kind==='excel')return qN98DownloadExcel(model);if(kind==='pdf')return qN101Pdf(model);if(kind==='paper')return qN101Paper(model)}
   function qN104RunOutput(kind,entity){return qN105RunOutput(kind,entity)}
   function qN103RunOutput(kind,entity){return qN105RunOutput(kind,entity)}
