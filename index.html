@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N130｜寄車修改增刪品項與刪除整張回報版</title>
+<title>欣儒系統｜N131｜寄車刪除權限核心版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -5093,6 +5093,10 @@ function freightDiff(before,customer,items){
   return out.join('\n')||'內容已更新';
 }
 let freightEditingBatch='';let freightEditingSource='';
+function canDeleteFreightReport(){
+  return !!(currentProfile?.role==='admin'||(typeof v17Has==='function'&&v17Has('freight.delete')));
+}
+
 function freightParseEditText(raw){
   const lines=String(raw||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],bad=[];
   lines.forEach((line,index)=>{
@@ -5176,6 +5180,7 @@ window.saveFreightBatchEdit=async function(batch){
 
 window.deleteFreightBatch=async function(batch){
   if(!currentUser)return alert('請先登入');
+  if(!canDeleteFreightReport())return alert('你沒有「寄車回報｜刪除」權限；只有管理員或被授權的主管可以刪除整張回報。');
   const g=freightGroups().find(x=>String(x.batch)===String(batch));if(!g)return alert('找不到這張回報單');
   if(String(batch).startsWith('old-'))return alert('舊版單筆回報沒有 batch_id，先保留原紀錄，不直接刪除');
   const h=g.rows[0]||{};
@@ -5214,7 +5219,7 @@ function freightBatchCard(group,completed=false,fieldView=false){
   return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(fullyCompleted?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
     arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');return '<div class="freightConfirmItem"><div><b>'+esc(freightItemHasKgText(x.item_text)?x.item_text:((x.item_text||'')+Number(x.piece_kg||0)+'K'))+'</b>｜'+Number(x.qty||0)+' 件 ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':(officeView?'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>':'<span class="badge gray">待派工確認</span>'))+'</div>'}).join('')+
     '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG</div>'+
-    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&String(freightEditingBatch)===String(group.batch)?freightEditHtml(group):(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button><button type="button" class="btn red freight-delete-btn" data-batch="'+esc(group.batch)+'">🗑️ 刪除回報</button></div>':''))+
+    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&String(freightEditingBatch)===String(group.batch)?freightEditHtml(group):(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button>'+(canDeleteFreightReport()?'<button type="button" class="btn red freight-delete-btn" data-batch="'+esc(group.batch)+'">🗑️ 刪除回報</button>':'')+'</div>':''))+
     (officeView&&!fullyCompleted&&allChecked?'<div class="shortageActions"><button type="button" class="btn primary freight-complete-btn" data-batch="'+esc(group.batch)+'">✅ 整單完成</button></div>':'')+
     (fullyCompleted?'<div class="meta" style="color:#18703c;font-weight:900">✅ 已整單完成｜'+stage9Time(h.confirmed_at||'')+'</div>':'')+'</div>';
 }
@@ -5365,7 +5370,8 @@ const V17_FUNC_OPTIONS=[
  ['order.work','派工｜作業'],
  ['packing.work','包裝｜作業'],
  ['delivery.work','貨運｜配送作業'],
- ['delivery.manage','貨運｜管理']
+ ['delivery.manage','貨運｜管理'],
+ ['freight.delete','寄車回報｜刪除']
 ];
 function v17ApplyFunctionUI(){
  if(!currentUser)return;
@@ -5385,7 +5391,7 @@ applyRoleUI=function(){v17BaseApplyRoleUI();v17ApplyFunctionUI();};
 function v17AddPermissionButtons(){
  // 170F：權限按鈕已固定在「權限設定」區，禁止再插入基本資料。
 }
-function v17FuncPage(key){return ({'order.work':'stall','packing.work':'packing','delivery.work':'delivery','delivery.manage':'delivery','accounting.work':'accounting','announcement.manage':'home'})[key]||'';}
+function v17FuncPage(key){return ({'order.work':'stall','packing.work':'packing','delivery.work':'delivery','delivery.manage':'delivery','freight.delete':'packing','accounting.work':'accounting','announcement.manage':'home'})[key]||'';}
 function v17NotifyPage(key){return ({packing:'packing',delivery:'delivery',accounting:'accounting'})[key]||'';}
 async function v17PermissionRow(uid){
  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();
