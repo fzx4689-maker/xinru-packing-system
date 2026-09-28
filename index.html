@@ -6600,6 +6600,49 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     work.querySelector('#clearDevAcct')?.addEventListener('click',()=>qClearDevTestData(work));
   }
 
+  // N121：產農週帳／待領款正式 UI。只讀既有 accounting_records、N97 週帳核心與 money_settlement 未結清核心；不建立第二套產農帳資料。
+  function qN121ActiveFarmers(){
+    return qProfiles().filter(c=>c&&c.active!==false&&String(c.identity||c.type||'').trim()==='產農');
+  }
+  function qN121WeekAnchor(){
+    const raw=String(localStorage.getItem('xinru_farmer_week_anchor')||'').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw)?raw:qToday();
+  }
+  function qN121PendingFarmerRows(range){
+    return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.pricingStatus==='pending_price'&&qIsFarmerPurchaseRecord(r)&&(!range||(qAcctRecordDate(r)>=range.from&&qAcctRecordDate(r)<=range.to)));
+  }
+  function qN121FarmerWeeklyEntity(anchor){
+    const c=qN121ActiveFarmers()[0];
+    return c?Object.assign({},c,{date:anchor}):null;
+  }
+  function renderFarmerWeekly(work,anchorInput){
+    const anchor=/^\d{4}-\d{2}-\d{2}$/.test(String(anchorInput||''))?String(anchorInput):qN121WeekAnchor();
+    localStorage.setItem('xinru_farmer_week_anchor',anchor);
+    const range=qN97WeekRange(anchor),data=qN97FarmerWeekly(anchor),pending=qN121PendingFarmerRows(range);
+    const total=(data.rows||[]).reduce((sum,x)=>sum+qRecordTotal(x.record),0);
+    const groupHtml=(data.groups||[]).map(g=>{
+      const gtotal=(g.records||[]).reduce((sum,r)=>sum+qRecordTotal(r),0);
+      const body=(g.records||[]).map(r=>{
+        const items=(r.items||[]).map((x,i)=>'<tr><td>'+qEsc(r.date||'')+'</td><td>'+qEsc(x.name||'')+'</td><td>'+qEsc(x.kg===''?'—':x.kg)+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+(x.price===''?'—':qLedgerMoney(x.price))+'</td><td><b>'+qLedgerMoney(x.amount===''?0:x.amount)+'</b></td></tr>').join('');
+        return items;
+      }).join('');
+      return '<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>🧑‍🌾 '+qEsc(g.contact?.name||'產農')+'</b><div class="helper" style="display:block!important">本週正式已計價進貨 '+(g.records||[]).length+' 筆</div></div><b>'+qLedgerMoney(gtotal)+'</b></div><div style="overflow:auto;margin-top:8px"><table class="quickV2Table" style="min-width:680px"><thead><tr><th>日期</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th><th>金額</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+    }).join('');
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>📅 產農本週週帳</b><div class="helper" style="display:block!important;margin-top:5px">星期一～星期日；只列目前身分為產農、正式且已計價的進貨。待補價格不會以 $0 混入週帳。</div></div><div style="text-align:right"><b>'+qEsc(range.from)+' ～ '+qEsc(range.to)+'</b><div>本週合計 '+qLedgerMoney(total)+'</div></div></div><div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:10px 0"><div class="field" style="margin:0;min-width:210px"><label class="label">選擇週別中的任一天</label><input id="qFarmerWeekDate" class="input" type="date" value="'+qEsc(anchor)+'"></div><button type="button" class="btn blue" id="qFarmerWeekToday">本週</button><div style="display:flex;gap:7px;flex-wrap:wrap;margin-left:auto"><button type="button" class="btn gray" data-fw-out="bill">📱 圖片／LINE</button><button type="button" class="btn gray" data-fw-out="excel">📊 Excel</button><button type="button" class="btn gray" data-fw-out="pdf">📄 PDF</button><button type="button" class="btn gray" data-fw-out="paper">🖨️ 報表紙</button></div></div>'+(pending.length?'<div class="quickV2ContactHint" style="margin-bottom:10px"><b>🟡 本週另有待補價格 '+pending.length+' 筆</b><div class="helper">這些交易已保存，但價格完成前不列入週帳金額與待領款。</div></div>':'')+'<div>'+(groupHtml||'<div class="empty" style="padding:18px">這一週尚無已計價的產農進貨</div>')+'</div></div>';
+    const date=work.querySelector('#qFarmerWeekDate');
+    date?.addEventListener('change',()=>renderFarmerWeekly(work,date.value));
+    work.querySelector('#qFarmerWeekToday')?.addEventListener('click',()=>renderFarmerWeekly(work,qToday()));
+    work.querySelectorAll('[data-fw-out]').forEach(b=>b.onclick=()=>{const entity=qN121FarmerWeeklyEntity(anchor);if(!entity){alert('目前沒有啟用中的產農往來資料');return}qN105RunOutput(b.dataset.fwOut,entity)});
+  }
+  function renderFarmerPayables(work){
+    const farmers=qN121ActiveFarmers();
+    const groups=farmers.map(c=>{const opens=qOpenMoneyRows(c,'payment'),due=opens.reduce((a,x)=>a+x.due,0);return {c,opens,due}}).filter(x=>x.due>0.000001).sort((a,b)=>b.due-a.due||String(a.c.name||'').localeCompare(String(b.c.name||''),'zh-Hant'));
+    const grand=groups.reduce((a,x)=>a+x.due,0);
+    const html=groups.map(g=>'<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>🧑‍🌾 '+qEsc(g.c.name||'')+'</b><div class="helper" style="display:block!important">未結清 '+g.opens.length+' 筆</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end"><b style="font-size:20px">待領 '+qLedgerMoney(g.due)+'</b><button type="button" class="btn green" data-farmer-pay="'+qEsc(g.c.id||g.c.code||g.c.name)+'">💸 查看／付款</button></div></div><div style="overflow:auto;margin-top:8px"><table class="quickV2Table" style="min-width:650px"><thead><tr><th>日期</th><th>進貨內容</th><th>原金額</th><th>目前未付</th></tr></thead><tbody>'+g.opens.map(x=>'<tr><td>'+qEsc(x.record.date||'')+'</td><td>'+qEsc((x.record.items||[]).map(v=>v.name).filter(Boolean).join('、'))+'</td><td>'+qLedgerMoney(qRecordTotal(x.record))+'</td><td><b>'+qLedgerMoney(x.due)+'</b></td></tr>').join('')+'</tbody></table></div></div>').join('');
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>💵 產農待領款</b><div class="helper" style="display:block!important;margin-top:5px">只顯示目前身分為產農的真實應付未結清。已付款由 money_settlement 自動沖減；待補價格不列入。</div></div><div style="text-align:right"><b>'+groups.length+' 位產農</b><div style="font-size:20px;font-weight:900">合計 '+qLedgerMoney(grand)+'</div></div></div>'+(html||'<div class="empty" style="padding:18px">目前沒有產農待領款</div>')+'</div>';
+    work.querySelectorAll('[data-farmer-pay]').forEach(b=>b.onclick=()=>qRenderMoneyCenter(work,b.dataset.farmerPay,'payment'));
+  }
+
   function qRenderMoneyHistory(work){
     const state=qAcctDateState();
     const rows=qMoneySettlements().filter(r=>qAcctRecordInDateRange(r,state)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
@@ -6629,6 +6672,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(a==='做帳紀錄'||a==='今日做帳紀錄'){renderQuickToday(work);return;}
     if(a==='入貨紀錄'||a==='今日入貨'){renderFarmerToday(work);return;}
     if(a==='待補價格'){renderPendingPrices(work,section==='farmer'?'farmer':section==='vendor'?'vendor':'all');return;}
+    if(section==='farmer'&&a==='本週週帳'){renderFarmerWeekly(work);return;}
+    if(section==='farmer'&&a==='待領款'){renderFarmerPayables(work);return;}
     if(section==='payment'&&(a==='💰 收款'||a==='💸 付款')){qRenderMoneyCenter(work,'',a==='💸 付款'?'payment':'receipt');return;}
     if(section==='payment'&&a==='🔍 收支查詢'){qRenderMoneyHistory(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
