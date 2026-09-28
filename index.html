@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N105｜目前容器結餘依勾選顯示版</title>
+<title>欣儒系統｜N130｜寄車修改增刪品項與刪除整張回報版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -5078,7 +5078,20 @@ function freightGroupSnapshot(group){return {customer:group.rows[0]?.customer||'
 function freightLogsFor(batch){return freightChangeLogs.filter(x=>String(x.batch_id)===String(batch))}
 function freightPendingLog(batch){return freightLogsFor(batch).find(x=>!x.is_acknowledged)}
 function freightChangeHtml(batch,officeView=false){const logs=freightLogsFor(batch),p=freightPendingLog(batch);let html='';if(p&&officeView)html+='<div class="freightEditNotice"><div class="title">⚠️ 回報已修改</div><div class="orderChangeDiff">'+esc(p.diff_text||'內容已更新')+'</div><div class="orderChangeMeta">修改：'+esc(p.changed_by_name||'')+'｜'+stage9Time(p.changed_at)+'</div><div class="actions" style="margin-top:8px"><button type="button" class="btn primary freight-change-ack-btn" data-log="'+esc(String(p.id))+'">✓ 已確認修改</button></div></div>';if(logs.length)html+='<div class="freightEditHistory"><details><summary style="cursor:pointer;font-weight:900">修改紀錄 ('+logs.length+')</summary>'+logs.map(x=>'<div style="padding:7px 0;border-bottom:1px solid #edf0f2"><b>'+esc(x.changed_by_name||'')+'</b>｜'+stage9Time(x.changed_at)+'<pre>'+esc(x.diff_text||'內容已更新')+'</pre></div>').join('')+'</details></div>';return html}
-function freightDiff(before,customer,items){const out=[];if(String(before.customer||'')!==String(customer||''))out.push('客戶：'+(before.customer||'空白')+' → '+(customer||'空白'));before.items.forEach((x,i)=>{const y=items[i];if(!y)return;const a=(x.item_text||'')+'｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0),b=(y.item||'')+'｜'+Number(y.kg||0)+' KG × '+Number(y.qty||0);if(a!==b)out.push('第 '+(i+1)+' 項：'+a+' → '+b)});return out.join('\n')||'內容已更新'}
+function freightDiff(before,customer,items){
+  const out=[];
+  if(String(before.customer||'')!==String(customer||''))out.push('客戶：'+(before.customer||'空白')+' → '+(customer||'空白'));
+  const n=Math.max(before.items.length,items.length);
+  for(let i=0;i<n;i++){
+    const x=before.items[i],y=items[i];
+    if(x&&!y){out.push('刪除第 '+(i+1)+' 項：'+(x.item_text||'')+'｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0));continue}
+    if(!x&&y){out.push('新增第 '+(i+1)+' 項：'+(y.item||'')+'｜'+Number(y.kg||0)+' KG × '+Number(y.qty||0));continue}
+    if(!x||!y)continue;
+    const a=(x.item_text||'')+'｜'+Number(x.piece_kg||0)+' KG × '+Number(x.qty||0),b=(y.item||'')+'｜'+Number(y.kg||0)+' KG × '+Number(y.qty||0);
+    if(a!==b)out.push('第 '+(i+1)+' 項：'+a+' → '+b);
+  }
+  return out.join('\n')||'內容已更新';
+}
 let freightEditingBatch='';let freightEditingSource='';
 function freightParseEditText(raw){
   const lines=String(raw||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],bad=[];
@@ -5099,7 +5112,7 @@ function freightEditHtml(group){
   return '<div class="freightInlineEdit" data-edit-batch="'+esc(String(group.batch))+'">'+
     '<div class="field"><label class="label">客戶</label><input class="input freight-edit-customer" value="'+esc(h.customer||'')+'"></div>'+
     '<div class="field"><label class="label">修改公斤內容（每行一項）</label><textarea class="input freightBulkText freight-edit-text">'+esc(freightGroupText(group))+'</textarea></div>'+
-    '<div class="meta" style="margin-top:7px">直接修改品名、公斤、件數；每個品項一行。</div>'+
+    '<div class="meta" style="margin-top:7px">可修改、增加或刪除品項；每個品項一行。刪掉該行＝刪除該品項。</div>'+
     '<div class="actions"><button type="button" class="btn primary freight-edit-save-btn" data-batch="'+esc(String(group.batch))+'">儲存修改</button><button type="button" class="btn gray freight-edit-cancel-btn">取消修改</button></div></div>';
 }
 window.editFreightBatch=function(batch){
@@ -5114,21 +5127,73 @@ window.cancelFreightBatchEdit=function(){const source=freightEditingSource||'pac
 window.saveFreightBatchEdit=async function(batch){
   if(!currentUser)return alert('請先登入');
   const g=freightGroups().find(x=>String(x.batch)===String(batch));if(!g)return alert('找不到這張回報單');
+  if(String(batch).startsWith('old-'))return alert('舊版單筆回報沒有 batch_id，先保留原紀錄，不直接改寫');
   const root=document.querySelector('[data-edit-batch="'+CSS.escape(String(batch))+'"]');if(!root)return alert('找不到修改區');
   const customer=root.querySelector('.freight-edit-customer')?.value.trim()||'';
   const raw=root.querySelector('.freight-edit-text')?.value||'';
   if(!customer)return alert('客戶不能空白');
   const p=freightParseEditText(raw);
   if(p.bad.length)return alert('第 '+p.bad.join('、')+' 行格式無法辨識');
-  if(!p.rows.length)return alert('請輸入公斤內容');
-  if(p.rows.length!==g.rows.length)return alert('為保護原本穩定資料，修改時品項行數要與原回報相同；可以修改客戶、品名、公斤與件數。');
+  if(!p.rows.length)return alert('至少保留 1 個品項；若要整張刪除，請按「刪除回報」');
   const before=freightGroupSnapshot(g),diff=freightDiff(before,customer,p.rows);
   if(!confirm('確定修改這張寄車回報？\n\n'+diff))return;
   const after={customer,items:p.rows.map(x=>({item_text:x.item,qty:x.qty,piece_kg:x.kg,total_kg:x.total_kg}))};
   const logPayload={batch_id:String(batch),before_data:before,after_data:after,diff_text:diff,changed_by:currentUser.id,changed_by_name:currentProfile?.display_name||'',changed_at:new Date().toISOString(),is_acknowledged:false};
   const lr=await sb.from('freight_receipt_change_logs').insert(logPayload);if(lr.error)return alert('修改紀錄寫入失敗，原回報尚未修改：'+lr.error.message);
-  for(let i=0;i<g.rows.length;i++){const x=g.rows[i],y=p.rows[i];const r=await sb.from('freight_receipts').update({customer,item_text:y.item,qty:y.qty,piece_kg:y.kg,total_kg:y.total_kg,status:'reported',confirmed_at:null,confirmed_by:null,confirmed_by_name:null}).eq('id',Number(x.id));if(r.error)return alert('第 '+(i+1)+' 項修改失敗：'+r.error.message+'。修改紀錄已保留，請不要重複操作並通知管理員。')}
-  const source=freightEditingSource||g.rows[0]?.source||'packing';freightEditingBatch='';freightEditingSource='';await loadStage9();renderFreightFor(source);alert('已修改並重新送派工確認');
+
+  const common=Math.min(g.rows.length,p.rows.length);
+  for(let i=0;i<common;i++){
+    const x=g.rows[i],y=p.rows[i];
+    const r=await sb.from('freight_receipts').update({customer,item_text:y.item,qty:y.qty,piece_kg:y.kg,total_kg:y.total_kg,status:'reported',confirmed_at:null,confirmed_by:null,confirmed_by_name:null}).eq('id',Number(x.id));
+    if(r.error)return alert('第 '+(i+1)+' 項修改失敗：'+r.error.message+'。修改紀錄已保留，請通知管理員。');
+  }
+
+  if(p.rows.length>g.rows.length){
+    const h=g.rows[0]||{};
+    const extras=p.rows.slice(g.rows.length).map(y=>({
+      customer,item_text:y.item,qty:y.qty,piece_kg:y.kg,total_kg:y.total_kg,
+      source:h.source||freightEditingSource||'packing',source_label:h.source_label||stage9Role(h.source||freightEditingSource||'packing'),
+      reported_by:h.reported_by||currentUser.id,reported_by_name:h.reported_by_name||currentProfile?.display_name||'',
+      status:'reported',batch_id:String(batch),created_at:h.created_at||new Date().toISOString()
+    }));
+    const r=await sb.from('freight_receipts').insert(extras);
+    if(r.error)return alert('新增品項失敗：'+r.error.message+'。已完成的其他修改不會自動回復，請通知管理員。');
+  }
+
+  if(p.rows.length<g.rows.length){
+    const ids=g.rows.slice(p.rows.length).map(x=>Number(x.id)).filter(Number.isFinite);
+    if(ids.length){
+      const r=await sb.from('freight_receipts').delete().in('id',ids);
+      if(r.error)return alert('刪除品項失敗：'+r.error.message+'。已完成的其他修改不會自動回復，請通知管理員。');
+    }
+  }
+
+  const source=freightEditingSource||g.rows[0]?.source||'packing';
+  freightEditingBatch='';freightEditingSource='';
+  await loadStage9();renderFreightFor(source);
+  alert('已修改並重新送派工確認');
+};
+
+window.deleteFreightBatch=async function(batch){
+  if(!currentUser)return alert('請先登入');
+  const g=freightGroups().find(x=>String(x.batch)===String(batch));if(!g)return alert('找不到這張回報單');
+  if(String(batch).startsWith('old-'))return alert('舊版單筆回報沒有 batch_id，先保留原紀錄，不直接刪除');
+  const h=g.rows[0]||{};
+  const summary=g.rows.map(x=>(x.item_text||'')+'｜'+Number(x.qty||0)+'件｜'+Number(x.total_kg||0)+'KG').join('\n');
+  if(!confirm('確定刪除整張寄車回報？\n\n客戶：'+(h.customer||'')+'\n'+summary+'\n\n刪除後不會出現在未完成或歷史回報。'))return;
+
+  const before=freightGroupSnapshot(g);
+  const logPayload={batch_id:String(batch),before_data:before,after_data:{deleted:true},diff_text:'刪除整張寄車回報',changed_by:currentUser.id,changed_by_name:currentProfile?.display_name||'',changed_at:new Date().toISOString(),is_acknowledged:true};
+  const lr=await sb.from('freight_receipt_change_logs').insert(logPayload);
+  if(lr.error)return alert('刪除紀錄寫入失敗，原回報尚未刪除：'+lr.error.message);
+
+  const r=await sb.from('freight_receipts').delete().eq('batch_id',String(batch));
+  if(r.error)return alert('刪除回報失敗：'+r.error.message+'。刪除紀錄已保留，但原回報尚未刪除。');
+
+  const source=freightEditingSource||h.source||'packing';
+  if(String(freightEditingBatch)===String(batch)){freightEditingBatch='';freightEditingSource='';}
+  await loadStage9();renderFreightFor(source);renderFreightHistory();
+  alert('已刪除整張寄車回報');
 };
 window.ackFreightChange=async function(id){if(!currentUser)return;const r=await sb.from('freight_receipt_change_logs').update({is_acknowledged:true,acknowledged_by:currentUser.id,acknowledged_by_name:currentProfile?.display_name||'',acknowledged_at:new Date().toISOString()}).eq('id',Number(id));if(r.error)return alert('確認修改失敗：'+r.error.message);await loadStage9()};
 function renderFreightFor(source){
@@ -5149,7 +5214,7 @@ function freightBatchCard(group,completed=false,fieldView=false){
   return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(fullyCompleted?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
     arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');return '<div class="freightConfirmItem"><div><b>'+esc(freightItemHasKgText(x.item_text)?x.item_text:((x.item_text||'')+Number(x.piece_kg||0)+'K'))+'</b>｜'+Number(x.qty||0)+' 件 ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':(officeView?'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>':'<span class="badge gray">待派工確認</span>'))+'</div>'}).join('')+
     '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG</div>'+
-    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&String(freightEditingBatch)===String(group.batch)?freightEditHtml(group):(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button></div>':''))+
+    '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&String(freightEditingBatch)===String(group.batch)?freightEditHtml(group):(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button><button type="button" class="btn red freight-delete-btn" data-batch="'+esc(group.batch)+'">🗑️ 刪除回報</button></div>':''))+
     (officeView&&!fullyCompleted&&allChecked?'<div class="shortageActions"><button type="button" class="btn primary freight-complete-btn" data-batch="'+esc(group.batch)+'">✅ 整單完成</button></div>':'')+
     (fullyCompleted?'<div class="meta" style="color:#18703c;font-weight:900">✅ 已整單完成｜'+stage9Time(h.confirmed_at||'')+'</div>':'')+'</div>';
 }
@@ -5205,7 +5270,7 @@ window.renderFreightHistory=function(){
   groups=groups.filter(g=>{const h=g.rows[0],d=(h.confirmed_at||h.created_at||'').slice(0,10),text=g.rows.map(x=>[x.customer,x.item_text,x.reported_by_name,x.confirmed_by_name,x.source_label].join(' ')).join(' ').toLowerCase();return(!date||d===date)&&(!kw||text.includes(kw))});
   box.innerHTML=groups.length?groups.map(g=>freightBatchCard(g,true)).join(''):'<div class="empty">沒有符合條件的歷史回報</div>';
 };
-document.addEventListener('click',e=>{const a=e.target.closest?.('.freight-item-confirm-btn');if(a)confirmFreightItem(a.dataset.id);const b=e.target.closest?.('.freight-complete-btn');if(b)completeFreightBatch(b.dataset.batch);const c=e.target.closest?.('.freight-edit-btn');if(c)editFreightBatch(c.dataset.batch);const d=e.target.closest?.('.freight-change-ack-btn');if(d)ackFreightChange(d.dataset.log);const sv=e.target.closest?.('.freight-edit-save-btn');if(sv)saveFreightBatchEdit(sv.dataset.batch);const cc=e.target.closest?.('.freight-edit-cancel-btn');if(cc)cancelFreightBatchEdit()});
+document.addEventListener('click',e=>{const a=e.target.closest?.('.freight-item-confirm-btn');if(a)confirmFreightItem(a.dataset.id);const b=e.target.closest?.('.freight-complete-btn');if(b)completeFreightBatch(b.dataset.batch);const c=e.target.closest?.('.freight-edit-btn');if(c)editFreightBatch(c.dataset.batch);const d=e.target.closest?.('.freight-change-ack-btn');if(d)ackFreightChange(d.dataset.log);const sv=e.target.closest?.('.freight-edit-save-btn');if(sv)saveFreightBatchEdit(sv.dataset.batch);const cc=e.target.closest?.('.freight-edit-cancel-btn');if(cc)cancelFreightBatchEdit();const del=e.target.closest?.('.freight-delete-btn');if(del)deleteFreightBatch(del.dataset.batch)});
 window.renderConversationHistory=function(){
   const box=document.getElementById('conversationHistoryList');if(!box)return;
   const date=document.getElementById('historyDate')?.value||'';
