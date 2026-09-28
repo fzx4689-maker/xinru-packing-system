@@ -3943,6 +3943,11 @@ async function startApp(user){
   await loadContactsCloud();
   await loadAccountingCloud();
   if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
+  // N128：寄車／現場回報是正式啟動資料依賴。
+  // 重新整理、PWA重開、重新登入都必須先等 freight_receipts 載入完成，
+  // 再恢復使用者原本頁面；不再依賴 window.load 後 2.2 秒的補抓。
+  await loadStage9();
+  startStage9Realtime();
   const rememberedTab=bootRememberedTab;
   activateTab(rememberedTab,{save:false});
 
@@ -4978,7 +4983,13 @@ async function loadStage9(){
     if(!f.error)freightReceipts=f.data||[];
     if(!c.error)freightChangeLogs=c.data||[];
     if(!q.error||!m.error){renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');}
-    if(!f.error){renderFreightOffice();renderFreightFor('packing');renderFreightFor('delivery');}
+    if(!f.error){
+      renderFreightOffice();
+      // N129：背景同步可更新資料，但正在修改的現場回報不可重畫，
+      // 否則 Realtime／30秒輪詢會把尚未儲存的客戶、公斤文字與游標一起洗掉。
+      if(!(freightEditingBatch&&freightEditingSource==='packing'))renderFreightFor('packing');
+      if(!(freightEditingBatch&&freightEditingSource==='delivery'))renderFreightFor('delivery');
+    }
     if(!q.error||!f.error)updateStage9Badges();
     renderConversationHistory();
   }catch(e){console.warn('現場回報暫時讀取失敗，保留上一個正常畫面',e);}
@@ -5271,7 +5282,7 @@ document.addEventListener('touchend',()=>{if(xrPullReady)xrRefreshVisibleData();
 let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Realtime)return;stage9Realtime=sb.channel('xinru-stage10-live').on('postgres_changes',{event:'*',schema:'public',table:'field_questions'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'field_question_messages'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipts'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipt_change_logs'},loadStage9).subscribe()}
 document.addEventListener('click',e=>{const btn=e.target.closest?.('.quickToolTab');if(!btn)return;const root=btn.closest('.packingQuickTools,.deliveryQuickTools');if(!root)return;const tool=btn.dataset.tool,was=btn.classList.contains('active');root.querySelectorAll('.quickToolTab').forEach(x=>x.classList.remove('active'));root.querySelectorAll('.quickToolPanel').forEach(x=>x.classList.remove('active'));if(!was){btn.classList.add('active');root.querySelector('.quickToolPanel[data-panel="'+tool+'"]')?.classList.add('active')}});
 // 第175A階段：回前景改由共用 xrResumeSync 去重處理；保留原本登入後初始化。
-window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');loadStage9();startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},30000);
+window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},30000);
 </script>
 <script>
 /* 第169C3階段：六大權限正式接管＋登入後同步權限。
