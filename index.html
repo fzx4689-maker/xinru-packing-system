@@ -6561,7 +6561,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(!qInitAccountingHomeUi._badgeScheduled){
       qInitAccountingHomeUi._badgeScheduled=true;
       const run=()=>{qInitAccountingHomeUi._badgeScheduled=false;try{qPaintWorkBadges()}catch(err){console.warn('帳務待辦稍後載入',err)}};
-      if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:500});else setTimeout(run,0);
+      // N138：帳務待辦數量屬首頁必要狀態，不再等待 requestIdleCallback；避免頁面持續忙碌時四顆徽章長時間停在「…」。
+      setTimeout(run,0);
     }
     const badgeBox=document.getElementById('acctWorkBadges');
     if(badgeBox&&!badgeBox.dataset.qWorkBound){
