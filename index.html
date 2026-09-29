@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N145｜提醒連結公告正式版</title>
+<title>欣儒系統｜N146｜四種提醒規則正式版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -5784,17 +5784,52 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return {ok:false,date:'',mode,reason:'未支援的收款排程'};
   }
   window.xrBillingPeriodCore={periodFor:qBillingPeriodFor,collectionDueFor:qCollectionDueDateFor};
-  // N145：提醒只由正式帳務推導，不建立第二套應收／應付。
+  // N146：四種提醒規則。一般客戶看「帳期結束待做帳／待傳帳單」；超市才看收款日。
+  // 只由 N144 正式帳務推導，不建立第二套交易／應收資料。
   window.xrAccountingReminderEvents=function(){
-    const out=[],today=qToday(),ps=qProfiles();
+    const out=[],today=qToday(),ps=qProfiles(),all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
     for(const c of ps){
-      const recv=qOpenMoneyRows(c,'receipt'),byPeriod=new Map();
-      for(const x of recv){const p=qBillingPeriodFor(c,x.record?.date||'');if(!p.ok)continue;const d=qCollectionDueDateFor(c,p);if(!d.ok||!d.date)continue;const k=p.key+'|'+d.date,cur=byPeriod.get(k)||{amount:0,period:p,due:d.date};cur.amount+=qMoney(x.due);byPeriod.set(k,cur)}
-      for(const z of byPeriod.values())if(z.amount>0&&z.due<=today)out.push({reminder_type:'customer_receivable_due',source_key:'recv|'+String(c.id||c.code||c.name)+'|'+z.period.key+'|'+z.due,title:(z.due<today?'逾期未收款｜':'今日收款｜')+(c.name||c.code||''),message:'應收 '+qLedgerMoney(z.amount)+'｜收款日 '+z.due+'｜帳期 '+z.period.start+'～'+z.period.end,due_date:z.due,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:z.amount});
-      const opens=qOpenMoneyRows(c,'payment'),pay=opens.reduce((a,x)=>a+qMoney(x.due),0),ident=String(c.identity||c.type||''),sig=opens.map(x=>String(x.record?.id||'')+':'+Math.round(qMoney(x.due)*100)/100).join(',');
-      if(pay>0&&/產農/.test(ident))out.push({reminder_type:'farmer_payment_pending',source_key:'farmer|'+String(c.id||c.code||c.name)+'|'+sig,title:'產農待領款｜'+(c.name||c.code||''),message:'目前待付款 '+qLedgerMoney(pay),due_date:today,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:pay});
-      else if(pay>0&&/廠商/.test(ident))out.push({reminder_type:'vendor_payment_pending',source_key:'vendor|'+String(c.id||c.code||c.name)+'|'+sig,title:'廠商待付款｜'+(c.name||c.code||''),message:'目前待付款 '+qLedgerMoney(pay),due_date:today,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:pay});
-    }return out;
+      const ident=String(c.identity||c.type||'').trim(),cid=String(c.id||c.code||c.name||'');
+      if(!cid)continue;
+
+      if(ident==='超市'){
+        // 超市收款提醒：只有仍未結清的應收，並依既有正式收款排程判斷。
+        const recv=qOpenMoneyRows(c,'receipt'),byDue=new Map();
+        for(const x of recv){
+          const p=qBillingPeriodFor(c,x.record?.date||'');if(!p.ok)continue;
+          const d=qCollectionDueDateFor(c,p);if(!d.ok||!d.date)continue;
+          const k=p.key+'|'+d.date,cur=byDue.get(k)||{amount:0,period:p,due:d.date};
+          cur.amount+=qMoney(x.due);byDue.set(k,cur);
+        }
+        for(const z of byDue.values())if(z.amount>0&&z.due<=today)out.push({
+          reminder_type:'supermarket_collection_due',
+          source_key:'supermarket-collect|'+cid+'|'+z.period.key+'|'+z.due,
+          title:'超市收款提醒｜'+(c.name||c.code||''),
+          message:'待收 '+qLedgerMoney(z.amount)+'｜收款日 '+z.due+'｜帳期 '+z.period.start+'～'+z.period.end,
+          due_date:z.due,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:z.amount
+        });
+        continue;
+      }
+
+      if(/產農|廠商|內部單位/.test(ident))continue;
+      // 一般客戶帳期提醒：看「這一期有正式銷貨＋帳期已結束」，不看是否已收款，也不看收款排程。
+      const sales=all.filter(r=>r&&r.mode!=='money_settlement'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'));
+      const byPeriod=new Map();
+      for(const r of sales){
+        const p=qBillingPeriodFor(c,r.date||'');if(!p.ok||!p.end)continue;
+        const cur=byPeriod.get(p.key)||{amount:0,count:0,period:p};
+        cur.amount+=qMoney(qRecordTotal(r));cur.count+=1;byPeriod.set(p.key,cur);
+      }
+      for(const z of byPeriod.values())if(z.count>0&&z.period.end<today)out.push({
+        reminder_type:'billing_period_statement_due',
+        source_key:'billing-statement|'+cid+'|'+z.period.key,
+        title:'帳期結束待做帳／待傳帳單｜'+(c.name||c.code||''),
+        message:'帳期 '+z.period.start+'～'+z.period.end+'｜'+z.count+' 筆正式交易｜本期 '+qLedgerMoney(z.amount),
+        due_date:qBillingDateText(qBillingAddDays(qBillingParseDate(z.period.end),1)),
+        contact_id:String(c.id||''),contact_name:String(c.name||''),amount:z.amount,period_start:z.period.start,period_end:z.period.end,record_count:z.count
+      });
+    }
+    return out;
   };
   function qProfiles(){try{const newer=JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]'),older=JSON.parse(localStorage.getItem('xinru_customer_profiles_v1')||'[]'),a=Array.isArray(newer)?newer:[],old=Array.isArray(older)?older:[],keys=new Set(a.flatMap(x=>[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean))),merged=a.slice();for(const x of old){const ks=[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean);if(ks.some(k=>keys.has(k)))continue;merged.push(x);ks.forEach(k=>keys.add(k))}return merged.filter(x=>x&&x.active!==false)}catch(e){return []}}
   function qMoney(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -7448,9 +7483,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- N126：寄車多規格取最後公斤值；產農週帳固定最多雙欄並統一可讀字級；新增嫩薑泰文。 -->
 <!-- N127: 寄車回報工作區改為未完成跨日保留；包裝/貨運與派工辦公室共用，不改 Supabase 原始資料。 -->
 <script>
-/* N145：帳務提醒 → 待處理提醒 → 指定人員發布公告。只接既有正式帳務；不修改 Auth/V17。 */
+/* N146：四種提醒 → 待處理提醒 → 指定人員發布公告。只接既有正式帳務；不修改 Auth/V17。 */
 (function(){
- const TYPES={customer_receivable_due:'客戶到期／逾期未收',farmer_payment_pending:'產農待領款',vendor_payment_pending:'廠商待付款',fixed_expense_due:'固定費用到期',vehicle_due:'車輛到期提醒'};
+ const TYPES={billing_period_statement_due:'帳期結束待做帳／待傳帳單',supermarket_collection_due:'超市收款提醒',fixed_expense_due:'固定費用到期',vehicle_due:'車輛到期提醒'};
  const isManager=()=>!!currentProfile&&(currentProfile.role==='admin'||v17Has('announcement.manage'));
  const escN=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
  const todayN=()=>typeof taipeiDate==='function'?taipeiDate():new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date());
@@ -7460,7 +7495,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
  async function saveRecipients(taskId,ids){const d=await sb.from('home_task_recipients').delete().eq('task_id',taskId);if(d.error)throw d.error;if(ids.length){const i=await sb.from('home_task_recipients').insert(ids.map(user_id=>({task_id:taskId,user_id})));if(i.error)throw i.error}}
  async function syncReminders(){if(!isManager()||typeof window.xrAccountingReminderEvents!=='function')return;const ev=window.xrAccountingReminderEvents()||[];for(const x of ev){const row={reminder_type:x.reminder_type,source_key:x.source_key,title:x.title,message:x.message,due_date:x.due_date,source_data:x,updated_at:new Date().toISOString()};const {error}=await sb.from('system_reminders').upsert(row,{onConflict:'source_key',ignoreDuplicates:false});if(error)console.warn('N145提醒同步失敗',error.message)} }
  async function publishReminder(r){const ids=await choosePeople([]);if(!ids)return;const {data,error}=await sb.from('home_tasks').insert({title:r.title,due_date:r.due_date||todayN(),note:r.message||null,department:'hq',is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||'',n145_audience:true}).select('id').single();if(error)return alert('發布失敗：'+error.message);try{await saveRecipients(data.id,ids);const u=await sb.from('system_reminders').update({status:'published',published_task_id:data.id,published_at:new Date().toISOString(),published_by:currentUser.id}).eq('id',r.id);if(u.error)throw u.error;alert('已發布公告');await window.homeLoadV79?.()}catch(e){alert('收件人設定失敗：'+(e?.message||e))}}
- async function dismissReminder(r){if(!confirm('確定這次不發布？\n帳務原本的未收／未付狀態不會被清除。'))return;const {error}=await sb.from('system_reminders').update({status:'dismissed',dismissed_at:new Date().toISOString(),dismissed_by:currentUser.id}).eq('id',r.id);if(error)alert('操作失敗：'+error.message);else openPending()}
+ async function dismissReminder(r){if(!confirm('確定這次不發布？\n只會關閉這次提醒，不會修改原本帳務資料。'))return;const {error}=await sb.from('system_reminders').update({status:'dismissed',dismissed_at:new Date().toISOString(),dismissed_by:currentUser.id}).eq('id',r.id);if(error)alert('操作失敗：'+error.message);else openPending()}
  async function openPending(){if(!isManager())return;await syncReminders();const {data,error}=await sb.from('system_reminders').select('*').eq('status','pending').order('due_date',{ascending:true}).order('created_at',{ascending:true});if(error)return alert('待處理提醒讀取失敗：'+error.message);const rows=data||[];const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99998;overflow:auto;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:850px;margin:30px auto;padding:18px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3 style="margin:0">🔔 待處理提醒 '+rows.length+'</h3><button class="btn gray" data-close>關閉</button></div><div style="margin-top:12px">'+(rows.length?rows.map((r,i)=>'<div style="border:1px solid #ddd;border-radius:12px;padding:12px;margin:9px 0"><b>'+escN(TYPES[r.reminder_type]||r.reminder_type)+'｜'+escN(r.title)+'</b><div style="margin-top:5px">'+escN(r.message||'')+'</div><div class="helper" style="display:block!important">提醒日：'+escN(r.due_date||'')+'</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary" data-p="'+i+'">📣 發布公告</button><button class="btn gray" data-d="'+i+'">不發布</button></div></div>').join(''):'<div class="empty">目前沒有待處理提醒</div>')+'</div></div>';document.body.appendChild(bg);bg.querySelector('[data-close]').onclick=()=>bg.remove();bg.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{await publishReminder(rows[+b.dataset.p]);bg.remove()});bg.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.d];bg.remove();await dismissReminder(r)});}
  async function openRules(){if(!isManager())return;const es=await employees();const {data,error}=await sb.from('reminder_rules').select('*');if(error)return alert('提醒規則讀取失敗：'+error.message);const map=new Map((data||[]).map(x=>[x.reminder_type,x]));const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99998;overflow:auto;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:760px;margin:30px auto;padding:18px"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">⚙️ 提醒規則</h3><button class="btn gray" data-close>關閉</button></div>'+Object.entries(TYPES).map(([k,label])=>{const r=map.get(k)||{};return '<div style="border-top:1px solid #ddd;padding:12px 0"><b>'+escN(label)+'</b><label style="display:block;margin:7px 0"><input type="checkbox" data-auto="'+k+'" '+(r.auto_publish?'checked':'')+'> 自動發布</label><button class="btn gray" data-people="'+k+'">選擇固定收件人（'+((r.recipient_user_ids||[]).length)+' 人）</button></div>'}).join('')+'</div>';document.body.appendChild(bg);bg.querySelector('[data-close]').onclick=()=>bg.remove();for(const [k] of Object.entries(TYPES)){const auto=bg.querySelector('[data-auto="'+k+'"]'),pb=bg.querySelector('[data-people="'+k+'"]');let ids=[...(map.get(k)?.recipient_user_ids||[])];pb.onclick=async()=>{const z=await choosePeople(ids);if(z){ids=z;pb.textContent='選擇固定收件人（'+ids.length+' 人）'}};auto.onchange=async()=>{const row={reminder_type:k,auto_publish:auto.checked,recipient_user_ids:ids,updated_at:new Date().toISOString(),updated_by:currentUser.id};const {error}=await sb.from('reminder_rules').upsert(row,{onConflict:'reminder_type'});if(error){auto.checked=!auto.checked;alert('儲存失敗：'+error.message)}};pb.addEventListener('click',async()=>{setTimeout(async()=>{const row={reminder_type:k,auto_publish:auto.checked,recipient_user_ids:ids,updated_at:new Date().toISOString(),updated_by:currentUser.id};const {error}=await sb.from('reminder_rules').upsert(row,{onConflict:'reminder_type'});if(error)alert('收件人儲存失敗：'+error.message)},0)})}}
  async function autoPublish(){if(!isManager())return;await syncReminders();const [{data:rules},{data:pending}]=await Promise.all([sb.from('reminder_rules').select('*').eq('auto_publish',true),sb.from('system_reminders').select('*').eq('status','pending')]);const rm=new Map((rules||[]).map(x=>[x.reminder_type,x]));for(const r of pending||[]){const rule=rm.get(r.reminder_type),ids=(rule?.recipient_user_ids||[]).map(String);if(!rule||!ids.length)continue;const {data:t,error}=await sb.from('home_tasks').insert({title:r.title,due_date:r.due_date||todayN(),note:r.message||null,department:'hq',is_completed:false,created_by:currentUser.id,created_by_name:'系統提醒',n145_audience:true}).select('id').single();if(error)continue;try{await saveRecipients(t.id,ids);await sb.from('system_reminders').update({status:'published',published_task_id:t.id,published_at:new Date().toISOString(),published_by:currentUser.id}).eq('id',r.id)}catch(e){console.warn(e)}}}
