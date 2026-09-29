@@ -5999,7 +5999,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     rows=rows.map(r=>r?.kind==='settlement'?{...r}:{...r,no:++displaySeq,displaySeq});
     // N109：容器勾選種類與完整歷史結餘只在中央 model 建立一次。
     const noFreight=route.direction==='payment'&&/產農|廠商/.test(String(route.contact?.identity||route.contact?.type||''));if(noFreight){rows=rows.map(r=>r.kind==='settlement'?r:{...r,freight:0,amount:(Number(r.goods)||0)+(Number(r.turnoverAmount)||0)});}
-    const containerSnapshot=qN109CurrentContainerSnapshot(route.contact);
+    // N134：對外帳單／對帳單的容器顯示，只看 billShowTurnover。
+    // 內部帳本仍由 ledgerShowTurnover 控制；兩者不可互相影響。
+    const billShowTurnover=route.contact?.billShowTurnover!==false;
+    const containerSnapshot=billShowTurnover?qN109CurrentContainerSnapshot(route.contact):{contact:route.contact,enabledTypes:[],balances:[],text:''};
     return {schema:'xinru_complete_output_v1',kind:'general',noFreight,reportLayout:route.reportLayout,contact:containerSnapshot.contact||route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),currentContainerText:containerSnapshot.text,currentContainerBalances:containerSnapshot.balances,currentContainerTypes:containerSnapshot.enabledTypes,source:route.data};
   }
   // N119：大量模式四種正式輸出共用「單日表頭＋明細不重複日期」規則。
