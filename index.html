@@ -5072,7 +5072,17 @@ window.submitFreightWeight=async function(source){
 function freightGroups(){
   const groups={};
   freightReceipts.forEach(x=>{const k=x.batch_id||('old-'+x.id);(groups[k]||(groups[k]=[])).push(x)});
-  return Object.entries(groups).map(([batch,rows])=>({batch,rows})).sort((a,b)=>String(b.rows[0]?.created_at||'').localeCompare(String(a.rows[0]?.created_at||'')));
+  // N142 核心：同一張寄車回報的品項永遠依原始建立順序固定排列。
+  // freight_receipts.id 為每筆建立時的固定流水序；確認只更新 status/confirmed_*，不改 id。
+  // 因此不再依 Supabase 同 created_at 回傳順序顯示，避免按「確認」後品項跳行。
+  return Object.entries(groups).map(([batch,rows])=>({
+    batch,
+    rows:rows.slice().sort((a,b)=>{
+      const ai=Number(a?.id),bi=Number(b?.id);
+      if(Number.isFinite(ai)&&Number.isFinite(bi)&&ai!==bi)return ai-bi;
+      return String(a?.created_at||'').localeCompare(String(b?.created_at||''));
+    })
+  })).sort((a,b)=>String(b.rows[0]?.created_at||'').localeCompare(String(a.rows[0]?.created_at||'')));
 }
 function freightItemHasKgText(v){return /\d+(?:\.\d+)?\s*(?:KG|K|公斤)/i.test(String(v||''))} function freightGroupText(group){return group.rows.map(x=>(freightItemHasKgText(x.item_text)?String(x.item_text||''):(String(x.item_text||'')+Number(x.piece_kg||0)+'K'))+(Number(x.qty||0)!==1?'*'+Number(x.qty||0):'')).join('\n')}
 function freightGroupSnapshot(group){return {customer:group.rows[0]?.customer||'',items:group.rows.map(x=>({id:x.id,item_text:x.item_text||'',qty:Number(x.qty||0),piece_kg:Number(x.piece_kg||0),total_kg:Number(x.total_kg||0)}))}}
