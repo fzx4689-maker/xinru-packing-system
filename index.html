@@ -5947,9 +5947,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(!r||r.status==='void'||r.status==='draft'||r.pricingStatus==='pending_price'||qAccountingIsAdjustment(r)||r.mode==='money_settlement'||r.mode==='money_refund')return 0;
     return Math.max(0,qAccountingEffectiveTotal(r,c,cutoff)-qAccountingPaidTotal(r,cutoff));
   }
+  function qAccountingRefundsFor(recordId,cutoff=''){
+    const id=String(recordId||'');
+    return (typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.mode==='money_refund'&&x.status!=='void'&&String(x.sourceRecordId||'')===id&&(!cutoff||String(x.createdAt||x.updatedAt||'')<=cutoff));
+  }
+  function qAccountingRefundedTotal(recordId,cutoff=''){return qAccountingRefundsFor(recordId,cutoff).reduce((sum,x)=>sum+Math.max(0,qMoney(x.amount??x.total)),0)}
   function qAccountingOverpaid(r,c,cutoff=''){
     if(!r||r.status==='void'||r.status==='draft'||r.pricingStatus==='pending_price')return 0;
-    return Math.max(0,qAccountingPaidTotal(r,cutoff)-qAccountingEffectiveTotal(r,c,cutoff));
+    return Math.max(0,qAccountingPaidTotal(r,cutoff)-qAccountingEffectiveTotal(r,c,cutoff)-qAccountingRefundedTotal(r.id,cutoff));
   }
   // N114：空白新增列不參與缺資料/待補計數；完成鍵保持可按，錯誤交由 qBuildRecord 逐列提示。
   function qRowHasAccountingData(r){
@@ -6514,6 +6519,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       else if(r?.txnType==='payment'){kind='payment';label='付款'}
       return {record:r,kind,label,total:qMoney(r.amount||r.total),receivable:0,payable:0,isVoid,isDraft:false,pending:false,counts:!isVoid};
     }
+    if(qAccountingIsAdjustment(r)){kind='adjustment';label=r.txnTypeLabel||qAccountingAdjustmentLabel(r.mode);return {record:r,kind,label,total:qMoney(r.amount||r.total),receivable:0,payable:0,isVoid,isDraft:false,pending:false,counts:!isVoid}}
+    if(r?.mode==='money_refund'){kind='refund';label='退款';return {record:r,kind,label,total:qMoney(r.amount||r.total),receivable:0,payable:0,isVoid,isDraft:false,pending:false,counts:!isVoid}}
     if(r?.txnType==='sale'||r?.accountDirection==='receivable'||label==='銷貨'){kind='sale';label=label||'銷貨';receivable=total}
     else if(r?.txnType==='purchase'||r?.accountDirection==='payable'||label==='進貨'){kind='purchase';label=label||'進貨';payable=total}
     const counts=!isVoid&&!isDraft&&!pending&&(kind==='sale'||kind==='purchase');
@@ -6845,8 +6852,39 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       });
     });
   }
+  function qAccountingAdjustmentLabel(mode){return mode==='account_deduction'?'扣款':mode==='account_allowance'?'折讓':mode==='goods_return'?'退貨':''}
+  async function qCreateAccountingAdjustment(source,mode){
+    if(!source||source.status==='void')throw new Error('這筆交易不可調整');
+    const c=qContact(source.contactId||source.customer||''),label=qAccountingAdjustmentLabel(mode),available=qAccountingEffectiveTotal(source,c);
+    if(available<=0)throw new Error('這筆交易目前沒有可調整金額');
+    let item=null,returnQty=null,returnKg=null;
+    if(mode==='goods_return'){
+      const items=Array.isArray(source.items)?source.items:[];if(!items.length)throw new Error('原交易沒有可退貨品項');
+      const menu=items.map((x,i)=>(i+1)+'. '+String(x.name||'未命名')+'｜數量 '+String(x.qty??'—')+'｜公斤 '+String(x.kg??'—')+'｜$'+Math.round(qMoney(x.amount))).join('\n');
+      const pick=prompt('選擇退貨品項（輸入序號）：\n'+menu);if(pick===null)return null;const idx=Number(pick)-1;if(!Number.isInteger(idx)||idx<0||idx>=items.length)throw new Error('退貨品項序號不正確');item=items[idx];
+      const q=prompt('退貨數量（沒有可留空）：',item.qty??'');if(q===null)return null;returnQty=q.trim()===''?null:Number(q);if(returnQty!==null&&(!Number.isFinite(returnQty)||returnQty<0))throw new Error('退貨數量不正確');
+      const k=prompt('退貨公斤（沒有可留空）：',item.kg??'');if(k===null)return null;returnKg=k.trim()===''?null:Number(k);if(returnKg!==null&&(!Number.isFinite(returnKg)||returnKg<0))throw new Error('退貨公斤不正確');
+    }
+    const raw=prompt(label+'金額：\n目前最多可調整 $'+Math.round(available).toLocaleString('zh-TW'));if(raw===null)return null;const amount=qMoney(raw);if(amount<=0)throw new Error(label+'金額必須大於 0');if(amount>available+0.001)throw new Error(label+'金額不可超過目前有效交易金額');
+    const reason=prompt(label+'原因：');if(reason===null)return null;if(!String(reason).trim())throw new Error(label+'原因不能空白');
+    const note=prompt('備註（可留空）：')??'';const now=new Date().toISOString();
+    const rec={id:qMoneyId(),schemaVersion:6,date:qToday(),customer:source.customer||'',contactId:source.contactId||null,type:source.type||c?.identity||c?.type||'',mode,txnType:mode==='goods_return'?'return':mode==='account_allowance'?'allowance':'deduction',txnTypeLabel:label,accountDirection:(source.txnType==='purchase'||source.accountDirection==='payable'||source.txnTypeLabel==='進貨')?'reduce_payable':'reduce_receivable',sourceRecordId:String(source.id||''),amount,total:amount,reason:String(reason).trim(),note:String(note).trim(),status:'active',pricingStatus:'priced',createdAt:now,updatedAt:now,createdBy:qActor(),audit:[{action:mode+'_create',at:now,by:qActor()}]};
+    if(item)rec.returnItem={sourceItemIndex:source.items.indexOf(item),name:item.name||'',qty:returnQty,kg:returnKg,sourceQty:item.qty??null,sourceKg:item.kg??null,sourceAmount:qMoney(item.amount)};
+    await qPersist(rec);return rec;
+  }
+  async function qCreateAccountingRefund(source){
+    const c=qContact(source?.contactId||source?.customer||'');if(!source||!c)throw new Error('找不到原交易或往來資料');const available=qAccountingOverpaid(source,c);if(available<=0)throw new Error('這筆交易目前沒有可退款／退回金額');
+    const raw=prompt('退款／退回金額：\n目前最多 $'+Math.round(available).toLocaleString('zh-TW'));if(raw===null)return null;const amount=qMoney(raw);if(amount<=0||amount>available+0.001)throw new Error('退款金額不正確或超過可退款金額');
+    const reason=prompt('退款原因：');if(reason===null)return null;if(!String(reason).trim())throw new Error('退款原因不能空白');const method=prompt('退款方式：',qMoneyMethods(c)[0]||'現金');if(method===null)return null;const note=prompt('備註（可留空）：')??'';const now=new Date().toISOString(),sale=source.txnType==='sale'||source.accountDirection==='receivable'||source.txnTypeLabel==='銷貨';
+    const rec={id:qMoneyId(),schemaVersion:6,date:qToday(),customer:source.customer||'',contactId:source.contactId||null,type:source.type||c.identity||c.type||'',mode:'money_refund',txnType:'refund',txnTypeLabel:'退款',accountDirection:sale?'refund_customer':'refund_from_supplier',sourceRecordId:String(source.id||''),amount,total:amount,methods:[{method:String(method).trim()||'現金',amount}],reason:String(reason).trim(),note:String(note).trim(),status:'active',pricingStatus:'priced',createdAt:now,updatedAt:now,createdBy:qActor(),audit:[{action:'refund_create',at:now,by:qActor()}]};await qPersist(rec);return rec;
+  }
+  function qAccountingEventsHtml(r){
+    const events=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&String(x.sourceRecordId||'')===String(r.id||'')&&(qAccountingIsAdjustment(x)||x.mode==='money_refund')).sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+    if(!events.length)return '';
+    return '<div class="quickV2ContactHint" style="margin-top:12px"><b>帳務調整紀錄</b>'+events.map(x=>'<div style="margin-top:6px">'+(x.status==='void'?'🚫 ':'')+qEsc(x.txnTypeLabel||qAccountingAdjustmentLabel(x.mode)||'退款')+'｜$'+Math.round(qMoney(x.amount)).toLocaleString('zh-TW')+'｜'+qEsc(x.reason||'')+(x.returnItem?.name?'｜'+qEsc(x.returnItem.name):'')+'</div>').join('')+'</div>';
+  }
   function qRecordDetailHtml(r){
-    const items=Array.isArray(r.items)?r.items:[],sum=qAmountSummary(r),goods=sum.goods,freight=sum.freight,total=sum.total,contact=qContact(r?.contactId||r?.customer||''),tm=qRecordTurnoverMoney(r),showLedgerTurnover=contact?.ledgerShowTurnover!==false&&r?.turnover?.action==='買斷'&&tm.amount>0;
+    const items=Array.isArray(r.items)?r.items:[],sum=qAmountSummary(r),goods=sum.goods,freight=sum.freight,total=sum.total,contact=qContact(r?.contactId||r?.customer||''),tm=qRecordTurnoverMoney(r),showLedgerTurnover=contact?.ledgerShowTurnover!==false&&r?.turnover?.action==='買斷'&&tm.amount>0,effective=qAccountingEffectiveTotal(r,contact),adjusted=qAccountingAdjustmentTotal(r.id),overpaid=qAccountingOverpaid(r,contact);
     const detailRows=items.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+qEsc(x.name||'')+'</td><td>'+qEsc(x.kg===''?'—':x.kg)+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+qEsc(qPricingText(x.pricing||'piece',x.pricingUnit))+'</td><td>'+qEsc(x.price===''?(qItemPricePending(x)?'待補':'—'):x.price)+'</td><td>'+qEsc(Number(x.freight)||0)+'</td><td>$'+Math.round(Number(x.amount)||0).toLocaleString('zh-TW')+'</td></tr>').join('')+(showLedgerTurnover?'<tr><td>'+(items.length+1)+'</td><td>'+qEsc((r.turnover.type||'周轉物')+'買斷')+'</td><td>—</td><td>'+qEsc(r.turnover.qty??'')+'</td><td>買斷</td><td>'+qEsc(Math.round(tm.unitPrice))+'</td><td>0</td><td>$'+Math.round(tm.amount).toLocaleString('zh-TW')+'</td></tr>':'');
     return '<div class="quickV2 qRecordDetailView"><div class="quickV2RecordTop"><div><b>🧾 交易明細｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||r.type||'')+'｜交易編號：'+qEsc(r.id||'')+'</div></div><button type="button" class="btn gray" id="qDetailBack">← 返回今日做帳</button></div>'+
       (r.status==='void'?'<div class="quickV2ContactHint" style="margin-top:10px"><b>🚫 已作廢</b>｜原因：'+qEsc(r.voidReason||'未填')+'｜作廢人：'+qEsc(r.voidedBy||'')+'｜時間：'+qEsc(r.voidedAt?new Date(r.voidedAt).toLocaleString('zh-TW'):'')+'</div>':'')+
@@ -6854,7 +6892,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       '<div class="quickV2Foot" style="justify-content:flex-end;gap:14px;flex-wrap:wrap"><span>貨款小計 <b>$'+Math.round(goods).toLocaleString('zh-TW')+'</b></span>'+(freight?'<span>🚚 運費總計 <b>$'+Math.round(freight).toLocaleString('zh-TW')+'</b></span>':'')+(showLedgerTurnover?'<span>🧺 周轉物買斷 <b>$'+Math.round(tm.amount).toLocaleString('zh-TW')+'</b></span>':'')+'<span>總計 <b>$'+Math.round(total).toLocaleString('zh-TW')+'</b></span></div>'+
       (r.note?'<div class="quickV2ContactHint"><b>備註：</b>'+qEsc(r.note)+'</div>':'')+
       (r.status==='void'?'':(()=>{const m=qOutputMethods(r);return '<div class="quickV2OutputBtns" style="margin-top:12px">'+(m.billImage!==false?'<button type="button" class="btn gray" data-detail-out="bill">📱 圖片／LINE</button>':'')+(m.excel!==false?'<button type="button" class="btn gray" data-detail-out="excel">📊 Excel</button>':'')+(m.pdf!==false?'<button type="button" class="btn gray" data-detail-out="pdf">📄 PDF</button>':'')+(m.paper80!==false?'<button type="button" class="btn gray" data-detail-out="paper">🖨️ 報表紙</button>':'')+'</div>'})())+
-      '<div class="quickV2OutputBtns" style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px"><b style="margin-right:4px">交易管理</b>'+(r.status==='void'?'':'<button type="button" class="btn gray" data-detail-manage="edit">✏️ 修改</button><button type="button" class="btn gray" data-detail-manage="void">🚫 作廢</button>')+((currentProfile?.role==='admin')?'<button type="button" class="btn red" data-detail-manage="delete">🗑️ 永久刪除</button>':'')+'</div></div>'
+      (adjusted>0?'<div class="quickV2ContactHint" style="margin-top:10px"><b>原交易 $'+Math.round(qAccountingBaseTotal(r,contact)).toLocaleString('zh-TW')+'</b>｜已調整 -$'+Math.round(adjusted).toLocaleString('zh-TW')+'｜<b>有效金額 $'+Math.round(effective).toLocaleString('zh-TW')+'</b>'+(overpaid>0?'｜可退款 $'+Math.round(overpaid).toLocaleString('zh-TW'):'')+'</div>':'')+qAccountingEventsHtml(r)+'<div class="quickV2OutputBtns" style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px"><b style="margin-right:4px">交易管理</b>'+(r.status==='void'?'':'<button type="button" class="btn gray" data-detail-manage="edit">✏️ 修改</button><button type="button" class="btn gray" data-detail-manage="deduction">➖ 扣款</button><button type="button" class="btn gray" data-detail-manage="allowance">🏷️ 折讓</button><button type="button" class="btn gray" data-detail-manage="return">↩️ 退貨</button>'+(overpaid>0?'<button type="button" class="btn gray" data-detail-manage="refund">💸 退款</button>':'')+'<button type="button" class="btn gray" data-detail-manage="void">🚫 作廢</button>')+((currentProfile?.role==='admin')?'<button type="button" class="btn red" data-detail-manage="delete">🗑️ 永久刪除</button>':'')+'</div></div>'
   }
   function qReturnFromRecordDetail(work,backMode){
     if(backMode==='void')return renderQuickVoids(work);
@@ -6888,6 +6926,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     work.innerHTML=qRecordDetailHtml(r);work.querySelector('#qDetailBack').onclick=()=>qReturnFromRecordDetail(work,backMode);
     if(r.status!=='void'){work.querySelector('[data-detail-out="bill"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('bill',r)});work.querySelector('[data-detail-out="excel"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('excel',r)});work.querySelector('[data-detail-out="pdf"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('pdf',r)});work.querySelector('[data-detail-out="paper"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('paper',r)})}
     work.querySelector('[data-detail-manage="edit"]')?.addEventListener('click',()=>qEditQuickRecord(work,id));
+    work.querySelector('[data-detail-manage="deduction"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'account_deduction'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
+    work.querySelector('[data-detail-manage="allowance"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'account_allowance'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
+    work.querySelector('[data-detail-manage="return"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'goods_return'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
+    work.querySelector('[data-detail-manage="refund"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingRefund(r))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
     work.querySelector('[data-detail-manage="void"]')?.addEventListener('click',()=>qVoidQuickRecord(work,id,()=>qReturnFromRecordDetail(work,backMode)));
     work.querySelector('[data-detail-manage="delete"]')?.addEventListener('click',()=>qDeleteQuickRecord(work,id,()=>qReturnFromRecordDetail(work,backMode)));
   }
