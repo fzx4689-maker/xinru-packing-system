@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N144A2｜正式帳期核心修正版</title>
+<title>欣儒系統｜N145｜提醒連結公告正式版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1799,7 +1799,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:0">
           <h3 style="margin:0">📌 待辦事項</h3>
-          <div class="actions homeNoticeTopActions" style="margin:0;flex-wrap:wrap"><button type="button" class="btn homeNoticeTopBtn" id="homeNoticeAddBtn">＋ 公告</button><button type="button" class="btn homeNoticeTopBtn" id="homeDoneToggleBtn">🔍 歷史公告</button></div>
+          <div class="actions homeNoticeTopActions" style="margin:0;flex-wrap:wrap"><button type="button" class="btn homeNoticeTopBtn" id="homeNoticeAddBtn">＋ 公告</button><button type="button" class="btn homeNoticeTopBtn" id="homeReminderPendingBtn" style="display:none">🔔 待處理提醒</button><button type="button" class="btn homeNoticeTopBtn" id="homeReminderRulesBtn" style="display:none">⚙️ 提醒規則</button><button type="button" class="btn homeNoticeTopBtn" id="homeDoneToggleBtn">🔍 歷史公告</button></div>
         </div>
         <div id="homeNoticeMsg" class="helper" style="margin-top:8px"></div>
         <div id="homeNoticeList" style="margin-top:10px"><div class="empty">目前沒有待辦事項</div></div>
@@ -5479,7 +5479,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 \n<script>
 /* 第79階段：首頁公告＝事件日期排序＋每人已讀＋主管修改／提前結束。登入/Auth 不修改。 */
 (function(){
-let homeTasksV79=[],homeDoneV79=[],homeReadsV79=[],homeEmployeesV79=[];
+let homeTasksV79=[],homeDoneV79=[],homeReadsV79=[],homeEmployeesV79=[],homeRecipientsN145=[];
 const deptLabels={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
 function canManage(){
  const p=currentProfile;
@@ -5492,7 +5492,8 @@ function today(){return typeof taipeiDate==='function'?taipeiDate():new Intl.Dat
 function eventDateLabel(v){if(!v)return '';const p=String(v).split('-').map(Number);if(p.length!==3||!p[0]||!p[1]||!p[2])return esc(v);const d=new Date(Date.UTC(p[0],p[1]-1,p[2],12));const wk=['日','一','二','三','四','五','六'][d.getUTCDay()];return `${String(p[0]).padStart(4,'0')}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}（${wk}）`; }
 function readRows(id){return homeReadsV79.filter(r=>String(r.task_id)===String(id));}
 function myRead(id){return readRows(id).some(r=>String(r.user_id)===String(currentUser?.id));}
-function readStatHtml(x){if(!canManage())return '';const n=readRows(x.id).length,total=homeEmployeesV79.length;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
+function taskRecipientsN145(id){return homeRecipientsN145.filter(r=>String(r.task_id)===String(id));}
+function readStatHtml(x){if(!canManage())return '';const target=x.n145_audience?taskRecipientsN145(x.id):homeEmployeesV79;const ids=new Set(target.map(r=>String(r.user_id)));const n=readRows(x.id).filter(r=>ids.has(String(r.user_id))).length,total=ids.size;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
 let homeDoneVisibleCount=20;
 function render(){
  const addBtn=document.getElementById('homeNoticeAddBtn');
@@ -5535,22 +5536,24 @@ async function load(){
  if(!currentUser)return;const box=document.getElementById('homeNoticeList');if(box)box.innerHTML='<div class="empty">讀取中…</div>';
  try{
   const t=today();
-  const calls=[sb.from('home_tasks').select('*').eq('is_completed',false).gte('due_date',t).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').eq('is_completed',true).order('completed_at',{ascending:false}).limit(100),sb.from('home_task_reads').select('*')];
+  const calls=[sb.from('home_tasks').select('*').eq('is_completed',false).gte('due_date',t).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').eq('is_completed',true).order('completed_at',{ascending:false}).limit(100),sb.from('home_task_reads').select('*'),sb.from('home_task_recipients').select('task_id,user_id')];
   if(canManage())calls.push(sb.from('employee_profiles').select('user_id,display_name,is_active').eq('is_active',true));
-  const res=await Promise.all(calls);if(res[0].error)throw res[0].error;if(res[1].error)throw res[1].error;if(res[2].error)throw new Error('已讀資料表尚未建立：'+res[2].error.message);
-  homeTasksV79=res[0].data||[];homeDoneV79=res[1].data||[];homeReadsV79=res[2].data||[];homeEmployeesV79=(res[3]?.data||[]);msg('');render();
+  const res=await Promise.all(calls);if(res[0].error)throw res[0].error;if(res[1].error)throw res[1].error;if(res[2].error)throw new Error('已讀資料表尚未建立：'+res[2].error.message);if(res[3].error)throw new Error('公告收件人資料表尚未建立：'+res[3].error.message);
+  homeRecipientsN145=res[3].data||[];const mine=new Set(homeRecipientsN145.filter(r=>String(r.user_id)===String(currentUser.id)).map(r=>String(r.task_id)));const visible=x=>canManage()||!x.n145_audience||mine.has(String(x.id));homeTasksV79=(res[0].data||[]).filter(visible);homeDoneV79=(res[1].data||[]).filter(visible);homeReadsV79=res[2].data||[];homeEmployeesV79=(res[4]?.data||[]);msg('');render();
  }catch(e){console.warn('首頁公告讀取失敗：',e?.message||e);if(box)box.innerHTML='<div class="empty">首頁公告讀取失敗</div>';msg(e?.message||String(e),true);}
 }
 async function createTask(){
- if(!canManage())return alert('只有主管或管理員可以建立公告');
+ if(!canManage())return alert('此帳號沒有公告管理權限');
  const due=prompt('📅 執行日期（YYYY-MM-DD）',today());if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
- const dept=prompt('📣 通知部門：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾','1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');
  const title=prompt('📝 公告內容');if(title===null||!title.trim())return;
  const note=prompt('備註（可留空）','');if(note===null)return;
- const {error}=await sb.from('home_tasks').insert({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''});if(error)return alert('建立公告失敗：'+error.message);await load();
+ if(typeof window.n145ChooseAnnouncementPeople!=='function')return alert('N145 收件人功能尚未載入，請重新整理後再試');
+ const ids=await window.n145ChooseAnnouncementPeople([]);if(!ids)return;
+ const {data,error}=await sb.from('home_tasks').insert({title:title.trim(),department:'hq',due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||'',n145_audience:true}).select('id').single();if(error)return alert('建立公告失敗：'+error.message);
+ try{await window.n145SaveRecipients(data.id,ids)}catch(e){await sb.from('home_tasks').delete().eq('id',data.id);return alert('收件人設定失敗：'+(e?.message||e))}await load();
 }
 async function markRead(id,btn){if(!currentUser)return;btn.disabled=true;const {error}=await sb.from('home_task_reads').upsert({task_id:id,user_id:currentUser.id,user_name:currentProfile?.display_name||'',read_at:new Date().toISOString()},{onConflict:'task_id,user_id'});if(error){alert('已讀失敗：'+error.message);btn.disabled=false;return;}await load();}
-async function editTask(id){if(!canManage())return;const x=homeTasksV79.find(v=>String(v.id)===String(id));if(!x)return;const title=prompt('修改公告內容',x.title||'');if(title===null||!title.trim())return;const dept=prompt('工作區：\n1 總部\n2 包裝部\n3 貨運部\n4 帳務中心\n5 六禾',({hq:'1',packing:'2',delivery:'3',accounting:'4',liuhe:'5'})[x.department]||'1');if(dept===null)return;const dm={1:'hq',2:'packing',3:'delivery',4:'accounting',5:'liuhe'},department=dm[dept.trim()];if(!department)return alert('請輸入 1～5');const due=prompt('顯示日期（YYYY-MM-DD）',x.due_date||today());if(due===null||!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');const note=prompt('備註（可留空）',x.note||'');if(note===null)return;const {error}=await sb.from('home_tasks').update({title:title.trim(),department,due_date:due.trim(),note:note.trim()||null}).eq('id',id);if(error)return alert('修改失敗：'+error.message);await load();}
+async function editTask(id){if(!canManage())return;const x=homeTasksV79.find(v=>String(v.id)===String(id));if(!x)return;const title=prompt('修改公告內容',x.title||'');if(title===null||!title.trim())return;const due=prompt('顯示日期（YYYY-MM-DD）',x.due_date||today());if(due===null||!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');const note=prompt('備註（可留空）',x.note||'');if(note===null)return;let ids=null;if(typeof window.n145ChooseAnnouncementPeople==='function'){const old=x.n145_audience?taskRecipientsN145(id).map(r=>String(r.user_id)):[];ids=await window.n145ChooseAnnouncementPeople(old);if(ids===null)return}const patch={title:title.trim(),due_date:due.trim(),note:note.trim()||null};if(ids){patch.n145_audience=true;patch.department='hq'}const {error}=await sb.from('home_tasks').update(patch).eq('id',id);if(error)return alert('修改失敗：'+error.message);if(ids)try{await window.n145SaveRecipients(id,ids)}catch(e){return alert('收件人修改失敗：'+(e?.message||e))}await load();}
 async function endTask(id,btn){if(!canManage())return;if(!confirm('確定提前結束這則公告？'))return;btn.disabled=true;const {error}=await sb.from('home_tasks').update({is_completed:true,completed_at:new Date().toISOString(),completed_by:currentUser.id,completed_by_name:currentProfile?.display_name||''}).eq('id',id).eq('is_completed',false);if(error){alert('結束公告失敗：'+error.message);btn.disabled=false;return;}await load();}
 async function deleteTask(id,btn){
  if(!canManage())return;
@@ -5558,13 +5561,15 @@ async function deleteTask(id,btn){
  if(!x)return;
  if(!confirm('確定要永久刪除這則公告嗎？\n\n'+(x.title||'')+'\n\n刪除後無法復原。'))return;
  btn.disabled=true;
+ const rr=await sb.from('home_task_recipients').delete().eq('task_id',String(id));
+ if(rr.error){alert('刪除公告收件人失敗：'+rr.error.message);btn.disabled=false;return;}
  const r1=await sb.from('home_task_reads').delete().eq('task_id',id);
  if(r1.error){alert('刪除已讀紀錄失敗：'+r1.error.message);btn.disabled=false;return;}
  const r2=await sb.from('home_tasks').delete().eq('id',id);
  if(r2.error){alert('刪除公告失敗：'+r2.error.message);btn.disabled=false;return;}
  await load();
 }
-function showReaders(id){if(!canManage())return;const reads=readRows(id),readIds=new Set(reads.map(r=>String(r.user_id)));const yes=reads.map(r=>r.user_name||r.user_id).join('、')||'無';const no=homeEmployeesV79.filter(e=>!readIds.has(String(e.user_id))).map(e=>e.display_name||e.user_id).join('、')||'無';alert('已讀：\n'+yes+'\n\n未讀：\n'+no);}
+function showReaders(id){if(!canManage())return;const x=[...homeTasksV79,...homeDoneV79].find(v=>String(v.id)===String(id));const target=x?.n145_audience?homeEmployeesV79.filter(e=>taskRecipientsN145(id).some(r=>String(r.user_id)===String(e.user_id))):homeEmployeesV79;const ids=new Set(target.map(e=>String(e.user_id))),reads=readRows(id).filter(r=>ids.has(String(r.user_id))),readIds=new Set(reads.map(r=>String(r.user_id)));const yes=reads.map(r=>r.user_name||r.user_id).join('、')||'無';const no=target.filter(e=>!readIds.has(String(e.user_id))).map(e=>e.display_name||e.user_id).join('、')||'無';alert('已讀：\n'+yes+'\n\n未讀：\n'+no);}
 function setHomeQueryMode(on){
  const w=document.getElementById('homeDoneWrap'),list=document.getElementById('homeNoticeList'),msgEl=document.getElementById('homeNoticeMsg');
  const top=document.querySelector('#home .homeNoticeTopActions'),title=document.querySelector('#home h3');
@@ -5779,6 +5784,18 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return {ok:false,date:'',mode,reason:'未支援的收款排程'};
   }
   window.xrBillingPeriodCore={periodFor:qBillingPeriodFor,collectionDueFor:qCollectionDueDateFor};
+  // N145：提醒只由正式帳務推導，不建立第二套應收／應付。
+  window.xrAccountingReminderEvents=function(){
+    const out=[],today=qToday(),ps=qProfiles();
+    for(const c of ps){
+      const recv=qOpenMoneyRows(c,'receipt'),byPeriod=new Map();
+      for(const x of recv){const p=qBillingPeriodFor(c,x.record?.date||'');if(!p.ok)continue;const d=qCollectionDueDateFor(c,p);if(!d.ok||!d.date)continue;const k=p.key+'|'+d.date,cur=byPeriod.get(k)||{amount:0,period:p,due:d.date};cur.amount+=qMoney(x.due);byPeriod.set(k,cur)}
+      for(const z of byPeriod.values())if(z.amount>0&&z.due<=today)out.push({reminder_type:'customer_receivable_due',source_key:'recv|'+String(c.id||c.code||c.name)+'|'+z.period.key+'|'+z.due,title:(z.due<today?'逾期未收款｜':'今日收款｜')+(c.name||c.code||''),message:'應收 '+qLedgerMoney(z.amount)+'｜收款日 '+z.due+'｜帳期 '+z.period.start+'～'+z.period.end,due_date:z.due,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:z.amount});
+      const opens=qOpenMoneyRows(c,'payment'),pay=opens.reduce((a,x)=>a+qMoney(x.due),0),ident=String(c.identity||c.type||''),sig=opens.map(x=>String(x.record?.id||'')+':'+Math.round(qMoney(x.due)*100)/100).join(',');
+      if(pay>0&&/產農/.test(ident))out.push({reminder_type:'farmer_payment_pending',source_key:'farmer|'+String(c.id||c.code||c.name)+'|'+sig,title:'產農待領款｜'+(c.name||c.code||''),message:'目前待付款 '+qLedgerMoney(pay),due_date:today,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:pay});
+      else if(pay>0&&/廠商/.test(ident))out.push({reminder_type:'vendor_payment_pending',source_key:'vendor|'+String(c.id||c.code||c.name)+'|'+sig,title:'廠商待付款｜'+(c.name||c.code||''),message:'目前待付款 '+qLedgerMoney(pay),due_date:today,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:pay});
+    }return out;
+  };
   function qProfiles(){try{const newer=JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]'),older=JSON.parse(localStorage.getItem('xinru_customer_profiles_v1')||'[]'),a=Array.isArray(newer)?newer:[],old=Array.isArray(older)?older:[],keys=new Set(a.flatMap(x=>[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean))),merged=a.slice();for(const x of old){const ks=[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean);if(ks.some(k=>keys.has(k)))continue;merged.push(x);ks.forEach(k=>keys.add(k))}return merged.filter(x=>x&&x.active!==false)}catch(e){return []}}
   function qMoney(v){const n=Number(v);return Number.isFinite(n)?n:0}
   function qNormKey(v){return String(v||'').trim().toLowerCase().replace(/\s+/g,'')}
@@ -7430,4 +7447,28 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- N114: 做帳操作驗證修復：空白新增列不列入缺資料；完成鍵不再因缺資料 disabled，改由 qBuildRecord 逐列提示；待補價格與暫存未完成名稱分流。 -->
 <!-- N126：寄車多規格取最後公斤值；產農週帳固定最多雙欄並統一可讀字級；新增嫩薑泰文。 -->
 <!-- N127: 寄車回報工作區改為未完成跨日保留；包裝/貨運與派工辦公室共用，不改 Supabase 原始資料。 -->
+<script>
+/* N145：帳務提醒 → 待處理提醒 → 指定人員發布公告。只接既有正式帳務；不修改 Auth/V17。 */
+(function(){
+ const TYPES={customer_receivable_due:'客戶到期／逾期未收',farmer_payment_pending:'產農待領款',vendor_payment_pending:'廠商待付款',fixed_expense_due:'固定費用到期',vehicle_due:'車輛到期提醒'};
+ const isManager=()=>!!currentProfile&&(currentProfile.role==='admin'||v17Has('announcement.manage'));
+ const escN=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+ const todayN=()=>typeof taipeiDate==='function'?taipeiDate():new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date());
+ async function employees(){const {data,error}=await sb.from('employee_profiles').select('user_id,display_name,nickname,is_active').eq('is_active',true).order('display_name');if(error)throw error;return data||[]}
+ async function choosePeople(selected=[]){const es=await employees(),old=new Set((selected||[]).map(String));return new Promise(resolve=>{const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:18px"><h3 style="margin-top:0">選擇公告收件人</h3><label style="display:flex;gap:8px;padding:9px;font-weight:800"><input id="n145all" type="checkbox"> 全選</label><div>'+es.map(e=>'<label style="display:flex;gap:8px;padding:9px;border-top:1px solid #eee"><input class="n145person" type="checkbox" value="'+escN(e.user_id)+'" '+(old.has(String(e.user_id))?'checked':'')+'> '+escN(e.nickname||e.display_name||e.user_id)+'</label>').join('')+'</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn gray" id="n145cancel">取消</button><button class="btn primary" id="n145ok">確定</button></div></div>';document.body.appendChild(bg);const all=bg.querySelector('#n145all'),cks=[...bg.querySelectorAll('.n145person')];const sync=()=>all.checked=cks.length>0&&cks.every(x=>x.checked);sync();all.onchange=()=>cks.forEach(x=>x.checked=all.checked);cks.forEach(x=>x.onchange=sync);bg.querySelector('#n145cancel').onclick=()=>{bg.remove();resolve(null)};bg.querySelector('#n145ok').onclick=()=>{const ids=cks.filter(x=>x.checked).map(x=>x.value);if(!ids.length)return alert('至少選 1 位收件人');bg.remove();resolve(ids)};});}
+ async function recipientIds(taskId){const {data,error}=await sb.from('home_task_recipients').select('user_id').eq('task_id',taskId);if(error)throw error;return (data||[]).map(x=>String(x.user_id))}
+ async function saveRecipients(taskId,ids){const d=await sb.from('home_task_recipients').delete().eq('task_id',taskId);if(d.error)throw d.error;if(ids.length){const i=await sb.from('home_task_recipients').insert(ids.map(user_id=>({task_id:taskId,user_id})));if(i.error)throw i.error}}
+ async function syncReminders(){if(!isManager()||typeof window.xrAccountingReminderEvents!=='function')return;const ev=window.xrAccountingReminderEvents()||[];for(const x of ev){const row={reminder_type:x.reminder_type,source_key:x.source_key,title:x.title,message:x.message,due_date:x.due_date,source_data:x,updated_at:new Date().toISOString()};const {error}=await sb.from('system_reminders').upsert(row,{onConflict:'source_key',ignoreDuplicates:false});if(error)console.warn('N145提醒同步失敗',error.message)} }
+ async function publishReminder(r){const ids=await choosePeople([]);if(!ids)return;const {data,error}=await sb.from('home_tasks').insert({title:r.title,due_date:r.due_date||todayN(),note:r.message||null,department:'hq',is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||'',n145_audience:true}).select('id').single();if(error)return alert('發布失敗：'+error.message);try{await saveRecipients(data.id,ids);const u=await sb.from('system_reminders').update({status:'published',published_task_id:data.id,published_at:new Date().toISOString(),published_by:currentUser.id}).eq('id',r.id);if(u.error)throw u.error;alert('已發布公告');await window.homeLoadV79?.()}catch(e){alert('收件人設定失敗：'+(e?.message||e))}}
+ async function dismissReminder(r){if(!confirm('確定這次不發布？\n帳務原本的未收／未付狀態不會被清除。'))return;const {error}=await sb.from('system_reminders').update({status:'dismissed',dismissed_at:new Date().toISOString(),dismissed_by:currentUser.id}).eq('id',r.id);if(error)alert('操作失敗：'+error.message);else openPending()}
+ async function openPending(){if(!isManager())return;await syncReminders();const {data,error}=await sb.from('system_reminders').select('*').eq('status','pending').order('due_date',{ascending:true}).order('created_at',{ascending:true});if(error)return alert('待處理提醒讀取失敗：'+error.message);const rows=data||[];const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99998;overflow:auto;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:850px;margin:30px auto;padding:18px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3 style="margin:0">🔔 待處理提醒 '+rows.length+'</h3><button class="btn gray" data-close>關閉</button></div><div style="margin-top:12px">'+(rows.length?rows.map((r,i)=>'<div style="border:1px solid #ddd;border-radius:12px;padding:12px;margin:9px 0"><b>'+escN(TYPES[r.reminder_type]||r.reminder_type)+'｜'+escN(r.title)+'</b><div style="margin-top:5px">'+escN(r.message||'')+'</div><div class="helper" style="display:block!important">提醒日：'+escN(r.due_date||'')+'</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary" data-p="'+i+'">📣 發布公告</button><button class="btn gray" data-d="'+i+'">不發布</button></div></div>').join(''):'<div class="empty">目前沒有待處理提醒</div>')+'</div></div>';document.body.appendChild(bg);bg.querySelector('[data-close]').onclick=()=>bg.remove();bg.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{await publishReminder(rows[+b.dataset.p]);bg.remove()});bg.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.d];bg.remove();await dismissReminder(r)});}
+ async function openRules(){if(!isManager())return;const es=await employees();const {data,error}=await sb.from('reminder_rules').select('*');if(error)return alert('提醒規則讀取失敗：'+error.message);const map=new Map((data||[]).map(x=>[x.reminder_type,x]));const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99998;overflow:auto;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:760px;margin:30px auto;padding:18px"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">⚙️ 提醒規則</h3><button class="btn gray" data-close>關閉</button></div>'+Object.entries(TYPES).map(([k,label])=>{const r=map.get(k)||{};return '<div style="border-top:1px solid #ddd;padding:12px 0"><b>'+escN(label)+'</b><label style="display:block;margin:7px 0"><input type="checkbox" data-auto="'+k+'" '+(r.auto_publish?'checked':'')+'> 自動發布</label><button class="btn gray" data-people="'+k+'">選擇固定收件人（'+((r.recipient_user_ids||[]).length)+' 人）</button></div>'}).join('')+'</div>';document.body.appendChild(bg);bg.querySelector('[data-close]').onclick=()=>bg.remove();for(const [k] of Object.entries(TYPES)){const auto=bg.querySelector('[data-auto="'+k+'"]'),pb=bg.querySelector('[data-people="'+k+'"]');let ids=[...(map.get(k)?.recipient_user_ids||[])];pb.onclick=async()=>{const z=await choosePeople(ids);if(z){ids=z;pb.textContent='選擇固定收件人（'+ids.length+' 人）'}};auto.onchange=async()=>{const row={reminder_type:k,auto_publish:auto.checked,recipient_user_ids:ids,updated_at:new Date().toISOString(),updated_by:currentUser.id};const {error}=await sb.from('reminder_rules').upsert(row,{onConflict:'reminder_type'});if(error){auto.checked=!auto.checked;alert('儲存失敗：'+error.message)}};pb.addEventListener('click',async()=>{setTimeout(async()=>{const row={reminder_type:k,auto_publish:auto.checked,recipient_user_ids:ids,updated_at:new Date().toISOString(),updated_by:currentUser.id};const {error}=await sb.from('reminder_rules').upsert(row,{onConflict:'reminder_type'});if(error)alert('收件人儲存失敗：'+error.message)},0)})}}
+ async function autoPublish(){if(!isManager())return;await syncReminders();const [{data:rules},{data:pending}]=await Promise.all([sb.from('reminder_rules').select('*').eq('auto_publish',true),sb.from('system_reminders').select('*').eq('status','pending')]);const rm=new Map((rules||[]).map(x=>[x.reminder_type,x]));for(const r of pending||[]){const rule=rm.get(r.reminder_type),ids=(rule?.recipient_user_ids||[]).map(String);if(!rule||!ids.length)continue;const {data:t,error}=await sb.from('home_tasks').insert({title:r.title,due_date:r.due_date||todayN(),note:r.message||null,department:'hq',is_completed:false,created_by:currentUser.id,created_by_name:'系統提醒',n145_audience:true}).select('id').single();if(error)continue;try{await saveRecipients(t.id,ids);await sb.from('system_reminders').update({status:'published',published_task_id:t.id,published_at:new Date().toISOString(),published_by:currentUser.id}).eq('id',r.id)}catch(e){console.warn(e)}}}
+ // 新公告／舊公告相容：有 n145_audience 的公告依 recipients；舊公告照舊。
+ async function filterAudience(){if(!currentUser)return;try{const {data:rec,error}=await sb.from('home_task_recipients').select('task_id,user_id');if(error)return;const mine=new Set((rec||[]).filter(x=>String(x.user_id)===String(currentUser.id)).map(x=>String(x.task_id)));document.querySelectorAll('#homeNoticeList .homeTodoCard').forEach(()=>{});window.n145MineTaskIds=mine}catch(e){console.warn(e)}}
+ function init(){const p=document.getElementById('homeReminderPendingBtn'),r=document.getElementById('homeReminderRulesBtn');if(!p||!r)return;const ok=isManager();p.style.display=ok?'inline-flex':'none';r.style.display=ok?'inline-flex':'none';p.onclick=openPending;r.onclick=openRules;if(ok)setTimeout(()=>autoPublish().then(()=>window.homeLoadV79?.()),1200)}
+ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,900));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(init,50)});
+ window.n145ChooseAnnouncementPeople=choosePeople;window.n145RecipientIds=recipientIds;window.n145SaveRecipients=saveRecipients;window.n145OpenPending=openPending;window.n145OpenRules=openRules;
+})();
+</script>
 </body></html>
