@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N146｜四種提醒規則正式版</title>
+<title>欣儒系統｜N146A｜四種提醒規則＋歷史公告完整修正正式版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -5536,7 +5536,7 @@ async function load(){
  if(!currentUser)return;const box=document.getElementById('homeNoticeList');if(box)box.innerHTML='<div class="empty">讀取中…</div>';
  try{
   const t=today();
-  const calls=[sb.from('home_tasks').select('*').eq('is_completed',false).gte('due_date',t).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').eq('is_completed',true).order('completed_at',{ascending:false}).limit(100),sb.from('home_task_reads').select('*'),sb.from('home_task_recipients').select('task_id,user_id')];
+  const calls=[sb.from('home_tasks').select('*').eq('is_completed',false).gte('due_date',t).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').or(`is_completed.eq.true,and(is_completed.eq.false,due_date.lt.${t})`).order('due_date',{ascending:false}).order('created_at',{ascending:false}),sb.from('home_task_reads').select('*'),sb.from('home_task_recipients').select('task_id,user_id')];
   if(canManage())calls.push(sb.from('employee_profiles').select('user_id,display_name,is_active').eq('is_active',true));
   const res=await Promise.all(calls);if(res[0].error)throw res[0].error;if(res[1].error)throw res[1].error;if(res[2].error)throw new Error('已讀資料表尚未建立：'+res[2].error.message);if(res[3].error)throw new Error('公告收件人資料表尚未建立：'+res[3].error.message);
   homeRecipientsN145=res[3].data||[];const mine=new Set(homeRecipientsN145.filter(r=>String(r.user_id)===String(currentUser.id)).map(r=>String(r.task_id)));const visible=x=>canManage()||!x.n145_audience||mine.has(String(x.id));homeTasksV79=(res[0].data||[]).filter(visible);homeDoneV79=(res[1].data||[]).filter(visible);homeReadsV79=res[2].data||[];homeEmployeesV79=(res[4]?.data||[]);msg('');render();
