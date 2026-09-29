@@ -4241,6 +4241,44 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- 175B5N76：往來資料搜尋正式路由恢復；F5 不再產生虛線 placeholder -->
 <!-- N100：正式四種輸出全系統統一入口：圖片／LINE、Excel、PDF、報表紙。 -->
 <!-- N125: 中央修正：N39恢復原核心；產農/廠商進貨無運費與預設付款；寄車規格原文保留與修改頁層級；有效session初始化失敗不假登出。 -->
+
+<!-- N147A：交易明細操作鍵強制掛載修正。避免既有明細 renderer 後載入時覆蓋 N147 包裝。 -->
+<script>
+(function(){
+  function currentRecord(view){
+    const nav=typeof acctNavRead==='function'?(acctNavRead()||{}):{};
+    let id=String(nav.detailId||'');
+    if(!id){const t=view?.textContent||'',m=t.match(/交易編號：\s*([^\s]+)/);id=m?m[1]:''}
+    return (window.qN147All?.()||[]).find(x=>String(x.id)===id)||null;
+  }
+  function mount(){
+    document.querySelectorAll('.qRecordDetailView').forEach(view=>{
+      if(view.querySelector('[data-n147-fixed]'))return;
+      const r=currentRecord(view);if(!r||r.status==='void'||r.mode==='money_settlement'||['adjustment','return','refund'].includes(r.mode))return;
+      const manage=view.querySelector('.quickV2OutputBtns:last-child')||view;
+      const wrap=document.createElement('span');wrap.setAttribute('data-n147-fixed','1');wrap.style.cssText='display:inline-flex;gap:8px;flex-wrap:wrap;margin-left:8px';
+      wrap.innerHTML='<button type="button" class="btn gray" data-n147-fixed-act="adjustment">💰 扣款</button><button type="button" class="btn gray" data-n147-fixed-act="return">↩️ 退貨</button><button type="button" class="btn gray" data-n147-fixed-act="refund">💵 退款</button>';
+      manage.appendChild(wrap);
+    });
+  }
+  document.addEventListener('click',async e=>{
+    const b=e.target.closest('[data-n147-fixed-act]');if(!b)return;e.preventDefault();e.stopPropagation();
+    const view=b.closest('.qRecordDetailView'),r=currentRecord(view);if(!r)return alert('找不到原交易');
+    try{
+      const a=b.dataset.n147FixedAct;
+      if(a==='adjustment')await window.qN147AddAdjustment(r);
+      else if(a==='return')await window.qN147AddReturn(r);
+      else await window.qN147AddRefund(r);
+      if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
+      const nav=typeof acctNavRead==='function'?(acctNavRead()||{}):{};
+      qShowRecordDetail(document.getElementById('acctStageWork'),r.id,nav.backMode||'today',true);
+      setTimeout(mount,0);
+    }catch(err){console.error(err);alert('儲存失敗：'+(err?.message||err))}
+  },true);
+  new MutationObserver(()=>mount()).observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(mount,300));setTimeout(mount,500);
+})();
+</script>
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -7536,6 +7574,12 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   async function n147AddReturn(src){const c=n147Contact(src),items=Array.isArray(src.items)?src.items:[];if(!items.length){alert('原交易沒有可退貨品項');return}const names=items.map((x,i)=>(i+1)+'. '+(x.name||'未命名')+'｜數量 '+(x.qty??'—')+'｜公斤 '+(x.kg??'—')+'｜金額 '+Math.round(n147Money(x.amount)).toLocaleString('zh-TW')).join('\n');const idxRaw=prompt('選擇退貨品項（輸入編號）\n\n'+names,'1');if(idxRaw===null)return;const idx=Number(idxRaw)-1;if(!Number.isInteger(idx)||idx<0||idx>=items.length){alert('品項編號不正確');return}const item=items[idx],prior=n147Children(src.id,'return').flatMap(x=>Array.isArray(x.items)?x.items:[]).filter(x=>Number(x.sourceItemIndex)===idx),used=prior.reduce((a,x)=>a+n147Money(x.amount),0),max=Math.max(0,n147Money(item.amount)-used);if(max<=0){alert('這個品項已沒有可退貨金額');return}const amount=n147PromptAmount('退貨金額｜'+(item.name||''),max);if(amount===null)return;const qty=prompt('退貨數量（可留空）','')??null;if(qty===null)return;const kg=prompt('退貨公斤（可留空）','')??null;if(kg===null)return;const reason=prompt('退貨原因','')??null;if(reason===null)return;const r=n147BaseRecord(src,'return','退貨',amount,'');r.reason=String(reason||'').trim();r.items=[{sourceItemIndex:idx,name:item.name||'',qty:String(qty||'').trim(),kg:String(kg||'').trim(),amount,pricing:item.pricing||'',pricingUnit:item.pricingUnit||'',price:item.price??''}];await n147Persist(r);alert('退貨已儲存');return r}
   function n147RefundedForSource(srcId){return n147All().filter(x=>x&&x.mode==='refund'&&x.status!=='void'&&String(x.sourceRecordId||'')===String(srcId||'')).reduce((a,x)=>a+n147Money(x.amount||x.total),0)}
   async function n147AddRefund(src){const c=n147Contact(src),effective=n147EffectiveTotal(src,c),settled=n147Money(src.paid)+qSettlementAllocated(src.id),credit=Math.max(0,settled-effective-n147RefundedForSource(src.id));if(credit<=0){alert('這筆目前沒有可退款金額。需先有已收／已付款金額，且扣款或退貨後產生可退餘額。');return}const amount=n147PromptAmount('退款金額',credit);if(amount===null)return;const methods=typeof qMoneyMethods==='function'?qMoneyMethods(c):['現金'];const method=prompt('退款方式\n可用：'+methods.join('、'),methods[0]||'現金');if(method===null)return;const reason=prompt('退款原因','')??null;if(reason===null)return;const r=n147BaseRecord(src,'refund','退款',amount,'');r.refundMethod=String(method||'').trim();r.methods=[{method:r.refundMethod,amount}];r.reason=String(reason||'').trim();r.accountDirection=src.txnType==='sale'?'refund_receivable':'refund_payable';r.settlementStatus='settled';await n147Persist(r);alert('退款已儲存');return r}
+
+  window.qN147AddAdjustment=n147AddAdjustment;
+  window.qN147AddReturn=n147AddReturn;
+  window.qN147AddRefund=n147AddRefund;
+  window.qN147All=n147All;
+  window.qN147RefreshDetail=async function(work,id){if(typeof loadAccountingCloud==='function')await loadAccountingCloud();const nav=typeof acctNavRead==='function'?(acctNavRead()||{}):{};qShowRecordDetail(work,id,nav.backMode||'today',true)};
 
   const oldDetail=qRecordDetailHtml;
   qRecordDetailHtml=function(r){let html=oldDetail(r);if(!r||r.status==='void'||r.mode==='money_settlement'||N147_MODES.has(r.mode))return html;const c=n147Contact(r),base=n147BaseTotal(r,c),adj=n147AdjustmentTotal(r),ret=n147ReturnTotal(r),eff=n147EffectiveTotal(r,c),settled=n147Money(r.paid)+qSettlementAllocated(r.id),refund=n147RefundedForSource(r.id);const box='<div class="quickV2Record" style="margin-top:12px"><div class="quickV2RecordTop"><div><b>帳務調整</b><div class="helper" style="display:block!important;margin-top:5px">原金額 '+qLedgerMoney(base)+'｜扣款 -'+qLedgerMoney(adj)+'｜退貨 -'+qLedgerMoney(ret)+'｜有效金額 '+qLedgerMoney(eff)+'｜已收／付 '+qLedgerMoney(settled)+'｜已退款 '+qLedgerMoney(refund)+'</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn gray" data-n147="adjustment">扣款</button><button type="button" class="btn gray" data-n147="return">退貨</button><button type="button" class="btn gray" data-n147="refund">退款</button></div></div></div>';const pos=html.lastIndexOf('</div>');return pos>=0?html.slice(0,pos)+box+html.slice(pos):html+box};
