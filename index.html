@@ -4345,6 +4345,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N183：快速做帳所有已勾選容器共用正式容器事件核心；籃子保留計籃/回籃金額語意，鐵架與棧板/自訂容器使用領用/歸還並寫入實體 balanceDelta；鐵架名稱分帳保留。N177/N181查詢核心與四種列印未修改。 -->
 <!-- N185：周轉物動作核心統一：只有籃子＝計籃/回籃；鐵架、棧板與所有其他/未來新增容器＝領用/歸還。快速做帳沿用既有容器主檔與正式容器事件核心；不修改四種列印、查詢、盤點計算。 -->
 <!-- N186：容器查詢選籃子且未指定往來對象時，直接由正式容器事件核心彙總總欠籃／總餘籃／淨額及逐往來對象欠餘；不另建統計資料，不動快速做帳、盤點與四種列印。 -->
+<!-- N187：帳務中心九分頁共用層級核心：第三層工作頁收起第二層卡片；返回鍵回所屬功能第二層；刷新依 acctNav 恢復相同層級。不修改各功能資料核心、容器事件核心與四種列印。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -5838,7 +5839,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(isBank&&bankLocked)return '<button type="button" class="acctStageBtn acctStageLocked" disabled><b>'+x+'</b><span>僅管理員可查看與操作</span></button>';
       return '<button type="button" class="acctStageBtn" data-acct-stage-action="'+x.replace(/"/g,'&quot;')+'"><b>'+x+'</b></button>';
     }).join('');
-    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div>'+(key==='ledger'?'':'<div class="acctStageGrid">'+items+'</div>')+'<div id="acctStageWork" class="acctStageWork"></div>';stage.classList.remove('xrTurnoverStage');
+    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div>'+(key==='ledger'?'':'<div class="acctStageGrid">'+items+'</div>')+'<div id="acctStageWork" class="acctStageWork"></div>';stage.classList.remove('xrTurnoverStage','acctActionLayer');
     document.getElementById('acctStageBack')?.addEventListener('click',()=>home());
     if(key==='ledger'&&!opts.deferLedgerRender){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
   }
@@ -7352,9 +7353,22 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     inp?.addEventListener('input',paint);paint();
   }
 
-  function qRenderAccountingAction(section,a,skipNavSave=false){const _n168CA=['📥📤 進出紀錄','🔍 籃子／鐵架／棧板／容器查詢','📋 盤點／差異','⚙️ 籃子／鐵架／棧板／容器設定'];if(section==='turnover'&&_n168CA.includes(a)&&window.qRenderContainerAction){const _cw=document.getElementById('acctStageWork');if(_cw){window.qRenderContainerAction(a,_cw,true);return}}
+  // N187：帳務九分頁共用層級核心。進入第三層工作頁後收起第二層功能卡，返回只回該功能第二層。
+  function qEnterAccountingActionLayer(section){
+    const d=defs[section],cards=stage.querySelector('.acctStageGrid'),back=stage.querySelector('#acctStageBack');
+    if(cards)cards.style.setProperty('display','none','important');
+    stage.classList.add('acctActionLayer');
+    if(back&&d){
+      back.textContent='← 返回'+String(d.title||'').replace(/^[^\p{L}\p{N}]+/u,'').trim();
+      back.onclick=()=>open(section,false);
+    }
+  }
+  function qRenderAccountingAction(section,a,skipNavSave=false){
     const work=document.getElementById('acctStageWork');if(!work)return;
+    qEnterAccountingActionLayer(section);
     if(!skipNavSave)acctNavWrite({layer:'action',section:section||'',action:a,recordId:'',detailId:'',backMode:'',searchTerm:''});
+    const _n168CA=['📥📤 進出紀錄','🔍 籃子／鐵架／棧板／容器查詢','📋 盤點／差異','⚙️ 籃子／鐵架／棧板／容器設定'];
+    if(section==='turnover'&&_n168CA.includes(a)&&window.qRenderContainerAction){window.qRenderContainerAction(a,work,true);return}
     if(a==='開始快速做帳'){
       const legacy=document.querySelector('.acctLegacyArea');
       if(legacy) legacy.style.setProperty('display','none');
@@ -7413,6 +7427,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       open(section,true,{deferLedgerRender:true});
       const work=document.getElementById('acctStageWork');
       if(work){
+        qEnterAccountingActionLayer(section);
         qShowRecordDetail(
           work,
           savedAcctNav.detailId,
