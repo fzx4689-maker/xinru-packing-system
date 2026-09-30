@@ -1753,27 +1753,35 @@ body.wall-focus #wall .wallOrderNote{
 <!-- 175B5N33: 往來主檔全量核對恢復｜舊主檔+交易固定ID，不另造第二本帳 -->
 <!-- 175B5N31: 往來資料主檔驅動快速做帳欄位/收付款/周轉物 -->
 
-<style id="n152QuickClarity">
-/* N152：快速做帳只調呈現，不改交易計算核心。 */
+<style id="n153QuickClarity">
+/* N153：固定欄寬，所有列共用同一格線；只調呈現，不改交易計算核心。 */
 #acctStageWork .quickV2Table{border:1px solid #dbe3ea;border-radius:12px;overflow:auto;background:#fff}
-#acctStageWork .quickV2Row{grid-template-columns:34px minmax(220px,2.2fr) 68px 64px 92px 96px 88px 96px 128px 92px 38px;gap:5px;padding:6px 7px;min-height:48px}
+#acctStageWork .quickV2Row,#acctStageWork .quickV2Row.showCost{grid-template-columns:34px 260px 72px 68px 92px 112px 92px 92px 150px 106px 40px;gap:6px;padding:6px 7px;min-height:48px;min-width:1190px}
 #acctStageWork .quickV2Row:nth-child(even):not(.quickV2Labels){background:#fafbfc}
 #acctStageWork .quickV2Labels{position:sticky;top:0;z-index:2;background:#eef3f7!important;border-bottom:1px solid #cbd5e1;font-size:12px}
-#acctStageWork .quickV2Row .input{min-height:36px;padding:6px 7px}
+#acctStageWork .quickV2Row>*{min-width:0;box-sizing:border-box}
+#acctStageWork .quickV2Row .input{width:100%;min-height:36px;padding:6px 7px;box-sizing:border-box}
+#acctStageWork .quickV2Row .qName{width:100%}
 #acctStageWork .quickV2Row .qKg,#acctStageWork .quickV2Row .qQty,#acctStageWork .quickV2Row .qPrice,#acctStageWork .quickV2Row .qCost{text-align:center}
-#acctStageWork .quickV2Row .qPricingCell{flex-wrap:nowrap!important;gap:3px!important}
-#acctStageWork .quickV2Row .qPricingEdit{padding:4px 5px!important;font-size:11px!important;opacity:.62}
-#acctStageWork .quickV2Row .qSource{font-size:12px}
-#acctStageWork .quickV2Row .qFreightWrap{display:flex!important;align-items:center;gap:4px}
-#acctStageWork .quickV2Row .qFreightWrap .qFreight{min-width:72px}
-#acctStageWork .quickV2Row .qFreightWrap .qFreightRate{margin-top:0!important;min-width:48px}
+#acctStageWork .quickV2Row .qPricingCell{width:100%;min-width:0;flex-wrap:nowrap!important;gap:3px!important}
+#acctStageWork .quickV2Row .qPricingLabel{white-space:nowrap}
+#acctStageWork .quickV2Row .qPricingEdit{padding:4px 5px!important;font-size:11px!important;opacity:.62;white-space:nowrap}
+#acctStageWork .quickV2Row .qSource{font-size:12px;width:100%!important}
+#acctStageWork .quickV2Row .qFreightWrap{display:grid!important;grid-template-columns:minmax(0,1fr) 46px;align-items:center;gap:4px;width:100%;min-width:0}
+#acctStageWork .quickV2Row .qFreightWrap .qFreight{width:100%;min-width:0}
+#acctStageWork .quickV2Row .qFreightWrap .qFreightRate{width:46px;min-width:0;margin-top:0!important;padding-left:5px;padding-right:5px}
+/* 成本/來源/運費不適用時仍保留欄位位置，避免後面的欄位整列位移。 */
+#acctStageWork .quickV2Cost{display:block!important;visibility:hidden}
+#acctStageWork .quickV2Row.showCost .quickV2Cost{visibility:visible}
+#acctStageWork.qSupplierPurchase .quickV2Row .qSource,#acctStageWork.qSupplierPurchase .quickV2Row .qFreightWrap{display:block!important;visibility:hidden;pointer-events:none}
+#acctStageWork.qSupplierPurchase .quickV2Labels .quickV2Cost{visibility:hidden}
 #acctStageWork .quickV2Row.qEmptyRow{opacity:.48;background:#f8fafc!important}
 #acctStageWork .quickV2Row.qActiveRow{outline:2px solid #93c5fd;outline-offset:-2px;background:#eff6ff!important}
 #acctStageWork .quickV2Row.qNeedsData{box-shadow:inset 4px 0 0 #f59e0b}
 #acctStageWork .quickV2Row.qCompleteRow{box-shadow:inset 4px 0 0 #22c55e}
 #acctStageWork .quickV2Row .qMissing{background:#fff7d6!important;border-color:#eab308!important}
-#acctStageWork #qHistoricalBox{border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;background:#f8fafc}
-@media(max-width:760px){#acctStageWork .quickV2Row{min-width:1050px}}
+#acctStageWork #qHistoricalBox{display:block!important;border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;background:#f8fafc}
+@media(max-width:760px){#acctStageWork .quickV2Row,#acctStageWork .quickV2Row.showCost{min-width:1190px}}
 </style>
 </head>
 <body class="auth-booting">
@@ -6965,7 +6973,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const syncImmediate=()=>{if(imWrap)imWrap.style.display=immediate?.checked?'block':'none';const c=qQuickProfile(work).c,methods=qMoneyMethods(c);if(imMethod&&methods.length){const cur=imMethod.value;imMethod.innerHTML=methods.map(m=>'<option>'+qEsc(m)+'</option>').join('');if(methods.includes(cur))imMethod.value=cur;else if(c?.paymentDefault&&methods.includes(c.paymentDefault))imMethod.value=c.paymentDefault}};
     immediate?.addEventListener('change',syncImmediate);ent.addEventListener('change',syncImmediate);ent.addEventListener('blur',syncImmediate);syncImmediate();
     const histRadios=[...work.querySelectorAll('input[name="qHistoricalState"]')],histExistingWrap=work.querySelector('#qHistoricalExistingWrap'),histCreateWrap=work.querySelector('#qHistoricalCreateWrap'),histSel=work.querySelector('#qHistoricalSettlement'),histMethod=work.querySelector('#qHistoricalMethod'),histPayDate=work.querySelector('#qHistoricalPayDate'),histCreateMethod=work.querySelector('#qHistoricalCreateMethod');
-    const syncHistorical=()=>{const p=qQuickProfile(work),show=(p.purchase||p.sale)&&String(work.querySelector('#quickV2Date')?.value||'')<qToday(),box=work.querySelector('#qHistoricalBox');if(box)box.style.display=show?'block':'none';if(!show)histRadios.forEach((r,i)=>r.checked=i===0);const state=work.querySelector('input[name="qHistoricalState"]:checked')?.value||'unpaid';if(histExistingWrap)histExistingWrap.style.display=(show&&state==='existing')?'block':'none';if(histCreateWrap)histCreateWrap.style.display=(show&&state==='create')?'block':'none';const methods=qMoneyMethods(p.c);if(show&&histSel){const histDirection=p.sale?'receipt':'payment',pays=qMoneySettlements().filter(x=>x.txnType===histDirection&&p.c&&qRecordBelongsToContact(x,p.c)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));histSel.innerHTML='<option value="">請選擇原'+(p.sale?'收款':'付款')+'</option>'+pays.map(x=>'<option value="'+qEsc(x.id)+'">'+qEsc(x.date)+'｜'+qLedgerMoney(x.amount||x.total)+'｜'+qEsc((x.methods||[]).map(m=>m.method+' '+qLedgerMoney(m.amount)).join('＋'))+'</option>').join('')}if(histMethod)histMethod.innerHTML=methods.map(m=>'<option>'+qEsc(m)+'</option>').join('');if(histCreateMethod)histCreateMethod.innerHTML=methods.map(m=>'<option>'+qEsc(m)+'</option>').join('');if(histPayDate&&!histPayDate.value)histPayDate.value=work.querySelector('#quickV2Date')?.value||qToday()};
+    const syncHistorical=()=>{const p=qQuickProfile(work),show=!!(p.purchase||p.sale),box=work.querySelector('#qHistoricalBox');if(box)box.style.display='block';const state=work.querySelector('input[name="qHistoricalState"]:checked')?.value||'unpaid';if(histExistingWrap)histExistingWrap.style.display=(show&&state==='existing')?'block':'none';if(histCreateWrap)histCreateWrap.style.display=(show&&state==='create')?'block':'none';const methods=qMoneyMethods(p.c);if(show&&histSel){const histDirection=p.sale?'receipt':'payment',pays=qMoneySettlements().filter(x=>x.txnType===histDirection&&p.c&&qRecordBelongsToContact(x,p.c)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));histSel.innerHTML='<option value="">請選擇原'+(p.sale?'收款':'付款')+'</option>'+pays.map(x=>'<option value="'+qEsc(x.id)+'">'+qEsc(x.date)+'｜'+qLedgerMoney(x.amount||x.total)+'｜'+qEsc((x.methods||[]).map(m=>m.method+' '+qLedgerMoney(m.amount)).join('＋'))+'</option>').join('')}if(histMethod)histMethod.innerHTML=methods.map(m=>'<option>'+qEsc(m)+'</option>').join('');if(histCreateMethod)histCreateMethod.innerHTML=methods.map(m=>'<option>'+qEsc(m)+'</option>').join('');if(histPayDate&&!histPayDate.value)histPayDate.value=work.querySelector('#quickV2Date')?.value||qToday()};
     histRadios.forEach(r=>r.addEventListener('change',syncHistorical));work.querySelector('#quickV2Date')?.addEventListener('change',syncHistorical);work.querySelector('#quickV2Txn')?.addEventListener('change',syncHistorical);ent.addEventListener('change',syncHistorical);ent.addEventListener('blur',syncHistorical);syncHistorical();
     work.querySelector('#quickV2Add').onclick=()=>qAddRow(work,true);work.querySelector('#quickV2Draft').onclick=()=>qSave(work,'draft');work.querySelector('#quickV2Preview').onclick=()=>{try{const r=qBuildRecord(work,'draft');r.previewDraft=true;qPreviewBill(r,false)}catch(e){alert(e.message||String(e))}};work.querySelector('#quickV2Clear').onclick=()=>{if(confirm('確定清空目前尚未儲存的內容嗎？'))renderQuickV2(work)};work.querySelector('#quickV2Save').onclick=()=>qSave(work,'active');work.querySelectorAll('[data-qfilter]').forEach(b=>b.onclick=()=>qRenderQueue(work,b.dataset.qfilter))}
   // N119：待補價格與正常做帳共用相同的商品計價語意；item.amount 永遠是貨款＋運費。
