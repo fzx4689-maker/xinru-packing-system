@@ -1641,6 +1641,10 @@ body.wall-focus #wall .wallOrderNote{
 }
 </style>
 
+/* N188：快速做帳版型核心。周轉物固定依最多 8 格定位；完成後輸出固定留在整張做帳表單下方。 */
+#acctStageWork .quickV2OutputPanel{margin-top:14px;border:1px solid #d7e0e8;border-radius:14px;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#acctStageWork .quickV2OutputBtns{display:flex;gap:8px;flex-wrap:wrap}
+
 <style id="acctQuickV2Style">
 #acctStageWork .quickV2{margin-top:14px;border:1px solid #d7e0e8;border-radius:16px;background:#fff;padding:16px}
 #acctStageWork .quickV2Head{display:grid;grid-template-columns:150px minmax(220px,1.2fr) 180px minmax(180px,1fr);gap:10px;align-items:end}
@@ -1657,7 +1661,15 @@ body.wall-focus #wall .wallOrderNote{
 #acctStageWork .quickDraftBadge{font-size:12px;font-weight:900;color:#7c3aed}
 #acctStageWork .quickV2Turn{margin-top:12px;border:1px dashed #cbd5e1;border-radius:12px;padding:10px}
 #acctStageWork .quickV2Turn summary{font-weight:900;cursor:pointer}
-#acctStageWork .quickV2TurnGrid{display:grid;grid-template-columns:140px 120px 120px 120px minmax(160px,1fr) 44px;gap:8px;margin-top:10px;align-items:center}
+#acctStageWork .quickV2TurnGrid{display:grid;grid-template-columns:140px 120px 120px 120px minmax(180px,1fr) minmax(150px,.75fr) 72px 44px;gap:8px;margin-top:10px;align-items:center}
+#acctStageWork .quickV2TurnGrid .qTurnType{grid-column:1}
+#acctStageWork .quickV2TurnGrid .qTurnRack{grid-column:2}
+#acctStageWork .quickV2TurnGrid .qTurnAction{grid-column:3}
+#acctStageWork .quickV2TurnGrid .qTurnQty{grid-column:4}
+#acctStageWork .quickV2TurnGrid .qTurnUnitPrice{grid-column:5}
+#acctStageWork .quickV2TurnGrid .qTurnNote{grid-column:6}
+#acctStageWork .quickV2TurnGrid .qTurnAmount{grid-column:7}
+#acctStageWork .quickV2TurnGrid .qTurnRemove{grid-column:8}
 #acctStageWork .qTurnAmount{font-weight:900;text-align:right;white-space:nowrap}
 #acctStageWork .qTurnRemove{min-width:40px;padding:8px}
 #acctStageWork .quickV2Row:last-child{border-bottom:0}
@@ -1676,8 +1688,9 @@ body.wall-focus #wall .wallOrderNote{
  #acctStageWork .quickV2Table{overflow-x:auto}
  #acctStageWork .quickV2Row{min-width:1160px}
  #acctStageWork .quickV2Row.showCost{min-width:1160px}
- #acctStageWork .quickV2TurnGrid{grid-template-columns:1fr 1fr}
- #acctStageWork .qTurnAmount{grid-column:1/-1;text-align:left}
+ #acctStageWork .quickV2Turn{overflow-x:auto}
+ #acctStageWork .quickV2TurnGrid{grid-template-columns:140px 120px 120px 120px minmax(180px,1fr) minmax(150px,.75fr) 72px 44px;min-width:1040px}
+ #acctStageWork .qTurnAmount{grid-column:7;text-align:right}
  #acctStageWork .quickV2Total{width:100%;margin-left:0}
 }
 
@@ -6572,7 +6585,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN100RunOutput(kind,entity){return qN105RunOutput(kind,entity)}
   // N101：全帳務系統正式四種輸出統一經中央核心；PDF=A4、報表紙=LQ-310固定實體尺寸，螢幕自動等比縮放。舊輸出函式僅保留相容，不再由正式 UI 直接呼叫。
   const qN99RunOutput=qN100RunOutput;
-  function qShowOutputs(work,record){const methods=qOutputMethods(record),box=document.createElement('div');box.className='quickV2OutputPanel';const defs=[];if(methods.billImage!==false)defs.push(['bill','📱 圖片／LINE']);if(methods.excel!==false)defs.push(['excel','📊 Excel']);if(methods.pdf!==false)defs.push(['pdf','📄 PDF']);if(methods.paper80!==false)defs.push(['paper','🖨️ 報表紙']);box.innerHTML='<div><b>✅ 完成做帳｜'+qEsc(record.customer)+'｜$'+Math.round(qRecordTotal(record)).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important;margin-top:4px">四種輸出共用同一份完整明細資料；圖片可直接傳 LINE 或在電腦複製後貼到 LINE。</div></div><div class="quickV2OutputBtns">'+(defs.length?defs.map(([k,label])=>'<button type="button" class="btn primary" data-out="'+k+'">'+label+'</button>').join(''):'<span class="helper">此往來對象未設定常用輸出方式。</span>')+'</div>';work.prepend(box);defs.forEach(([k])=>box.querySelector('[data-out="'+k+'"]')?.addEventListener('click',()=>qN100RunOutput(k,record)))}
+  function qShowOutputs(work,record){const methods=qOutputMethods(record),box=document.createElement('div');box.className='quickV2OutputPanel';const defs=[];if(methods.billImage!==false)defs.push(['bill','📱 圖片／LINE']);if(methods.excel!==false)defs.push(['excel','📊 Excel']);if(methods.pdf!==false)defs.push(['pdf','📄 PDF']);if(methods.paper80!==false)defs.push(['paper','🖨️ 報表紙']);box.innerHTML='<div><b>✅ 完成做帳｜'+qEsc(record.customer)+'｜$'+Math.round(qRecordTotal(record)).toLocaleString('zh-TW')+'</b><div class="helper" style="display:block!important;margin-top:4px">四種輸出共用同一份完整明細資料；圖片可直接傳 LINE 或在電腦複製後貼到 LINE。</div></div><div class="quickV2OutputBtns">'+(defs.length?defs.map(([k,label])=>'<button type="button" class="btn primary" data-out="'+k+'">'+label+'</button>').join(''):'<span class="helper">此往來對象未設定常用輸出方式。</span>')+'</div>';work.append(box);defs.forEach(([k])=>box.querySelector('[data-out="'+k+'"]')?.addEventListener('click',()=>qN100RunOutput(k,record)))}
   function qQueueRows(filter){
     const all=qAcctFilterRecords((typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'));
     if(filter==='draft')return all.filter(r=>r.status==='draft');
