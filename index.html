@@ -2022,7 +2022,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
         <h2>💰 帳務中心</h2>
         <div class="helper">所有帳集中在這裡；第一層先選工作，日常做帳以快速輸入介面為主。</div>
         <div class="acctFirstLedgerSearch" style="margin:10px 0 8px">
-          <div style="font-weight:900;margin-bottom:6px">📒 帳本查詢</div>
+          <div style="font-weight:900;margin-bottom:6px">🔎 快速查詢</div>
           <div class="helper" style="display:block!important;margin-bottom:6px">第一層直接查客戶／超市／中盤／產農／廠商帳本，可輸入名稱、編號或車號。</div>
           <div class="acctGlobalSearch" style="margin:0">
             <input id="acctGlobalSearchInput" class="input" autocomplete="off" placeholder="🔍 搜尋帳本：名稱／編號／車號…">
@@ -2051,6 +2051,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
           <button type="button" class="acctManagementBtn" data-acct-manage="farmer"><b>🧑‍🌾 產農入貨／週帳</b><span>今日入貨、待補價格、本週週帳、待領款</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="vendor"><b>🏭 廠商進貨／對帳</b><span>叫貨、到貨簽收、異常處理、廠商對帳</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="payment"><b>💰 收款／付款</b><span>所有真正收到或付出去的錢都從這裡處理</span></button>
+          <button type="button" class="acctManagementBtn" data-acct-manage="ledger"><b>📒 帳本</b><span>查看每個往來對象的完整應收／應付、收付款與帳務流水</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="turnover"><b>🧺 籃子／鐵架／棧板／容器管理</b><span>使用、歸還、買斷、調整與目前結餘</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="contacts"><b>👥 往來資料</b><span>客戶、超市、中盤、產農、廠商基本資料</span></button>
           <button type="button" class="acctManagementBtn" data-acct-manage="receipt"><b>🧾 農民收據</b><span>分類確認、待開農收、已開農收、歷史與分類管理</span></button>
@@ -5590,6 +5591,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
 <!-- 第48階段：開單／收銀＋現場回報版面壓縮；只顯示當日現場訊息；未修改登入/Auth核心 -->
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
 
+<!-- N148：帳務中心新增獨立「📒 帳本」大入口；首頁原帳本查詢只改名「🔎 快速查詢」，搜尋／日期功能與帳務資料核心完全不動。 -->
 <script>
 // N120：產農／廠商依目前往來主檔身分隔離；產農入貨與待補價只收產農，廠商待補價只收廠商；不搬移、不複製正式交易。
 // 第172H階段：今日入貨可修改原交易＋開發測試資料管理；不修改登入/Auth與其他穩定頁面。
@@ -5603,7 +5605,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'入貨可先不填價格；週帳與實際付款分開。',items:['入貨紀錄','待補價格','本週週帳','待領款']},
     vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','待補價格','異常處理','廠商對帳']},
     payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 收支查詢','🏦 資金帳戶','📊 報表']},
-    ledger:{title:'📒 帳本查詢',desc:'搜尋往來對象，直接查看完整應收／應付與帳本。',items:[]},
+    ledger:{title:'📒 帳本',desc:'搜尋往來對象，查看完整應收／應付、收付款與帳務流水。',items:[]},
     turnover:{title:'🧺 籃子／鐵架／棧板／容器管理',desc:'使用、歸還、買斷及調整都在這裡登記；所有往來對象共用同一筆正式進出資料。',items:['🔍 籃子／鐵架／棧板／容器查詢','📥📤 進出紀錄','📋 盤點／差異','⚙️ 籃子／鐵架／棧板／容器設定']},
     contacts:{title:'👥 往來資料',desc:'同一個往來對象只建立一份主資料，內部以固定ID關聯。',items:['🔍 搜尋往來資料','＋ 新增往來對象']},
     receipt:{title:'🧾 農民收據',desc:'農收分類只服務農民收據，不建立第二套商品管理。',items:['待分類確認','待開農收','已開農收','歷史查詢','⚙️ 分類管理']},
@@ -6671,7 +6673,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qLedgerMoney(n){const v=Math.round(Number(n)||0);return (v<0?'-$':'$')+Math.abs(v).toLocaleString('zh-TW')}
   function qRenderLedgerSearch(work,preset='',opts={}){
     const ps=qProfiles(),optsHtml=ps.flatMap(x=>['<option value="'+qEsc(x.name)+'">'+qEsc(x.name)+'</option>',x.code?'<option value="'+qEsc(x.code)+'">'+qEsc(x.name)+'</option>':'',(x.vehicles||[]).map(v=>'<option value="'+qEsc(v.plate)+'">'+qEsc(x.name)+(v.active===false?'（歷史）':'')+'</option>').join('')]).join('');
-    work.innerHTML='<div class="quickV2"><div class="helper" style="display:block!important;margin-bottom:8px">客戶／超市／中盤／廠商／產農共用同一入口；可輸入名稱、編號或任一車號。</div><div class="field" style="margin-top:0"><label class="label">往來對象／車號</label><input id="qLedgerEntity" class="input" list="qLedgerEntityList" autocomplete="off" placeholder="例如：民雄、珍、0061、6723"><datalist id="qLedgerEntityList">'+optsHtml+'</datalist></div><div id="qLedgerResult" style="margin-top:10px"></div></div>';
+    work.innerHTML='<div class="quickV2"><div class="helper" style="display:block!important;margin-bottom:8px">客戶／超市／中盤／廠商／產農共用同一本帳務核心；可輸入名稱、編號或任一車號。</div><div class="field" style="margin-top:0"><label class="label">往來對象／車號</label><input id="qLedgerEntity" class="input" list="qLedgerEntityList" autocomplete="off" placeholder="例如：民雄、珍、0061、6723"><datalist id="qLedgerEntityList">'+optsHtml+'</datalist></div><div id="qLedgerResult" style="margin-top:10px"></div></div>';
     const inp=work.querySelector('#qLedgerEntity'),box=work.querySelector('#qLedgerResult');
     const paint=()=>{
       const hit=qResolveContact(inp.value);if(!hit){box.innerHTML=inp.value.trim()?'<div class="empty">找不到往來對象</div>':'';return}
