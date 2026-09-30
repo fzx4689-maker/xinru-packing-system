@@ -6253,20 +6253,27 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qN98Money(v){return Number(v)||0}
   function qN98RowsFromRecord(record,contact){
     const rows=[];
-    (record?.items||[]).forEach((x,i)=>{const vendorPayable=String(contact?.identity||contact?.type||'')==='廠商'&&(record?.txnType==='purchase'||record?.accountDirection==='payable'||record?.txnTypeLabel==='進貨'),storedFreight=qN98Money(x.freight),freight=vendorPayable?0:storedFreight,amount=x.amount===''?'':qN98Money(x.amount),goods=amount===''?'':Math.max(0,amount-storedFreight),projectedAmount=amount===''?'':goods+freight;rows.push({kind:'item',date:record.date||'',recordId:record.id||'',no:i+1,name:x.name||'',kg:x.kg??'',qty:x.qty??'',pricing:qPricingText(x.pricing||'piece',x.pricingUnit),price:x.price??'',goods,freight,amount:projectedAmount,contactId:record.contactId||'',contactName:record.customer||contact?.name||''})});
+    (record?.items||[]).forEach((x,i)=>{const vendorPayable=String(contact?.identity||contact?.type||'')==='廠商'&&(record?.txnType==='purchase'||record?.accountDirection==='payable'||record?.txnTypeLabel==='進貨'),storedFreight=qN98Money(x.freight),freight=vendorPayable?0:storedFreight,amount=x.amount===''?'':qN98Money(x.amount),goods=amount===''?'':Math.max(0,amount-storedFreight),projectedAmount=amount===''?'':goods+freight;rows.push({kind:'item',date:record.date||'',recordId:record.id||'',no:i+1,name:qBillItemNameWithStatus(x),kg:x.kg??'',qty:x.qty??'',pricing:qPricingText(x.pricing||'piece',x.pricingUnit),price:x.price??'',goods,freight,amount:projectedAmount,contactId:record.contactId||'',contactName:record.customer||contact?.name||''})});
     return rows;
   }
   // N107：正式輸出保留每一次容器異動，直接取 N94/N93 canonical 容器事件；每筆帶實際日期。
   // 不再由交易 record.turnover 另造第二筆，避免買斷或做帳內嵌容器重複。
   function qN107ContainerRows(contact,range){
-    if(!contact||contact.billShowTurnover===false||typeof window.qContainerEventsForContact!=='function')return [];
-    const from=String(range?.from||''),to=String(range?.to||'');
-    return window.qContainerEventsForContact(contact).filter(e=>(!from||String(e.date||'')>=from)&&(!to||String(e.date||'')<=to)).map(e=>{
-      const priced=['計價','退籃退費','買斷'].includes(String(e.action||'')),tm=priced?qRecordTurnoverMoney(e.record):{unitPrice:0,amount:0};
-      return {kind:'turnover',date:e.date||'',recordId:e.sourceRecordId||'',no:'',name:String(e.type||'')+'・'+String(e.action||''),kg:'',qty:e.qty??'',pricing:e.type||'',price:priced?(qN98Money(tm.unitPrice)||qN98Money(e.record?.turnover?.unitPrice)||''):'',goods:priced?(Number(tm.amount)||Number(e.record?.turnover?.amount)||0):'',freight:0,amount:priced?(Number(tm.amount)||Number(e.record?.turnover?.amount)||0):0,turnoverType:e.type||'',turnoverAction:e.action||'',turnoverQty:qN98Money(e.qty),contactId:e.contactId||contact.id||'',contactName:e.customer||contact.name||'',createdAt:e.createdAt||''};
+  if(!contact||contact.billShowTurnover===false||typeof window.qContainerEventsForContact!=='function')return [];
+  const from=String(range?.from||''),to=String(range?.to||'');
+  return window.qContainerEventsForContact(contact)
+    .filter(e=>(!from||String(e.date||'')>=from)&&(!to||String(e.date||'')<=to))
+    .map(e=>{
+      const priced=['計籃','回籃','計價','退籃退費','買斷'].includes(String(e.action||''))&&qN98Money(e.unitPrice)>0;
+      const turnAmount=priced?qN98Money(e.amount):0;
+      return {kind:'turnover',date:e.date||'',recordId:e.sourceRecordId||'',no:'',
+        name:String(e.type||'')+'・'+String(e.action||''),kg:'',qty:e.qty??'',pricing:e.type||'',
+        price:priced?qN98Money(e.unitPrice):'',goods:priced?turnAmount:'',freight:0,amount:turnAmount,
+        turnoverType:e.type||'',turnoverAction:e.action||'',turnoverQty:qN98Money(e.qty),
+        contactId:e.contactId||contact.id||'',contactName:e.customer||contact.name||'',createdAt:e.createdAt||''};
     });
-  }
-  function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.recordId||'').localeCompare(String(b.recordId||'')));}
+}
+function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.recordId||'').localeCompare(String(b.recordId||'')));}
   function qN98SettlementRow(r,contact){const methods=(r?.methods||[]).map(m=>(m.method||'')+(qN98Money(m.amount)?(' $'+Math.round(qN98Money(m.amount)).toLocaleString('zh-TW')):'')).filter(Boolean).join('＋');return {kind:'settlement',date:r?.date||'',recordId:r?.id||'',name:r?.txnType==='payment'?'付款':'收款',summary:methods||r?.note||'',amount:qN98Money(r?.amount||r?.total),contactId:r?.contactId||'',contactName:r?.customer||contact?.name||''}}
   function qN98Summary(rows,outstanding=0){let goods=0,freight=0,turnoverBuyout=0;const containers={};rows.forEach(x=>{if(x.kind==='item'){goods+=qN98Money(x.goods);freight+=qN98Money(x.freight)}else if(x.kind==='turnover'){turnoverBuyout+=qN98Money(x.amount);const k=x.turnoverType||'周轉物';containers[k]=(containers[k]||0)+(['歸還','回籃','退籃退費'].includes(x.turnoverAction)?-qN98Money(x.turnoverQty):qN98Money(x.turnoverQty))}});return {goods,freight,turnoverBuyout,total:goods+freight+turnoverBuyout,outstanding:qN98Money(outstanding),containers}}
   // N103：四種正式輸出共用同一個周轉物數量摘要；保留動作，不把買斷／使用／歸還混成單一數字。
@@ -6380,7 +6387,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const large=qN119IsLarge(model),singleDate=large?qN119SingleDate(model):'',freightRateLabel=qN135FreightRateLabel(model),csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),(large?'日期,':'期間,')+(large?(singleDate+qN135Weekday(singleDate)):qN98RangeLabel(model))].concat(freightRateLabel?['運費,'+freightRateLabel.replace(/^運費：/,'')]:[]).concat(['',large?(model.outputPartyLabel+',類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'):(model.outputPartyLabel+',日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額')]);
     const pushRows=(rows,cname)=>rows.forEach(x=>{const vals=large?[x.contactName||cname||'',x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??'']:[x.contactName||cname||'',x.date,x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??''];csv.push(vals.map(qN98CsvCell).join(','))});
     if(model.kind==='farmer_weekly')model.groups.forEach(g=>pushRows(g.rows,g.contact?.name));else pushRows(model.rows,model.contact?.name);
-    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general')csv.push('目前未結清,'+model.summary.outstanding);
+    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);if(qN98Money(model.summary.turnoverBuyout))csv.push('籃子小計,'+model.summary.turnoverBuyout);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general')csv.push('目前未結清,'+model.summary.outstanding);
     const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+(large?qN119SingleDate(model):qN98RangeLabel(model))+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   }
 
@@ -7431,7 +7438,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       const action=qN93TurnAction(t?.action??t?.movement??t?.verb??t?.direction);
       const qty=Math.abs(Number(t?.qty??t?.quantity??t?.count??0)||0);
       if(!type||!qty||!['領用','使用','歸還','買斷','調整','計籃','回籃','計價','退籃退費'].includes(action))return;
-      ev.push({id:String(r.id||r.local_id||'')+':'+ti,sourceRecordId:String(r.id||r.local_id||''),record:r,contactId:String(r.contactId||r.contact_id||''),customer:String(r.customer||r.customerName||r.contactName||''),date:String(r.date||''),createdAt:String(r.createdAt||r.created_at||r.updatedAt||r.updated_at||''),type,action,qty,note:String(t?.note||''),balanceDelta:Number(t?.balanceDelta??t?.balance_delta??0)||0,rawQty:Number(t?.qty??t?.quantity??0)||0,source:r.mode==='turnover_event'?'容器管理':'做帳',_order:ri*100+ti});
+      ev.push({id:String(r.id||r.local_id||'')+':'+ti,sourceRecordId:String(r.id||r.local_id||''),record:r,contactId:String(r.contactId||r.contact_id||''),customer:String(r.customer||r.customerName||r.contactName||''),date:String(r.date||''),createdAt:String(r.createdAt||r.created_at||r.updatedAt||r.updated_at||''),type,action,qty,unitPrice:Number(t?.unitPrice??t?.unit_price??0)||0,amount:Number(t?.amount??0)||0,note:String(t?.note||''),balanceDelta:Number(t?.balanceDelta??t?.balance_delta??0)||0,rawQty:Number(t?.qty??t?.quantity??0)||0,source:r.mode==='turnover_event'?'容器管理':'做帳',_order:ri*100+ti});
     }));
     return ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.createdAt).localeCompare(String(b.createdAt))||a._order-b._order);
   }
