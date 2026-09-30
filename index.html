@@ -6258,19 +6258,28 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   // N107：正式輸出保留每一次容器異動，直接取 N94/N93 canonical 容器事件；每筆帶實際日期。
   // 不再由交易 record.turnover 另造第二筆，避免買斷或做帳內嵌容器重複。
-  function qN107ContainerRows(contact,range){
+  function qN107TurnoverDisplay(e){
+  const type=String(e?.type||'周轉物'),action=String(e?.action||''),qty=Math.abs(qN98Money(e?.qty)),unit=Math.abs(qN98Money(e?.unitPrice));
+  if(action==='計籃')return type+' '+qN98Money(qty)+'×'+qN98Money(unit);
+  if(action==='回籃'){const label=type==='籃子'?'回籃':('回'+type);return label+' '+qN98Money(qty)+'×-'+qN98Money(unit)}
+  return type+'・'+action;
+}
+function qN107ContainerRows(contact,range){
   if(!contact||contact.billShowTurnover===false||typeof window.qContainerEventsForContact!=='function')return [];
   const from=String(range?.from||''),to=String(range?.to||'');
   return window.qContainerEventsForContact(contact)
     .filter(e=>(!from||String(e.date||'')>=from)&&(!to||String(e.date||'')<=to))
     .map(e=>{
-      const priced=['計籃','回籃','計價','退籃退費','買斷'].includes(String(e.action||''))&&qN98Money(e.unitPrice)>0;
-      const turnAmount=priced?qN98Money(e.amount):0;
+      const action=String(e.action||''),unit=Math.abs(qN98Money(e.unitPrice));
+      const priced=['計籃','回籃','計價','退籃退費','買斷'].includes(action)&&unit>0;
+      const sign=['回籃','退籃退費'].includes(action)?-1:1;
+      const stored=qN98Money(e.amount);
+      const turnAmount=priced?(stored!==0?stored:(Math.abs(qN98Money(e.qty))*unit*sign)):0;
       return {kind:'turnover',date:e.date||'',recordId:e.sourceRecordId||'',no:'',
-        name:String(e.type||'')+'・'+String(e.action||''),kg:'',qty:e.qty??'',pricing:e.type||'',
-        price:priced?qN98Money(e.unitPrice):'',goods:priced?turnAmount:'',freight:0,amount:turnAmount,
-        turnoverType:e.type||'',turnoverAction:e.action||'',turnoverQty:qN98Money(e.qty),
-        contactId:e.contactId||contact.id||'',contactName:e.customer||contact.name||'',createdAt:e.createdAt||''};
+        name:priced?qN107TurnoverDisplay(e):(String(e.type||'')+'・'+action),kg:'',qty:'',pricing:'',
+        price:'',goods:turnAmount,freight:0,amount:turnAmount,
+        turnoverType:e.type||'',turnoverAction:action,turnoverQty:qN98Money(e.qty),
+        turnoverUnitPrice:unit,contactId:e.contactId||contact.id||'',contactName:e.customer||contact.name||'',createdAt:e.createdAt||''};
     });
 }
 function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.recordId||'').localeCompare(String(b.recordId||'')));}
@@ -6387,7 +6396,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const large=qN119IsLarge(model),singleDate=large?qN119SingleDate(model):'',freightRateLabel=qN135FreightRateLabel(model),csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),(large?'日期,':'期間,')+(large?(singleDate+qN135Weekday(singleDate)):qN98RangeLabel(model))].concat(freightRateLabel?['運費,'+freightRateLabel.replace(/^運費：/,'')]:[]).concat(['',large?(model.outputPartyLabel+',類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'):(model.outputPartyLabel+',日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額')]);
     const pushRows=(rows,cname)=>rows.forEach(x=>{const vals=large?[x.contactName||cname||'',x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??'']:[x.contactName||cname||'',x.date,x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??''];csv.push(vals.map(qN98CsvCell).join(','))});
     if(model.kind==='farmer_weekly')model.groups.forEach(g=>pushRows(g.rows,g.contact?.name));else pushRows(model.rows,model.contact?.name);
-    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);if(qN98Money(model.summary.turnoverBuyout))csv.push('籃子小計,'+model.summary.turnoverBuyout);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general')csv.push('目前未結清,'+model.summary.outstanding);
+    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);if(qN98Money(model.summary.turnoverBuyout)!==0)csv.push('籃子小計,'+model.summary.turnoverBuyout);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general')csv.push('目前未結清,'+model.summary.outstanding);
     const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+(large?qN119SingleDate(model):qN98RangeLabel(model))+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   }
 
@@ -6404,7 +6413,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // N101：中央輸出呈現核心。螢幕預覽與實際列印尺寸分離；全系統 PDF／報表紙只走這裡。
   function qN101SummaryText(model){
     const s=model.summary||{},parts=['貨款小計 '+qLedgerMoney(s.goods)];if(!model.noFreight)parts.push('運費小計 '+qLedgerMoney(s.freight));
-    if(qN98Money(s.turnoverBuyout))parts.push('籃子小計 '+qLedgerMoney(s.turnoverBuyout));
+    if(qN98Money(s.turnoverBuyout)!==0)parts.push('籃子小計 '+qLedgerMoney(s.turnoverBuyout));
     return parts.join(' ＋ ')+' ＝ 總計 '+qLedgerMoney(s.total);
   }
   function qN101PreviewScript(){return `<script>(function(){function fit(){document.querySelectorAll('.sheet').forEach(function(el){el.style.zoom='1';var maxW=Math.max(320,window.innerWidth-48),maxH=Math.max(420,window.innerHeight-105),w=el.offsetWidth,h=el.offsetHeight,sc=Math.min(1,maxW/w,maxH/h);el.style.zoom=String(sc)})}window.addEventListener('resize',fit);window.addEventListener('load',fit);window.doPrint=function(){document.querySelectorAll('.sheet').forEach(function(el){el.style.zoom='1'});window.print();setTimeout(fit,300)};window.goBackAcct=function(){window.close();setTimeout(function(){if(!window.closed)history.back()},120)};})();<\/script>`}
@@ -7419,7 +7428,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const k=String(v||'').trim().toLowerCase();
     if(['pickup','take','receive-empty','領用','領取','先領'].includes(k))return '領用';
     if(['use','borrow','borrowed','out','欠用','借用','使用'].includes(k))return '使用';
-    if(['return','returned','back','in','回籃','歸還','返還'].includes(k))return '歸還';
+    if(['return','returned','back','in','歸還','返還'].includes(k))return '歸還'; if(k==='回籃')return '回籃';
     if(['buyout','buy-out','purchase','買斷'].includes(k))return '買斷';
     if(['adjust','adjustment','調整'].includes(k))return '調整';
     return String(v||'').trim();
@@ -7447,7 +7456,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     // 完全沿用帳本已驗證的往來歸屬判斷，不再另造 contactId resolver。
     return qN93AllContainerEvents().filter(e=>qRecordBelongsToContact(e.record,c));
   }
-  function qN93ContainerBalance(events){
+  /* N165：籃數與金額分離。計籃=增加欠量，回籃=先抵欠量、超過才成餘量；不可用金額正負改籃數。 */ function qN93ContainerBalance(events){
     const by={};
     for(const e of events||[]){
       const x=by[e.type]||(by[e.type]={type:e.type,owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);
@@ -7850,7 +7859,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
  function renderQuery(work){
    work.innerHTML='<div class="quickV2"><b>🔍 籃子／鐵架／棧板／容器查詢</b><div class="quickV2Grid" style="margin-top:10px"><div class="field"><label class="label">種類</label><select id="cqType" class="input"><option value="">全部</option>'+typeOptions()+'</select></div><div class="field"><label class="label">往來對象</label><input id="cqContact" class="input" list="cqContactList" autocomplete="off" placeholder="輸入名稱／編號／車號"><datalist id="cqContactList"></datalist></div><div class="field"><label class="label">開始日期</label><input id="cqFrom" type="date" class="input"></div><div class="field"><label class="label">結束日期</label><input id="cqTo" type="date" class="input"></div></div><div class="actions"><button id="cqGo" class="btn primary" type="button">查詢</button><button id="cqClear" class="btn gray" type="button">清除</button></div><div id="cqResult" style="margin-top:12px"></div></div>';
    const te=work.querySelector('#cqType'),ce=work.querySelector('#cqContact'),dl=work.querySelector('#cqContactList');const sync=()=>{dl.innerHTML=(te.value?contactsForType(te.value):contacts().filter(c=>typesForContact(c).length)).map(c=>'<option value="'+esc(contactLabel(c))+'"></option>').join('');if(ce.value&&!contactBy(ce.value,te.value))ce.value=''};sync();te.onchange=sync;
-   const paint=()=>{const type=te.value,c=ce.value?contactBy(ce.value,type):null,from=work.querySelector('#cqFrom').value,to=work.querySelector('#cqTo').value;if(ce.value&&!c){work.querySelector('#cqResult').innerHTML='<div class="empty">請從搜尋結果選擇往來對象</div>';return}let rs=c&&window.qContainerEventsForContact?window.qContainerEventsForContact(c):records();if(type){const aa=aliasesFor(type);rs=rs.filter(e=>aa.has(String(e.type||''))||canonical(e.type)===canonical(type))}if(from)rs=rs.filter(e=>e.date>=from);if(to)rs=rs.filter(e=>e.date<=to);rs=rs.slice().reverse();let summary=c&&typeof qTurnoverSummaryHtml==='function'?'<div class="quickV2ContactHint" style="margin-bottom:10px">'+qTurnoverSummaryHtml(c)+'</div>':'';work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>'<div class="quickV2Record"><b>'+esc(e.date+'｜'+e.customer+'｜'+canonical(e.type)+'｜'+e.action+' '+e.qty)+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+'</div></div>').join(''):'<div class="empty">查無進出紀錄</div>')};work.querySelector('#cqGo').onclick=paint;work.querySelector('#cqClear').onclick=()=>{te.value='';ce.value='';work.querySelector('#cqFrom').value='';work.querySelector('#cqTo').value='';sync();paint()};paint()
+   const paint=()=>{const type=te.value,c=ce.value?contactBy(ce.value,type):null,from=work.querySelector('#cqFrom').value,to=work.querySelector('#cqTo').value;if(ce.value&&!c){work.querySelector('#cqResult').innerHTML='<div class="empty">請從搜尋結果選擇往來對象</div>';return}let rs=c&&window.qContainerEventsForContact?window.qContainerEventsForContact(c):records();if(type){const aa=aliasesFor(type);rs=rs.filter(e=>aa.has(String(e.type||''))||canonical(e.type)===canonical(type))}if(from)rs=rs.filter(e=>e.date>=from);if(to)rs=rs.filter(e=>e.date<=to);rs=rs.slice().reverse();let summary=c&&typeof qTurnoverSummaryHtml==='function'?'<div class="quickV2ContactHint" style="margin-bottom:10px">'+qTurnoverSummaryHtml(c)+'</div>':'';work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>{const money=Number(e.amount)||0,unit=Math.abs(Number(e.unitPrice)||0),priced=unit>0&&['計籃','回籃','計價','退籃退費','買斷'].includes(String(e.action||''));return '<div class="quickV2Record"><b>'+esc(e.date+'｜'+e.customer+'｜'+canonical(e.type)+'｜'+e.action+' '+e.qty+(priced?(' × '+(e.action==='回籃'?'-':'')+unit+' = '+qLedgerMoney(money)) : ''))+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+'</div></div>'}).join(''):'<div class="empty">查無進出紀錄</div>')};work.querySelector('#cqGo').onclick=paint;work.querySelector('#cqClear').onclick=()=>{te.value='';ce.value='';work.querySelector('#cqFrom').value='';work.querySelector('#cqTo').value='';sync();paint()};paint()
  }
  function renderSettings(work){
    const paint=()=>{const rows=registry();work.innerHTML='<div class="quickV2"><b>⚙️ 籃子／鐵架／棧板／容器設定</b><div class="helper" style="display:block!important;margin:6px 0 10px">這裡是全系統唯一容器種類主檔。新增一次，往來資料、查詢、進出紀錄、盤點、快速做帳與帳本自動共用；不再使用「其他＋手寫」。</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="csNew" class="input" style="flex:1 1 220px" placeholder="例如：塑膠箱、保麗龍箱、8格籃"><button id="csAdd" class="btn primary">＋新增容器種類</button></div><div id="csList" style="margin-top:12px">'+rows.map((t,i)=>'<div class="quickV2Record"><b>'+esc(t.name)+'</b><span class="helper" style="display:inline-block!important;margin-left:8px">'+(t.active===false?'已停用':'使用中')+'</span><div class="actions"><button class="btn gray" data-cs-rename="'+i+'">修改名稱</button><button class="btn gray" data-cs-toggle="'+i+'">'+(t.active===false?'啟用':'停用')+'</button></div></div>').join('')+'</div></div>';
