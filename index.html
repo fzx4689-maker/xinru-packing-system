@@ -4359,6 +4359,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N185：周轉物動作核心統一：只有籃子＝計籃/回籃；鐵架、棧板與所有其他/未來新增容器＝領用/歸還。快速做帳沿用既有容器主檔與正式容器事件核心；不修改四種列印、查詢、盤點計算。 -->
 <!-- N186：容器查詢選籃子且未指定往來對象時，直接由正式容器事件核心彙總總欠籃／總餘籃／淨額及逐往來對象欠餘；不另建統計資料，不動快速做帳、盤點與四種列印。 -->
 <!-- N187：帳務中心九分頁共用層級核心：第三層工作頁收起第二層卡片；返回鍵回所屬功能第二層；刷新依 acctNav 恢復相同層級。不修改各功能資料核心、容器事件核心與四種列印。 -->
+<!-- N192：快速做帳籃子實體餘欠核心：計籃=-qty、回籃=+qty；單價與實體數量分離。quick_v3/schemaVersion>=4 舊單缺 balanceDelta 時於正式容器事件正規化層相容，不修改四種列印。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -6098,7 +6099,13 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     return [...work.querySelectorAll('[data-qturnrow]')].map(row=>{
       const type=row.querySelector('.qTurnType')?.value||'',action=row.querySelector('.qTurnAction')?.value||'',qty=qMoney(row.querySelector('.qTurnQty')?.value||0),raw=row.querySelector('.qTurnUnitPrice')?.value.trim()||'',unitPrice=raw===''?0:qMoney(raw),note=row.querySelector('.qTurnNote')?.value.trim()||'',rackId=row.querySelector('.qTurnRack')?.value||'',rack=(type==='鐵架'&&c&&window.qRackNamesForContact)?window.qRackNamesForContact(c).find(x=>String(x.id)===String(rackId)):null;
       const m=qTurnoverMoneyFromValues(c,type,action,qty,{unitPrice,amount:null});
-      const physicalAction=type!=='籃子'&&['領用','歸還'].includes(action),balanceDelta=physicalAction?(action==='領用'?qty:-qty):undefined;
+      // N192：周轉物金額與實體數量分帳，但同一筆快速做帳必須同時留下正式實體異動。
+      // 籃子：計籃＝客戶欠籃增加（負數）；回籃＝欠籃減少／餘籃增加（正數）。單價是否空白不影響實體數量。
+      // 其他容器沿用既有領用／歸還實體方向，不改其既有核心。
+      const basketPhysical=type==='籃子'&&['計籃','回籃'].includes(action);
+      const otherPhysical=type!=='籃子'&&['領用','歸還'].includes(action);
+      const physicalAction=basketPhysical||otherPhysical;
+      const balanceDelta=basketPhysical?(action==='計籃'?-qty:qty):(otherPhysical?(action==='領用'?qty:-qty):undefined);
       return {type,action,qty,unitPrice:m.unitPrice,amount:m.amount,note,rackNameId:rack?.id||'',rackName:rack?.name||'',...(physicalAction?{balanceDelta}: {})};
     }).filter(x=>x.type&&x.action&&x.qty>0);
   }
@@ -7528,7 +7535,12 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
         if(action==='公司購入'||action==='期初庫存')assetDelta=qty;
         else if(action==='買斷'||action==='報廢／遺失')assetDelta=-qty;
       }
-      ev.push({id:String(r.id||r.local_id||'')+':'+ti,sourceRecordId:String(r.id||r.local_id||''),record:r,...who,date:String(r.date||''),createdAt:String(r.createdAt||r.created_at||r.updatedAt||r.updated_at||''),type,action,qty,unitPrice:Number(t?.unitPrice??t?.unit_price??0)||0,amount:Number(t?.amount??0)||0,note:String(t?.note||''),rackNameId:String(t?.rackNameId??t?.rack_name_id??''),rackName:String(t?.rackName??t?.rack_name??''),balanceDelta:Number(t?.balanceDelta??t?.balance_delta??0)||0,stockDelta,assetDelta,rawQty:Number(t?.qty??t?.quantity??0)||0,source,_order:ri*100+ti});
+      // N192 舊單相容：N191 以前的 quick_v3 籃子列已建立正式容器事件，但未寫 balanceDelta。
+      // 只對 quick_v3/schemaVersion>=4 的籃子計籃／回籃補足實體方向；不改舊式純計價資料，也不改四種列印。
+      const storedBalance=Number(t?.balanceDelta??t?.balance_delta??0)||0;
+      const legacyQuickBasket=!storedBalance&&source==='做帳'&&String(r?.mode||'')==='quick_v3'&&Number(r?.schemaVersion||0)>=4&&type==='籃子'&&['計籃','回籃'].includes(action);
+      const balanceDelta=legacyQuickBasket?(action==='計籃'?-qty:qty):storedBalance;
+      ev.push({id:String(r.id||r.local_id||'')+':'+ti,sourceRecordId:String(r.id||r.local_id||''),record:r,...who,date:String(r.date||''),createdAt:String(r.createdAt||r.created_at||r.updatedAt||r.updated_at||''),type,action,qty,unitPrice:Number(t?.unitPrice??t?.unit_price??0)||0,amount:Number(t?.amount??0)||0,note:String(t?.note||''),rackNameId:String(t?.rackNameId??t?.rack_name_id??''),rackName:String(t?.rackName??t?.rack_name??''),balanceDelta,stockDelta,assetDelta,rawQty:Number(t?.qty??t?.quantity??0)||0,source,_order:ri*100+ti});
     }));
     return ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.createdAt).localeCompare(String(b.createdAt))||a._order-b._order);
   }
