@@ -5788,13 +5788,14 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   // N146：四種提醒規則。一般客戶看「帳期結束待做帳／待傳帳單」；超市才看收款日。
   // 只由 N144 正式帳務推導，不建立第二套交易／應收資料。
   window.xrAccountingReminderEvents=function(){
-    const out=[],today=qToday(),ps=qProfiles(),all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
+    // N149：先沿用既有帳期／收款核心產生明細，再依「到期日＋提醒類型」彙整。
+    // 不建立第二套帳務資料；source_data.items 保留每一位往來對象的原始明細。
+    const raw=[],today=qToday(),ps=qProfiles(),all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
     for(const c of ps){
       const ident=String(c.identity||c.type||'').trim(),cid=String(c.id||c.code||c.name||'');
       if(!cid)continue;
 
       if(ident==='超市'){
-        // 超市收款提醒：只有仍未結清的應收，並依既有正式收款排程判斷。
         const recv=qOpenMoneyRows(c,'receipt'),byDue=new Map();
         for(const x of recv){
           const p=qBillingPeriodFor(c,x.record?.date||'');if(!p.ok)continue;
@@ -5802,18 +5803,15 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
           const k=p.key+'|'+d.date,cur=byDue.get(k)||{amount:0,period:p,due:d.date};
           cur.amount+=qMoney(x.due);byDue.set(k,cur);
         }
-        for(const z of byDue.values())if(z.amount>0&&z.due<=today)out.push({
-          reminder_type:'supermarket_collection_due',
-          source_key:'supermarket-collect|'+cid+'|'+z.period.key+'|'+z.due,
-          title:'超市收款提醒｜'+(c.name||c.code||''),
-          message:'待收 '+qLedgerMoney(z.amount)+'｜收款日 '+z.due+'｜帳期 '+z.period.start+'～'+z.period.end,
-          due_date:z.due,contact_id:String(c.id||''),contact_name:String(c.name||''),amount:z.amount
+        for(const z of byDue.values())if(z.amount>0&&z.due<=today)raw.push({
+          reminder_type:'supermarket_collection_due',due_date:z.due,
+          contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:z.amount,
+          period_start:z.period.start,period_end:z.period.end
         });
         continue;
       }
 
       if(/產農|廠商|內部單位/.test(ident))continue;
-      // 一般客戶帳期提醒：看「這一期有正式銷貨＋帳期已結束」，不看是否已收款，也不看收款排程。
       const sales=all.filter(r=>r&&r.mode!=='money_settlement'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'));
       const byPeriod=new Map();
       for(const r of sales){
@@ -5821,16 +5819,36 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
         const cur=byPeriod.get(p.key)||{amount:0,count:0,period:p};
         cur.amount+=qMoney(qRecordTotal(r));cur.count+=1;byPeriod.set(p.key,cur);
       }
-      for(const z of byPeriod.values())if(z.count>0&&z.period.end<today)out.push({
+      for(const z of byPeriod.values())if(z.count>0&&z.period.end<today)raw.push({
         reminder_type:'billing_period_statement_due',
-        source_key:'billing-statement|'+cid+'|'+z.period.key,
-        title:'帳期結束待做帳／待傳帳單｜'+(c.name||c.code||''),
-        message:'帳期 '+z.period.start+'～'+z.period.end+'｜'+z.count+' 筆正式交易｜本期 '+qLedgerMoney(z.amount),
         due_date:qBillingDateText(qBillingAddDays(qBillingParseDate(z.period.end),1)),
-        contact_id:String(c.id||''),contact_name:String(c.name||''),amount:z.amount,period_start:z.period.start,period_end:z.period.end,record_count:z.count
+        contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:z.amount,
+        period_start:z.period.start,period_end:z.period.end,record_count:z.count
       });
     }
-    return out;
+
+    const weekday=d=>{const a=String(d||'').split('-').map(Number);if(a.length!==3||!a[0])return '';return '星期'+['日','一','二','三','四','五','六'][new Date(a[0],a[1]-1,a[2]).getDay()]};
+    const groups=new Map();
+    for(const x of raw){
+      const key=x.reminder_type+'|'+x.due_date,cur=groups.get(key)||{reminder_type:x.reminder_type,due_date:x.due_date,items:[]};
+      cur.items.push(x);groups.set(key,cur);
+    }
+    return [...groups.values()].map(g=>{
+      const names=[...new Set(g.items.map(x=>x.contact_name).filter(Boolean))],people=names.length,
+            amount=g.items.reduce((n,x)=>n+qMoney(x.amount),0),records=g.items.reduce((n,x)=>n+Number(x.record_count||0),0),wd=weekday(g.due_date);
+      if(g.reminder_type==='supermarket_collection_due')return {
+        reminder_type:g.reminder_type,source_key:'supermarket-collect-group|'+g.due_date,
+        title:wd+'｜'+people+' 位超市待收款｜'+qLedgerMoney(amount),
+        message:'收款日 '+g.due_date+'｜'+names.join('、')+'｜待收合計 '+qLedgerMoney(amount),
+        due_date:g.due_date,contact_count:people,amount,contact_names:names,items:g.items
+      };
+      return {
+        reminder_type:g.reminder_type,source_key:'billing-statement-group|'+g.due_date,
+        title:wd+'｜'+people+' 位待做帳／待傳帳單',
+        message:'到期日 '+g.due_date+'｜'+names.join('、')+'｜共 '+records+' 筆正式交易｜本期合計 '+qLedgerMoney(amount),
+        due_date:g.due_date,contact_count:people,amount,record_count:records,contact_names:names,items:g.items
+      };
+    }).sort((a,b)=>String(a.due_date).localeCompare(String(b.due_date))||String(a.reminder_type).localeCompare(String(b.reminder_type)));
   };
   function qProfiles(){try{const newer=JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]'),older=JSON.parse(localStorage.getItem('xinru_customer_profiles_v1')||'[]'),a=Array.isArray(newer)?newer:[],old=Array.isArray(older)?older:[],keys=new Set(a.flatMap(x=>[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean))),merged=a.slice();for(const x of old){const ks=[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean);if(ks.some(k=>keys.has(k)))continue;merged.push(x);ks.forEach(k=>keys.add(k))}return merged.filter(x=>x&&x.active!==false)}catch(e){return []}}
   function qMoney(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -7652,7 +7670,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
  async function choosePeople(selected=[]){const es=await employees(),old=new Set((selected||[]).map(String));return new Promise(resolve=>{const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:18px"><h3 style="margin-top:0">選擇公告收件人</h3><label style="display:flex;gap:8px;padding:9px;font-weight:800"><input id="n145all" type="checkbox"> 全選</label><div>'+es.map(e=>'<label style="display:flex;gap:8px;padding:9px;border-top:1px solid #eee"><input class="n145person" type="checkbox" value="'+escN(e.user_id)+'" '+(old.has(String(e.user_id))?'checked':'')+'> '+escN(e.nickname||e.display_name||e.user_id)+'</label>').join('')+'</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn gray" id="n145cancel">取消</button><button class="btn primary" id="n145ok">確定</button></div></div>';document.body.appendChild(bg);const all=bg.querySelector('#n145all'),cks=[...bg.querySelectorAll('.n145person')];const sync=()=>all.checked=cks.length>0&&cks.every(x=>x.checked);sync();all.onchange=()=>cks.forEach(x=>x.checked=all.checked);cks.forEach(x=>x.onchange=sync);bg.querySelector('#n145cancel').onclick=()=>{bg.remove();resolve(null)};bg.querySelector('#n145ok').onclick=()=>{const ids=cks.filter(x=>x.checked).map(x=>x.value);if(!ids.length)return alert('至少選 1 位收件人');bg.remove();resolve(ids)};});}
  async function recipientIds(taskId){const {data,error}=await sb.from('home_task_recipients').select('user_id').eq('task_id',taskId);if(error)throw error;return (data||[]).map(x=>String(x.user_id))}
  async function saveRecipients(taskId,ids){const d=await sb.from('home_task_recipients').delete().eq('task_id',taskId);if(d.error)throw d.error;if(ids.length){const i=await sb.from('home_task_recipients').insert(ids.map(user_id=>({task_id:taskId,user_id})));if(i.error)throw i.error}}
- async function syncReminders(){if(!isManager()||typeof window.xrAccountingReminderEvents!=='function')return;const ev=window.xrAccountingReminderEvents()||[];for(const x of ev){const row={reminder_type:x.reminder_type,source_key:x.source_key,title:x.title,message:x.message,due_date:x.due_date,source_data:x,updated_at:new Date().toISOString()};const {error}=await sb.from('system_reminders').upsert(row,{onConflict:'source_key',ignoreDuplicates:false});if(error)console.warn('N145提醒同步失敗',error.message)} }
+ async function syncReminders(){if(!isManager()||typeof window.xrAccountingReminderEvents!=='function')return;const ev=window.xrAccountingReminderEvents()||[],types=['billing_period_statement_due','supermarket_collection_due'],keys=new Set(ev.map(x=>String(x.source_key||'')));for(const x of ev){const row={reminder_type:x.reminder_type,source_key:x.source_key,title:x.title,message:x.message,due_date:x.due_date,source_data:x,updated_at:new Date().toISOString()};const {error}=await sb.from('system_reminders').upsert(row,{onConflict:'source_key',ignoreDuplicates:false});if(error)console.warn('N149提醒同步失敗',error.message)}const {data:old,error:readErr}=await sb.from('system_reminders').select('id,source_key,reminder_type,status').in('reminder_type',types).eq('status','pending');if(readErr){console.warn('N149舊提醒整理失敗',readErr.message);return}const stale=(old||[]).filter(r=>!keys.has(String(r.source_key||''))).map(r=>r.id);if(stale.length){const {error}=await sb.from('system_reminders').update({status:'superseded',updated_at:new Date().toISOString()}).in('id',stale);if(error)console.warn('N149舊提醒收斂失敗',error.message)}}
  async function publishReminder(r){const ids=await choosePeople([]);if(!ids)return;const {data,error}=await sb.from('home_tasks').insert({title:r.title,due_date:r.due_date||todayN(),note:r.message||null,department:'hq',is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||'',n145_audience:true}).select('id').single();if(error)return alert('發布失敗：'+error.message);try{await saveRecipients(data.id,ids);const u=await sb.from('system_reminders').update({status:'published',published_task_id:data.id,published_at:new Date().toISOString(),published_by:currentUser.id}).eq('id',r.id);if(u.error)throw u.error;alert('已發布公告');await window.homeLoadV79?.()}catch(e){alert('收件人設定失敗：'+(e?.message||e))}}
  async function dismissReminder(r){if(!confirm('確定這次不發布？\n只會關閉這次提醒，不會修改原本帳務資料。'))return;const {error}=await sb.from('system_reminders').update({status:'dismissed',dismissed_at:new Date().toISOString(),dismissed_by:currentUser.id}).eq('id',r.id);if(error)alert('操作失敗：'+error.message);else openPending()}
  async function openPending(){if(!isManager())return;await syncReminders();const {data,error}=await sb.from('system_reminders').select('*').eq('status','pending').order('due_date',{ascending:true}).order('created_at',{ascending:true});if(error)return alert('待處理提醒讀取失敗：'+error.message);const rows=data||[];const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99998;overflow:auto;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:850px;margin:30px auto;padding:18px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3 style="margin:0">🔔 待處理提醒 '+rows.length+'</h3><button class="btn gray" data-close>關閉</button></div><div style="margin-top:12px">'+(rows.length?rows.map((r,i)=>'<div style="border:1px solid #ddd;border-radius:12px;padding:12px;margin:9px 0"><b>'+escN(TYPES[r.reminder_type]||r.reminder_type)+'｜'+escN(r.title)+'</b><div style="margin-top:5px">'+escN(r.message||'')+'</div><div class="helper" style="display:block!important">提醒日：'+escN(r.due_date||'')+'</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary" data-p="'+i+'">📣 發布公告</button><button class="btn gray" data-d="'+i+'">不發布</button></div></div>').join(''):'<div class="empty">目前沒有待處理提醒</div>')+'</div></div>';document.body.appendChild(bg);bg.querySelector('[data-close]').onclick=()=>bg.remove();bg.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{await publishReminder(rows[+b.dataset.p]);bg.remove()});bg.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.d];bg.remove();await dismissReminder(r)});}
