@@ -5798,17 +5798,28 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(!cid)continue;
 
       if(ident==='超市'){
-        const recv=qOpenMoneyRows(c,'receipt'),byDue=new Map();
+        // N151：超市收款提醒是「收款行程」，由正式收款排程決定；不能用未結清金額決定有沒有提醒。
+        // 未結清只負責顯示當下待收金額。即使目前 $0，只要今天／未來 14 天是正式收款日，仍要提醒。
+        const recv=qOpenMoneyRows(c,'receipt'),openAmount=recv.reduce((n,x)=>n+qMoney(x.due),0),dueDates=new Set(),mode=String(c?.collectionScheduleMode||'不指定');
+        const start=qBillingParseDate(today),end=qBillingParseDate(horizon);
+        if(start&&end){
+          if(mode==='指定收款日'){
+            const collectDays=[...new Set((Array.isArray(c?.collectionRules)?c.collectionRules:[]).map(r=>Number(r?.collectWeekday)).filter(v=>Number.isInteger(v)&&v>=0&&v<=6))];
+            for(let d=new Date(start);d<=end;d=qBillingAddDays(d,1))if(collectDays.includes(d.getDay()))dueDates.add(qBillingDateText(d));
+          }else if(mode==='下趟收上趟'){
+            const deliveryDays=[...new Set((Array.isArray(c?.deliveryWeekdays)?c.deliveryWeekdays:[]).map(Number).filter(v=>Number.isInteger(v)&&v>=0&&v<=6))];
+            for(let d=new Date(start);d<=end;d=qBillingAddDays(d,1))if(deliveryDays.includes(d.getDay()))dueDates.add(qBillingDateText(d));
+          }
+        }
+        // 相容：若既有未結清交易能推導出收款日，也納入同一行程集合，不建立第二套應收。
         for(const x of recv){
           const p=qBillingPeriodFor(c,x.record?.date||'');if(!p.ok)continue;
-          const d=qCollectionDueDateFor(c,p);if(!d.ok||!d.date)continue;
-          const k=p.key+'|'+d.date,cur=byDue.get(k)||{amount:0,period:p,due:d.date};
-          cur.amount+=qMoney(x.due);byDue.set(k,cur);
+          const d=qCollectionDueDateFor(c,p);if(d.ok&&d.date&&d.date<=horizon)dueDates.add(d.date);
         }
-        for(const z of byDue.values())if(z.amount>0&&z.due<=horizon)raw.push({
-          reminder_type:'supermarket_collection_due',due_date:z.due,
-          contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:z.amount,
-          period_start:z.period.start,period_end:z.period.end
+        for(const due of dueDates)raw.push({
+          reminder_type:'supermarket_collection_due',due_date:due,
+          contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:openAmount,
+          has_outstanding:openAmount>0
         });
         continue;
       }
@@ -5841,8 +5852,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
             amount=g.items.reduce((n,x)=>n+qMoney(x.amount),0),records=g.items.reduce((n,x)=>n+Number(x.record_count||0),0),wd=weekday(g.due_date);
       if(g.reminder_type==='supermarket_collection_due')return {
         reminder_type:g.reminder_type,source_key:'supermarket-collect-group|'+g.due_date,
-        title:wd+'｜'+people+' 位超市待收款｜'+qLedgerMoney(amount),
-        message:'收款日 '+g.due_date+'（'+wd+'）｜'+names.join('、')+'｜待收合計 '+qLedgerMoney(amount),
+        title:wd+'｜'+people+' 位超市收款'+(amount>0?'｜待收 '+qLedgerMoney(amount):''),
+        message:'收款日 '+g.due_date+'（'+wd+'）｜'+names.join('、')+'｜'+(amount>0?'目前待收合計 '+qLedgerMoney(amount):'目前無未結清，照正式收款排程提醒'),
         due_date:g.due_date,contact_count:people,amount,contact_names:names,items:g.items
       };
       return {
