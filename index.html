@@ -4344,6 +4344,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N184：盤點頁移除跨作用域 qDisplayNumber 依賴；往來對象打字不再每鍵重算/清空，差異調整核心不變。 -->
 <!-- N183：快速做帳所有已勾選容器共用正式容器事件核心；籃子保留計籃/回籃金額語意，鐵架與棧板/自訂容器使用領用/歸還並寫入實體 balanceDelta；鐵架名稱分帳保留。N177/N181查詢核心與四種列印未修改。 -->
 <!-- N185：周轉物動作核心統一：只有籃子＝計籃/回籃；鐵架、棧板與所有其他/未來新增容器＝領用/歸還。快速做帳沿用既有容器主檔與正式容器事件核心；不修改四種列印、查詢、盤點計算。 -->
+<!-- N186：容器查詢選籃子且未指定往來對象時，直接由正式容器事件核心彙總總欠籃／總餘籃／淨額及逐往來對象欠餘；不另建統計資料，不動快速做帳、盤點與四種列印。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -8013,6 +8014,16 @@ window.qNormalizeTurnAction=qN93TurnAction;
      rs=rs.slice().reverse();
      const who=term||'全部往來對象',kind=type||'全部容器',period=(from||to)?((from||'最早')+' ～ '+(to||'現在')):'全部期間';
      let summary='<div class="quickV2ContactHint" style="margin-bottom:10px"><b>'+esc(who)+'｜'+esc(kind)+'｜'+esc(period)+'｜共 '+rs.length+' 筆</b></div>';
+     /* N186：籃子總覽直接由同一批正式容器事件計算，不建立第二套統計資料。 */
+     if(type==='籃子'&&!term&&rs.length){
+       const groups=new Map();
+       rs.forEach(e=>{const name=String(e.canonicalContactName||e.customer||'').trim();const id=String(e.canonicalContactId||e.contactId||'').trim();const key=id||name;if(!key)return;if(!groups.has(key))groups.set(key,{name:name||id,events:[]});groups.get(key).events.push(e)});
+       let totalOwed=0,totalSurplus=0;const people=[];
+       groups.forEach(g=>{const b=(window.qContainerBalance?window.qContainerBalance(g.events):[]).find(x=>canonical(x.type)==='籃子');if(!b)return;const owed=Math.max(0,Number(b.owed)||0),surplus=Math.max(0,Number(b.surplus)||0);if(!owed&&!surplus)return;totalOwed+=owed;totalSurplus+=surplus;people.push({name:g.name,owed,surplus,net:surplus-owed})});
+       people.sort((a,b)=>Math.abs(b.net)-Math.abs(a.net)||a.name.localeCompare(b.name,'zh-Hant'));
+       const net=totalSurplus-totalOwed,netText=net<0?'欠 '+qN181DisplayNumber(Math.abs(net)):net>0?'餘 '+qN181DisplayNumber(net):'0';
+       summary+='<div class="quickV2Record"><b>🧺 籃子總覽</b><div style="margin-top:8px;font-size:16px"><b>總欠籃：'+qN181DisplayNumber(totalOwed)+'　｜　總餘籃：'+qN181DisplayNumber(totalSurplus)+'　｜　淨額：'+netText+'</b></div>'+(people.length?'<div style="margin-top:10px">'+people.map(x=>'<div>'+esc(x.name)+'｜'+(x.net<0?'欠 '+qN181DisplayNumber(Math.abs(x.net)):x.net>0?'餘 '+qN181DisplayNumber(x.net):'0')+'</div>').join('')+'</div>':'')+'</div>';
+     }
      if(term&&rs.length){const bal=window.qContainerBalance?window.qContainerBalance(rs):[];summary+=bal.map(x=>'<div class="quickV2ContactHint"><b>'+esc(x.type)+'合計：</b>'+(x.owed?'欠 '+qN181DisplayNumber(x.owed):(x.surplus?'餘 '+qN181DisplayNumber(x.surplus):'0'))+'</div>').join('');if((!type||type==='鐵架')&&window.qRackBalance){const rb=window.qRackBalance(rs);if(rb.length)summary+='<div class="quickV2Record"><b>鐵架名稱明細</b>'+rb.map(x=>'<div>'+esc(x.rackName)+'：'+(x.owed?'欠 '+qN181DisplayNumber(x.owed):(x.surplus?'餘 '+qN181DisplayNumber(x.surplus):'0'))+'｜'+x.events.length+'筆</div>').join('')+'</div>'}}
      work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>{const money=Number(e.amount)||0,unit=Math.abs(Number(e.unitPrice)||0),priced=unit>0&&['計籃','回籃','計價','退籃退費','買斷'].includes(String(e.action||'')),moneyOnly=e.source==='做帳'&&['計籃','回籃','計價','退籃退費'].includes(String(e.action||'')),rack=e.type==='鐵架'?(e.rackName?'（'+e.rackName+'）':'（未指定名稱）'):'';return '<div class="quickV2Record"><b>'+esc(e.date+'｜'+(e.canonicalContactName||e.customer||'公司庫存')+'｜'+canonical(e.type)+rack+'｜'+e.action+' '+e.qty+(priced?(' × '+(e.action==='回籃'?'-':'')+unit+' = '+qN177Money(money)) : ''))+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+(moneyOnly?'｜帳務計價；實體數量獨立計算':'')+'</div></div>'}).join(''):'<div class="empty">查無進出紀錄</div>');
      try{paintAsset()}catch(err){console.warn('容器資產摘要載入失敗，不影響歷史查詢：',err);const box=work.querySelector('#cqAssetSummary');if(box)box.innerHTML=''}
