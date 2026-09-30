@@ -6519,14 +6519,26 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       else if(r?.txnType==='payment'){kind='payment';label='付款'}
       return {record:r,kind,label,total:qMoney(r.amount||r.total),receivable:0,payable:0,isVoid,isDraft:false,pending:false,counts:!isVoid};
     }
-    if(qAccountingIsAdjustment(r)){kind='adjustment';label=r.txnTypeLabel||qAccountingAdjustmentLabel(r.mode);return {record:r,kind,label,total:qMoney(r.amount||r.total),receivable:0,payable:0,isVoid,isDraft:false,pending:false,counts:!isVoid}}
+    if(qAccountingIsAdjustment(r)){
+      kind='adjustment';label=r.txnTypeLabel||qAccountingAdjustmentLabel(r.mode);
+      const source=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x?.id||'')===String(r.sourceRecordId||''));
+      const sourceLabel=String(source?.txnTypeLabel||''),sourceDir=String(source?.accountDirection||''),amount=qMoney(r.amount||r.total);
+      if(source?.txnType==='sale'||sourceDir==='receivable'||sourceLabel==='銷貨')receivable=-amount;
+      else if(source?.txnType==='purchase'||sourceDir==='payable'||sourceLabel==='進貨')payable=-amount;
+      return {record:r,kind,label,total:amount,receivable,payable,isVoid,isDraft:false,pending:false,counts:!isVoid};
+    }
     if(r?.mode==='money_refund'){kind='refund';label='退款';return {record:r,kind,label,total:qMoney(r.amount||r.total),receivable:0,payable:0,isVoid,isDraft:false,pending:false,counts:!isVoid}}
     if(r?.txnType==='sale'||r?.accountDirection==='receivable'||label==='銷貨'){kind='sale';label=label||'銷貨';receivable=total}
     else if(r?.txnType==='purchase'||r?.accountDirection==='payable'||label==='進貨'){kind='purchase';label=label||'進貨';payable=total}
     const counts=!isVoid&&!isDraft&&!pending&&(kind==='sale'||kind==='purchase');
     return {record:r,kind,label,total,receivable:counts?receivable:0,payable:counts?payable:0,isVoid,isDraft,pending,counts};
   }
-  function qN124LedgerDirection(entry){return (entry.kind==='sale'||entry.kind==='receipt')?'receivable':((entry.kind==='purchase'||entry.kind==='payment')?'payable':'other')}
+  function qN124LedgerDirection(entry){
+    if(entry.kind==='sale'||entry.kind==='receipt')return 'receivable';
+    if(entry.kind==='purchase'||entry.kind==='payment')return 'payable';
+    if(entry.kind==='adjustment')return entry.receivable<0?'receivable':(entry.payable<0?'payable':'other');
+    return 'other';
+  }
   function qN124LedgerItemSummary(c,entry){
     const r=entry.record||{};
     if(r.mode==='money_settlement')return ((r.methods||[]).map(m=>(m.method||'')+' '+qLedgerMoney(m.amount||0)).join('＋')||r.note||'收付款');
@@ -6548,7 +6560,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const full=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='draft');
     const allEntries=full.map(r=>qLedgerEntry(r,c)).filter(x=>includeVoid||!x.isVoid).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
     let rr=0,rp=0;
-    allEntries.forEach(x=>{if(x.kind==='sale')rr+=x.receivable;else if(x.kind==='receipt'&&!x.isVoid)rr-=x.total;else if(x.kind==='purchase')rp+=x.payable;else if(x.kind==='payment'&&!x.isVoid)rp-=x.total;x.runningReceivable=Math.max(0,rr);x.runningPayable=Math.max(0,rp);x.direction=qN124LedgerDirection(x)});
+    allEntries.forEach(x=>{if(x.kind==='sale')rr+=x.receivable;else if(x.kind==='receipt'&&!x.isVoid)rr-=x.total;else if(x.kind==='purchase')rp+=x.payable;else if(x.kind==='payment'&&!x.isVoid)rp-=x.total;else if(x.kind==='adjustment'&&!x.isVoid){rr+=x.receivable;rp+=x.payable}x.runningReceivable=Math.max(0,rr);x.runningPayable=Math.max(0,rp);x.direction=qN124LedgerDirection(x)});
     const entries=allEntries.filter(x=>qAcctRecordInDateRange(x.record));
     const totals=qContactOpenTotals(c),pendingCount=full.filter(r=>r.status!=='void'&&r.pricingStatus==='pending_price').length;
     return {entries,receivable:totals.receivable,payable:totals.payable,pendingCount,allCount:allEntries.filter(x=>!x.isVoid).length};
