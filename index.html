@@ -4359,7 +4359,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N185：周轉物動作核心統一：只有籃子＝計籃/回籃；鐵架、棧板與所有其他/未來新增容器＝領用/歸還。快速做帳沿用既有容器主檔與正式容器事件核心；不修改四種列印、查詢、盤點計算。 -->
 <!-- N186：容器查詢選籃子且未指定往來對象時，直接由正式容器事件核心彙總總欠籃／總餘籃／淨額及逐往來對象欠餘；不另建統計資料，不動快速做帳、盤點與四種列印。 -->
 <!-- N187：帳務中心九分頁共用層級核心：第三層工作頁收起第二層卡片；返回鍵回所屬功能第二層；刷新依 acctNav 恢復相同層級。不修改各功能資料核心、容器事件核心與四種列印。 -->
-<!-- N192：快速做帳籃子實體餘欠核心：計籃=-qty、回籃=+qty；單價與實體數量分離。quick_v3/schemaVersion>=4 舊單缺 balanceDelta 時於正式容器事件正規化層相容，不修改四種列印。 -->
+<!-- N193：容器唯一餘欠核心＋期初建帳。所有欠餘只讀正式 balanceDelta；快速做帳新單存檔即寫入，舊做帳不反推。容器管理舊實體事件只在唯一正規化層轉成 balanceDelta。新增公司期初庫存與往來對象期初數量；不修改四種列印。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -7494,6 +7494,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(['buyout','buy-out','purchase','買斷'].includes(k))return '買斷';
     if(['company-purchase','company_purchase','公司購入','購入'].includes(k))return '公司購入';
     if(['opening-stock','opening_stock','期初庫存','期初'].includes(k))return '期初庫存';
+    if(['opening-balance','opening_balance','期初數量','期初往來'].includes(k))return '期初數量';
     if(['scrap','lost','loss','報廢','遺失','報廢／遺失','報廢/遺失'].includes(k))return '報廢／遺失';
     if(['adjust','adjustment','調整'].includes(k))return '調整';
     return String(v||'').trim();
@@ -7522,7 +7523,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       const type=String(t?.type??t?.assetType??t?.asset_type??t?.name??'').trim();
       const action=qN93TurnAction(t?.action??t?.movement??t?.verb??t?.direction);
       const qty=Math.abs(Number(t?.qty??t?.quantity??t?.count??0)||0);
-      if(!type||!qty||!['領用','使用','歸還','買斷','公司購入','期初庫存','報廢／遺失','調整','計籃','回籃','計價','退籃退費'].includes(action))return;
+      if(!type||!qty||!['領用','使用','歸還','買斷','公司購入','期初庫存','期初數量','報廢／遺失','調整','計籃','回籃','計價','退籃退費'].includes(action))return;
       const source=r.mode==='turnover_event'?'容器管理':'做帳';
       const who=qN172ResolveEventContact(r,t);
       const explicitStock=Number(t?.stockDelta??t?.stock_delta),explicitAsset=Number(t?.assetDelta??t?.asset_delta);
@@ -7535,11 +7536,18 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
         if(action==='公司購入'||action==='期初庫存')assetDelta=qty;
         else if(action==='買斷'||action==='報廢／遺失')assetDelta=-qty;
       }
-      // N192 舊單相容：N191 以前的 quick_v3 籃子列已建立正式容器事件，但未寫 balanceDelta。
-      // 只對 quick_v3/schemaVersion>=4 的籃子計籃／回籃補足實體方向；不改舊式純計價資料，也不改四種列印。
-      const storedBalance=Number(t?.balanceDelta??t?.balance_delta??0)||0;
-      const legacyQuickBasket=!storedBalance&&source==='做帳'&&String(r?.mode||'')==='quick_v3'&&Number(r?.schemaVersion||0)>=4&&type==='籃子'&&['計籃','回籃'].includes(action);
-      const balanceDelta=legacyQuickBasket?(action==='計籃'?-qty:qty):storedBalance;
+      // N193 唯一餘欠核心：欠／餘只認正式 balanceDelta。
+      // 做帳舊資料若當時未寫 balanceDelta，不再依計籃／回籃猜實體數量。
+      // 容器管理本來就是實體異動；舊事件若缺欄位，只在此唯一正規化層轉成正式方向。
+      const rawBalance=t?.balanceDelta??t?.balance_delta;
+      const hasBalance=rawBalance!==undefined&&rawBalance!==null&&rawBalance!==''&&Number.isFinite(Number(rawBalance));
+      let balanceDelta=hasBalance?Number(rawBalance):0;
+      if(!hasBalance&&source==='容器管理'){
+        if(action==='領用')balanceDelta=qty;
+        else if(action==='歸還')balanceDelta=-qty;
+        else if(action==='計籃')balanceDelta=-qty;
+        else if(action==='回籃')balanceDelta=qty;
+      }
       ev.push({id:String(r.id||r.local_id||'')+':'+ti,sourceRecordId:String(r.id||r.local_id||''),record:r,...who,date:String(r.date||''),createdAt:String(r.createdAt||r.created_at||r.updatedAt||r.updated_at||''),type,action,qty,unitPrice:Number(t?.unitPrice??t?.unit_price??0)||0,amount:Number(t?.amount??0)||0,note:String(t?.note||''),rackNameId:String(t?.rackNameId??t?.rack_name_id??''),rackName:String(t?.rackName??t?.rack_name??''),balanceDelta,stockDelta,assetDelta,rawQty:Number(t?.qty??t?.quantity??0)||0,source,_order:ri*100+ti});
     }));
     return ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.createdAt).localeCompare(String(b.createdAt))||a._order-b._order);
@@ -7551,19 +7559,14 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return (!!eid&&ids.includes(eid))||!!en&&names.includes(en);
   }
   function qN93ContainerEventsForContact(c){return !c?[]:qN93AllContainerEvents().filter(e=>qN172EventBelongs(e,c))}
-  /* N166：帳務計價與實體籃數完全分離。做帳的計籃/回籃只算錢；實體籃數只由容器管理 movement / 盤點改變。 */ function qN93ContainerBalance(events){
+  /* N193：唯一容器欠餘計算核心。所有來源都先正規化成 balanceDelta；此處不再依 action 第二次推算。 */ function qN93ContainerBalance(events){
   const by={};
   for(const e of events||[]){
     const x=by[e.type]||(by[e.type]={type:e.type,owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);
-    const explicitDelta=Number(e.balanceDelta)||0;
-    const accountingOnly=e.source==='做帳'&&['計籃','回籃','計價','退籃退費'].includes(String(e.action||''))&&!explicitDelta;
-    if(accountingOnly)continue;
-    if(explicitDelta){if(explicitDelta>0){let q=explicitDelta,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else{let q=Math.abs(explicitDelta),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}}
-    else if(e.action==='領用'){x.surplus+=e.qty}
-    else if(e.action==='使用'||e.action==='計籃'||e.action==='計價'){let q=e.qty,from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}
-    else if(e.action==='歸還'||e.action==='回籃'||e.action==='退籃退費'){let q=e.qty,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}
-    else if(e.action==='買斷')x.buyout+=e.qty;
-    else if(e.action==='調整'){const d=e.balanceDelta||e.rawQty||0;if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}}
+    const d=Number(e.balanceDelta)||0;
+    if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}
+    else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}
+    if(e.action==='買斷')x.buyout+=Number(e.qty)||0;
   }
   return Object.values(by);
 }
@@ -7585,13 +7588,10 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
    return out;
  }
  function qN169RackBalance(events){
-   const rows=(events||[]).filter(e=>String(e.type)==='鐵架'),by={};
-   for(const e of rows){const key=String(e.rackNameId||e.rackName||'__unspecified__'),x=by[key]||(by[key]={rackNameId:e.rackNameId||'',rackName:e.rackName||'未指定鐵架名稱',owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);const d=Number(e.balanceDelta)||0;if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}else if(e.action==='領用'){x.surplus+=e.qty}else if(e.action==='使用'||e.action==='計籃'||e.action==='計價'){let q=e.qty,from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}else if(e.action==='歸還'||e.action==='回籃'||e.action==='退籃退費'){let q=e.qty,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(e.action==='買斷')x.buyout+=e.qty}
-   return Object.values(by);
- }
- window.qRackNamesForContact=qN169RackNamesForContact;window.qRackBalance=qN169RackBalance;
- /* N167：公司容器資產總帳。
-   customer owed/surplus、公司實體庫存(stockDelta)、公司資產(assetDelta)三條帳完全分離。 */
+  const by={};
+  (events||[]).filter(e=>canonical(e.type)==='鐵架').forEach(e=>{const key=String(e.rackNameId||e.rackName||'__unspecified__'),x=by[key]||(by[key]={rackNameId:e.rackNameId||'',rackName:e.rackName||'未指定鐵架名稱',owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);const d=Number(e.balanceDelta)||0;if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}if(e.action==='買斷')x.buyout+=Number(e.qty)||0});
+  return Object.values(by);
+}
 function qN167ContainerAssetSummary(type=''){
   const want=type?String(type):'';
   const all=qN93AllContainerEvents().filter(e=>!want||String(e.type)===want);
@@ -8078,12 +8078,17 @@ window.qNormalizeTurnAction=qN93TurnAction;
    };paint()
  }
  function renderInventory(work){
-   work.innerHTML='<div class="quickV2"><b>📋 盤點／差異</b><div class="helper" style="display:block!important;margin:6px 0 10px">盤點只建立差異調整，不改寫歷史。鐵架必須指定對應名稱，各名稱分開盤點。</div><div class="xrInventoryForm"><div class="field"><label class="label">種類 *</label><select id="ciType" class="input"><option value="">請選擇</option>'+typeOptions()+'</select></div><div class="field"><label class="label">往來對象 *</label><input id="ciContact" class="input" list="ciContactList" autocomplete="off" placeholder="輸入名稱／編號／車號"><datalist id="ciContactList"></datalist></div><div class="field" id="ciRackBox" style="display:none"><label class="label">鐵架名稱 *</label><select id="ciRack" class="input"><option value="">請選擇</option></select></div><div class="field"><label class="label">實際餘／欠數 *</label><input id="ciActual" class="input" type="number" step="1" placeholder="餘50輸入 50；欠20輸入 -20"></div><div class="xrFilterBtns"><button id="ciSave" class="btn primary">建立差異調整</button></div></div><div class="helper" style="display:block!important;margin-top:5px">正數＝餘｜負數＝欠</div><div id="ciState" class="quickV2ContactHint" style="margin-top:8px"></div></div>';
+   work.innerHTML='<div class="quickV2"><b>📋 盤點／差異</b><div class="helper" style="display:block!important;margin:6px 0 10px">盤點只建立差異調整，不改寫歷史。鐵架必須指定對應名稱，各名稱分開盤點。</div><div class="xrInventoryForm"><div class="field"><label class="label">種類 *</label><select id="ciType" class="input"><option value="">請選擇</option>'+typeOptions()+'</select></div><div class="field"><label class="label">往來對象 *</label><input id="ciContact" class="input" list="ciContactList" autocomplete="off" placeholder="輸入名稱／編號／車號"><datalist id="ciContactList"></datalist></div><div class="field" id="ciRackBox" style="display:none"><label class="label">鐵架名稱 *</label><select id="ciRack" class="input"><option value="">請選擇</option></select></div><div class="field"><label class="label">實際餘／欠數 *</label><input id="ciActual" class="input" type="number" step="1" placeholder="餘50輸入 50；欠20輸入 -20"></div><div class="xrFilterBtns"><button id="ciSave" class="btn primary">建立差異調整</button></div></div><div class="helper" style="display:block!important;margin-top:5px">正數＝餘｜負數＝欠</div><div id="ciState" class="quickV2ContactHint" style="margin-top:8px"></div></div>'+
+   '<div class="quickV2" style="margin-top:14px"><b>📌 期初建帳</b><div class="helper" style="display:block!important;margin:6px 0 10px">第一次把現有容器帶入系統。公司自己的籃子／棧板用「公司現有庫存」；廠商鐵架或往來對象目前欠／餘數用「往來對象期初數」。期初會留下正式事件，不改寫舊歷史。</div><div class="xrInventoryForm"><div class="field"><label class="label">期初類型 *</label><select id="coMode" class="input"><option value="company">公司現有庫存</option><option value="contact">往來對象期初數</option></select></div><div class="field"><label class="label">種類 *</label><select id="coType" class="input"><option value="">請選擇</option>'+typeOptions()+'</select></div><div class="field" id="coContactBox" style="display:none"><label class="label">往來對象 *</label><input id="coContact" class="input" list="coContactList" autocomplete="off" placeholder="輸入名稱／編號／車號"><datalist id="coContactList"></datalist></div><div class="field" id="coRackBox" style="display:none"><label class="label">鐵架名稱 *</label><select id="coRack" class="input"><option value="">請選擇</option></select></div><div class="field"><label class="label" id="coQtyLabel">現有數量 *</label><input id="coQty" class="input" type="number" step="1" placeholder="例如 150"></div><div class="xrFilterBtns"><button id="coSave" class="btn primary">建立期初</button></div></div><div id="coHelp" class="helper" style="display:block!important;margin-top:5px">公司現有庫存只接受正數，會建立期初公司資產與庫存。</div><div id="coState" class="quickV2ContactHint" style="margin-top:8px"></div></div>';
    const te=work.querySelector('#ciType'),ce=work.querySelector('#ciContact'),dl=work.querySelector('#ciContactList'),state=work.querySelector('#ciState'),actualEl=work.querySelector('#ciActual'),re=work.querySelector('#ciRack'),rb=work.querySelector('#ciRackBox');const invNum=v=>{const n=Number(v);return Number.isFinite(n)?n.toLocaleString('zh-TW',{maximumFractionDigits:3,useGrouping:false}):String(v??'')};const netText=n=>n>0?'餘'+invNum(n):n<0?'欠'+invNum(Math.abs(n)):'0';
    const current=()=>{const c=contactBy(ce.value,te.value);if(!c||!te.value)return {c:null,net:0,rack:null};const rack=te.value==='鐵架'?rackNamesForContact(c).find(x=>x.id===re.value):null;const ev=(window.qAllContainerEvents?window.qAllContainerEvents():[]).filter(e=>eventBelongs(e,c)&&canonical(e.type)===canonical(te.value)&&(te.value!=='鐵架'||(rack&&String(e.rackNameId||'')===String(rack.id))));const b=te.value==='鐵架'&&window.qRackBalance?(window.qRackBalance(ev)[0]||{}):((window.qContainerBalance?window.qContainerBalance(ev):[])[0]||{});return {c,rack,net:(Number(b.surplus)||0)-(Number(b.owed)||0)}};
    const paint=()=>{const z=current();if(!z.c||!te.value){state.textContent='請先選種類與往來對象';return}if(te.value==='鐵架'&&!z.rack){state.textContent='請選擇鐵架名稱後再盤點';return}const raw=actualEl.value.trim(),actual=raw===''?NaN:Number(raw);state.textContent='系統目前：'+netText(z.net)+(Number.isFinite(actual)?('｜實際：'+netText(actual)+'｜差異：'+(actual-z.net>=0?'+':'')+invNum(actual-z.net)):'')};
    const sync=()=>{dl.innerHTML=te.value?contactListHtml(te.value):'';const c=contactBy(ce.value,te.value),isRack=te.value==='鐵架';rb.style.display=isRack?'block':'none';const keep=re.value;re.innerHTML='<option value="">請選擇</option>'+(isRack&&c?rackOptions(c):'');if([...re.options].some(o=>o.value===keep))re.value=keep;paint()};te.onchange=sync;ce.onchange=sync;ce.onblur=sync;re.onchange=paint;actualEl.oninput=paint;sync();
-   work.querySelector('#ciSave').onclick=async()=>{const z=current(),actual=Number(actualEl.value);if(!z.c||!te.value||!Number.isFinite(actual))return alert('請完整選擇種類、往來對象並輸入實際數量');if(te.value==='鐵架'&&!z.rack)return alert('請選擇鐵架名稱');const diff=actual-z.net;if(!diff)return alert('實際數量與系統相同，不需要建立調整');const now=new Date().toISOString(),r={id:'turn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),date:today(),customer:z.c.name,contactId:z.c.id||'',mode:'turnover_event',txnType:'turnover',txnTypeLabel:'容器盤點調整',accountDirection:'',items:[],turnoverAmount:0,total:0,status:'completed',turnover:{type:canonical(te.value),action:'調整',qty:Math.abs(diff),unitPrice:0,amount:0,note:'盤點差異：系統 '+z.net+' → 實際 '+actual,rackNameId:z.rack?.id||'',rackName:z.rack?.name||'',balanceDelta:diff,stockDelta:0,assetDelta:0},createdAt:now,updatedAt:now};try{await saveAccountingCloud(r);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();actualEl.value='';paint();alert('差異調整已建立')}catch(e){alert('盤點調整儲存失敗：'+(e?.message||e))}}
+   work.querySelector('#ciSave').onclick=async()=>{const z=current(),actual=Number(actualEl.value);if(!z.c||!te.value||!Number.isFinite(actual))return alert('請完整選擇種類、往來對象並輸入實際數量');if(te.value==='鐵架'&&!z.rack)return alert('請選擇鐵架名稱');const diff=actual-z.net;if(!diff)return alert('實際數量與系統相同，不需要建立調整');const now=new Date().toISOString(),r={id:'turn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),date:today(),customer:z.c.name,contactId:z.c.id||'',mode:'turnover_event',txnType:'turnover',txnTypeLabel:'容器盤點調整',accountDirection:'',items:[],turnoverAmount:0,total:0,status:'completed',turnover:{type:canonical(te.value),action:'調整',qty:Math.abs(diff),unitPrice:0,amount:0,note:'盤點差異：系統 '+z.net+' → 實際 '+actual,rackNameId:z.rack?.id||'',rackName:z.rack?.name||'',balanceDelta:diff,stockDelta:0,assetDelta:0},createdAt:now,updatedAt:now};try{await saveAccountingCloud(r);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();actualEl.value='';paint();alert('差異調整已建立')}catch(e){alert('盤點調整儲存失敗：'+(e?.message||e))}};
+   const om=work.querySelector('#coMode'),ot=work.querySelector('#coType'),oc=work.querySelector('#coContact'),ocl=work.querySelector('#coContactList'),ocb=work.querySelector('#coContactBox'),orb=work.querySelector('#coRackBox'),orack=work.querySelector('#coRack'),oq=work.querySelector('#coQty'),ol=work.querySelector('#coQtyLabel'),oh=work.querySelector('#coHelp'),os=work.querySelector('#coState');
+   const syncOpening=()=>{const contactMode=om.value==='contact';ocb.style.display=contactMode?'block':'none';ol.textContent=contactMode?'期初餘／欠數 *':'現有數量 *';oq.placeholder=contactMode?'餘3輸入 3；欠5輸入 -5':'例如 150';oh.textContent=contactMode?'正數＝目前餘／保管；負數＝目前欠。鐵架必須選對應名稱。':'公司現有庫存只接受正數，會建立期初公司資產與庫存。';ocl.innerHTML=contactMode&&ot.value?contactListHtml(ot.value):'';const c=contactMode?contactBy(oc.value,ot.value):null,isRack=contactMode&&ot.value==='鐵架';orb.style.display=isRack?'block':'none';const keep=orack.value;orack.innerHTML='<option value="">請選擇</option>'+(isRack&&c?rackOptions(c):'');if([...orack.options].some(o=>o.value===keep))orack.value=keep;os.textContent=contactMode?(c?(isRack&&!orack.value?'請選擇鐵架名稱':'將建立 '+c.name+'｜'+ot.value+(isRack?'（'+(orack.options[orack.selectedIndex]?.text||'')+'）':'')+' 的期初欠餘'):'請選擇往來對象'):(ot.value?'將建立公司 '+ot.value+' 的期初資產／庫存':'請選擇種類')};
+   om.onchange=syncOpening;ot.onchange=syncOpening;oc.onchange=syncOpening;oc.onblur=syncOpening;orack.onchange=syncOpening;syncOpening();
+   work.querySelector('#coSave').onclick=async()=>{const contactMode=om.value==='contact',type=ot.value,raw=Number(oq.value);if(!type||!Number.isFinite(raw)||raw===0)return alert('請選擇種類並輸入非 0 的期初數量');let c=null,rack=null;if(contactMode){c=contactBy(oc.value,type);if(!c)return alert('請選擇往來對象');if(type==='鐵架'){rack=rackNamesForContact(c).find(x=>x.id===orack.value);if(!rack)return alert('請選擇鐵架名稱')}}else if(raw<0)return alert('公司現有庫存請輸入正數');const qty=Math.abs(raw),now=new Date().toISOString(),r={id:'turn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),date:today(),customer:contactMode?c.name:'公司庫存',contactId:contactMode?(c.id||''):'',mode:'turnover_event',txnType:'turnover',txnTypeLabel:'容器期初建帳',accountDirection:'',items:[],turnoverAmount:0,total:0,status:'completed',turnover:{type:canonical(type),action:contactMode?'期初數量':'期初庫存',qty,unitPrice:0,amount:0,note:'期初建帳',rackNameId:rack?.id||'',rackName:rack?.name||'',balanceDelta:contactMode?raw:0,stockDelta:contactMode?0:qty,assetDelta:contactMode?0:qty},createdAt:now,updatedAt:now};if(!confirm('確定建立期初建帳？\n'+(contactMode?(c.name+'｜'+type+(rack?'（'+rack.name+'）':'')+'｜'+netText(raw)):('公司｜'+type+'｜'+qty))))return;try{await saveAccountingCloud(r);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();oq.value='';syncOpening();paint();alert('期初建帳已建立')}catch(e){alert('期初建帳儲存失敗：'+(e?.message||e))}};
  }
  function qN168RenderContainerAction(action,work,skipNavSave=false){if(!work)return false;if(action==='📥📤 進出紀錄')renderMovement(work);else if(String(action||'').startsWith('🔍'))renderQuery(work);else if(String(action||'').startsWith('📋'))renderInventory(work);else if(String(action||'').startsWith('⚙️'))renderSettings(work);else return false;if(!skipNavSave)window.xrAccountingNav?.write?.({layer:'action',section:'turnover',action:action,recordId:'',detailId:'',backMode:'',searchTerm:''});return true} window.qRenderContainerAction=qN168RenderContainerAction;
  /* N189：容器管理不再用 document capture 攔截第二層按鈕。
