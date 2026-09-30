@@ -5790,7 +5790,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   window.xrAccountingReminderEvents=function(){
     // N149：先沿用既有帳期／收款核心產生明細，再依「到期日＋提醒類型」彙整。
     // 不建立第二套帳務資料；source_data.items 保留每一位往來對象的原始明細。
-    const raw=[],today=qToday(),ps=qProfiles(),all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
+    // N150：行程式提醒。今天起可預先看到未來 14 天內已能由正式帳期／收款排程確定的工作。
+    // 過去尚未處理的提醒仍保留；只限制未來上限，避免一次建立過遠的行程。
+    const raw=[],today=qToday(),horizon=qBillingDateText(qBillingAddDays(qBillingParseDate(today),14)),ps=qProfiles(),all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
     for(const c of ps){
       const ident=String(c.identity||c.type||'').trim(),cid=String(c.id||c.code||c.name||'');
       if(!cid)continue;
@@ -5803,7 +5805,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
           const k=p.key+'|'+d.date,cur=byDue.get(k)||{amount:0,period:p,due:d.date};
           cur.amount+=qMoney(x.due);byDue.set(k,cur);
         }
-        for(const z of byDue.values())if(z.amount>0&&z.due<=today)raw.push({
+        for(const z of byDue.values())if(z.amount>0&&z.due<=horizon)raw.push({
           reminder_type:'supermarket_collection_due',due_date:z.due,
           contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:z.amount,
           period_start:z.period.start,period_end:z.period.end
@@ -5819,9 +5821,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
         const cur=byPeriod.get(p.key)||{amount:0,count:0,period:p};
         cur.amount+=qMoney(qRecordTotal(r));cur.count+=1;byPeriod.set(p.key,cur);
       }
-      for(const z of byPeriod.values())if(z.count>0&&z.period.end<today)raw.push({
+      // 帳期工作日就是帳期結束日（例如週結＝星期六），不是隔天才第一次提醒。
+      for(const z of byPeriod.values())if(z.count>0&&z.period.end<=horizon)raw.push({
         reminder_type:'billing_period_statement_due',
-        due_date:qBillingDateText(qBillingAddDays(qBillingParseDate(z.period.end),1)),
+        due_date:z.period.end,
         contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:z.amount,
         period_start:z.period.start,period_end:z.period.end,record_count:z.count
       });
@@ -5839,13 +5842,13 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(g.reminder_type==='supermarket_collection_due')return {
         reminder_type:g.reminder_type,source_key:'supermarket-collect-group|'+g.due_date,
         title:wd+'｜'+people+' 位超市待收款｜'+qLedgerMoney(amount),
-        message:'收款日 '+g.due_date+'｜'+names.join('、')+'｜待收合計 '+qLedgerMoney(amount),
+        message:'收款日 '+g.due_date+'（'+wd+'）｜'+names.join('、')+'｜待收合計 '+qLedgerMoney(amount),
         due_date:g.due_date,contact_count:people,amount,contact_names:names,items:g.items
       };
       return {
         reminder_type:g.reminder_type,source_key:'billing-statement-group|'+g.due_date,
         title:wd+'｜'+people+' 位待做帳／待傳帳單',
-        message:'到期日 '+g.due_date+'｜'+names.join('、')+'｜共 '+records+' 筆正式交易｜本期合計 '+qLedgerMoney(amount),
+        message:'工作日 '+g.due_date+'（'+wd+'）｜'+names.join('、')+'｜共 '+records+' 筆正式交易｜本期合計 '+qLedgerMoney(amount),
         due_date:g.due_date,contact_count:people,amount,record_count:records,contact_names:names,items:g.items
       };
     }).sort((a,b)=>String(a.due_date).localeCompare(String(b.due_date))||String(a.reminder_type).localeCompare(String(b.reminder_type)));
