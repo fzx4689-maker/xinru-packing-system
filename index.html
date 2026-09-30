@@ -6514,7 +6514,18 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const centerHelp=directionPreset==='payment'?'只處理實際付出的款項；從應付未結清交易進行沖帳。':directionPreset==='receipt'?'只處理實際收到的款項；從應收未結清交易進行沖帳。':'銷貨形成應收、進貨形成應付；實際收到／付出的錢在這裡沖帳。';
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>'+centerTitle+'</b><div class="helper" style="display:block!important;margin-top:5px">'+centerHelp+'</div></div></div><div class="field" style="margin-top:10px"><label class="label">往來對象／編號／車號</label><input id="qMoneyEntity" class="input" list="qMoneyList" autocomplete="off"><datalist id="qMoneyList">'+opts+'</datalist></div><div id="qMoneyBody"></div></div>';
     const inp=work.querySelector('#qMoneyEntity'),body=work.querySelector('#qMoneyBody');let direction=directionPreset||'',suppressPrefillOnce=false;
-    const qMoneyOpenContacts=(dir,query='')=>{const q=qNormKey(query);return ps.map(c=>({c,tot:qContactOpenTotals(c)})).map(x=>({c:x.c,due:dir==='payment'?x.tot.payable:x.tot.receivable})).filter(x=>x.due>0.000001).filter(x=>!q||[x.c.name,x.c.code,...(x.c.vehicles||[]).map(v=>v.plate)].some(v=>qNormKey(v).includes(q))).sort((a,b)=>b.due-a.due||String(a.c.name||'').localeCompare(String(b.c.name||'')))};
+    // N147：待收／待付清單的候選對象不能只靠目前往來主檔。舊交易可能仍使用舊 contactId／名稱／編號；
+    // 搜尋能由交易反查時，預設清單也必須使用同一套歸戶來源，避免『搜尋得到、清單卻是 0』。
+    const qMoneyContactCandidates=()=>{
+      const out=[],seen=new Set(),push=c=>{if(!c)return;const ident=qContactLedgerIdentity(c),key=[...ident.ids].sort().join('|')+'#'+[...ident.aliases].sort().join('|');if(!key||seen.has(key))return;seen.add(key);out.push(c)};
+      ps.forEach(push);
+      (typeof acctRecords==='function'?acctRecords():[]).filter(Boolean).forEach(r=>{
+        const c=qContact(r.contactId||r.customer||r.lookupInput||r.vehiclePlate||'');
+        if(c)push(c);
+      });
+      return out;
+    };
+    const qMoneyOpenContacts=(dir,query='')=>{const q=qNormKey(query);return qMoneyContactCandidates().map(c=>({c,tot:qContactOpenTotals(c)})).map(x=>({c:x.c,due:dir==='payment'?x.tot.payable:x.tot.receivable})).filter(x=>x.due>0.000001).filter(x=>!q||[x.c.name,x.c.formalName,x.c.code,...(x.c.vehicles||[]).map(v=>v.plate),...(Array.isArray(x.c._ledgerAliases)?x.c._ledgerAliases:[])].some(v=>qNormKey(v).includes(q))).sort((a,b)=>b.due-a.due||String(a.c.name||'').localeCompare(String(b.c.name||'')))};
     const paintOpenList=(query='')=>{const dir=direction||directionPreset||'receipt',label=dir==='payment'?'待付款':'待收款',rows=qMoneyOpenContacts(dir,query),total=rows.reduce((a,x)=>a+x.due,0);body.innerHTML='<div class="quickV2ContactHint" style="margin-top:10px"><b>'+label+'｜'+rows.length+' 個往來對象｜'+qLedgerMoney(total)+'</b><div class="helper">直接點往來對象處理；上方搜尋只用來快速縮小清單。此清單使用完整歷史未結清餘額，不受日期查詢影響。</div></div><div class="acctQueueList" style="margin-top:10px">'+(rows.length?rows.map(x=>'<button type="button" class="acctQueueRow" data-money-open="'+qEsc(x.c.id||x.c.contactId||x.c.code||x.c.name)+'" style="width:100%;text-align:left;cursor:pointer"><div><b>'+qEsc(x.c.code?x.c.code+'｜'+x.c.name:x.c.name)+'</b><div class="helper">'+qEsc(x.c.identity||x.c.type||'')+'</div></div><div style="display:flex;align-items:center;gap:10px"><strong>'+qLedgerMoney(x.due)+'</strong><span>處理 →</span></div></button>').join(''):'<div class="empty">目前沒有'+label+'資料</div>')+'</div>';body.querySelectorAll('[data-money-open]').forEach(b=>b.onclick=()=>{const c=qContact(b.dataset.moneyOpen);if(!c)return;presetContact=c;inp.value=String(c.code||c.name||'');paint()})};
     // N55：preset 可能是固定 contactId。固定 ID 必須直接解析主檔，不可塞進一般搜尋框。
     let presetContact=preset?qContact(preset):null;
