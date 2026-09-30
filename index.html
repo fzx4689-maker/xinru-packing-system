@@ -7954,28 +7954,29 @@ window.qNormalizeTurnAction=qN93TurnAction;
    work.querySelector('#ctSave').onclick=async()=>{const type=te.value,action=ae.value,date=work.querySelector('#ctDate').value,qty=Math.abs(Number(work.querySelector('#ctQty').value)||0),unitPrice=Math.max(0,Number(work.querySelector('#ctPrice').value)||0),amount=unitPrice*qty*(action==='回籃'?-1:1),note=work.querySelector('#ctNote').value.trim(),isCompany=['公司購入','期初庫存','報廢／遺失'].includes(action),c=isCompany?null:contactBy(ce.value,type),rack=(type==='鐵架'&&!isCompany&&c)?rackNamesForContact(c).find(x=>x.id===re.value):null;if(!date||!type||!qty||(!isCompany&&!c)){alert(isCompany?'請完整填寫日期、種類、動作與數量':'請完整填寫日期、種類、往來對象、動作與數量');return}if(type==='鐵架'&&!isCompany&&!rack){alert('請選擇鐵架對應名稱；每個鐵架名稱必須分開記錄數量');return}let stockDelta=0,assetDelta=0,balanceDelta=0;if(action==='公司購入'||action==='期初庫存'){stockDelta=qty;assetDelta=qty}else if(action==='報廢／遺失'){stockDelta=-qty;assetDelta=-qty}else if(action==='領用'){stockDelta=-qty;balanceDelta=qty}else if(action==='計籃'){balanceDelta=-qty}else if(action==='回籃'){stockDelta=qty;balanceDelta=qty}else if(action==='買斷'){assetDelta=-qty;balanceDelta=qty}const now=new Date().toISOString(),base=old?.record?{...old.record}:{id:'turn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),createdAt:now};Object.assign(base,{date,customer:isCompany?'公司庫存':c.name,contactId:isCompany?'':(c.id||''),mode:'turnover_event',txnType:'turnover',txnTypeLabel:'容器進出',accountDirection:'',items:[],turnoverAmount:amount,total:amount,status:'completed',turnover:{type:canonical(type),action,qty,unitPrice,amount,note,rackNameId:rack?.id||'',rackName:rack?.name||'',balanceDelta,stockDelta,assetDelta},updatedAt:now});try{await saveAccountingCloud(base);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();renderMovement(work)}catch(e){alert('儲存失敗：'+(e?.message||e))}};
    work.querySelector('#ctRecent').onclick=async e=>{const eb=e.target.closest('[data-ct-edit]');if(eb){renderMovement(work,eb.dataset.ctEdit);return}const vb=e.target.closest('[data-ct-void]');if(!vb)return;const ev=records().find(x=>String(x.sourceRecordId)===String(vb.dataset.ctVoid));if(!ev||!confirm('作廢這筆 '+ev.type+' '+ev.action+' '+ev.qty+'？'))return;try{await saveAccountingCloud({...ev.record,status:'void',voidedAt:new Date().toISOString(),updatedAt:new Date().toISOString()});if(typeof loadAccountingCloud==='function')await loadAccountingCloud();renderMovement(work)}catch(err){alert('作廢失敗：'+(err?.message||err))}}
  }
+ function qN176NormContactKey(v){return String(v||'').trim().toLowerCase().replace(/[\s　]+/g,'').replace(/[｜|]/g,'')}
  function historicalContactOptions(type=''){
    const aa=type?aliasesFor(type):null,seen=new Map();
    records().forEach(e=>{
      if(type&&!(aa.has(String(e.type||''))||canonical(e.type)===canonical(type)))return;
      const id=String(e.canonicalContactId||e.contactId||'').trim(),name=String(e.canonicalContactName||e.customer||'').trim();
      if(!id&&!name)return;
-     const key=qN172NormContactKey(name||id);
+     const key=qN176NormContactKey(name||id);
      if(!seen.has(key))seen.set(key,{id,name,label:name||id});
    });
    contacts().forEach(c=>{
-     const name=String(c.name||c.formalName||'').trim(),id=String(c.id||'').trim(),key=qN172NormContactKey(name||id);
+     const name=String(c.name||c.formalName||'').trim(),id=String(c.id||'').trim(),key=qN176NormContactKey(name||id);
      if(key&&!seen.has(key))seen.set(key,{id,name,label:contactLabel(c)});
    });
    return [...seen.values()].filter(x=>x.label)
  }
  function qN174EventContactMatch(e,term){
-   const k=qN172NormContactKey(term);if(!k)return true;
-   const vals=[e?.canonicalContactName,e?.customer,e?.canonicalContactId,e?.contactId].map(qN172NormContactKey).filter(Boolean);
+   const k=qN176NormContactKey(term);if(!k)return true;
+   const vals=[e?.canonicalContactName,e?.customer,e?.canonicalContactId,e?.contactId].map(qN176NormContactKey).filter(Boolean);
    if(vals.some(v=>v===k))return true;
-   const c=contacts().find(x=>[x?.id,x?.name,x?.formalName,x?.code].map(qN172NormContactKey).filter(Boolean).some(v=>v===k));
+   const c=contacts().find(x=>[x?.id,x?.name,x?.formalName,x?.code].map(qN176NormContactKey).filter(Boolean).some(v=>v===k));
    if(!c)return false;
-   const ck=[c.id,c.name,c.formalName,c.code].map(qN172NormContactKey).filter(Boolean);
+   const ck=[c.id,c.name,c.formalName,c.code].map(qN176NormContactKey).filter(Boolean);
    return vals.some(v=>ck.includes(v));
  }
  function renderQuery(work){
@@ -8044,5 +8045,5 @@ window.qNormalizeTurnAction=qN93TurnAction;
  window.n145ChooseAnnouncementPeople=choosePeople;window.n145RecipientIds=recipientIds;window.n145SaveRecipients=saveRecipients;window.n145OpenPending=openPending;window.n145OpenRules=openRules;
 })();
 </script>
-<!-- N172：容器事件唯一正規化核心；歷史查詢不受目前容器啟用限制；盤點/資產共用 canonical identity；應收/應付顯式保存。 -->
+<!-- N176：容器歷史查詢作用域核心修正；查詢使用同一 IIFE 內的身份正規化，不再引用不可見的 N172 私有函式。 -->
 </body></html>
