@@ -6649,6 +6649,25 @@ let qN217IdentityCache = new WeakMap();
   async function qShareLine(record){return qPreviewBill(record,true)}
   // N98：四種正式輸出只吃同一份完整明細模型；一般/大量只影響報表紙呈現，不改資料。
   function qN98Money(v){return Number(v)||0}
+  // N222：帳務中央明細標準化核心。退貨／扣款／折讓／退款在這裡一次轉成正式明細，
+  // 帳本與四種輸出只讀這一層；不修改 N147 有效金額、sourceRecordId、收付款或原交易。
+  function qN222AdjustmentDetail(record){
+    if(!record||!qAccountingIsAdjustment(record))return null;
+    const label=record.txnTypeLabel||qAccountingAdjustmentLabel(record.mode)||'調整',amount=Math.abs(qN98Money(record.amount??record.total));
+    const ri=record.returnItem||null;
+    if(record.mode==='goods_return'&&ri){
+      return {label,name:'退貨｜'+String(ri.name||'未命名'),kg:ri.kg??'',qty:ri.qty??'',amount:-amount,reason:String(record.reason||'').trim(),note:String(record.note||'').trim()};
+    }
+    return {label,name:label+(record.reason?('｜'+String(record.reason).trim()):''),kg:'',qty:'',amount:-amount,reason:String(record.reason||'').trim(),note:String(record.note||'').trim()};
+  }
+  function qN222RowsFromAdjustment(record,contact){
+    const d=qN222AdjustmentDetail(record);if(!d)return [];
+    return [{kind:'adjustment',date:record.date||'',recordId:record.id||'',no:'',name:d.name,kg:d.kg,qty:d.qty,pricing:'',price:'',goods:d.amount,freight:0,amount:d.amount,adjustmentMode:record.mode||'',adjustmentLabel:d.label,sourceRecordId:record.sourceRecordId||'',reason:d.reason,note:d.note,contactId:record.contactId||'',contactName:record.customer||contact?.name||'',createdAt:record.createdAt||''}];
+  }
+  function qN222RowsFromActivity(record,contact){
+    if(qAccountingIsAdjustment(record))return qN222RowsFromAdjustment(record,contact);
+    return qN98RowsFromRecord(record,contact);
+  }
   function qN98RowsFromRecord(record,contact){
     const rows=[];
     (record?.items||[]).forEach((x,i)=>{const vendorPayable=String(contact?.identity||contact?.type||'')==='廠商'&&(record?.txnType==='purchase'||record?.accountDirection==='payable'||record?.txnTypeLabel==='進貨'),storedFreight=qN98Money(x.freight),freight=vendorPayable?0:storedFreight,amount=x.amount===''?'':qN98Money(x.amount),goods=amount===''?'':Math.max(0,amount-storedFreight),projectedAmount=amount===''?'':goods+freight;rows.push({kind:'item',date:record.date||'',recordId:record.id||'',no:i+1,name:String(x.name||'').trim(),kg:(String(x.itemStatus||'').trim()&&String(x.itemStatus||'').trim()!=='正常'&&String(x.itemStatus||'').trim()!=='normal'?String(x.itemStatus||'').trim():(x.kg??'')),qty:x.qty??'',pricing:qPricingText(x.pricing||'piece',x.pricingUnit),price:x.price??'',goods,freight,amount:projectedAmount,contactId:record.contactId||'',contactName:record.customer||contact?.name||''})});
@@ -6680,8 +6699,8 @@ function qN107ContainerRows(contact,range){
     });
 }
 function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.recordId||'').localeCompare(String(b.recordId||'')));}
-  function qN98SettlementRow(r,contact){const methods=(r?.methods||[]).map(m=>(m.method||'')+(qN98Money(m.amount)?(' $'+Math.round(qN98Money(m.amount)).toLocaleString('zh-TW')):'')).filter(Boolean).join('＋');return {kind:'settlement',date:r?.date||'',recordId:r?.id||'',name:r?.txnType==='payment'?'付款':'收款',summary:methods||r?.note||'',amount:qN98Money(r?.amount||r?.total),contactId:r?.contactId||'',contactName:r?.customer||contact?.name||''}}
-  function qN98Summary(rows,outstanding=0){let goods=0,freight=0,turnoverBuyout=0;const containers={};rows.forEach(x=>{if(x.kind==='item'){goods+=qN98Money(x.goods);freight+=qN98Money(x.freight)}else if(x.kind==='turnover'){turnoverBuyout+=qN98Money(x.amount);const k=x.turnoverType||'周轉物';containers[k]=(containers[k]||0)+(['歸還','回籃','退籃退費'].includes(x.turnoverAction)?-qN98Money(x.turnoverQty):qN98Money(x.turnoverQty))}});return {goods,freight,turnoverBuyout,total:goods+freight+turnoverBuyout,outstanding:qN98Money(outstanding),containers}}
+  function qN98SettlementRow(r,contact){const methods=(r?.methods||[]).map(m=>(m.method||'')+(qN98Money(m.amount)?(' $'+Math.round(qN98Money(m.amount)).toLocaleString('zh-TW')):'')).filter(Boolean).join('＋'),isRefund=r?.mode==='money_refund',name=isRefund?(r?.txnTypeLabel||(r?.accountDirection==='refund_from_supplier'?'收回退款':'退款')):(r?.txnType==='payment'?'付款':'收款');return {kind:'settlement',date:r?.date||'',recordId:r?.id||'',name,summary:methods||r?.reason||r?.note||'',amount:qN98Money(r?.amount||r?.total),contactId:r?.contactId||'',contactName:r?.customer||contact?.name||''}}
+  function qN98Summary(rows,outstanding=0){let goods=0,freight=0,turnoverBuyout=0;const containers={};rows.forEach(x=>{if(x.kind==='item'||x.kind==='adjustment'){goods+=qN98Money(x.goods);freight+=qN98Money(x.freight)}else if(x.kind==='turnover'){turnoverBuyout+=qN98Money(x.amount);const k=x.turnoverType||'周轉物';containers[k]=(containers[k]||0)+(['歸還','回籃','退籃退費'].includes(x.turnoverAction)?-qN98Money(x.turnoverQty):qN98Money(x.turnoverQty))}});return {goods,freight,turnoverBuyout,total:goods+freight+turnoverBuyout,outstanding:qN98Money(outstanding),containers}}
   // N103：四種正式輸出共用同一個周轉物數量摘要；保留動作，不把買斷／使用／歸還混成單一數字。
   function qN103ContainerSummary(rows){
     const map={};(rows||[]).forEach(r=>{if(r?.kind!=='turnover'||!r.turnoverType||!r.turnoverAction)return;const type=String(r.turnoverType),act=String(r.turnoverAction),qty=Math.abs(qN98Money(r.turnoverQty));if(!qty)return;(map[type]||(map[type]={}))[act]=((map[type]||{})[act]||0)+qty});return map;
@@ -6767,7 +6786,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       const rows=[];groups.forEach(g=>rows.push(...g.rows));
       return {schema:'xinru_complete_output_v1',kind:'farmer_weekly',reportLayout:'farmer_weekly',outputPartyLabel:'客戶',contact:route.contact,range:route.data?.range||{},groups,rows,settlements:[],summary:qN98Summary(rows),source:route.data};
     }
-    let rows=[];(route.data?.activities||[]).forEach(r=>{if(r.mode==='money_settlement')rows.push(qN98SettlementRow(r,route.contact));else rows.push(...qN98RowsFromRecord(r,route.contact))});
+    let rows=[];(route.data?.activities||[]).forEach(r=>{if(r.mode==='money_settlement'||r.mode==='money_refund')rows.push(qN98SettlementRow(r,route.contact));else rows.push(...qN222RowsFromActivity(r,route.contact))});
     rows.push(...qN107ContainerRows(route.contact,route.data?.range||{}));
     // N109 核心順序：正式排序 → 同日同品同價合併 → 依最後顯示順序重新編號。
     rows=qN108MergeItemRows(qN107SortRows(rows));
@@ -7208,6 +7227,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN124LedgerItemSummary(c,entry){
     const r=entry.record||{};
     if(r.mode==='money_settlement'||r.mode==='money_refund')return ((r.methods||[]).map(m=>(m.method||'')+' '+qLedgerMoney(m.amount||0)).join('＋')||r.reason||r.note||(r.mode==='money_refund'?'退款':'收付款'));
+    if(qAccountingIsAdjustment(r)){const d=qN222AdjustmentDetail(r);if(d)return [d.name,(d.kg!==''&&d.kg!=null?'公斤 '+d.kg:''),(d.qty!==''&&d.qty!=null?'數量 '+d.qty:''),d.reason?('原因 '+d.reason):''].filter(Boolean).join('｜')}
     const vendorPayable=String(c?.identity||c?.type||'')==='廠商'&&qN124LedgerDirection(entry)==='payable';
     const parts=(r.items||[]).map(i=>{
       const a=qN124ProjectedSummary({items:[i],turnover:{}},vendorPayable?c:null),p=[];
