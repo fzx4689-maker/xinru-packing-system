@@ -8868,4 +8868,92 @@ window.qNormalizeTurnAction=qN93TurnAction;
 })();
 </script>
 
+
+<script>
+/* N216_PATCH_BEGIN_20261001
+   帳務首頁待辦效能修正：只在單次 qPaintWorkBadges 計算期間快取重複歸戶結果。
+   不改資料、不改收付款公式、不跨輪保留快取。
+*/
+(function(){
+  if (window.__N216_INSTALLED__) return;
+  window.__N216_INSTALLED__ = true;
+
+  function installN216(){
+    const paint0 = window.qPaintWorkBadges;
+    const identity0 = window.qContactLedgerIdentity;
+    const belongs0 = window.qRecordBelongsToContact;
+    if (typeof paint0 !== "function" || typeof identity0 !== "function" || typeof belongs0 !== "function") return false;
+    if (paint0.__N216__) return true;
+
+    let ctx = null;
+
+    function stableContactKey(c){
+      if (!c) return "null";
+      const id = c.id ?? c.contact_id ?? c.code ?? c.no ?? c.customer_code ?? c.name;
+      if (id !== undefined && id !== null && String(id) !== "") return "c:"+String(id);
+      if (!ctx.contactObj.has(c)) ctx.contactObj.set(c,"co:"+(++ctx.contactSeq));
+      return ctx.contactObj.get(c);
+    }
+    function stableRecordKey(r){
+      if (!r) return "null";
+      const id = r.id ?? r.record_id ?? r.txn_id ?? r.accounting_id;
+      if (id !== undefined && id !== null && String(id) !== "") return "r:"+String(id);
+      if (!ctx.recordObj.has(r)) ctx.recordObj.set(r,"ro:"+(++ctx.recordSeq));
+      return ctx.recordObj.get(r);
+    }
+
+    window.qContactLedgerIdentity = function(c){
+      if (!ctx) return identity0.apply(this,arguments);
+      const k=stableContactKey(c);
+      if (ctx.identity.has(k)) return ctx.identity.get(k);
+      const value=identity0.apply(this,arguments);
+      ctx.identity.set(k,value);
+      return value;
+    };
+
+    window.qRecordBelongsToContact = function(r,c){
+      if (!ctx) return belongs0.apply(this,arguments);
+      const k=stableRecordKey(r)+"|"+stableContactKey(c);
+      if (ctx.belongs.has(k)) return ctx.belongs.get(k);
+      const value=belongs0.apply(this,arguments);
+      ctx.belongs.set(k,value);
+      return value;
+    };
+
+    function paintN216(){
+      const outer=ctx;
+      if (!outer) {
+        ctx={
+          identity:new Map(), belongs:new Map(),
+          contactObj:new WeakMap(), recordObj:new WeakMap(),
+          contactSeq:0, recordSeq:0
+        };
+      }
+      const t0=performance.now();
+      try {
+        return paint0.apply(this,arguments);
+      } finally {
+        if (!outer) {
+          window.__N216_LAST_BADGE_MS__=performance.now()-t0;
+          ctx=null; // 關鍵：每輪立即清除，下一輪一定依最新帳務資料重算
+        }
+      }
+    }
+    paintN216.__N216__=true;
+    paintN216.__N216_ORIGINAL__=paint0;
+    window.qPaintWorkBadges=paintN216;
+    console.info("[N216] accounting badge single-pass cache enabled");
+    return true;
+  }
+
+  if (!installN216()) {
+    let count=0;
+    const timer=setInterval(function(){
+      count++;
+      if (installN216() || count>=20) clearInterval(timer);
+    },100);
+  }
+})();
+</script>
+
 </body></html>
