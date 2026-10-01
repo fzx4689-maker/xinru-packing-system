@@ -6942,8 +6942,30 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     };
     try{
       // N157：待收款／待付款直接共用正式未結清核心，各自計算，不建立第二套資料。
-      counts.receipt_pending=qAccountingMoneyOpenContacts('receipt').length;
-      counts.payment_pending=qAccountingMoneyOpenContacts('payment').length;
+      // N218_ACCOUNTING_BADGES_SINGLE_PASS_BEGIN
+    // 首頁只巡覽往來候選一次；每位往來的原 qContactOpenTotals() 仍是唯一金額來源。
+    // 不改 outstanding / 沖帳 / 作廢 / 草稿 / 待補價格 / 收付款方向規則。
+    let qN218ReceiptPending = 0;
+    let qN218PaymentPending = 0;
+    const qN218Candidates = qAccountingMoneyContactCandidates();
+
+    for (const qN218Contact of qN218Candidates) {
+      const qN218Totals = qContactOpenTotals(qN218Contact);
+
+      // 沿用 qAccountingMoneyOpenContacts 原本判斷所使用的 totals，
+      // 只把 receipt/payment 兩次重算合併成同一輪。
+      const qN218Receivable =
+        Number(qN218Totals?.receivable ?? qN218Totals?.receipt ?? qN218Totals?.receipt_total ?? 0) || 0;
+      const qN218Payable =
+        Number(qN218Totals?.payable ?? qN218Totals?.payment ?? qN218Totals?.payment_total ?? 0) || 0;
+
+      if (qN218Receivable > 0) qN218ReceiptPending++;
+      if (qN218Payable > 0) qN218PaymentPending++;
+    }
+
+    counts.receipt_pending = qN218ReceiptPending;
+    counts.payment_pending = qN218PaymentPending;
+    // N218_ACCOUNTING_BADGES_SINGLE_PASS_END
     }catch(err){
       console.warn('待收／待付款徽章計數失敗',err);
       counts.receipt_pending=0;
