@@ -2553,6 +2553,10 @@ window.ackPackingChange=async id=>{
   await loadPackingChangeNotices();renderPacking();
 };
 async function loadOrders(){
+  // N210：背景輪詢與 Realtime 可能同時進來；同一時間只允許一個 orders 補抓，避免重複查詢/重畫互撞。
+  if(loadOrders.busy)return;
+  loadOrders.busy=true;
+  try{
   const {data,error}=await sb.from('orders').select('*, order_items(*)').order('is_urgent',{ascending:false}).order('created_at',{ascending:true});
   if(error){console.error(error);$('#syncState').textContent='連線失敗：'+error.message;return}
   const fresh=(data||[]).map(normalized);
@@ -2578,6 +2582,7 @@ async function loadOrders(){
   // 訂單內容有變才重畫全部；若只有「修改提醒」晚一步寫入，只重畫包裝部，避免提醒被漏掉。
   if(prevSnapshot!==nextSnapshot)renderAll();
   else if(prevNoticeSnapshot!==nextNoticeSnapshot && !isEditingPackingReply())renderPacking();
+  }finally{loadOrders.busy=false;}
 }
 // 包裝回覆草稿：只要正在輸入或尚未儲存，包裝部就暫停整區重畫，避免手機游標/鍵盤跳掉。
 const packingReplyDirty=new Set();
@@ -5024,8 +5029,11 @@ async function loadShortageReports(){
       sb.from('shortage_messages').select('*').order('created_at',{ascending:true}).limit(1200)
     ]);
     if(error)throw error;if(msgErr)throw msgErr;
-    shortageReports=data||[];shortageMessages=msgs||[];
-    renderShortageManage();renderShortageSource('packing');renderShortageSource('delivery');updateShortageBadges();if(typeof updateStage9Badges==='function')updateStage9Badges();
+    const nextReports=data||[], nextMessages=msgs||[];
+    const changed=JSON.stringify(shortageReports)!==JSON.stringify(nextReports) || JSON.stringify(shortageMessages)!==JSON.stringify(nextMessages);
+    shortageReports=nextReports;shortageMessages=nextMessages;
+    // N210：30 秒安全補抓保留；資料完全相同時不重建 DOM。
+    if(changed){renderShortageManage();renderShortageSource('packing');renderShortageSource('delivery');updateShortageBadges();if(typeof updateStage9Badges==='function')updateStage9Badges();}
   }catch(e){console.warn('缺貨／催貨暫時讀取失敗，保留上一個正常畫面',e);}
   finally{loadShortageReports.busy=false;}
 }
@@ -5129,20 +5137,26 @@ async function loadStage9(){
       sb.from('freight_receipt_change_logs').select('*').order('changed_at',{ascending:false}).limit(1000)
     ]);
     // 短暫網路失敗時保留上一個正常畫面，不用錯誤文字覆蓋整區，避免畫面跳動。
-    if(!q.error)fieldQuestions=q.data||[];
-    if(!m.error)fieldQuestionMessages=m.data||[];
-    if(!f.error)freightReceipts=f.data||[];
-    if(!c.error)freightChangeLogs=c.data||[];
-    if(!q.error||!m.error){renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');}
-    if(!f.error){
+    const nextQ=!q.error?(q.data||[]):fieldQuestions;
+    const nextM=!m.error?(m.data||[]):fieldQuestionMessages;
+    const nextF=!f.error?(f.data||[]):freightReceipts;
+    const nextC=!c.error?(c.data||[]):freightChangeLogs;
+    const questionChanged=(!q.error && JSON.stringify(fieldQuestions)!==JSON.stringify(nextQ)) || (!m.error && JSON.stringify(fieldQuestionMessages)!==JSON.stringify(nextM));
+    const freightChanged=(!f.error && JSON.stringify(freightReceipts)!==JSON.stringify(nextF)) || (!c.error && JSON.stringify(freightChangeLogs)!==JSON.stringify(nextC));
+    if(!q.error)fieldQuestions=nextQ;
+    if(!m.error)fieldQuestionMessages=nextM;
+    if(!f.error)freightReceipts=nextF;
+    if(!c.error)freightChangeLogs=nextC;
+    // N210：資料沒變就不重建現場回報 DOM；Realtime 與 30 秒安全補抓都保留。
+    if(questionChanged){renderFieldQuestionOffice();renderFieldQuestionsFor('packing');renderFieldQuestionsFor('delivery');}
+    if(freightChanged){
       renderFreightOffice();
       // N129：背景同步可更新資料，但正在修改的現場回報不可重畫，
       // 否則 Realtime／30秒輪詢會把尚未儲存的客戶、公斤文字與游標一起洗掉。
       if(!(freightEditingBatch&&freightEditingSource==='packing'))renderFreightFor('packing');
       if(!(freightEditingBatch&&freightEditingSource==='delivery'))renderFreightFor('delivery');
     }
-    if(!q.error||!f.error)updateStage9Badges();
-    renderConversationHistory();
+    if(questionChanged||freightChanged){updateStage9Badges();renderConversationHistory();}
   }catch(e){console.warn('現場回報暫時讀取失敗，保留上一個正常畫面',e);}
   finally{loadStage9.busy=false;}
 }
