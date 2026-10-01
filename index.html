@@ -6472,9 +6472,16 @@ let qN217IdentityCache = new WeakMap();
   // 所有應收應付、帳期、收付款與帳本後續統一由此層取得「有效交易金額」。
   function qAccountingAdjustmentModes(){return ['account_deduction','account_allowance','goods_return']}
   function qAccountingIsAdjustment(r){return !!r&&qAccountingAdjustmentModes().includes(String(r.mode||''))}
+  // N226：中央帳務 cutoff 核心同時支援時間字串與完整帳務事件。
+  // 完整事件 cutoff 依帳務日期→建立時間→id 比較，避免歷史明細把 cutoff 之後的調整倒扣進來。
+  function qAccountingCutoffAllows(x,cutoff=''){
+    if(!cutoff)return true;
+    if(cutoff&&typeof cutoff==='object'&&typeof qN96Cmp==='function')return qN96Cmp(x,cutoff)<=0;
+    return String(x?.createdAt||x?.updatedAt||'')<=String(cutoff||'');
+  }
   function qAccountingAdjustmentsFor(recordId,cutoff=''){
     const id=String(recordId||'');
-    return (typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&qAccountingIsAdjustment(x)&&x.status!=='void'&&String(x.sourceRecordId||'')===id&&(!cutoff||String(x.createdAt||x.updatedAt||'')<=cutoff));
+    return (typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&qAccountingIsAdjustment(x)&&x.status!=='void'&&String(x.sourceRecordId||'')===id&&qAccountingCutoffAllows(x,cutoff));
   }
   function qAccountingAdjustmentTotal(recordId,cutoff=''){if(!cutoff&&qN219CalcCache)return qN219CalcCache.adjustByRecord.get(String(recordId||''))||0;return qAccountingAdjustmentsFor(recordId,cutoff).reduce((sum,x)=>sum+Math.max(0,qMoney(x.amount??x.total)),0)}
   function qAccountingBaseTotal(r,c){
@@ -6489,7 +6496,7 @@ let qN217IdentityCache = new WeakMap();
   function qAccountingPaidTotal(r,cutoff=''){
     if(!r)return 0;
     const id=String(r.id||''),legacy=qMoney(r.paid);
-    const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>!cutoff||String(s.createdAt||s.updatedAt||'')<=cutoff).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
+    const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
     return legacy+settled;
   }
   function qAccountingOutstanding(r,c,cutoff=''){
@@ -8139,9 +8146,10 @@ window.qNormalizeTurnAction=qN93TurnAction;
     const all=qN96FormalRecords(c),tx=all.filter(r=>r.mode!=='money_settlement'&&r.pricingStatus!=='pending_price'&&qN96DirectionMatch(r,direction)&&qN96AtOrBefore(r,cutoff)).sort(qN96Cmp);
     const settlements=all.filter(r=>r.mode==='money_settlement'&&qN96SettlementDirection(r)===direction&&qN96AtOrBefore(r,cutoff));
     return tx.map(r=>{
+      // N226：完整明細未結清不再自算「原總額－收款」；統一回到 N147 中央有效金額／未結清核心。
       const allocated=settlements.reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===String(r.id||'')).reduce((z,a)=>z+qMoney(a?.amount),0),0);
-      const paid=qMoney(r.paid)+allocated,remain=Math.max(0,qRecordTotal(r)-paid);
-      return {record:r,total:qRecordTotal(r),paid,allocated,remain};
+      const total=qAccountingEffectiveTotal(r,c,cutoff),paid=qAccountingPaidTotal(r,cutoff),remain=qAccountingOutstanding(r,c,cutoff);
+      return {record:r,total,paid,allocated,remain};
     });
   }
   function qN96GeneralDetail(c,direction='receipt',cutoffInput=null){
