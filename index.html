@@ -8300,4 +8300,174 @@ window.qNormalizeTurnAction=qN93TurnAction;
 })();
 </script>
 
+
+<script>
+/* N213_LONGTASK_DIAGNOSTIC */
+(function () {
+  if (window.__N213_INSTALLED__) return;
+  window.__N213_INSTALLED__ = true;
+
+  const events = [];
+  const MAX_EVENTS = 40;
+  let lastPointer = 0;
+  let lastLabel = "";
+
+  function now() { return performance.now(); }
+  function fmt(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+  function clean(s) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, 72); }
+
+  function labelOf(el) {
+    if (!el) return "";
+    const hit = el.closest && el.closest("button,a,[role='button'],[onclick],.card,.tile");
+    const node = hit || el;
+    return clean(node.innerText || node.textContent || node.getAttribute?.("aria-label") || node.id || node.tagName);
+  }
+
+  function add(type, name, duration, extra) {
+    events.push({
+      t: now(),
+      type,
+      name: clean(name),
+      duration: Number(duration || 0),
+      extra: clean(extra)
+    });
+    if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
+    render();
+  }
+
+  function panel() {
+    let el = document.getElementById("n213LongTaskPanel");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "n213LongTaskPanel";
+      el.style.cssText =
+        "position:fixed;right:12px;bottom:12px;z-index:2147483647;" +
+        "width:min(470px,calc(100vw - 24px));max-height:44vh;overflow:auto;" +
+        "background:rgba(20,20,20,.94);color:#fff;padding:10px 12px;" +
+        "border-radius:10px;font:12px/1.45 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" +
+        "box-shadow:0 4px 18px rgba(0,0,0,.28);white-space:pre-wrap;pointer-events:none;";
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function render() {
+    if (!document.body) return;
+    const el = panel();
+    const recent = events.slice(-8);
+    const lines = ["N213 Long Task 定位"];
+    if (lastLabel) lines.push("最近按鍵：" + lastLabel);
+    if (!recent.length) {
+      lines.push("等待 >50ms 阻塞事件…");
+    } else {
+      for (const e of recent) {
+        const icon = e.type === "LONG" ? "🔴" : (e.type === "GAP" ? "🟠" : "⚪");
+        lines.push(icon + " " + e.type + " " + e.name + "  " + fmt(e.duration) + " ms" +
+          (e.extra ? "  " + e.extra : ""));
+      }
+    }
+    el.textContent = lines.join("\n");
+  }
+
+  document.addEventListener("pointerdown", function (e) {
+    lastPointer = now();
+    lastLabel = labelOf(e.target);
+  }, true);
+
+  // Browser-supported Long Task observer: records actual main-thread blocks >50ms.
+  try {
+    if ("PerformanceObserver" in window) {
+      const supported = PerformanceObserver.supportedEntryTypes || [];
+      if (supported.includes("longtask")) {
+        const po = new PerformanceObserver(function (list) {
+          for (const entry of list.getEntries()) {
+            let attribution = "";
+            try {
+              if (entry.attribution && entry.attribution.length) {
+                attribution = entry.attribution.map(a =>
+                  clean(a.name || a.containerName || a.containerSrc || a.containerId)
+                ).filter(Boolean).join(" | ");
+              }
+            } catch (_) {}
+            const sincePointer = lastPointer ? now() - lastPointer : 0;
+            add("LONG", lastLabel || entry.name || "main-thread",
+                entry.duration,
+                sincePointer ? ("距按下 " + fmt(sincePointer) + "ms" + (attribution ? " | " + attribution : "")) : attribution);
+          }
+        });
+        po.observe({ entryTypes: ["longtask"] });
+      } else {
+        add("INFO", "瀏覽器未提供 longtask observer", 0, "改用 event-loop gap 偵測");
+      }
+    }
+  } catch (err) {
+    add("INFO", "LongTask observer 啟動失敗", 0, err && err.message);
+  }
+
+  // Independent event-loop gap detector. Does not alter app behavior.
+  let expected = now() + 100;
+  setInterval(function () {
+    const t = now();
+    const gap = t - expected;
+    expected = t + 100;
+    if (gap >= 80) {
+      const sincePointer = lastPointer ? t - lastPointer : 0;
+      add("GAP", lastLabel || "event-loop",
+          gap,
+          sincePointer ? ("距按下 " + fmt(sincePointer) + "ms") : "");
+    }
+  }, 100);
+
+  // Lightweight wrappers around known hot-path functions, only if they exist.
+  const names = [
+    "renderAll", "applyRoleUI", "loadOrders", "loadDelivery",
+    "loadShortageReports", "loadStage9", "loadPackingChangeNotices",
+    "enforceActiveSession"
+  ];
+
+  function wrap(name) {
+    const original = window[name];
+    if (typeof original !== "function" || original.__N213_WRAPPED__) return;
+    function wrapped() {
+      const s = now();
+      let out;
+      try {
+        out = original.apply(this, arguments);
+      } catch (err) {
+        const d = now() - s;
+        if (d >= 20) add("FUNC", name, d, "同步例外前");
+        throw err;
+      }
+      const sync = now() - s;
+      if (sync >= 20) add("FUNC", name, sync, "同步");
+      if (out && typeof out.then === "function") {
+        const ps = now();
+        return out.then(
+          value => {
+            const total = now() - ps;
+            if (total >= 50) add("ASYNC", name, total, "Promise總耗時");
+            return value;
+          },
+          err => {
+            const total = now() - ps;
+            if (total >= 50) add("ASYNC", name, total, "Promise失敗");
+            throw err;
+          }
+        );
+      }
+      return out;
+    }
+    wrapped.__N213_WRAPPED__ = true;
+    try { window[name] = wrapped; } catch (_) {}
+  }
+
+  names.forEach(wrap);
+  // Some functions may be defined after this diagnostic script.
+  setTimeout(() => names.forEach(wrap), 1000);
+  setTimeout(() => names.forEach(wrap), 4000);
+
+  render();
+})();
+</script>
+
 </body></html>
