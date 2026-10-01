@@ -9,8 +9,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N209｜手機快速啟動優化</title>
+<title>欣儒系統｜N198｜容器效能＋歸還核心正式版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://unpkg.com/pinyin-pro"></script>
 <style>
 :root{--bg:#f3f5f7;--card:#fff;--text:#16181d;--muted:#7b818b;--line:#e5e8ec;--blue:#dbeeff;--blueText:#1e5f94;--green:#1f9d55;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed;--shadow:0 8px 28px rgba(0,0,0,.06)}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",Arial,sans-serif;color:var(--text)}
@@ -3368,21 +3370,7 @@ $('#takePhoto').onclick=()=>$('#photoInput').click();
 let photoPreviewUrl='';
 $('#clearPhoto').onclick=()=>{photoFile=null;$('#photoInput').value='';if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl='';$('#photoPreview').style.display='none';$('#photoPreview').src='';$('#ocrStatus').textContent=''};
 $('#photoInput').onchange=async e=>{const original=e.target.files[0];if(!original)return;const status=$('#ocrStatus');status.textContent='正在處理照片…';photoFile=await compressPhoto(original);if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl=URL.createObjectURL(photoFile);$('#photoPreview').src=photoPreviewUrl;$('#photoPreview').style.display='block';status.textContent=`✅ 照片已準備（${photoSizeText(photoFile)}），送出時會自動上傳`};
-let xrTesseractLoadPromise=null;
-function xrLoadTesseract(){
-  if(window.Tesseract)return Promise.resolve(window.Tesseract);
-  if(xrTesseractLoadPromise)return xrTesseractLoadPromise;
-  xrTesseractLoadPromise=new Promise((resolve,reject)=>{
-    const sc=document.createElement('script');
-    sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-    sc.async=true;
-    sc.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR 元件載入失敗'));
-    sc.onerror=()=>reject(new Error('OCR 元件下載失敗'));
-    document.head.appendChild(sc);
-  }).catch(e=>{xrTesseractLoadPromise=null;throw e});
-  return xrTesseractLoadPromise;
-}
-$('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在載入辨識功能…';try{const Tesseract=await xrLoadTesseract();$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';const result=await Tesseract.recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
+$('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';try{const result=await Tesseract.recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
 async function uploadPhoto(orderNo){if(!photoFile)return null;return uploadOrderPhoto(photoFile,`${orderNo}-${Date.now()}.jpg`,$('#ocrStatus'))}
 function updateOrderTargetUI(){
   const freight=$('#orderTarget')?.value==='delivery';
@@ -4015,62 +4003,77 @@ window.xrContactsCloud={load:loadContactsCloud,syncLocal:syncLocalContactsToClou
 async function startApp(user){
   try{
     currentUser=user;
-    // N209：權限仍在畫面顯示前確認；profile 與 page permissions 可並行，縮短手機/PWA啟動等待。
+    currentProfile=await loadMyProfile(user);
     v17LoadedFor='';
     v17Perm={pages:[],funcs:[],configured:false};
-    const profilePromise=loadMyProfile(user);
-    const permPromise=v17LoadMine();
-    currentProfile=await profilePromise;
-    await permPromise;
+    await v17LoadMine();
     applyNotificationSoundDefault();
 
+    // N10R3：在主畫面第一次顯示之前就判斷是否要恢復帳務內層。
+    // 若是，整個 mainApp 維持 hidden，直到資料與原頁都恢復完成，避免任何第一層/首頁被畫到螢幕。
     const bootRememberedTab=getRememberedTab();
+    const bootAccountingNav=(bootRememberedTab==='accounting'&&window.xrAccountingNav?.read)
+      ? window.xrAccountingNav.read()
+      : null;
+    const bootHasAccountingLayer=!!(
+      bootAccountingNav &&
+      (bootAccountingNav.layer==='workQueue' ||
+       bootAccountingNav.layer==='ledgerContact' ||
+       bootAccountingNav.layer==='contactEditor' ||
+       bootAccountingNav.layer==='detail' ||
+       bootAccountingNav.layer==='globalTransactions' ||
+       bootAccountingNav.layer==='contactEntry' ||
+       bootAccountingNav.layer==='contactPayment' ||
+       bootAccountingNav.layer==='contactSearch' ||
+       bootAccountingNav.section)
+    );
+
     document.body.classList.remove('auth-booting');
     showApp();
-
-    // N209：先把使用者上次所在頁面直接畫出來；雲端資料在背景同步。
-    // 不再為了帳務內層把整個 mainApp 隱藏到所有 API 都跑完。
-    activateTab(bootRememberedTab,{save:false});
-    if(bootRememberedTab==='accounting'&&window.xrAccountingNav?.restore){
-      try{window.xrAccountingNav.restore()}catch(e){console.warn('帳務頁恢復稍後重試',e)}
+    if(bootRememberedTab==='accounting'&&bootHasAccountingLayer){
+      const mainApp=document.getElementById('mainApp');
+      if(mainApp)mainApp.style.visibility='hidden';
     }
 
-    if(currentProfile?.role==='admin')setTimeout(()=>refreshPendingEmployeeBadge(),0);
+    if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();
     if(currentIsDriver()){
-      const saved=localStorage.getItem('xinru_delivery_driver_filter');
-      if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
-      const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
-      if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
-    }
+    // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
+    // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
+    const saved=localStorage.getItem('xinru_delivery_driver_filter');
+    if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
+    const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
+    if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
+  }
+  // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
+  await loadDelivery();
+  // N111：先由 Supabase 下載正式往來主檔，再載入帳務；裝置 localStorage 不得在登入時反向覆蓋雲端。
+  await loadContactsCloud();
+  await loadAccountingCloud();
+  if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
+  // N128：寄車／現場回報是正式啟動資料依賴。
+  // 重新整理、PWA重開、重新登入都必須先等 freight_receipts 載入完成，
+  // 再恢復使用者原本頁面；不再依賴 window.load 後 2.2 秒的補抓。
+  await loadStage9();
+  startStage9Realtime();
+  const rememberedTab=bootRememberedTab;
+  activateTab(rememberedTab,{save:false});
 
-    // N209：互不依賴的啟動資料改成並行。往來主檔→帳務仍保留既有先後規則。
-    const contactAccounting=(async()=>{await loadContactsCloud();await loadAccountingCloud();})();
-    const stage9Promise=Promise.resolve(loadStage9());
-    const startupResults=await Promise.allSettled([
-      loadDelivery(),
-      loadOrders(),
-      contactAccounting,
-      stage9Promise
-    ]);
-    startupResults.forEach(r=>{if(r.status==='rejected')console.warn('N209 背景啟動資料同步失敗',r.reason)});
-    appStarted=true;
-    try{startStage9Realtime()}catch(e){console.warn(e)}
-
-    // 雲端資料回來後再恢復一次目前帳務內層，確保內容刷新但不跳頁。
-    if(getRememberedTab()==='accounting'&&window.xrAccountingNav?.restore){
-      try{window.xrAccountingNav.restore()}catch(e){}
-    }
+  // 唯一恢復點：先在不可見狀態完成原頁，再一次顯示整個 App。
+  if(rememberedTab==='accounting'&&bootHasAccountingLayer&&window.xrAccountingNav?.restore){
+    window.xrAccountingNav.restore();
+  }
+  const mainApp=document.getElementById('mainApp');
+  if(mainApp)mainApp.style.visibility='visible';
   }
   catch(e){
     console.error(e);
     const msg=String(e?.message||e||'');
+    // 啟動時遇到暫時性網路/API錯誤，不再自動 signOut，避免手機/PWA 被誤登出。
     if(msg.includes('員工帳號已停用')){
       await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
     }else{
-      console.error('N209啟動失敗：',e);
-      document.body.classList.remove('auth-booting');
-      if(currentProfile){showApp();const mainApp=document.getElementById('mainApp');if(mainApp)mainApp.style.visibility='visible';}
-      else showLogin('連線暫時失敗，請再試一次');
+      console.error('第169C3啟動失敗：',e);
+      document.body.classList.remove('auth-booting');showApp();const mainApp=document.getElementById('mainApp');if(mainApp)mainApp.style.visibility='visible';alert('連線或資料初始化暫時失敗，登入狀態仍保留。\n\n'+msg);
     }
   }
 }
@@ -4368,7 +4371,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N200：容器總覽顯示每一種容器的往來對象欠／餘明細；鐵架保留名稱分帳。只改顯示層，不修改 balanceDelta、stockDelta、快速做帳、管理歸還與四種列印。 -->
 <!-- N201：公司實體庫存方向補正；計籃=-qty、回籃/歸還=+qty，與金額正負完全分離；新快速做帳籃子事件正式寫入 stockDelta，歷史缺欄位資料於唯一正規化層補方向。不修改往來 balanceDelta 規則。 -->
 <!-- N203：產農快速做帳籃子例外。產農進貨時籃子動作改為「使用」；只寫 balanceDelta=-qty，stockDelta=0，金額固定0。公司實體庫存已於先前領用時扣除，不重複扣庫存。不修改一般客戶計籃/回籃與其他容器核心。 -->
-<!-- N208：身分=超市之四種正式輸出固定一天一張；一般客戶累積帳不變；一般/大量僅控制版型。 -->
+<!-- N207：純效能層優化；提醒批次 upsert、首頁切頁不重跑 autoPublish、前景恢復事件合併降頻。帳務/容器/金額核心未修改。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -4549,7 +4552,7 @@ let xrResumeSyncBusy=false,xrResumeSyncTimer=0,xrResumeSyncLastAt=0;
 async function xrResumeSync(reason='resume'){
   if(!currentUser||document.visibilityState!=='visible')return;
   const now=Date.now();
-  if(xrResumeSyncBusy||now-xrResumeSyncLastAt<1200)return;
+  if(xrResumeSyncBusy||now-xrResumeSyncLastAt<5000)return;
   xrResumeSyncBusy=true;xrResumeSyncLastAt=now;
   try{
     // iOS 背景可能讓 WebSocket heartbeat 停止；只恢復既有 Realtime client，不建立第二個 client。
@@ -4578,7 +4581,7 @@ async function xrResumeSync(reason='resume'){
 function xrQueueResumeSync(reason){
   if(!currentUser||document.visibilityState!=='visible')return;
   clearTimeout(xrResumeSyncTimer);
-  xrResumeSyncTimer=setTimeout(()=>xrResumeSync(reason),180);
+  xrResumeSyncTimer=setTimeout(()=>xrResumeSync(reason),450);
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')xrQueueResumeSync('visibility')});
 window.addEventListener('focus',()=>xrQueueResumeSync('focus'));
@@ -6259,7 +6262,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(!rm.dataset.qbound){rm.dataset.qbound='1';rm.onclick=()=>{if(work.querySelectorAll('[data-qrow]').length===1){r.querySelectorAll('input').forEach(x=>x.value=x.classList.contains('qQty')?'1':'');if(pricingCustom)pricingCustom.style.display='none';qRecalc(work);return}r.remove();qBindRows(work);qRecalc(work)}}
     })
   }
-  function qBuildRecord(work,status){const entity=work.querySelector('#quickV2Entity').value.trim(),date=work.querySelector('#quickV2Date').value,txn=work.querySelector('#quickV2Txn').value;if(!date)throw new Error('請選擇交易日期');if(!entity)throw new Error('請輸入往來對象／識別名稱');let hit=qResolveContact(entity);const rememberedPlate=work.querySelector('#quickV2Entity')?.dataset.vehiclePlate||'';if(rememberedPlate){const vh=qResolveContact(rememberedPlate);if(vh&&(!hit||String(vh.contact.id)===String(hit.contact.id)))hit=vh}const c=hit?.contact||null;if(hit?.matchedBy==='vehicle'&&hit.vehicleActive===false&&!confirm('車號 '+hit.vehiclePlate+' 是「'+c.name+'」的歷史／停用車號。\n\n仍要把這筆交易記到 '+c.name+' 的帳本嗎？'))throw new Error('已取消使用歷史車號做帳');const pendingBox=work.querySelector('#qAllowPendingPrice'),allowPending=!!pendingBox?.checked,items=[];let rowNo=0;work.querySelectorAll('[data-qrow]').forEach(r=>{rowNo++;const name=r.querySelector('.qName').value.trim(),kgRaw=r.querySelector('.qKg').value.trim(),qtyRaw=r.querySelector('.qQty').value.trim(),priceRaw=r.querySelector('.qPrice').value.trim(),pricing=r.querySelector('.qPricing').value,pricingUnit=r.querySelector('.qPricingCustom')?.value.trim()||'',itemStatus=qItemStatusValue(r),profile=qQuickProfile(work),of=qOrderFreight(work),fm=profile.supplier?'none':of.mode,fr=(fm==='piece'?(r.querySelector('.qFreightRate')?.value.trim()||''):(['kg','truck'].includes(fm)?String(of.rate):''));if(!qRowHasAccountingData(r))return;if(status==='active'){if(!name)throw new Error('第 '+rowNo+' 列：請輸入品名');if(!qtyRaw||qMoney(qtyRaw)<=0)throw new Error('第 '+rowNo+' 列：請輸入正確數量');if((pricing==='kg'||pricing==='jin')&&(!kgRaw||qMoney(kgRaw)<=0))throw new Error('第 '+rowNo+' 列：計價為公斤／台斤，請輸入公斤數');if(pricing==='custom'&&!pricingUnit)throw new Error('第 '+rowNo+' 列：請輸入自訂單位名稱');if(!qItemNoChargeStatus(itemStatus)&&priceRaw===''&&!allowPending)throw new Error('第 '+rowNo+' 列：請輸入單價；若真的尚未知道價格，請勾選「價格未定，先完成做帳」');if(fm==='piece'&&fr==='')throw new Error('第 '+rowNo+' 列：請輸入每件運費');}const x=qCalcItem(r),source=profile.supplier?'':qSourceNormalize(r.querySelector('.qSource').value),costv=r.querySelector('.qCost').value.trim();items.push({name,kg:kgRaw===''?'':x.kg,qty:x.qty,pricing:x.pricing,pricingUnit,itemStatus,source,price:qItemNoChargeStatus(itemStatus)?'':(x.pv===''?'':x.price),cost:profile.supplier?'':(qNeedCost(source,entity)&&costv!==''?qMoney(costv):''),freightMode:qItemNoChargeStatus(itemStatus)?'none':(profile.supplier?'none':fm),freightRate:qItemNoChargeStatus(itemStatus)?'':(profile.supplier?'':(fm==='piece'&&fr!==''?qMoney(fr):(fm==='kg'?of.rate:''))),freight:qItemNoChargeStatus(itemStatus)?0:(profile.supplier?0:Math.round(x.freight)),amount:qItemNoChargeStatus(itemStatus)?0:(x.goods===null?'':Math.round(x.goods+(profile.supplier?0:x.freight)))})});const eligibilityTurnovers=qQuickTurnoverRows(work),quickProfileForEligibility=qQuickProfile(work),hasAccountingAmount=items.some(x=>x.amount!==''&&Math.abs(Number(x.amount)||0)>0)||eligibilityTurnovers.some(x=>Math.abs(Number(x.amount)||0)>0),hasSupplierPendingGoods=quickProfileForEligibility.supplier&&allowPending&&items.some(x=>String(x.name||'').trim()&&Number(x.qty)>0&&qItemPricePending(x));if(!hasAccountingAmount&&!hasSupplierPendingGoods)throw new Error('快速做帳必須有商品金額，或產農／廠商有真實商品並勾選「價格未定，先完成做帳」；單純 $0 容器進出請至「容器管理」登記');
+  function qBuildRecord(work,status){const entity=work.querySelector('#quickV2Entity').value.trim(),date=work.querySelector('#quickV2Date').value,txn=work.querySelector('#quickV2Txn').value;if(!date)throw new Error('請選擇交易日期');if(!entity)throw new Error('請輸入往來對象／識別名稱');let hit=qResolveContact(entity);const rememberedPlate=work.querySelector('#quickV2Entity')?.dataset.vehiclePlate||'';if(rememberedPlate){const vh=qResolveContact(rememberedPlate);if(vh&&(!hit||String(vh.contact.id)===String(hit.contact.id)))hit=vh}const c=hit?.contact||null;if(hit?.matchedBy==='vehicle'&&hit.vehicleActive===false&&!confirm('車號 '+hit.vehiclePlate+' 是「'+c.name+'」的歷史／停用車號。\n\n仍要把這筆交易記到 '+c.name+' 的帳本嗎？'))throw new Error('已取消使用歷史車號做帳');const pendingBox=work.querySelector('#qAllowPendingPrice'),allowPending=!!pendingBox?.checked,items=[];let rowNo=0;work.querySelectorAll('[data-qrow]').forEach(r=>{rowNo++;const name=r.querySelector('.qName').value.trim(),kgRaw=r.querySelector('.qKg').value.trim(),qtyRaw=r.querySelector('.qQty').value.trim(),priceRaw=r.querySelector('.qPrice').value.trim(),pricing=r.querySelector('.qPricing').value,pricingUnit=r.querySelector('.qPricingCustom')?.value.trim()||'',itemStatus=qItemStatusValue(r),profile=qQuickProfile(work),of=qOrderFreight(work),fm=profile.supplier?'none':of.mode,fr=(fm==='piece'?(r.querySelector('.qFreightRate')?.value.trim()||''):(['kg','truck'].includes(fm)?String(of.rate):''));if(!qRowHasAccountingData(r))return;if(status==='active'){if(!name)throw new Error('第 '+rowNo+' 列：請輸入品名');if(!qtyRaw||qMoney(qtyRaw)<=0)throw new Error('第 '+rowNo+' 列：請輸入正確數量');if((pricing==='kg'||pricing==='jin')&&(!kgRaw||qMoney(kgRaw)<=0))throw new Error('第 '+rowNo+' 列：計價為公斤／台斤，請輸入公斤數');if(pricing==='custom'&&!pricingUnit)throw new Error('第 '+rowNo+' 列：請輸入自訂單位名稱');if(!qItemNoChargeStatus(itemStatus)&&priceRaw===''&&!allowPending)throw new Error('第 '+rowNo+' 列：請輸入單價；若真的尚未知道價格，請勾選「價格未定，先完成做帳」');if(fm==='piece'&&fr==='')throw new Error('第 '+rowNo+' 列：請輸入每件運費');}const x=qCalcItem(r),source=profile.supplier?'':qSourceNormalize(r.querySelector('.qSource').value),costv=r.querySelector('.qCost').value.trim();items.push({name,kg:kgRaw===''?'':x.kg,qty:x.qty,pricing:x.pricing,pricingUnit,itemStatus,source,price:qItemNoChargeStatus(itemStatus)?'':(x.pv===''?'':x.price),cost:profile.supplier?'':(qNeedCost(source,entity)&&costv!==''?qMoney(costv):''),freightMode:qItemNoChargeStatus(itemStatus)?'none':(profile.supplier?'none':fm),freightRate:qItemNoChargeStatus(itemStatus)?'':(profile.supplier?'':(fm==='piece'&&fr!==''?qMoney(fr):(fm==='kg'?of.rate:''))),freight:qItemNoChargeStatus(itemStatus)?0:(profile.supplier?0:Math.round(x.freight)),amount:qItemNoChargeStatus(itemStatus)?0:(x.goods===null?'':Math.round(x.goods+(profile.supplier?0:x.freight)))})});const eligibilityTurnovers=qQuickTurnoverRows(work),hasAccountingAmount=items.some(x=>x.amount!==''&&Math.abs(Number(x.amount)||0)>0)||eligibilityTurnovers.some(x=>Math.abs(Number(x.amount)||0)>0);if(!hasAccountingAmount)throw new Error('快速做帳必須有商品金額或容器金額；單純 $0 容器進出請至「容器管理」登記');
     // N124：廠商進貨不使用運費。輸入畫面即使殘留舊選項，正式儲存時中央歸零，不污染應付帳。
     if(/產農|廠商/.test(String(c?.identity||c?.type||''))&&txn==='進貨')items.forEach(x=>{if(x.amount!==''&&Number.isFinite(Number(x.amount)))x.amount=Math.max(0,(Number(x.amount)||0)-(Number(x.freight)||0));x.freightMode='none';x.freightRate='';x.freight=0});
     const rackMissing=[...work.querySelectorAll('[data-qturnrow]')].some(row=>row.querySelector('.qTurnType')?.value==='鐵架'&&qMoney(row.querySelector('.qTurnQty')?.value||0)>0&&!row.querySelector('.qTurnRack')?.value);if(status==='active'&&rackMissing)throw new Error('鐵架請先選擇對應的鐵架名稱');const goods=Math.round(items.reduce((a,x)=>a+(x.amount===''?0:Math.max(0,(Number(x.amount)||0)-(Number(x.freight)||0))),0)),orderFreight=qOrderFreight(work),hasDelivered=items.some(x=>!qItemNoChargeStatus(x.itemStatus)),freight=Math.round((orderFreight.mode==='truck'&&!qQuickProfile(work).supplier&&hasDelivered)?orderFreight.rate:items.reduce((a,x)=>a+(Number(x.freight)||0),0)),turnovers=qQuickTurnoverRows(work),turnoverAmount=Math.round(turnovers.reduce((a,x)=>a+(Number(x.amount)||0),0)),total=Math.round(goods+freight+turnoverAmount),pending=items.some(x=>qItemPricePending(x)||x.freightMode==='pending'),id=work.dataset.editDraftId||((globalThis.crypto?.randomUUID?crypto.randomUUID():('qv3-'+Date.now())));if(status==='active'&&pending&&!allowPending)throw new Error('資料尚未完整，不能完成做帳');return {id,schemaVersion:4,date,customer:c?.name||entity,contactId:c?.id||null,vehiclePlate:hit?.matchedBy==='vehicle'?(hit.vehiclePlate||''):'',vehicleWasActive:hit?.matchedBy==='vehicle'?hit.vehicleActive:null,lookupInput:entity,type:c?.identity||c?.type||'一般客戶',mode:'quick_v3',txnType:txn==='進貨'?'purchase':'sale',txnTypeLabel:txn,accountDirection:txn==='進貨'?'payable':'receivable',items,goods,freight,freightMode:qQuickProfile(work).supplier?'none':orderFreight.mode,freightRate:qQuickProfile(work).supplier?'':orderFreight.rate,freightTotal:freight,turnoverAmount,total,paid:0,due:total,pricingStatus:pending?'pending_price':'priced',settlementStatus:status==='draft'?'draft':(pending?'pending_price':'open'),note:work.querySelector('#quickV2Note').value.trim(),turnover:(turnovers[0]||null),turnovers,status:status==='draft'?'draft':'active',testData:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),createdBy:(currentProfile?.display_name||currentUser?.email||''),audit:[{action:status==='draft'?'draft':'complete',at:new Date().toISOString(),by:(currentProfile?.display_name||currentUser?.email||'')}]}}
@@ -7154,16 +7157,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN119ItemAmountFromStored(item,price){return qN119ItemGoodsFromStored(item,price)+qN98Money(item?.freight)}
   function renderPendingPrices(work,scope='all'){
     const rows=qQueueRows('pending_price').filter(r=>{const id=qRecordPartyIdentity(r),txn=String(r?.txnType||'').toLowerCase(),label=String(r?.txnTypeLabel||''),dir=String(r?.accountDirection||'').toLowerCase(),isPurchase=(txn==='purchase'||dir==='payable'||/進貨/.test(label));if(scope==='farmer')return id==='產農'&&isPurchase;if(scope==='vendor')return id==='廠商'&&isPurchase;return true});
-    const mode=(work.dataset.pendingSortMode==='farmer'?'farmer':'date');
-    const sorted=rows.slice().sort((a,b)=>mode==='farmer'?(String(a.customer||'').localeCompare(String(b.customer||''),'zh-Hant')||String(b.date||'').localeCompare(String(a.date||''))):(String(b.date||'').localeCompare(String(a.date||''))||String(a.customer||'').localeCompare(String(b.customer||''),'zh-Hant')));
-    const recordHtml=(r,showFarmer=true)=>{const pending=(r.items||[]).map((x,i)=>({x,i})).filter(o=>qItemPricePending(o.x));return '<div class="quickV2Record" data-pending-record="'+qEsc(r.id)+'"><div class="quickV2RecordTop"><div><b>'+qEsc(r.date)+(showFarmer?'｜'+qEsc(r.customer):'')+'｜'+qEsc(r.type||'')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper" style="display:block!important">共 '+((r.items||[]).length)+' 項｜待補 '+pending.length+' 項</div></div><div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap"><div class="field" style="margin:0"><label class="label">交易日期</label><input type="date" class="input qPendingDate" value="'+qEsc(r.date||'')+'"></div><button type="button" class="btn primary qPendingSave">💾 儲存修改／補價</button></div></div><div class="quickV2Table" style="margin-top:10px"><div class="quickV2Row quickV2Labels" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 130px 120px"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>補單價</span><span>金額</span></div>'+pending.map(o=>'<div class="quickV2Row" data-pending-item="'+o.i+'" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 130px 120px"><b>'+(o.i+1)+'</b><b>'+qEsc(o.x.name)+'</b><span>'+qEsc(o.x.kg===''?'—':o.x.kg)+'</span><span>'+qEsc(o.x.qty)+'</span><input class="input qPendingPrice" inputmode="decimal" placeholder="輸入單價"><b class="qPendingAmount">—</b></div>').join('')+'</div></div>'};
-    let listHtml='';
-    if(rows.length&&mode==='farmer'){
-      const groups=new Map();sorted.forEach(r=>{const k=String(r.customer||'未命名');if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r)});
-      listHtml=[...groups.entries()].map(([name,recs])=>{const pendingItems=recs.reduce((n,r)=>n+(r.items||[]).filter(qItemPricePending).length,0);return '<section style="margin:14px 0 22px;border:2px solid #bfdbfe;border-radius:18px;padding:14px;background:#f8fbff"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin:0 4px 10px"><b style="font-size:22px">👨‍🌾 '+qEsc(name)+'</b><b>共 '+recs.length+' 筆｜待補 '+pendingItems+' 項</b></div>'+recs.map(r=>recordHtml(r,false)).join('')+'</section>'}).join('');
-    }else if(rows.length){listHtml=sorted.map(r=>recordHtml(r,true)).join('')}else{listHtml='<div class="empty" style="padding:18px">目前沒有待補價格資料</div>'}
-    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>💲 '+(scope==='farmer'?'產農待補價格':scope==='vendor'?'廠商待補價格':'全部待補價格')+'</b><div class="helper" style="display:block!important;margin-top:5px">只顯示已儲存、仍有單價空白的正式交易。補價後直接回寫原交易，不新增第二筆。</div></div><b>共 '+rows.length+' 筆</b></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0"><b>排列方式：</b><button type="button" class="btn '+(mode==='date'?'blue':'gray')+'" data-pending-sort="date">📅 依日期</button><button type="button" class="btn '+(mode==='farmer'?'blue':'gray')+'" data-pending-sort="farmer">👨‍🌾 依產農</button><span class="helper" style="display:block!important">只改畫面排列；原交易 ID、日期與補價回寫方式不變。</span></div><div id="quickPendingList">'+listHtml+'</div></div>';
-    work.querySelectorAll('[data-pending-sort]').forEach(btn=>btn.addEventListener('click',()=>{work.dataset.pendingSortMode=btn.dataset.pendingSort||'date';renderPendingPrices(work,scope)}));
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>💲 '+(scope==='farmer'?'產農待補價格':scope==='vendor'?'廠商待補價格':'全部待補價格')+'</b><div class="helper" style="display:block!important;margin-top:5px">只顯示已儲存、仍有單價空白的正式交易。補價後直接回寫原交易，不新增第二筆。</div></div><b>共 '+rows.length+' 筆</b></div><div id="quickPendingList">'+(rows.length?rows.map(r=>{const pending=(r.items||[]).map((x,i)=>({x,i})).filter(o=>qItemPricePending(o.x));return '<div class="quickV2Record" data-pending-record="'+qEsc(r.id)+'"><div class="quickV2RecordTop"><div><b>'+qEsc(r.date)+'｜'+qEsc(r.customer)+'｜'+qEsc(r.type||'')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper" style="display:block!important">共 '+((r.items||[]).length)+' 項｜待補 '+pending.length+' 項</div></div><div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap"><div class="field" style="margin:0"><label class="label">交易日期</label><input type="date" class="input qPendingDate" value="'+qEsc(r.date||'')+'"></div><button type="button" class="btn primary qPendingSave">💾 儲存修改／補價</button></div></div><div class="quickV2Table" style="margin-top:10px"><div class="quickV2Row quickV2Labels" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 130px 120px"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>補單價</span><span>金額</span></div>'+pending.map(o=>'<div class="quickV2Row" data-pending-item="'+o.i+'" style="grid-template-columns:42px minmax(180px,1.6fr) 100px 90px 130px 120px"><b>'+(o.i+1)+'</b><b>'+qEsc(o.x.name)+'</b><span>'+qEsc(o.x.kg===''?'—':o.x.kg)+'</span><span>'+qEsc(o.x.qty)+'</span><input class="input qPendingPrice" inputmode="decimal" placeholder="輸入單價"><b class="qPendingAmount">—</b></div>').join('')+'</div></div>'}).join(''):'<div class="empty" style="padding:18px">目前沒有待補價格資料</div>')+'</div></div>';
     work.querySelectorAll('[data-pending-record]').forEach(card=>{
       card.querySelectorAll('.qPendingPrice').forEach(inp=>{
         inp.addEventListener('input',()=>{const row=inp.closest('[data-pending-item]'),idx=Number(row.dataset.pendingItem),rec=rows.find(x=>String(x.id)===String(card.dataset.pendingRecord)),item=rec?.items?.[idx],v=inp.value.trim();row.querySelector('.qPendingAmount').textContent=v===''?'—':'$'+Math.round(qN119ItemAmountFromStored(item,qMoney(v))).toLocaleString('zh-TW')});
@@ -7627,11 +7621,6 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
    raw.forEach((v,i)=>{if(typeof v==='string')add(v,'legacy_'+i+'_'+String(v).trim(),true);else add(v?.name,v?.id||('legacy_'+i),v?.active!==false)});
    return out;
  }
- /* N212：鐵架名稱唯一共用入口。N169 分名核心仍存在，但後續版本遺失 window 導出，
-     導致快速做帳／容器進出／盤點等呼叫 qRackNamesForContact 時永遠拿不到名稱。
-     這裡只恢復共用核心連線；正式資料仍唯一讀取往來資料 turnover.rackNames，不建立第二份名單。 */
- window.qRackNamesForContact=qN169RackNamesForContact;
-
  function qN169RackBalance(events){
   const by={};
   (events||[]).filter(e=>canonical(e.type)==='鐵架').forEach(e=>{const key=String(e.rackNameId||e.rackName||'__unspecified__'),x=by[key]||(by[key]={rackNameId:e.rackNameId||'',rackName:e.rackName||'未指定鐵架名稱',owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);const d=Number(e.balanceDelta)||0;if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}if(e.action==='買斷')x.buyout+=Number(e.qty)||0});
@@ -7761,24 +7750,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
     if(raw==='standard')return 'standard';
     return c?.identity==='超市'?'large':'standard';
   }
-  // N208：超市帳單固定「一天一張」。身分=超市時，輸出資料只取所選交易日期當天；
-  // 一般客戶仍沿用未結清起點→截止交易的累積帳。報表紙一般/大量只控制版型，不控制帳單資料邊界。
-  function qN208SupermarketDailyDetail(c,direction='receipt',cutoffInput=null){
-    direction=direction==='payment'?'payment':'receipt';
-    const cutoff=qN96ResolveCutoff(c,direction,cutoffInput);
-    const targetDate=qN96Date(cutoff)||(typeof cutoffInput==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(cutoffInput)?cutoffInput:'');
-    const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price');
-    const activities=targetDate?all.filter(r=>qN96Date(r)===targetDate&&r.mode!=='money_settlement'&&qN96DirectionMatch(r,direction)).sort(qN96Cmp):[];
-    const balances=qN96OutstandingAt(c,direction,cutoff);
-    const open=balances.filter(x=>x.remain>0.000001);
-    return {
-      schema:'xinru_supermarket_daily_detail_v1',kind:'general',dailyStatement:true,direction,contact:c||null,
-      cutoff:cutoff||null,start:activities[0]||cutoff||null,settled:open.length===0,
-      outstanding:open.reduce((sum,x)=>sum+x.remain,0),openRows:open,
-      activities,transactions:activities,settlements:[],
-      range:{from:targetDate,to:targetDate}
-    };
-  }
   function qN97OutputRoute(entity,opts={}){
     const c=(entity&&typeof entity==='object'&&entity.identity)?entity:qContact(entity?.contactId||entity?.customer||entity||'');
     if(!c)return {schema:'xinru_output_route_v1',kind:'missing_contact',contact:null,data:null};
@@ -7786,11 +7757,10 @@ window.qNormalizeTurnAction=qN93TurnAction;
     if(context==='farmer_weekly_batch')return {schema:'xinru_output_route_v1',kind:'farmer_weekly',contact:c,reportLayout:'farmer_weekly',data:qN97FarmerWeekly(opts.week||opts.date||entity?.date||'')};
     const requestedDirection=opts.direction||entity?.direction||'';const direction=requestedDirection==='payable'?'payment':(requestedDirection==='receivable'?'receipt':(requestedDirection||((entity?.txnType==='purchase'||entity?.accountDirection==='payable'||entity?.txnTypeLabel==='進貨')?'payment':'receipt')));
     const cutoff=opts.cutoff||entity?.id||entity?.date||null;
-    const data=String(c?.identity||c?.type||'').trim()==='超市'?qN208SupermarketDailyDetail(c,direction,cutoff):qN96GeneralDetail(c,direction,cutoff);
-    return {schema:'xinru_output_route_v1',kind:'general',contact:c,reportLayout:qN97EffectiveReportLayout(c),direction,data};
+    return {schema:'xinru_output_route_v1',kind:'general',contact:c,reportLayout:qN97EffectiveReportLayout(c),direction,data:qN96GeneralDetail(c,direction,cutoff)};
   }
   window.xrAccountingDetailCore={
-    version:'N208',general:qN96GeneralDetail,supermarketDaily:qN208SupermarketDailyDetail,outstandingAt:qN96OutstandingAt,
+    version:'N125',general:qN96GeneralDetail,outstandingAt:qN96OutstandingAt,
     formalRecords:qN96FormalRecords,compare:qN96Cmp,farmerWeekly:qN97FarmerWeekly,
     weekRange:qN97WeekRange,effectiveReportLayout:qN97EffectiveReportLayout,outputRoute:qN97OutputRoute,outputModel:qN98OutputModel
   };
@@ -8172,7 +8142,24 @@ window.qNormalizeTurnAction=qN93TurnAction;
  async function choosePeople(selected=[]){const es=await employees(),old=new Set((selected||[]).map(String));return new Promise(resolve=>{const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:18px"><h3 style="margin-top:0">選擇公告收件人</h3><label style="display:flex;gap:8px;padding:9px;font-weight:800"><input id="n145all" type="checkbox"> 全選</label><div>'+es.map(e=>'<label style="display:flex;gap:8px;padding:9px;border-top:1px solid #eee"><input class="n145person" type="checkbox" value="'+escN(e.user_id)+'" '+(old.has(String(e.user_id))?'checked':'')+'> '+escN(e.nickname||e.display_name||e.user_id)+'</label>').join('')+'</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn gray" id="n145cancel">取消</button><button class="btn primary" id="n145ok">確定</button></div></div>';document.body.appendChild(bg);const all=bg.querySelector('#n145all'),cks=[...bg.querySelectorAll('.n145person')];const sync=()=>all.checked=cks.length>0&&cks.every(x=>x.checked);sync();all.onchange=()=>cks.forEach(x=>x.checked=all.checked);cks.forEach(x=>x.onchange=sync);bg.querySelector('#n145cancel').onclick=()=>{bg.remove();resolve(null)};bg.querySelector('#n145ok').onclick=()=>{const ids=cks.filter(x=>x.checked).map(x=>x.value);if(!ids.length)return alert('至少選 1 位收件人');bg.remove();resolve(ids)};});}
  async function recipientIds(taskId){const {data,error}=await sb.from('home_task_recipients').select('user_id').eq('task_id',taskId);if(error)throw error;return (data||[]).map(x=>String(x.user_id))}
  async function saveRecipients(taskId,ids){const d=await sb.from('home_task_recipients').delete().eq('task_id',taskId);if(d.error)throw d.error;if(ids.length){const i=await sb.from('home_task_recipients').insert(ids.map(user_id=>({task_id:taskId,user_id})));if(i.error)throw i.error}}
- async function syncReminders(){if(!isManager()||typeof window.xrAccountingReminderEvents!=='function')return;const ev=window.xrAccountingReminderEvents()||[],types=['billing_period_statement_due','supermarket_collection_due'],keys=new Set(ev.map(x=>String(x.source_key||'')));for(const x of ev){const row={reminder_type:x.reminder_type,source_key:x.source_key,title:x.title,message:x.message,due_date:x.due_date,source_data:x,updated_at:new Date().toISOString()};const {error}=await sb.from('system_reminders').upsert(row,{onConflict:'source_key',ignoreDuplicates:false});if(error)console.warn('N149提醒同步失敗',error.message)}const {data:old,error:readErr}=await sb.from('system_reminders').select('id,source_key,reminder_type,status').in('reminder_type',types).eq('status','pending');if(readErr){console.warn('N149舊提醒整理失敗',readErr.message);return}const stale=(old||[]).filter(r=>!keys.has(String(r.source_key||''))).map(r=>r.id);if(stale.length){const {error}=await sb.from('system_reminders').update({status:'superseded',updated_at:new Date().toISOString()}).in('id',stale);if(error)console.warn('N149舊提醒收斂失敗',error.message)}}
+ let n207ReminderSyncPromise=null,n207ReminderSyncAt=0;
+ async function syncReminders(force=false){
+  if(!isManager()||typeof window.xrAccountingReminderEvents!=='function')return;
+  const now=Date.now();
+  if(!force&&now-n207ReminderSyncAt<15000)return;
+  if(n207ReminderSyncPromise)return n207ReminderSyncPromise;
+  n207ReminderSyncPromise=(async()=>{
+   const ev=window.xrAccountingReminderEvents()||[],types=['billing_period_statement_due','supermarket_collection_due'],keys=new Set(ev.map(x=>String(x.source_key||''))),stamp=new Date().toISOString();
+   const rows=ev.map(x=>({reminder_type:x.reminder_type,source_key:x.source_key,title:x.title,message:x.message,due_date:x.due_date,source_data:x,updated_at:stamp}));
+   if(rows.length){const {error}=await sb.from('system_reminders').upsert(rows,{onConflict:'source_key',ignoreDuplicates:false});if(error)console.warn('N207提醒批次同步失敗',error.message)}
+   const {data:old,error:readErr}=await sb.from('system_reminders').select('id,source_key,reminder_type,status').in('reminder_type',types).eq('status','pending');
+   if(readErr){console.warn('N207舊提醒整理失敗',readErr.message);return}
+   const stale=(old||[]).filter(r=>!keys.has(String(r.source_key||''))).map(r=>r.id);
+   if(stale.length){const {error}=await sb.from('system_reminders').update({status:'superseded',updated_at:stamp}).in('id',stale);if(error)console.warn('N207舊提醒收斂失敗',error.message)}
+   n207ReminderSyncAt=Date.now();
+  })();
+  try{return await n207ReminderSyncPromise}finally{n207ReminderSyncPromise=null}
+ }
  async function publishReminder(r){const ids=await choosePeople([]);if(!ids)return;const {data,error}=await sb.from('home_tasks').insert({title:r.title,due_date:r.due_date||todayN(),note:r.message||null,department:'hq',is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||'',n145_audience:true}).select('id').single();if(error)return alert('發布失敗：'+error.message);try{await saveRecipients(data.id,ids);const u=await sb.from('system_reminders').update({status:'published',published_task_id:data.id,published_at:new Date().toISOString(),published_by:currentUser.id}).eq('id',r.id);if(u.error)throw u.error;alert('已發布公告');await window.homeLoadV79?.()}catch(e){alert('收件人設定失敗：'+(e?.message||e))}}
  async function dismissReminder(r){if(!confirm('確定這次不發布？\n只會關閉這次提醒，不會修改原本帳務資料。'))return;const {error}=await sb.from('system_reminders').update({status:'dismissed',dismissed_at:new Date().toISOString(),dismissed_by:currentUser.id}).eq('id',r.id);if(error)alert('操作失敗：'+error.message);else openPending()}
  async function openPending(){if(!isManager())return;await syncReminders();const {data,error}=await sb.from('system_reminders').select('*').eq('status','pending').order('due_date',{ascending:true}).order('created_at',{ascending:true});if(error)return alert('待處理提醒讀取失敗：'+error.message);const rows=data||[];const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:#0008;z-index:99998;overflow:auto;padding:18px';bg.innerHTML='<div style="background:#fff;border-radius:16px;max-width:850px;margin:30px auto;padding:18px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3 style="margin:0">🔔 待處理提醒 '+rows.length+'</h3><button class="btn gray" data-close>關閉</button></div><div style="margin-top:12px">'+(rows.length?rows.map((r,i)=>'<div style="border:1px solid #ddd;border-radius:12px;padding:12px;margin:9px 0"><b>'+escN(TYPES[r.reminder_type]||r.reminder_type)+'｜'+escN(r.title)+'</b><div style="margin-top:5px">'+escN(r.message||'')+'</div><div class="helper" style="display:block!important">提醒日：'+escN(r.due_date||'')+'</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary" data-p="'+i+'">📣 發布公告</button><button class="btn gray" data-d="'+i+'">不發布</button></div></div>').join(''):'<div class="empty">目前沒有待處理提醒</div>')+'</div></div>';document.body.appendChild(bg);bg.querySelector('[data-close]').onclick=()=>bg.remove();bg.querySelectorAll('[data-p]').forEach(b=>b.onclick=async()=>{await publishReminder(rows[+b.dataset.p]);bg.remove()});bg.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.d];bg.remove();await dismissReminder(r)});}
@@ -8180,8 +8167,10 @@ window.qNormalizeTurnAction=qN93TurnAction;
  async function autoPublish(){if(!isManager())return;await syncReminders();const [{data:rules},{data:pending}]=await Promise.all([sb.from('reminder_rules').select('*').eq('auto_publish',true),sb.from('system_reminders').select('*').eq('status','pending')]);const rm=new Map((rules||[]).map(x=>[x.reminder_type,x]));for(const r of pending||[]){const rule=rm.get(r.reminder_type),ids=(rule?.recipient_user_ids||[]).map(String);if(!rule||!ids.length)continue;const {data:t,error}=await sb.from('home_tasks').insert({title:r.title,due_date:r.due_date||todayN(),note:r.message||null,department:'hq',is_completed:false,created_by:currentUser.id,created_by_name:'系統提醒',n145_audience:true}).select('id').single();if(error)continue;try{await saveRecipients(t.id,ids);await sb.from('system_reminders').update({status:'published',published_task_id:t.id,published_at:new Date().toISOString(),published_by:currentUser.id}).eq('id',r.id)}catch(e){console.warn(e)}}}
  // 新公告／舊公告相容：有 n145_audience 的公告依 recipients；舊公告照舊。
  async function filterAudience(){if(!currentUser)return;try{const {data:rec,error}=await sb.from('home_task_recipients').select('task_id,user_id');if(error)return;const mine=new Set((rec||[]).filter(x=>String(x.user_id)===String(currentUser.id)).map(x=>String(x.task_id)));document.querySelectorAll('#homeNoticeList .homeTodoCard').forEach(()=>{});window.n145MineTaskIds=mine}catch(e){console.warn(e)}}
- function init(){const p=document.getElementById('homeReminderPendingBtn'),r=document.getElementById('homeReminderRulesBtn');if(!p||!r)return;const ok=isManager();p.style.display=ok?'inline-flex':'none';r.style.display=ok?'inline-flex':'none';p.onclick=openPending;r.onclick=openRules;if(ok)setTimeout(()=>autoPublish().then(()=>window.homeLoadV79?.()),1200)}
- document.addEventListener('DOMContentLoaded',()=>setTimeout(init,900));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(init,50)});
+ let n207AutoPublishStarted=false;
+ function init(){const p=document.getElementById('homeReminderPendingBtn'),r=document.getElementById('homeReminderRulesBtn');if(!p||!r)return;const ok=isManager();p.style.display=ok?'inline-flex':'none';r.style.display=ok?'inline-flex':'none';p.onclick=openPending;r.onclick=openRules}
+ function n207StartAutoPublishOnce(){if(n207AutoPublishStarted||!isManager())return;n207AutoPublishStarted=true;setTimeout(()=>autoPublish().then(()=>window.homeLoadV79?.()).catch(e=>console.warn('N207 autoPublish skipped',e)),1200)}
+ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{init();n207StartAutoPublishOnce()},900));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]'))setTimeout(init,50)});
  window.n145ChooseAnnouncementPeople=choosePeople;window.n145RecipientIds=recipientIds;window.n145SaveRecipients=saveRecipients;window.n145OpenPending=openPending;window.n145OpenRules=openRules;
 })();
 </script>
