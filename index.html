@@ -9,10 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N198｜容器效能＋歸還核心正式版</title>
+<title>欣儒系統｜N209｜手機快速啟動優化</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="https://unpkg.com/pinyin-pro"></script>
 <style>
 :root{--bg:#f3f5f7;--card:#fff;--text:#16181d;--muted:#7b818b;--line:#e5e8ec;--blue:#dbeeff;--blueText:#1e5f94;--green:#1f9d55;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed;--shadow:0 8px 28px rgba(0,0,0,.06)}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",Arial,sans-serif;color:var(--text)}
@@ -3370,7 +3368,21 @@ $('#takePhoto').onclick=()=>$('#photoInput').click();
 let photoPreviewUrl='';
 $('#clearPhoto').onclick=()=>{photoFile=null;$('#photoInput').value='';if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl='';$('#photoPreview').style.display='none';$('#photoPreview').src='';$('#ocrStatus').textContent=''};
 $('#photoInput').onchange=async e=>{const original=e.target.files[0];if(!original)return;const status=$('#ocrStatus');status.textContent='正在處理照片…';photoFile=await compressPhoto(original);if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl=URL.createObjectURL(photoFile);$('#photoPreview').src=photoPreviewUrl;$('#photoPreview').style.display='block';status.textContent=`✅ 照片已準備（${photoSizeText(photoFile)}），送出時會自動上傳`};
-$('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';try{const result=await Tesseract.recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
+let xrTesseractLoadPromise=null;
+function xrLoadTesseract(){
+  if(window.Tesseract)return Promise.resolve(window.Tesseract);
+  if(xrTesseractLoadPromise)return xrTesseractLoadPromise;
+  xrTesseractLoadPromise=new Promise((resolve,reject)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    sc.async=true;
+    sc.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR 元件載入失敗'));
+    sc.onerror=()=>reject(new Error('OCR 元件下載失敗'));
+    document.head.appendChild(sc);
+  }).catch(e=>{xrTesseractLoadPromise=null;throw e});
+  return xrTesseractLoadPromise;
+}
+$('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在載入辨識功能…';try{const Tesseract=await xrLoadTesseract();$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';const result=await Tesseract.recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
 async function uploadPhoto(orderNo){if(!photoFile)return null;return uploadOrderPhoto(photoFile,`${orderNo}-${Date.now()}.jpg`,$('#ocrStatus'))}
 function updateOrderTargetUI(){
   const freight=$('#orderTarget')?.value==='delivery';
@@ -4003,77 +4015,62 @@ window.xrContactsCloud={load:loadContactsCloud,syncLocal:syncLocalContactsToClou
 async function startApp(user){
   try{
     currentUser=user;
-    currentProfile=await loadMyProfile(user);
+    // N209：權限仍在畫面顯示前確認；profile 與 page permissions 可並行，縮短手機/PWA啟動等待。
     v17LoadedFor='';
     v17Perm={pages:[],funcs:[],configured:false};
-    await v17LoadMine();
+    const profilePromise=loadMyProfile(user);
+    const permPromise=v17LoadMine();
+    currentProfile=await profilePromise;
+    await permPromise;
     applyNotificationSoundDefault();
 
-    // N10R3：在主畫面第一次顯示之前就判斷是否要恢復帳務內層。
-    // 若是，整個 mainApp 維持 hidden，直到資料與原頁都恢復完成，避免任何第一層/首頁被畫到螢幕。
     const bootRememberedTab=getRememberedTab();
-    const bootAccountingNav=(bootRememberedTab==='accounting'&&window.xrAccountingNav?.read)
-      ? window.xrAccountingNav.read()
-      : null;
-    const bootHasAccountingLayer=!!(
-      bootAccountingNav &&
-      (bootAccountingNav.layer==='workQueue' ||
-       bootAccountingNav.layer==='ledgerContact' ||
-       bootAccountingNav.layer==='contactEditor' ||
-       bootAccountingNav.layer==='detail' ||
-       bootAccountingNav.layer==='globalTransactions' ||
-       bootAccountingNav.layer==='contactEntry' ||
-       bootAccountingNav.layer==='contactPayment' ||
-       bootAccountingNav.layer==='contactSearch' ||
-       bootAccountingNav.section)
-    );
-
     document.body.classList.remove('auth-booting');
     showApp();
-    if(bootRememberedTab==='accounting'&&bootHasAccountingLayer){
-      const mainApp=document.getElementById('mainApp');
-      if(mainApp)mainApp.style.visibility='hidden';
+
+    // N209：先把使用者上次所在頁面直接畫出來；雲端資料在背景同步。
+    // 不再為了帳務內層把整個 mainApp 隱藏到所有 API 都跑完。
+    activateTab(bootRememberedTab,{save:false});
+    if(bootRememberedTab==='accounting'&&window.xrAccountingNav?.restore){
+      try{window.xrAccountingNav.restore()}catch(e){console.warn('帳務頁恢復稍後重試',e)}
     }
 
-    if(currentProfile?.role==='admin')refreshPendingEmployeeBadge();
+    if(currentProfile?.role==='admin')setTimeout(()=>refreshPendingEmployeeBadge(),0);
     if(currentIsDriver()){
-    // 只有第一次使用、完全沒有保存過篩選時，才預設到自己的司機頁。
-    // 使用者若選過「全部」或任何司機，重新整理後必須原樣保留。
-    const saved=localStorage.getItem('xinru_delivery_driver_filter');
-    if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
-    const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
-    if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
-  }
-  // 保留使用者最後所在的頁面與篩選；登入/重新整理/PWA重開都不強制跳回司機本人或貨運首頁。
-  await loadDelivery();
-  // N111：先由 Supabase 下載正式往來主檔，再載入帳務；裝置 localStorage 不得在登入時反向覆蓋雲端。
-  await loadContactsCloud();
-  await loadAccountingCloud();
-  if(!appStarted){appStarted=true;await loadOrders();}else{await loadOrders();}
-  // N128：寄車／現場回報是正式啟動資料依賴。
-  // 重新整理、PWA重開、重新登入都必須先等 freight_receipts 載入完成，
-  // 再恢復使用者原本頁面；不再依賴 window.load 後 2.2 秒的補抓。
-  await loadStage9();
-  startStage9Realtime();
-  const rememberedTab=bootRememberedTab;
-  activateTab(rememberedTab,{save:false});
+      const saved=localStorage.getItem('xinru_delivery_driver_filter');
+      if(saved===null){deliveryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_driver_filter',currentUser.id);}else{deliveryDriverFilter=saved;}
+      const savedQ=localStorage.getItem('xinru_delivery_query_driver_filter');
+      if(savedQ===null){deliveryQueryDriverFilter=currentUser.id;localStorage.setItem('xinru_delivery_query_driver_filter',currentUser.id);}else{deliveryQueryDriverFilter=savedQ;}
+    }
 
-  // 唯一恢復點：先在不可見狀態完成原頁，再一次顯示整個 App。
-  if(rememberedTab==='accounting'&&bootHasAccountingLayer&&window.xrAccountingNav?.restore){
-    window.xrAccountingNav.restore();
-  }
-  const mainApp=document.getElementById('mainApp');
-  if(mainApp)mainApp.style.visibility='visible';
+    // N209：互不依賴的啟動資料改成並行。往來主檔→帳務仍保留既有先後規則。
+    const contactAccounting=(async()=>{await loadContactsCloud();await loadAccountingCloud();})();
+    const stage9Promise=Promise.resolve(loadStage9());
+    const startupResults=await Promise.allSettled([
+      loadDelivery(),
+      loadOrders(),
+      contactAccounting,
+      stage9Promise
+    ]);
+    startupResults.forEach(r=>{if(r.status==='rejected')console.warn('N209 背景啟動資料同步失敗',r.reason)});
+    appStarted=true;
+    try{startStage9Realtime()}catch(e){console.warn(e)}
+
+    // 雲端資料回來後再恢復一次目前帳務內層，確保內容刷新但不跳頁。
+    if(getRememberedTab()==='accounting'&&window.xrAccountingNav?.restore){
+      try{window.xrAccountingNav.restore()}catch(e){}
+    }
   }
   catch(e){
     console.error(e);
     const msg=String(e?.message||e||'');
-    // 啟動時遇到暫時性網路/API錯誤，不再自動 signOut，避免手機/PWA 被誤登出。
     if(msg.includes('員工帳號已停用')){
       await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
     }else{
-      console.error('第169C3啟動失敗：',e);
-      document.body.classList.remove('auth-booting');showApp();const mainApp=document.getElementById('mainApp');if(mainApp)mainApp.style.visibility='visible';alert('連線或資料初始化暫時失敗，登入狀態仍保留。\n\n'+msg);
+      console.error('N209啟動失敗：',e);
+      document.body.classList.remove('auth-booting');
+      if(currentProfile){showApp();const mainApp=document.getElementById('mainApp');if(mainApp)mainApp.style.visibility='visible';}
+      else showLogin('連線暫時失敗，請再試一次');
     }
   }
 }
