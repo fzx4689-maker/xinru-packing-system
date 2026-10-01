@@ -6778,7 +6778,24 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return out;
   }
   function qN98ContainerText(model){return qN103ContainerText(model)||'—'}
+  // N224：單筆調整／退款輸出直接使用中央標準事件列。
+  // 避免用原交易 items 或帳期 cutoff 重建，確保退貨 returnItem／退款 methods 在四種輸出一致。
+  function qN224DirectEventOutputModel(record){
+    if(!record)return null;
+    const contact=qContact(record?.contactId||record?.customer||'');
+    if(!contact)return null;
+    let rows=[];
+    if(qAccountingIsAdjustment(record))rows=qN222RowsFromAdjustment(record,contact);
+    else if(record.mode==='money_refund')rows=[qN98SettlementRow(record,contact)];
+    else return null;
+    let displaySeq=0;
+    rows=qN107SortRows(rows).map(r=>r?.kind==='settlement'?{...r}:{...r,no:++displaySeq,displaySeq});
+    const direction=(record.accountDirection==='reduce_payable'||record.accountDirection==='refund_from_supplier')?'payment':'receipt';
+    const snapshot=contact?.billShowTurnover!==false?qN109CurrentContainerSnapshot(contact):{contact,enabledTypes:[],balances:[],text:''};
+    return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight:direction==='payment'&&/產農|廠商/.test(String(contact?.identity||contact?.type||'')),reportLayout:qN97EffectiveReportLayout(contact),contact:snapshot.contact||contact,direction,range:{from:record.date||'',to:record.date||''},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities:[record],directEvent:true}};
+  }
   function qN98OutputModel(record){
+    const direct=qN224DirectEventOutputModel(record);if(direct)return direct;
     const route=qN97OutputRoute(record,{context:record?.context||'',direction:record?.direction||'',cutoff:record?.id||record?.date,week:record?.date});
     if(route.kind==='missing_contact')return {schema:'xinru_complete_output_v1',kind:'missing_contact',route,rows:[],summary:qN98Summary([])};
     if(route.kind==='farmer_weekly'){
@@ -7605,8 +7622,10 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<div class="quickV2ContactHint" style="margin-top:12px"><b>帳務調整紀錄</b>'+events.map(x=>'<div style="margin-top:6px">'+(x.status==='void'?'🚫 ':'')+qEsc(x.txnTypeLabel||qAccountingAdjustmentLabel(x.mode)||'退款')+'｜$'+Math.round(qMoney(x.amount)).toLocaleString('zh-TW')+'｜'+qEsc(x.reason||'')+(x.returnItem?.name?'｜'+qEsc(x.returnItem.name):'')+'</div>').join('')+'</div>';
   }
   function qRecordDetailHtml(r){
-    const items=Array.isArray(r.items)?r.items:[],sum=qAmountSummary(r),goods=sum.goods,freight=sum.freight,total=sum.total,contact=qContact(r?.contactId||r?.customer||''),tm=qRecordTurnoverMoney(r),showLedgerTurnover=contact?.ledgerShowTurnover!==false&&r?.turnover?.action==='買斷'&&tm.amount>0,effective=qAccountingEffectiveTotal(r,contact),adjusted=qAccountingAdjustmentTotal(r.id),overpaid=qAccountingOverpaid(r,contact);
-    const detailRows=items.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+qEsc(x.name||'')+'</td><td>'+qEsc(x.kg===''?'—':x.kg)+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+qEsc(qPricingText(x.pricing||'piece',x.pricingUnit))+'</td><td>'+qEsc(x.price===''?(qItemPricePending(x)?'待補':'—'):x.price)+'</td><td>'+qEsc(Number(x.freight)||0)+'</td><td>'+qEsc((x.itemStatus||'')||(x.amount===''?'':Math.max(0,(Number(x.amount)||0)-(Number(x.freight)||0))))+'</td></tr>').join('')+(showLedgerTurnover?'<tr><td>'+(items.length+1)+'</td><td>'+qEsc((r.turnover.type||'周轉物')+'買斷')+'</td><td>—</td><td>'+qEsc(r.turnover.qty??'')+'</td><td>買斷</td><td>'+qEsc(Math.round(tm.unitPrice))+'</td><td>0</td><td>$'+Math.round(tm.amount).toLocaleString('zh-TW')+'</td></tr>':'');
+    const contact=qContact(r?.contactId||r?.customer||''),isAdjustment=qAccountingIsAdjustment(r),isRefund=r?.mode==='money_refund';
+    const centralRows=isAdjustment?qN222RowsFromAdjustment(r,contact):(isRefund?[qN98SettlementRow(r,contact)]:[]);
+    const items=Array.isArray(r.items)?r.items:[],sum=(isAdjustment||isRefund)?qN98Summary(centralRows):qAmountSummary(r),goods=sum.goods||0,freight=sum.freight||0,total=(isAdjustment||isRefund)?(isRefund?qN98Money(r.amount??r.total):qN98Money(sum.total)):sum.total,tm=qRecordTurnoverMoney(r),showLedgerTurnover=!isAdjustment&&!isRefund&&contact?.ledgerShowTurnover!==false&&r?.turnover?.action==='買斷'&&tm.amount>0,effective=qAccountingEffectiveTotal(r,contact),adjusted=qAccountingAdjustmentTotal(r.id),overpaid=qAccountingOverpaid(r,contact);
+    const detailRows=(isAdjustment||isRefund)?centralRows.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+qEsc(x.name||x.adjustmentLabel||'調整')+(x.summary?'<div class="helper" style="display:block!important">'+qEsc(x.summary)+'</div>':'')+'</td><td>'+qEsc(x.kg===''?'—':(x.kg??'—'))+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+qEsc(x.kind==='settlement'?'金流':'調整')+'</td><td>—</td><td>0</td><td>'+qEsc((x.kind==='settlement'?'$':'')+Math.round(qN98Money(x.amount??x.goods)).toLocaleString('zh-TW'))+'</td></tr>').join(''):items.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+qEsc(x.name||'')+'</td><td>'+qEsc(x.kg===''?'—':x.kg)+'</td><td>'+qEsc(x.qty??'')+'</td><td>'+qEsc(qPricingText(x.pricing||'piece',x.pricingUnit))+'</td><td>'+qEsc(x.price===''?(qItemPricePending(x)?'待補':'—'):x.price)+'</td><td>'+qEsc(Number(x.freight)||0)+'</td><td>'+qEsc((x.itemStatus||'')||(x.amount===''?'':Math.max(0,(Number(x.amount)||0)-(Number(x.freight)||0))))+'</td></tr>').join('')+(showLedgerTurnover?'<tr><td>'+(items.length+1)+'</td><td>'+qEsc((r.turnover.type||'周轉物')+'買斷')+'</td><td>—</td><td>'+qEsc(r.turnover.qty??'')+'</td><td>買斷</td><td>'+qEsc(Math.round(tm.unitPrice))+'</td><td>0</td><td>$'+Math.round(tm.amount).toLocaleString('zh-TW')+'</td></tr>':'');
     return '<div class="quickV2 qRecordDetailView"><div class="quickV2RecordTop"><div><b>🧾 交易明細｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||r.type||'')+'｜交易編號：'+qEsc(r.id||'')+'</div></div><button type="button" class="btn gray" id="qDetailBack">← 返回今日做帳</button></div>'+
       (r.status==='void'?'<div class="quickV2ContactHint" style="margin-top:10px"><b>🚫 已作廢</b>｜原因：'+qEsc(r.voidReason||'未填')+'｜作廢人：'+qEsc(r.voidedBy||'')+'｜時間：'+qEsc(r.voidedAt?new Date(r.voidedAt).toLocaleString('zh-TW'):'')+'</div>':'')+
       '<div class="qDetailTableWrap"><table class="qDetailTable"><colgroup><col class="qdc-seq"><col class="qdc-name"><col class="qdc-kg"><col class="qdc-qty"><col class="qdc-pricing"><col class="qdc-price"><col class="qdc-freight"><col class="qdc-amount"></colgroup><thead><tr><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單位</th><th>單價</th><th>運費</th><th>金額</th></tr></thead><tbody>'+detailRows+'</tbody></table></div>'+
