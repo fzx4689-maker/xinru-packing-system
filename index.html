@@ -3298,7 +3298,27 @@ function activateTab(tabName,{save=true}={}){
     // 用網址 hash 記住目前頁面，重新整理後仍停在原頁。
     if(location.hash!==`#${tabName}`)history.replaceState(null,'',`${location.pathname}${location.search}#${tabName}`);
   }
-  renderAll();
+  // N208 效能：切換主分頁時只重畫目前分頁。
+  // 完整 renderAll() 仍保留給首次載入、資料真正更新等既有流程，
+  // 避免單純切頁時把派工／包裝／電視牆／貨運／訂單查詢全部重畫。
+  renderActiveTab(tabName);
+}
+function renderActiveTab(tabName){
+  if(tabName==='stall'){
+    let stallMode='create';
+    try{stallMode=localStorage.getItem('xinru_stall_mode')||'create'}catch(e){}
+    if(stallMode==='delivery') renderStallDelivery();
+    else if(stallMode==='packing') renderStall();
+    return;
+  }
+  if(tabName==='packing'){
+    if(!isEditingPackingReply()) renderPacking();
+    return;
+  }
+  if(tabName==='wall'){renderWall();return;}
+  if(tabName==='delivery'){renderDelivery();return;}
+  if(tabName==='today'){renderToday();return;}
+  // home / accounting 為既有靜態或各自模組管理的畫面；切頁本身不做全站重畫。
 }
 function setStallMode(mode='create'){
   if(mode==='manage')mode='packing';
@@ -3341,8 +3361,8 @@ function openDepartmentHistory(mode){
   if(back)back.textContent='←';
   const qd=$('#queryDate');
   if(qd&&!qd.value)qd.value=taipeiDate();
+  // N208：activateTab('today') 已只重畫訂單查詢一次，避免重複 renderToday。
   activateTab('today',{save:true});
-  renderToday();
 }
 $('#packingHistoryBtn')?.addEventListener('click',()=>openDepartmentHistory('packing'));
 $('#deliveryHistoryBtn')?.addEventListener('click',()=>openDepartmentHistory('delivery'));
