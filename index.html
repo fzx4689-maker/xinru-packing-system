@@ -6294,7 +6294,19 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   // N35：同一往來對象的交易歸屬不能只比「目前 contactId」。
   // 舊交易可能保存舊 contactId／名稱／編號／車號；先從目前主檔建立種子，
   // 再掃描全部交易做傳遞式合併，找出這個往來對象歷史上用過的 ID 與別名。
-  function qContactLedgerIdentity(c){
+  
+// N217_ACCOUNTING_CORE_PERF_BEGIN
+// 僅供一次 qPaintWorkBadges 計算使用；每輪開始/結束都清空，不跨資料變更保存。
+let qN217BadgeCalcActive = false;
+let qN217IdentityCache = new WeakMap();
+// N217_ACCOUNTING_CORE_PERF_DECL_END
+
+function qContactLedgerIdentity(c){
+    if(qN217BadgeCalcActive && c && typeof c === 'object'){
+      const hit = qN217IdentityCache.get(c);
+      if(hit) return hit;
+    }
+
     const ids=new Set(),aliases=new Set();if(!c)return {ids,aliases};
     const addAlias=v=>{const k=qNormKey(v);if(k)aliases.add(k)};
     const cid=String(c.id||'').trim(),recordCid=String(c._recordContactId||'').trim();
@@ -6309,6 +6321,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(rid&&!rid.startsWith('legacy:')&&!ids.has(rid)){ids.add(rid);changed=true}
       for(const a of ra){if(a&&!aliases.has(a)){aliases.add(a);changed=true}}
     }}
+    if(qN217BadgeCalcActive && c && typeof c === 'object') qN217IdentityCache.set(c, {ids,aliases});
     return {ids,aliases};
   }
   function qRecordBelongsToContact(r,c){
@@ -6912,6 +6925,14 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return qAccountingMoneyContactCandidates().map(c=>({c,tot:qContactOpenTotals(c)})).map(x=>({c:x.c,due:direction==='payment'?x.tot.payable:x.tot.receivable})).filter(x=>x.due>0.000001);
   }
   function qPaintWorkBadges(){
+  const qN217Outer = qN217BadgeCalcActive;
+  if(!qN217Outer){
+    qN217BadgeCalcActive = true;
+    qN217IdentityCache = new WeakMap();
+  }
+  const qN217Start = performance.now();
+  try {
+
     const counts={
       dispatch_pending:qQueueRows('dispatch_pending').length,
       pending_price:qQueueRows('pending_price').length,
@@ -6930,7 +6951,15 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     }
     Object.entries(counts).forEach(([k,v])=>{const el=document.querySelector('[data-work-count="'+k+'"]');if(el)el.textContent=String(v)});
     return counts;
+  
+  } finally {
+    if(!qN217Outer){
+      window.__N217_LAST_BADGE_MS__ = performance.now() - qN217Start;
+      qN217BadgeCalcActive = false;
+      qN217IdentityCache = new WeakMap();
+    }
   }
+}
   function qRenderQueue(work,filter='all'){
     if(filter==='pending_price'){renderPendingPrices(work);return}
     const rows=qQueueRows(filter).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
@@ -8865,94 +8894,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
   }catch(_){}
 
   draw();
-})();
-</script>
-
-
-<script>
-/* N216_PATCH_BEGIN_20261001
-   帳務首頁待辦效能修正：只在單次 qPaintWorkBadges 計算期間快取重複歸戶結果。
-   不改資料、不改收付款公式、不跨輪保留快取。
-*/
-(function(){
-  if (window.__N216_INSTALLED__) return;
-  window.__N216_INSTALLED__ = true;
-
-  function installN216(){
-    const paint0 = window.qPaintWorkBadges;
-    const identity0 = window.qContactLedgerIdentity;
-    const belongs0 = window.qRecordBelongsToContact;
-    if (typeof paint0 !== "function" || typeof identity0 !== "function" || typeof belongs0 !== "function") return false;
-    if (paint0.__N216__) return true;
-
-    let ctx = null;
-
-    function stableContactKey(c){
-      if (!c) return "null";
-      const id = c.id ?? c.contact_id ?? c.code ?? c.no ?? c.customer_code ?? c.name;
-      if (id !== undefined && id !== null && String(id) !== "") return "c:"+String(id);
-      if (!ctx.contactObj.has(c)) ctx.contactObj.set(c,"co:"+(++ctx.contactSeq));
-      return ctx.contactObj.get(c);
-    }
-    function stableRecordKey(r){
-      if (!r) return "null";
-      const id = r.id ?? r.record_id ?? r.txn_id ?? r.accounting_id;
-      if (id !== undefined && id !== null && String(id) !== "") return "r:"+String(id);
-      if (!ctx.recordObj.has(r)) ctx.recordObj.set(r,"ro:"+(++ctx.recordSeq));
-      return ctx.recordObj.get(r);
-    }
-
-    window.qContactLedgerIdentity = function(c){
-      if (!ctx) return identity0.apply(this,arguments);
-      const k=stableContactKey(c);
-      if (ctx.identity.has(k)) return ctx.identity.get(k);
-      const value=identity0.apply(this,arguments);
-      ctx.identity.set(k,value);
-      return value;
-    };
-
-    window.qRecordBelongsToContact = function(r,c){
-      if (!ctx) return belongs0.apply(this,arguments);
-      const k=stableRecordKey(r)+"|"+stableContactKey(c);
-      if (ctx.belongs.has(k)) return ctx.belongs.get(k);
-      const value=belongs0.apply(this,arguments);
-      ctx.belongs.set(k,value);
-      return value;
-    };
-
-    function paintN216(){
-      const outer=ctx;
-      if (!outer) {
-        ctx={
-          identity:new Map(), belongs:new Map(),
-          contactObj:new WeakMap(), recordObj:new WeakMap(),
-          contactSeq:0, recordSeq:0
-        };
-      }
-      const t0=performance.now();
-      try {
-        return paint0.apply(this,arguments);
-      } finally {
-        if (!outer) {
-          window.__N216_LAST_BADGE_MS__=performance.now()-t0;
-          ctx=null; // 關鍵：每輪立即清除，下一輪一定依最新帳務資料重算
-        }
-      }
-    }
-    paintN216.__N216__=true;
-    paintN216.__N216_ORIGINAL__=paint0;
-    window.qPaintWorkBadges=paintN216;
-    console.info("[N216] accounting badge single-pass cache enabled");
-    return true;
-  }
-
-  if (!installN216()) {
-    let count=0;
-    const timer=setInterval(function(){
-      count++;
-      if (installN216() || count>=20) clearInterval(timer);
-    },100);
-  }
 })();
 </script>
 
