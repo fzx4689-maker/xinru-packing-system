@@ -7627,6 +7627,11 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
    raw.forEach((v,i)=>{if(typeof v==='string')add(v,'legacy_'+i+'_'+String(v).trim(),true);else add(v?.name,v?.id||('legacy_'+i),v?.active!==false)});
    return out;
  }
+ /* N212：鐵架名稱唯一共用入口。N169 分名核心仍存在，但後續版本遺失 window 導出，
+     導致快速做帳／容器進出／盤點等呼叫 qRackNamesForContact 時永遠拿不到名稱。
+     這裡只恢復共用核心連線；正式資料仍唯一讀取往來資料 turnover.rackNames，不建立第二份名單。 */
+ window.qRackNamesForContact=qN169RackNamesForContact;
+
  function qN169RackBalance(events){
   const by={};
   (events||[]).filter(e=>canonical(e.type)==='鐵架').forEach(e=>{const key=String(e.rackNameId||e.rackName||'__unspecified__'),x=by[key]||(by[key]={rackNameId:e.rackNameId||'',rackName:e.rackName||'未指定鐵架名稱',owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);const d=Number(e.balanceDelta)||0;if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}if(e.action==='買斷')x.buyout+=Number(e.qty)||0});
