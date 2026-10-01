@@ -8470,4 +8470,184 @@ window.qNormalizeTurnAction=qN93TurnAction;
 })();
 </script>
 
+
+<script>
+/* N214_SYNC_HOTSPOT_DIAGNOSTIC */
+(function(){
+  if (window.__N214_INSTALLED__) return;
+  window.__N214_INSTALLED__ = true;
+
+  const P = performance;
+  const logs = [];
+  const MAX = 24;
+  let lastClick = "";
+
+  function n(){ return P.now(); }
+  function f(v){ return (Math.round(v*10)/10).toFixed(1); }
+  function txt(v){ return String(v||"").replace(/\s+/g," ").trim().slice(0,76); }
+  function add(kind,name,ms,extra){
+    if (ms < 12 && kind !== "LONG") return;
+    logs.push({kind,name:txt(name),ms,extra:txt(extra)});
+    if (logs.length > MAX) logs.splice(0, logs.length-MAX);
+    draw();
+  }
+  function label(el){
+    if (!el) return "";
+    const x = el.closest && el.closest("button,a,[role=button],[onclick],.card,.tile");
+    const q = x || el;
+    return txt(q.innerText || q.textContent || q.id || q.tagName);
+  }
+  function pane(){
+    let e=document.getElementById("n214diag");
+    if(!e){
+      e=document.createElement("div");
+      e.id="n214diag";
+      e.style.cssText="position:fixed;right:10px;bottom:10px;z-index:2147483647;width:min(520px,calc(100vw - 20px));max-height:48vh;overflow:auto;background:rgba(15,15,15,.95);color:#fff;padding:10px 12px;border-radius:10px;font:12px/1.42 system-ui,-apple-system,'Segoe UI',sans-serif;white-space:pre-wrap;box-shadow:0 4px 18px #0005;pointer-events:none";
+      document.body.appendChild(e);
+    }
+    return e;
+  }
+  function draw(){
+    if(!document.body) return;
+    const a=["N214 同步熱點定位"];
+    if(lastClick) a.push("最近按鍵："+lastClick);
+    const recent=logs.slice(-10);
+    if(!recent.length) a.push("等待同步熱點…");
+    for(const x of recent){
+      const icon=x.ms>=1000?"🟥":x.ms>=100?"🟧":"⬜";
+      a.push(icon+" "+x.kind+" "+x.name+"  "+f(x.ms)+" ms"+(x.extra?"  "+x.extra:""));
+    }
+    pane().textContent=a.join("\n");
+  }
+
+  document.addEventListener("pointerdown",e=>{lastClick=label(e.target)},true);
+
+  // 1) Wrap known global hot paths. Measures synchronous body only.
+  const known = [
+    "renderAll","applyRoleUI","loadOrders","loadDelivery","loadShortageReports",
+    "loadStage9","loadPackingChangeNotices","enforceActiveSession",
+    "renderAccounting","renderAccountingHome","renderReminder","renderReminders",
+    "renderAnnouncement","renderAnnouncements","renderContainer","renderContainers"
+  ];
+  function wrapGlobal(name){
+    let fn;
+    try{ fn=window[name]; }catch(_){ return; }
+    if(typeof fn!=="function" || fn.__N214) return;
+    const w=function(){
+      const s=n();
+      try{return fn.apply(this,arguments);}
+      finally{
+        const d=n()-s;
+        if(d>=12) add("FUNC",name,d,"同步函式");
+      }
+    };
+    w.__N214=true;
+    try{ window[name]=w; }catch(_){}
+  }
+  function wrapKnown(){ known.forEach(wrapGlobal); }
+  wrapKnown(); setTimeout(wrapKnown,500); setTimeout(wrapKnown,2000); setTimeout(wrapKnown,6000);
+
+  // 2) Measure expensive DOM APIs used by legacy stacked modules.
+  function wrapProto(obj,key,labelName,threshold){
+    if(!obj) return;
+    const old=obj[key];
+    if(typeof old!=="function" || old.__N214) return;
+    const w=function(){
+      const s=n();
+      try{return old.apply(this,arguments);}
+      finally{
+        const d=n()-s;
+        if(d>=threshold) add("DOM",labelName,d, arguments[0] ? txt(arguments[0]) : "");
+      }
+    };
+    w.__N214=true;
+    try{obj[key]=w;}catch(_){}
+  }
+  wrapProto(Document.prototype,"querySelectorAll","document.querySelectorAll",15);
+  wrapProto(Element.prototype,"querySelectorAll","element.querySelectorAll",15);
+  wrapProto(Document.prototype,"querySelector","document.querySelector",15);
+  wrapProto(Element.prototype,"querySelector","element.querySelector",15);
+  wrapProto(Element.prototype,"closest","element.closest",15);
+
+  // 3) Measure JSON.stringify because large state comparisons were found in loaders.
+  try{
+    const oldStringify=JSON.stringify;
+    if(!oldStringify.__N214){
+      const w=function(){
+        const s=n();
+        try{return oldStringify.apply(this,arguments);}
+        finally{
+          const d=n()-s;
+          if(d>=15) add("JSON","JSON.stringify",d,"大型狀態比較");
+        }
+      };
+      w.__N214=true;
+      JSON.stringify=w;
+    }
+  }catch(_){}
+
+  // 4) Measure synchronous MutationObserver callbacks. This is a common source
+  // of post-render stalls in single-file apps with many layered patches.
+  try{
+    const NativeMO=window.MutationObserver;
+    if(NativeMO && !NativeMO.__N214){
+      function WrappedMO(cb){
+        const wrapped=function(records,observer){
+          const s=n();
+          try{return cb.apply(this,arguments);}
+          finally{
+            const d=n()-s;
+            if(d>=12) add("MO","MutationObserver callback",d,"records="+(records?records.length:0));
+          }
+        };
+        return new NativeMO(wrapped);
+      }
+      WrappedMO.prototype=NativeMO.prototype;
+      WrappedMO.__N214=true;
+      window.MutationObserver=WrappedMO;
+    }
+  }catch(_){}
+
+  // 5) Measure event listeners registered after N214 installation.
+  try{
+    const oldAdd=EventTarget.prototype.addEventListener;
+    if(!oldAdd.__N214){
+      const wm=new WeakMap();
+      const patched=function(type,listener,options){
+        if(typeof listener!=="function") return oldAdd.call(this,type,listener,options);
+        let byType=wm.get(listener);
+        if(!byType){byType={};wm.set(listener,byType);}
+        const k=String(type);
+        if(!byType[k]){
+          byType[k]=function(){
+            const s=n();
+            try{return listener.apply(this,arguments);}
+            finally{
+              const d=n()-s;
+              if(d>=20) add("EVENT",k+" listener",d,lastClick||"");
+            }
+          };
+        }
+        return oldAdd.call(this,type,byType[k],options);
+      };
+      patched.__N214=true;
+      EventTarget.prototype.addEventListener=patched;
+    }
+  }catch(_){}
+
+  // 6) LongTask remains as correlation proof.
+  try{
+    if(window.PerformanceObserver &&
+       (PerformanceObserver.supportedEntryTypes||[]).includes("longtask")){
+      const po=new PerformanceObserver(list=>{
+        for(const e of list.getEntries()) add("LONG","main-thread",e.duration,lastClick||"");
+      });
+      po.observe({entryTypes:["longtask"]});
+    }
+  }catch(_){}
+
+  draw();
+})();
+</script>
+
 </body></html>
