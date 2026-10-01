@@ -5890,7 +5890,18 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(clear&&!clear.dataset.bound){clear.dataset.bound='1';clear.onclick=()=>{const f=document.getElementById('acctDateFrom'),t=document.getElementById('acctDateTo');if(f)f.value='';if(t)t.value='';qAcctApplyController()}}
   }
   function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctFirstLedgerSearch')?.classList.remove('hidden');const dc=document.getElementById('acctDateController');if(dc)dc.style.removeProperty('display');document.querySelector('.acctManagementHome>h2')?.classList.remove('hidden');document.querySelector('.acctManagementHome>h2+div.helper')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr){const ds=qAcctDateState();if(ds.dateFrom||ds.dateTo)qPaintDateRangeResults();else if(document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();else{sr.innerHTML='';sr.style.display='none'}}document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
-  function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();
+  // N211: 帳務點擊極小型效能診斷（僅 performance.now + 畫面提示；不寫資料、不改流程）
+  let xrN211PointerAt=0, xrN211PointerLabel='';
+  function xrN211Show(text){
+    let el=document.getElementById('xrN211Perf');
+    if(!el){el=document.createElement('div');el.id='xrN211Perf';el.style.cssText='position:fixed;right:10px;bottom:10px;z-index:2147483647;background:rgba(0,0,0,.82);color:#fff;padding:8px 10px;border-radius:8px;font:12px/1.45 monospace;max-width:92vw;white-space:pre-wrap;pointer-events:none';document.body.appendChild(el)}
+    el.textContent=text;
+  }
+  document.addEventListener('pointerdown',e=>{
+    const b=e.target.closest?.('.acctManagementBtn,.acctStageBtn,#acctStageBack');
+    if(!b)return; xrN211PointerAt=performance.now(); xrN211PointerLabel=(b.innerText||b.textContent||b.id||'帳務按鈕').trim().replace(/\s+/g,' ').slice(0,50);
+  },true);
+  function open(key,skipNavSave=false,opts={}){const xrN211OpenAt=performance.now();if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();
     const d=defs[key];if(!d)return;
     grid.style.display='none';stage.style.display='block';document.querySelector('.acctFirstLedgerSearch')?.classList.add('hidden');const dc=document.getElementById('acctDateController');if(dc)dc.style.setProperty('display','none','important');document.querySelector('.acctManagementHome>h2')?.classList.add('hidden');document.querySelector('.acctManagementHome>h2+div.helper')?.classList.add('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
     const bankLocked=(key==='payment' && !(typeof isAdmin==='function'&&isAdmin()));
@@ -5902,6 +5913,8 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div>'+(key==='ledger'?'':'<div class="acctStageGrid">'+items+'</div>')+'<div id="acctStageWork" class="acctStageWork"></div>';stage.classList.remove('xrTurnoverStage','acctActionLayer');
     document.getElementById('acctStageBack')?.addEventListener('click',()=>home());
     if(key==='ledger'&&!opts.deferLedgerRender){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
+    const xrN211Done=performance.now(), xrN211Before=xrN211PointerAt?xrN211OpenAt-xrN211PointerAt:0, xrN211Inside=xrN211Done-xrN211OpenAt;
+    xrN211Show('N211 點擊計時\n'+(xrN211PointerLabel||key)+'\npointer→open: '+xrN211Before.toFixed(1)+' ms\nopen內部: '+xrN211Inside.toFixed(1)+' ms\n總計: '+(xrN211PointerAt?xrN211Done-xrN211PointerAt:xrN211Inside).toFixed(1)+' ms');
   }
   document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>open(btn.dataset.acctManage)));
   // 第172D階段：主動按上方帳務中心＝回九入口第一層；重新整理不受影響。
