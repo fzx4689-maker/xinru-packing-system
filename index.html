@@ -1,6 +1,224 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
+
+<script>
+/* N215_EARLY_HOOK_DIAGNOSTIC */
+(function(){
+  if (window.__N215_INSTALLED__) return;
+  window.__N215_INSTALLED__ = true;
+
+  const nativeNow = performance.now.bind(performance);
+  const records = [];
+  const MAX = 60;
+  let lastPointerLabel = "";
+  let lastPointerTime = 0;
+
+  function now(){ return nativeNow(); }
+  function fmt(v){ return (Math.round(v*10)/10).toFixed(1); }
+  function clean(v){ return String(v||"").replace(/\s+/g," ").trim().slice(0,100); }
+
+  function push(kind, name, ms, extra){
+    if (ms < 20 && kind !== "LONG") return;
+    records.push({kind, name:clean(name), ms:Number(ms||0), extra:clean(extra)});
+    if (records.length > MAX) records.splice(0, records.length-MAX);
+    draw();
+  }
+
+  function label(el){
+    try{
+      const x = el && el.closest ? el.closest("button,a,[role='button'],[onclick],.card,.tile") : null;
+      const q = x || el;
+      return clean(q && (q.innerText || q.textContent || q.getAttribute?.("aria-label") || q.id || q.tagName));
+    }catch(_){ return ""; }
+  }
+
+  function panel(){
+    if (!document.body) return null;
+    let el=document.getElementById("n215EarlyHookPanel");
+    if(!el){
+      el=document.createElement("div");
+      el.id="n215EarlyHookPanel";
+      el.style.cssText=
+        "position:fixed;right:10px;bottom:10px;z-index:2147483647;" +
+        "width:min(560px,calc(100vw - 20px));max-height:50vh;overflow:auto;" +
+        "background:rgba(12,12,12,.95);color:#fff;padding:10px 12px;border-radius:10px;" +
+        "font:12px/1.42 system-ui,-apple-system,'Segoe UI',sans-serif;" +
+        "white-space:pre-wrap;box-shadow:0 4px 18px #0006;pointer-events:none;";
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function draw(){
+    const el=panel();
+    if(!el) return;
+    const lines=["N215 前置攔截診斷"];
+    if(lastPointerLabel) lines.push("最近按鍵："+lastPointerLabel);
+    const xs=records.slice(-12);
+    if(!xs.length) lines.push("等待 >20ms callback / >50ms Long Task…");
+    for(const r of xs){
+      const icon=r.ms>=1000?"🟥":r.ms>=100?"🟧":"⬜";
+      lines.push(icon+" "+r.kind+" "+r.name+"  "+fmt(r.ms)+" ms"+(r.extra?"  "+r.extra:""));
+    }
+    el.textContent=lines.join("\n");
+  }
+
+  // Capture pointer from page start.
+  document.addEventListener("pointerdown", function(e){
+    lastPointerTime=now();
+    lastPointerLabel=label(e.target);
+  }, true);
+
+  // Wrap callbacks registered AFTER this script. Since N215 is in <head>,
+  // this covers the app's original listeners too.
+  const nativeAdd = EventTarget.prototype.addEventListener;
+  const listenerMap = new WeakMap();
+
+  function listenerName(fn, type){
+    return (fn && fn.name ? fn.name : "anonymous") + " [" + type + "]";
+  }
+
+  EventTarget.prototype.addEventListener = function(type, listener, options){
+    if (!listener) return nativeAdd.call(this,type,listener,options);
+
+    if (typeof listener === "function"){
+      let byType=listenerMap.get(listener);
+      if(!byType){ byType={}; listenerMap.set(listener,byType); }
+      const key=String(type);
+      if(!byType[key]){
+        byType[key]=function(){
+          const s=now();
+          try { return listener.apply(this,arguments); }
+          finally {
+            const d=now()-s;
+            if(d>=20) push("EVENT",listenerName(listener,type),d,
+              lastPointerLabel ? "最近："+lastPointerLabel : "");
+          }
+        };
+      }
+      return nativeAdd.call(this,type,byType[key],options);
+    }
+
+    if (typeof listener.handleEvent === "function"){
+      const original=listener.handleEvent;
+      const proxy={
+        handleEvent:function(){
+          const s=now();
+          try{return original.apply(listener,arguments);}
+          finally{
+            const d=now()-s;
+            if(d>=20) push("EVENT","handleEvent ["+type+"]",d,lastPointerLabel||"");
+          }
+        }
+      };
+      return nativeAdd.call(this,type,proxy,options);
+    }
+    return nativeAdd.call(this,type,listener,options);
+  };
+
+  // Timers: measure callback BODY time, not waiting delay.
+  const nativeSetTimeout=window.setTimeout;
+  const nativeSetInterval=window.setInterval;
+  const nativeRAF=window.requestAnimationFrame;
+
+  window.setTimeout=function(cb,delay){
+    if(typeof cb!=="function") return nativeSetTimeout.apply(this,arguments);
+    const args=[].slice.call(arguments,2);
+    return nativeSetTimeout(function(){
+      const s=now();
+      try{return cb.apply(this,args);}
+      finally{
+        const d=now()-s;
+        if(d>=20) push("TIMEOUT",cb.name||"anonymous",d,"delay="+delay);
+      }
+    },delay);
+  };
+
+  window.setInterval=function(cb,delay){
+    if(typeof cb!=="function") return nativeSetInterval.apply(this,arguments);
+    const args=[].slice.call(arguments,2);
+    return nativeSetInterval(function(){
+      const s=now();
+      try{return cb.apply(this,args);}
+      finally{
+        const d=now()-s;
+        if(d>=20) push("INTERVAL",cb.name||"anonymous",d,"delay="+delay);
+      }
+    },delay);
+  };
+
+  window.requestAnimationFrame=function(cb){
+    if(typeof cb!=="function") return nativeRAF.call(this,cb);
+    return nativeRAF.call(this,function(ts){
+      const s=now();
+      try{return cb.call(this,ts);}
+      finally{
+        const d=now()-s;
+        if(d>=20) push("RAF",cb.name||"anonymous",d,"");
+      }
+    });
+  };
+
+  // MutationObserver from page start.
+  try{
+    const NativeMO=window.MutationObserver;
+    if(NativeMO){
+      function WrappedMO(cb){
+        const wrapped=function(records,observer){
+          const s=now();
+          try{return cb.apply(this,arguments);}
+          finally{
+            const d=now()-s;
+            if(d>=20) push("MO",cb.name||"anonymous",d,"records="+(records?records.length:0));
+          }
+        };
+        return new NativeMO(wrapped);
+      }
+      WrappedMO.prototype=NativeMO.prototype;
+      window.MutationObserver=WrappedMO;
+    }
+  }catch(_){}
+
+  // Promise handlers registered after N215.
+  try{
+    const nativeThen=Promise.prototype.then;
+    Promise.prototype.then=function(onFulfilled,onRejected){
+      function wrap(fn,side){
+        if(typeof fn!=="function") return fn;
+        return function(){
+          const s=now();
+          try{return fn.apply(this,arguments);}
+          finally{
+            const d=now()-s;
+            if(d>=20) push("PROMISE",fn.name||"anonymous",d,side);
+          }
+        };
+      }
+      return nativeThen.call(this,wrap(onFulfilled,"fulfilled"),wrap(onRejected,"rejected"));
+    };
+  }catch(_){}
+
+  // Long Task correlation.
+  try{
+    if(window.PerformanceObserver &&
+       (PerformanceObserver.supportedEntryTypes||[]).includes("longtask")){
+      const po=new PerformanceObserver(function(list){
+        for(const e of list.getEntries()){
+          const since=lastPointerTime ? now()-lastPointerTime : 0;
+          push("LONG","main-thread",e.duration,
+            (lastPointerLabel?lastPointerLabel+" | ":"")+(since?"距按下 "+fmt(since)+"ms":""));
+        }
+      });
+      po.observe({entryTypes:["longtask"]});
+    }
+  }catch(_){}
+
+  document.addEventListener("DOMContentLoaded",draw,{once:true});
+})();
+</script>
+
+
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#168c4e" />
