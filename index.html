@@ -2,223 +2,6 @@
 <html lang="zh-Hant">
 <head>
 
-<script>
-/* N215_EARLY_HOOK_DIAGNOSTIC */
-(function(){
-  if (window.__N215_INSTALLED__) return;
-  window.__N215_INSTALLED__ = true;
-
-  const nativeNow = performance.now.bind(performance);
-  const records = [];
-  const MAX = 60;
-  let lastPointerLabel = "";
-  let lastPointerTime = 0;
-
-  function now(){ return nativeNow(); }
-  function fmt(v){ return (Math.round(v*10)/10).toFixed(1); }
-  function clean(v){ return String(v||"").replace(/\s+/g," ").trim().slice(0,100); }
-
-  function push(kind, name, ms, extra){
-    if (ms < 20 && kind !== "LONG") return;
-    records.push({kind, name:clean(name), ms:Number(ms||0), extra:clean(extra)});
-    if (records.length > MAX) records.splice(0, records.length-MAX);
-    draw();
-  }
-
-  function label(el){
-    try{
-      const x = el && el.closest ? el.closest("button,a,[role='button'],[onclick],.card,.tile") : null;
-      const q = x || el;
-      return clean(q && (q.innerText || q.textContent || q.getAttribute?.("aria-label") || q.id || q.tagName));
-    }catch(_){ return ""; }
-  }
-
-  function panel(){
-    if (!document.body) return null;
-    let el=document.getElementById("n215EarlyHookPanel");
-    if(!el){
-      el=document.createElement("div");
-      el.id="n215EarlyHookPanel";
-      el.style.cssText=
-        "position:fixed;right:10px;bottom:10px;z-index:2147483647;" +
-        "width:min(560px,calc(100vw - 20px));max-height:50vh;overflow:auto;" +
-        "background:rgba(12,12,12,.95);color:#fff;padding:10px 12px;border-radius:10px;" +
-        "font:12px/1.42 system-ui,-apple-system,'Segoe UI',sans-serif;" +
-        "white-space:pre-wrap;box-shadow:0 4px 18px #0006;pointer-events:none;";
-      document.body.appendChild(el);
-    }
-    return el;
-  }
-
-  function draw(){
-    const el=panel();
-    if(!el) return;
-    const lines=["N215 前置攔截診斷"];
-    if(lastPointerLabel) lines.push("最近按鍵："+lastPointerLabel);
-    const xs=records.slice(-12);
-    if(!xs.length) lines.push("等待 >20ms callback / >50ms Long Task…");
-    for(const r of xs){
-      const icon=r.ms>=1000?"🟥":r.ms>=100?"🟧":"⬜";
-      lines.push(icon+" "+r.kind+" "+r.name+"  "+fmt(r.ms)+" ms"+(r.extra?"  "+r.extra:""));
-    }
-    el.textContent=lines.join("\n");
-  }
-
-  // Capture pointer from page start.
-  document.addEventListener("pointerdown", function(e){
-    lastPointerTime=now();
-    lastPointerLabel=label(e.target);
-  }, true);
-
-  // Wrap callbacks registered AFTER this script. Since N215 is in <head>,
-  // this covers the app's original listeners too.
-  const nativeAdd = EventTarget.prototype.addEventListener;
-  const listenerMap = new WeakMap();
-
-  function listenerName(fn, type){
-    return (fn && fn.name ? fn.name : "anonymous") + " [" + type + "]";
-  }
-
-  EventTarget.prototype.addEventListener = function(type, listener, options){
-    if (!listener) return nativeAdd.call(this,type,listener,options);
-
-    if (typeof listener === "function"){
-      let byType=listenerMap.get(listener);
-      if(!byType){ byType={}; listenerMap.set(listener,byType); }
-      const key=String(type);
-      if(!byType[key]){
-        byType[key]=function(){
-          const s=now();
-          try { return listener.apply(this,arguments); }
-          finally {
-            const d=now()-s;
-            if(d>=20) push("EVENT",listenerName(listener,type),d,
-              lastPointerLabel ? "最近："+lastPointerLabel : "");
-          }
-        };
-      }
-      return nativeAdd.call(this,type,byType[key],options);
-    }
-
-    if (typeof listener.handleEvent === "function"){
-      const original=listener.handleEvent;
-      const proxy={
-        handleEvent:function(){
-          const s=now();
-          try{return original.apply(listener,arguments);}
-          finally{
-            const d=now()-s;
-            if(d>=20) push("EVENT","handleEvent ["+type+"]",d,lastPointerLabel||"");
-          }
-        }
-      };
-      return nativeAdd.call(this,type,proxy,options);
-    }
-    return nativeAdd.call(this,type,listener,options);
-  };
-
-  // Timers: measure callback BODY time, not waiting delay.
-  const nativeSetTimeout=window.setTimeout;
-  const nativeSetInterval=window.setInterval;
-  const nativeRAF=window.requestAnimationFrame;
-
-  window.setTimeout=function(cb,delay){
-    if(typeof cb!=="function") return nativeSetTimeout.apply(this,arguments);
-    const args=[].slice.call(arguments,2);
-    return nativeSetTimeout(function(){
-      const s=now();
-      try{return cb.apply(this,args);}
-      finally{
-        const d=now()-s;
-        if(d>=20) push("TIMEOUT",cb.name||"anonymous",d,"delay="+delay);
-      }
-    },delay);
-  };
-
-  window.setInterval=function(cb,delay){
-    if(typeof cb!=="function") return nativeSetInterval.apply(this,arguments);
-    const args=[].slice.call(arguments,2);
-    return nativeSetInterval(function(){
-      const s=now();
-      try{return cb.apply(this,args);}
-      finally{
-        const d=now()-s;
-        if(d>=20) push("INTERVAL",cb.name||"anonymous",d,"delay="+delay);
-      }
-    },delay);
-  };
-
-  window.requestAnimationFrame=function(cb){
-    if(typeof cb!=="function") return nativeRAF.call(this,cb);
-    return nativeRAF.call(this,function(ts){
-      const s=now();
-      try{return cb.call(this,ts);}
-      finally{
-        const d=now()-s;
-        if(d>=20) push("RAF",cb.name||"anonymous",d,"");
-      }
-    });
-  };
-
-  // MutationObserver from page start.
-  try{
-    const NativeMO=window.MutationObserver;
-    if(NativeMO){
-      function WrappedMO(cb){
-        const wrapped=function(records,observer){
-          const s=now();
-          try{return cb.apply(this,arguments);}
-          finally{
-            const d=now()-s;
-            if(d>=20) push("MO",cb.name||"anonymous",d,"records="+(records?records.length:0));
-          }
-        };
-        return new NativeMO(wrapped);
-      }
-      WrappedMO.prototype=NativeMO.prototype;
-      window.MutationObserver=WrappedMO;
-    }
-  }catch(_){}
-
-  // Promise handlers registered after N215.
-  try{
-    const nativeThen=Promise.prototype.then;
-    Promise.prototype.then=function(onFulfilled,onRejected){
-      function wrap(fn,side){
-        if(typeof fn!=="function") return fn;
-        return function(){
-          const s=now();
-          try{return fn.apply(this,arguments);}
-          finally{
-            const d=now()-s;
-            if(d>=20) push("PROMISE",fn.name||"anonymous",d,side);
-          }
-        };
-      }
-      return nativeThen.call(this,wrap(onFulfilled,"fulfilled"),wrap(onRejected,"rejected"));
-    };
-  }catch(_){}
-
-  // Long Task correlation.
-  try{
-    if(window.PerformanceObserver &&
-       (PerformanceObserver.supportedEntryTypes||[]).includes("longtask")){
-      const po=new PerformanceObserver(function(list){
-        for(const e of list.getEntries()){
-          const since=lastPointerTime ? now()-lastPointerTime : 0;
-          push("LONG","main-thread",e.duration,
-            (lastPointerLabel?lastPointerLabel+" | ":"")+(since?"距按下 "+fmt(since)+"ms":""));
-        }
-      });
-      po.observe({entryTypes:["longtask"]});
-    }
-  }catch(_){}
-
-  document.addEventListener("DOMContentLoaded",draw,{once:true});
-})();
-</script>
-
-
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#168c4e" />
@@ -227,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N198｜容器效能＋歸還核心正式版</title>
+<title>欣儒系統｜N227｜帳期手續費核心＋診斷工具移除版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2087,6 +1870,7 @@ body.wall-focus #wall .wallOrderNote{
 @media(max-width:430px){#acctManagementStage .xrContainerForm,#acctManagementStage .xrContainerFilter,#acctManagementStage .xrInventoryForm{grid-template-columns:1fr}#acctManagementStage .xrFilterBtns,#acctManagementStage .xrContainerActions{grid-column:auto}}
 </style>
 
+<!-- N227：每帳期手續費為往來資料選填核心；留空不啟用。N212-N215 診斷工具已移除，N219 效能核心保留。 -->
 </head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
@@ -4191,7 +3975,7 @@ function showApp(){
 // N110：往來資料正式雲端主檔核心。contact_master 為跨裝置正式來源；localStorage 只做快取與既有資料遷移。
 const XR_CONTACT_KEY='xinru_contacts_master_v2';
 const XR_CONTACT_SETTINGS_KEY='xinru_contacts_settings_snapshot_v1';
-const XR_CONTACT_SETTINGS_FIELDS=['identity','accountMode','receivableEnabled','payableEnabled','defaultDirection','settlement','customSettlement','settlementNote','deliveryWeekdays','collectionScheduleMode','collectionRules','groupName','parentUnit','ledgerOwner','payer','independentLedger','consolidatedBilling','pricingDefault','internalPriceRule','freightDefault','freightDefaultRate','freightRules','turnover','paymentMethods','paymentDefault','paymentOtherNames','billShowTurnover','ledgerShowTurnover','usuallyPrintForm','usuallyDriverCollect','usuallyReturnDocs','farmerReceipt','farmerReceiptCycle','farmerReceiptRule','farmerReceiptConfirm','outputNote','reportLayout','outputMethods','active'];
+const XR_CONTACT_SETTINGS_FIELDS=['identity','accountMode','receivableEnabled','payableEnabled','defaultDirection','settlement','customSettlement','settlementNote','billingPeriodFee','deliveryWeekdays','collectionScheduleMode','collectionRules','groupName','parentUnit','ledgerOwner','payer','independentLedger','consolidatedBilling','pricingDefault','internalPriceRule','freightDefault','freightDefaultRate','freightRules','turnover','paymentMethods','paymentDefault','paymentOtherNames','billShowTurnover','ledgerShowTurnover','usuallyPrintForm','usuallyDriverCollect','usuallyReturnDocs','farmerReceipt','farmerReceiptCycle','farmerReceiptRule','farmerReceiptConfirm','outputNote','reportLayout','outputMethods','active'];
 function xrRawContactCache(){try{const x=JSON.parse(localStorage.getItem(XR_CONTACT_KEY)||'[]');return Array.isArray(x)?x.filter(Boolean):[]}catch(e){return[]}}
 function xrContactSettingsCache(){try{const x=JSON.parse(localStorage.getItem(XR_CONTACT_SETTINGS_KEY)||'{}');return x&&typeof x==='object'&&!Array.isArray(x)?x:{}}catch(e){return{}}}
 function xrContactLocalRows(){
@@ -6177,6 +5961,31 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     else if(type!=='現結')return {ok:false,type,start:'',end:'',key:'',reason:'未支援的結帳方式'};
     const a=qBillingDateText(start),b=qBillingDateText(end),cid=String(c?.id||c?.code||c?.name||'').trim();return {ok:true,type,start:a,end:b,key:[cid,type,a,b].join('|'),reason:''};
   }
+  // N227：每帳期手續費核心。往來資料留空＝完全不啟用；有金額才依正式 qBillingPeriodFor period.key 每帳期扣一次應收。
+  // 不建立手續費交易、不改原始銷貨、不依客戶名稱硬編碼；收款、未結清、完整明細與四種輸出共用同一推導。
+  function qBillingPeriodFeeAmount(c){const n=Number(c?.billingPeriodFee);return Number.isFinite(n)&&n>0?n:0}
+  function qBillingPeriodFeeKey(c,record){const p=qBillingPeriodFor(c,record?.date||'');return p?.ok?p.key:''}
+  function qBillingApplyFeeToOpenRows(c,direction,rows){
+    const list=(rows||[]).map(x=>({...x,due:Math.max(0,qMoney(x?.due))}));
+    const fee=qBillingPeriodFeeAmount(c);if(direction!=='receipt'||fee<=0||!list.length)return list;
+    const groups=new Map();
+    list.forEach((x,i)=>{const key=qBillingPeriodFeeKey(c,x.record);if(!key)return;const a=groups.get(key)||[];a.push(i);groups.set(key,a)});
+    for(const idxs of groups.values()){
+      let left=fee;
+      // 同一帳期只扣一次；從該帳期最後一筆未結清往前吸收，避免製造額外交易或重複扣款。
+      for(let z=idxs.length-1;z>=0&&left>0.000001;z--){const i=idxs[z],take=Math.min(left,list[i].due);list[i].due=Math.max(0,list[i].due-take);left-=take}
+    }
+    return list.filter(x=>x.due>0.000001);
+  }
+  function qBillingPeriodFeeRows(c,direction,activities){
+    const fee=qBillingPeriodFeeAmount(c);if(direction!=='receipt'||fee<=0)return [];
+    const seen=new Set(),out=[];
+    (activities||[]).filter(r=>r&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN96DirectionMatch(r,'receipt')).forEach(r=>{
+      const p=qBillingPeriodFor(c,r.date||'');if(!p?.ok||seen.has(p.key))return;seen.add(p.key);
+      out.push({kind:'adjustment',date:p.end||r.date||'',recordId:'billing_fee:'+p.key,no:'',name:'手續費',kg:'',qty:'',pricing:'每帳期',price:'',goods:-fee,freight:0,amount:-fee,adjustmentMode:'billing_period_fee',adjustmentLabel:'手續費',sourceRecordId:'',reason:'每帳期手續費',note:'',contactId:c?.id||'',contactName:c?.name||'',createdAt:''});
+    });
+    return out;
+  }
   function qCollectionDueDateFor(c,period){
     if(!period?.ok||!period.end)return {ok:false,date:'',mode:String(c?.collectionScheduleMode||'不指定'),reason:'沒有有效帳期'};
     const mode=String(c?.collectionScheduleMode||'不指定'),end=qBillingParseDate(period.end);if(!end)return {ok:false,date:'',mode,reason:'帳期結束日錯誤'};
@@ -6811,6 +6620,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       return {schema:'xinru_complete_output_v1',kind:'farmer_weekly',reportLayout:'farmer_weekly',outputPartyLabel:'客戶',contact:route.contact,range:route.data?.range||{},groups,rows,settlements:[],summary:qN98Summary(rows),source:route.data};
     }
     let rows=[];(route.data?.activities||[]).forEach(r=>{if(r.mode==='money_settlement'||r.mode==='money_refund')rows.push(qN98SettlementRow(r,route.contact));else rows.push(...qN222RowsFromActivity(r,route.contact))});
+    rows.push(...qBillingPeriodFeeRows(route.contact,route.direction,route.data?.activities||[]));
     rows.push(...qN107ContainerRows(route.contact,route.data?.range||{}));
     // N109 核心順序：正式排序 → 同日同品同價合併 → 依最後顯示順序重新編號。
     rows=qN108MergeItemRows(qN107SortRows(rows));
@@ -7102,7 +6912,10 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qMoneyActivityRecords(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(r.mode==='money_settlement'||r.mode==='money_refund')&&r.status!=='void')}
   function qSettlementAllocated(recordId){const id=String(recordId||'');return qMoneySettlements().reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0)}
   function qRecordOutstanding(r){const c=qContact(r?.contactId||r?.customer||'');return qAccountingOutstanding(r,c)}
-  function qOpenMoneyRows(c,direction){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qAccountingOutstanding(r,c)})).filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')))}
+  function qOpenMoneyRows(c,direction){
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qAccountingOutstanding(r,c)})).filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
+    return qBillingApplyFeeToOpenRows(c,direction,rows);
+  }
   function qContactOpenTotals(c){const recv=qOpenMoneyRows(c,'receipt').reduce((a,x)=>a+x.due,0),pay=qOpenMoneyRows(c,'payment').reduce((a,x)=>a+x.due,0);return {receivable:recv,payable:pay,net:recv-pay}}
   function qContactCreditTotals(c){
     const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund');
@@ -8145,12 +7958,15 @@ window.qNormalizeTurnAction=qN93TurnAction;
   function qN96OutstandingAt(c,direction,cutoff){
     const all=qN96FormalRecords(c),tx=all.filter(r=>r.mode!=='money_settlement'&&r.pricingStatus!=='pending_price'&&qN96DirectionMatch(r,direction)&&qN96AtOrBefore(r,cutoff)).sort(qN96Cmp);
     const settlements=all.filter(r=>r.mode==='money_settlement'&&qN96SettlementDirection(r)===direction&&qN96AtOrBefore(r,cutoff));
-    return tx.map(r=>{
+    const raw=tx.map(r=>{
       // N226：完整明細未結清不再自算「原總額－收款」；統一回到 N147 中央有效金額／未結清核心。
       const allocated=settlements.reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===String(r.id||'')).reduce((z,a)=>z+qMoney(a?.amount),0),0);
       const total=qAccountingEffectiveTotal(r,c,cutoff),paid=qAccountingPaidTotal(r,cutoff),remain=qAccountingOutstanding(r,c,cutoff);
-      return {record:r,total,paid,allocated,remain};
+      return {record:r,total,paid,allocated,remain,due:remain};
     });
+    const adjusted=qBillingApplyFeeToOpenRows(c,direction,raw.map(x=>({record:x.record,due:x.remain})));
+    const dueById=new Map(adjusted.map(x=>[String(x.record?.id||''),x.due]));
+    return raw.map(x=>({...x,remain:dueById.get(String(x.record?.id||''))||0}));
   }
   function qN96GeneralDetail(c,direction='receipt',cutoffInput=null){
     direction=direction==='payment'?'payment':'receipt';
@@ -8336,7 +8152,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
  // N75：往來設定獨立快照。避免舊主檔恢復／缺欄位資料把已確認設定洗掉。
  // 快照只保存「設定」，不保存欠籃／餘籃等動態餘額；動態餘額仍由正式周轉物紀錄計算。
  const SETTINGS_KEY='xinru_contacts_settings_snapshot_v1';
- const SETTINGS_FIELDS=['identity','accountMode','receivableEnabled','payableEnabled','defaultDirection','settlement','customSettlement','settlementNote','deliveryWeekdays','collectionScheduleMode','collectionRules','groupName','parentUnit','ledgerOwner','payer','independentLedger','consolidatedBilling','pricingDefault','internalPriceRule','freightDefault','freightDefaultRate','freightRules','turnover','paymentMethods','paymentDefault','paymentOtherNames','billShowTurnover','ledgerShowTurnover','usuallyPrintForm','usuallyDriverCollect','usuallyReturnDocs','farmerReceipt','farmerReceiptCycle','farmerReceiptRule','farmerReceiptConfirm','outputNote','reportLayout','outputMethods','active'];
+ const SETTINGS_FIELDS=['identity','accountMode','receivableEnabled','payableEnabled','defaultDirection','settlement','customSettlement','settlementNote','billingPeriodFee','deliveryWeekdays','collectionScheduleMode','collectionRules','groupName','parentUnit','ledgerOwner','payer','independentLedger','consolidatedBilling','pricingDefault','internalPriceRule','freightDefault','freightDefaultRate','freightRules','turnover','paymentMethods','paymentDefault','paymentOtherNames','billShowTurnover','ledgerShowTurnover','usuallyPrintForm','usuallyDriverCollect','usuallyReturnDocs','farmerReceipt','farmerReceiptCycle','farmerReceiptRule','farmerReceiptConfirm','outputNote','reportLayout','outputMethods','active'];
  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
  const uid=()=>globalThis.crypto?.randomUUID?crypto.randomUUID():'contact-'+Date.now()+'-'+Math.random().toString(36).slice(2);
  const readSettings=()=>{try{const x=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');return x&&typeof x==='object'&&!Array.isArray(x)?x:{}}catch(e){return{}}};
@@ -8367,11 +8183,11 @@ window.qNormalizeTurnAction=qN93TurnAction;
   const paint=()=>{const q=work.querySelector('#xrContactSearch').value.trim().toLowerCase(),f=work.querySelector('#xrContactFilter').value;let a=read().filter(x=>(!f||x.identity===f)&&(!q||[x.name,x.formalName,x.code,x.phone,x.groupName,x.parentUnit,x.payer,(x.vehicles||[]).map(v=>v.plate).join(' ')].join(' ').toLowerCase().includes(q)));a.sort((x,y)=>(x.active===false)-(y.active===false)||String(x.name).localeCompare(String(y.name),'zh-Hant'));const count=work.closest('#acctManagementStage')?.querySelector('#xrContactsCount');if(count)count.textContent='共 '+a.length+' 位';const box=work.querySelector('#xrContactsList');box.innerHTML=a.length?a.map(x=>'<div class="xrContactRow '+(x.active===false?'xrStatusOff':'')+'"><div class="xrMain"><div class="xrContactName">'+esc(x.name)+'</div><div class="xrContactMeta">'+esc([x.formalName,x.code,x.phone].filter(Boolean).join('｜')||'—')+((x.vehicles||[]).length?'<div class="xrContactMeta">車號：'+(x.vehicles||[]).map(v=>'<span class="xrVehicleTag">'+esc(v.plate)+(v.active===false?'（歷史）':'')+'</span>').join('')+'</div>':'')+'</div></div><div><span class="xrPill">'+esc(x.identity||'未設定')+'</span></div><div><b>'+esc(x.accountMode||'—')+'</b><div class="xrContactMeta">'+esc(x.settlement||'')+'</div></div><div>'+esc(x.groupName?('所屬：'+x.groupName):'')+(x.payer?'<div class="xrContactMeta">付款方：'+esc(x.payer)+'</div>':'')+(x.active===false?'<div class="xrContactMeta">已停用</div>':'')+'</div><div class="xrActions"><button type="button" class="btn gray xrEdit" data-id="'+esc(x.id)+'">查看／編輯</button></div></div>').join(''):'<div class="xrContactEmpty">目前沒有符合的往來資料</div>';box.querySelectorAll('.xrEdit').forEach(b=>b.onclick=()=>renderEditor(work,b.dataset.id));};
   work.querySelector('#xrContactSearch').oninput=paint;work.querySelector('#xrContactFilter').onchange=paint;paint();
  }
- function blank(){return{id:'',name:'',formalName:'',code:'',phone:'',address:'',line:'',note:'',vehicles:[],active:true,identity:'一般客戶',accountMode:'一般銷貨',receivableEnabled:true,payableEnabled:false,accountRelationMode:'單向應收',settlement:'現結',customSettlement:'',settlementNote:'',deliveryWeekdays:[],collectionScheduleMode:'不指定',collectionRules:[],groupName:'',parentUnit:'',ledgerOwner:'self',payer:'',independentLedger:true,consolidatedBilling:false,pricingDefault:'不指定',freightDefault:'做帳時決定',freightRules:[],turnover:{basket:false,rack:false,pallet:false,other:false,basketNames:[],rackNames:[],palletNames:[],customTypes:[],basketBuyout:true,basketPrice:50,basketOwe:true,basketReturn:true,basketSurplus:true},defaultDirection:'收款',paymentMethods:['現金'],paymentDefault:'現金',paymentOtherNames:[],billShowTurnover:true,ledgerShowTurnover:true,usuallyPrintForm:false,usuallyDriverCollect:false,usuallyReturnDocs:false,reportLayout:'auto',farmerReceipt:false,farmerReceiptCycle:'',farmerReceiptRule:'',farmerReceiptConfirm:true,billTitle:'',outputNote:'',internalPriceRule:'',createdAt:'',updatedAt:''}}
+ function blank(){return{id:'',name:'',formalName:'',code:'',phone:'',address:'',line:'',note:'',vehicles:[],active:true,identity:'一般客戶',accountMode:'一般銷貨',receivableEnabled:true,payableEnabled:false,accountRelationMode:'單向應收',settlement:'現結',customSettlement:'',settlementNote:'',billingPeriodFee:'',deliveryWeekdays:[],collectionScheduleMode:'不指定',collectionRules:[],groupName:'',parentUnit:'',ledgerOwner:'self',payer:'',independentLedger:true,consolidatedBilling:false,pricingDefault:'不指定',freightDefault:'做帳時決定',freightRules:[],turnover:{basket:false,rack:false,pallet:false,other:false,basketNames:[],rackNames:[],palletNames:[],customTypes:[],basketBuyout:true,basketPrice:50,basketOwe:true,basketReturn:true,basketSurplus:true},defaultDirection:'收款',paymentMethods:['現金'],paymentDefault:'現金',paymentOtherNames:[],billShowTurnover:true,ledgerShowTurnover:true,usuallyPrintForm:false,usuallyDriverCollect:false,usuallyReturnDocs:false,reportLayout:'auto',farmerReceipt:false,farmerReceiptCycle:'',farmerReceiptRule:'',farmerReceiptConfirm:true,billTitle:'',outputNote:'',internalPriceRule:'',createdAt:'',updatedAt:''}}
  function renderEditor(work,id){window.xrAccountingNav?.write({layer:'contactEditor',section:'contacts',action:'🔍 搜尋往來資料',recordId:id||''});const x=read().find(v=>v.id===id)||blank(),names=allNames(id);work.innerHTML='<div class="xrContactEditor"><div class="xrEditorHead"><div><h3>'+(id?'編輯往來資料':'＋ 新增往來對象')+'</h3><div class="helper" style="display:block!important">身分只負責分類；應收／應付帳由往來方向獨立設定，雙向時保留兩張帳、不互相沖抵。</div></div><button id="xrContactBack" type="button" class="btn gray">← 返回搜尋</button></div>'+
  '<details class="xrSection" open><summary>① 基本資料</summary><div class="xrSectionBody xrGrid3"><div class="field"><label class="label">識別名稱＊</label><input id="xcName" class="input" value="'+esc(x.name)+'" placeholder="例如：0299、水牛"></div><div class="field"><label class="label">正式名稱</label><input id="xcFormal" class="input" value="'+esc(x.formalName)+'"></div><div class="field"><label class="label">編號／代號</label><input id="xcCode" class="input" value="'+esc(x.code)+'"></div><div class="field"><label class="label">電話</label><input id="xcPhone" class="input" value="'+esc(x.phone)+'"></div><div class="field"><label class="label">地址</label><input id="xcAddress" class="input" value="'+esc(x.address)+'"></div><div class="field"><label class="label">LINE／聯絡資訊</label><input id="xcLine" class="input" value="'+esc(x.line)+'"></div></div></details>'+
  '<details class="xrSection" open><summary>🚙 客戶／往來對象車號</summary><div class="xrSectionBody"><div class="xrHint">車號只是這個往來對象的關聯，不是帳本身分。一個往來對象可有多個車號；舊車號請停用保留歷史，不直接刪除。</div><div style="margin-top:8px"><button id="xcAddVehicle" type="button" class="btn blue">＋ 新增車號</button></div><div id="xcVehicleList" class="xrVehicleList"></div></div></details>'+
- '<details class="xrSection" open><summary>② 身分與往來方向</summary><div class="xrSectionBody xrGrid3"><div class="field"><label class="label">身分</label><select id="xcIdentity" class="input">'+options(['一般客戶','超市','中盤','廠商','產農','內部單位'],x.identity)+'</select></div><div class="field"><label class="label">往來方向／啟用帳本</label><div class="xrChecks"><label class="xrCheck"><input id="xcEnableReceivable" type="checkbox" '+((x.receivableEnabled!==undefined?x.receivableEnabled:(x.accountRelationMode||'單向應收')!=='單向應付')?'checked':'')+'>他向我們買貨（應收帳）</label><label class="xrCheck"><input id="xcEnablePayable" type="checkbox" '+((x.payableEnabled!==undefined?x.payableEnabled:(x.accountRelationMode||'單向應收')!=='單向應收')?'checked':'')+'>我們向他進貨（應付帳）</label></div><div class="xrHint">兩個都勾＝雙向往來；應收帳、應付帳分開，不自動互抵。</div></div><div class="field"><label class="label">預設帳務方向</label><select id="xcDirection" class="input">'+options(['收款','付款'],x.defaultDirection||(/產農|廠商/.test(x.identity||'')?'付款':'收款'))+'</select><div class="xrHint">只是預設；同一往來對象仍可同時有應收與應付。</div></div><div class="field"><label class="label">結帳方式</label><select id="xcSettlement" class="input">'+options(['現結','車趟結','3日結','週結','半月結','月結','儲值','自訂'],x.settlement)+'</select></div><div class="field" style="grid-column:1/-1"><label class="label">自訂結帳規則</label><input id="xcCustomSettlement" class="input" value="'+esc(x.customSettlement)+'" placeholder="選自訂時填寫；正式切單規則於下一階段連動"><div class="xrHint">只有選「自訂」才作為自訂帳期規則資料；3日結／週結／半月結／月結由系統規則處理。</div></div><div class="field" style="grid-column:1/-1"><label class="label">結帳備註</label><input id="xcSettlementNote" class="input" value="'+esc(x.settlementNote||'')+'" placeholder="純備註，例如：月底先傳對帳單；不參與切單計算"></div><div id="xcVehicleSettlementBox" style="grid-column:1/-1"><div class="field" style="grid-column:1/-1"><label class="label">固定車趟（可複選）</label><div class="xrChecks">'+[[1,'一'],[2,'二'],[3,'三'],[4,'四'],[5,'五'],[6,'六'],[0,'日']].map(([v,t])=>'<label class="xrCheck"><input class="xcDeliveryWeekday" type="checkbox" value="'+v+'" '+((Array.isArray(x.deliveryWeekdays)?x.deliveryWeekdays:[]).map(Number).includes(v)?'checked':'')+'>週'+t+'</label>').join('')+'</div><div class="xrHint">「車趟結」依這裡的固定車趟切帳；收款日期由下方收款排程獨立決定。</div></div><div class="field" style="grid-column:1/-1"><label class="label">收款排程</label><select id="xcCollectionMode" class="input">'+options(['不指定','下趟收上趟','指定收款日'],x.collectionScheduleMode||'不指定')+'</select><div class="xrHint">下趟收上趟＝每一期在下一個固定車趟日收款；指定收款日＝每個車趟帳期可指定下一個收款星期。</div></div><div id="xcCollectionRulesBox" class="field" style="grid-column:1/-1"><label class="label">指定收款日對應</label><div class="xrHint" style="margin-bottom:8px">左邊是「哪一趟結束的帳」，右邊是「下一個哪個星期收」。未設定的車趟不會自動猜。</div><div class="xrGrid2">'+[[1,'一'],[2,'二'],[3,'三'],[4,'四'],[5,'五'],[6,'六'],[0,'日']].map(([v,t])=>{const rr=(Array.isArray(x.collectionRules)?x.collectionRules:[]).find(r=>Number(r?.sourceWeekday)===v),cv=rr==null?'':String(rr.collectWeekday);return '<div class="field" style="margin:4px 0"><label class="label">週'+t+'車趟帳期 → 收款</label><select class="input xcCollectionRule" data-source="'+v+'"><option value="">不指定</option>'+[[1,'週一'],[2,'週二'],[3,'週三'],[4,'週四'],[5,'週五'],[6,'週六'],[0,'週日']].map(([w,n])=>'<option value="'+w+'" '+(cv===String(w)?'selected':'')+'>'+n+'</option>').join('')+'</select></div>'}).join('')+'</div></div></div></div></details>'+
+ '<details class="xrSection" open><summary>② 身分與往來方向</summary><div class="xrSectionBody xrGrid3"><div class="field"><label class="label">身分</label><select id="xcIdentity" class="input">'+options(['一般客戶','超市','中盤','廠商','產農','內部單位'],x.identity)+'</select></div><div class="field"><label class="label">往來方向／啟用帳本</label><div class="xrChecks"><label class="xrCheck"><input id="xcEnableReceivable" type="checkbox" '+((x.receivableEnabled!==undefined?x.receivableEnabled:(x.accountRelationMode||'單向應收')!=='單向應付')?'checked':'')+'>他向我們買貨（應收帳）</label><label class="xrCheck"><input id="xcEnablePayable" type="checkbox" '+((x.payableEnabled!==undefined?x.payableEnabled:(x.accountRelationMode||'單向應收')!=='單向應收')?'checked':'')+'>我們向他進貨（應付帳）</label></div><div class="xrHint">兩個都勾＝雙向往來；應收帳、應付帳分開，不自動互抵。</div></div><div class="field"><label class="label">預設帳務方向</label><select id="xcDirection" class="input">'+options(['收款','付款'],x.defaultDirection||(/產農|廠商/.test(x.identity||'')?'付款':'收款'))+'</select><div class="xrHint">只是預設；同一往來對象仍可同時有應收與應付。</div></div><div class="field"><label class="label">結帳方式</label><select id="xcSettlement" class="input">'+options(['現結','車趟結','3日結','週結','半月結','月結','儲值','自訂'],x.settlement)+'</select></div><div class="field" style="grid-column:1/-1"><label class="label">自訂結帳規則</label><input id="xcCustomSettlement" class="input" value="'+esc(x.customSettlement)+'" placeholder="選自訂時填寫；正式切單規則於下一階段連動"><div class="xrHint">只有選「自訂」才作為自訂帳期規則資料；3日結／週結／半月結／月結由系統規則處理。</div></div><div class="field" style="grid-column:1/-1"><label class="label">結帳備註</label><input id="xcSettlementNote" class="input" value="'+esc(x.settlementNote||'')+'" placeholder="純備註，例如：月底先傳對帳單；不參與切單計算"></div><div class="field"><label class="label">每帳期手續費</label><input id="xcBillingPeriodFee" class="input" type="number" min="0" step="1" value="'+(Number(x.billingPeriodFee)>0?esc(String(x.billingPeriodFee)):'')+'" placeholder="不需要請留空"><div class="xrHint">選填；有填才依結帳方式每個帳期扣減一次應收。3日結／週結／半月結／月結都使用同一帳期核心。</div></div><div id="xcVehicleSettlementBox" style="grid-column:1/-1"><div class="field" style="grid-column:1/-1"><label class="label">固定車趟（可複選）</label><div class="xrChecks">'+[[1,'一'],[2,'二'],[3,'三'],[4,'四'],[5,'五'],[6,'六'],[0,'日']].map(([v,t])=>'<label class="xrCheck"><input class="xcDeliveryWeekday" type="checkbox" value="'+v+'" '+((Array.isArray(x.deliveryWeekdays)?x.deliveryWeekdays:[]).map(Number).includes(v)?'checked':'')+'>週'+t+'</label>').join('')+'</div><div class="xrHint">「車趟結」依這裡的固定車趟切帳；收款日期由下方收款排程獨立決定。</div></div><div class="field" style="grid-column:1/-1"><label class="label">收款排程</label><select id="xcCollectionMode" class="input">'+options(['不指定','下趟收上趟','指定收款日'],x.collectionScheduleMode||'不指定')+'</select><div class="xrHint">下趟收上趟＝每一期在下一個固定車趟日收款；指定收款日＝每個車趟帳期可指定下一個收款星期。</div></div><div id="xcCollectionRulesBox" class="field" style="grid-column:1/-1"><label class="label">指定收款日對應</label><div class="xrHint" style="margin-bottom:8px">左邊是「哪一趟結束的帳」，右邊是「下一個哪個星期收」。未設定的車趟不會自動猜。</div><div class="xrGrid2">'+[[1,'一'],[2,'二'],[3,'三'],[4,'四'],[5,'五'],[6,'六'],[0,'日']].map(([v,t])=>{const rr=(Array.isArray(x.collectionRules)?x.collectionRules:[]).find(r=>Number(r?.sourceWeekday)===v),cv=rr==null?'':String(rr.collectWeekday);return '<div class="field" style="margin:4px 0"><label class="label">週'+t+'車趟帳期 → 收款</label><select class="input xcCollectionRule" data-source="'+v+'"><option value="">不指定</option>'+[[1,'週一'],[2,'週二'],[3,'週三'],[4,'週四'],[5,'週五'],[6,'週六'],[0,'週日']].map(([w,n])=>'<option value="'+w+'" '+(cv===String(w)?'selected':'')+'>'+n+'</option>').join('')+'</select></div>'}).join('')+'</div></div></div></div></details>'+
  '<details class="xrSection"><summary>③ 🏢 組織／分店關係</summary><div class="xrSectionBody xrGrid3"><div class="field"><label class="label">所屬企業／集團</label><input id="xcGroup" class="input" value="'+esc(x.groupName)+'" placeholder="例如：大統、六禾"></div><div class="field"><label class="label">上層單位</label><input id="xcParent" class="input" list="xcNames" value="'+esc(x.parentUnit)+'"></div><div class="field"><label class="label">實際付款方</label><input id="xcPayer" class="input" list="xcNames" value="'+esc(x.payer)+'" placeholder="例如：大統－安中"></div><datalist id="xcNames">'+names.map(n=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist><div class="xrChecks" style="grid-column:1/-1"><label class="xrCheck"><input id="xcIndependent" type="checkbox" '+(x.independentLedger?'checked':'')+'>獨立帳本</label><label class="xrCheck"><input id="xcConsolidated" type="checkbox" '+(x.consolidatedBilling?'checked':'')+'>可由其他單位統一付款／合併請款</label></div><div class="xrHint" style="grid-column:1/-1">交易、農收、單據仍歸實際交易分店；付款方不同不會合併歷史帳本。</div></div></details>'+
  '<details class="xrSection"><summary>④ 💵 商品／價格設定</summary><div class="xrSectionBody xrGrid2"><div class="field"><label class="label">預設計價</label><select id="xcPricing" class="input">'+options(['不指定','公斤','台斤','件','盒','顆','包','固定金額','自訂'],x.pricingDefault)+'</select></div><div id="xcInternalBox" class="field xrConditional"><label class="label">內部單位價格規則</label><select id="xcInternalRule" class="input">'+options(['','外店代購買多少報多少；自有貨照實際賣價','自訂'],x.internalPriceRule)+'</select></div><div class="xrHint" style="grid-column:1/-1">六禾類內部單位底層保留「實際成本＋對方入帳價」；外店代購可預設兩者相同。</div></div></details>'+
  '<details class="xrSection"><summary>⑤ 🚚 運費設定</summary><div class="xrSectionBody"><div class="xrGrid2"><div class="field"><label class="label">預設運費</label><select id="xcFreight" class="input">'+options(['做帳時決定','不計','公斤','件','固定金額','自訂'],x.freightDefault)+'</select></div><div class="field"><label class="label">預設運費單價</label><input id="xcFreightRate" class="input" inputmode="decimal" value="'+esc(x.freightDefaultRate??'')+'" placeholder="例如：1.5"></div><div class="field"><label class="label">特殊品項運費</label><button id="xcAddFreight" type="button" class="btn blue">＋ 新增規則</button></div></div><div id="xcFreightRules" class="xrRuleList"></div><div class="xrHint">例如水牛：30K高麗菜＝60／件、10K全紅＝20／件。做帳當下仍可覆寫。</div></div></details>'+
@@ -8398,7 +8214,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     work.querySelectorAll('.xrVehicleRow').forEach(row=>{const i=Number(row.dataset.vi),v=vehicles[i];if(!v)return;v.plate=normPlate(row.querySelector('.xvPlate')?.value);v.startDate=row.querySelector('.xvStart')?.value||'';v.note=row.querySelector('.xvNote')?.value.trim()||''});
     vehicles=vehicles.filter(v=>v.plate).map(v=>({...v,startDate:v.startDate||new Date().toISOString().slice(0,10)}));
     const seen=new Set();for(const v of vehicles){const p=normPlate(v.plate);if(seen.has(p)){alert('同一個往來對象不能重複建立車號：'+p);return}seen.add(p);if(v.active!==false){const owner=vehicleOwner(p,id,v.id);if(owner){alert('車號 '+p+' 已經是「'+owner.contact.name+'」的使用中車號。\n請先到原往來資料停用，才能重新分配。');return}}}
-    const ar=$('#xcEnableReceivable').checked,ap=$('#xcEnablePayable').checked;if(!ar&&!ap){alert('請至少啟用一個帳本方向：應收帳或應付帳');return}const selectedPayMethods=[...work.querySelectorAll('.xcPaymentMethod:checked')].map(el=>el.value);if(!selectedPayMethods.length){alert('請至少勾選一種可用收／付款方式');return}const payDefault=$('#xcPayment').value;if(!selectedPayMethods.includes(payDefault)){alert('常用／預設方式必須包含在已勾選的收／付款方式內');return}     const now=new Date().toISOString();const y={...x,id:id||uid(),name,formalName:$('#xcFormal').value.trim(),code:$('#xcCode').value.trim(),phone:$('#xcPhone').value.trim(),address:$('#xcAddress').value.trim(),line:$('#xcLine').value.trim(),identity:$('#xcIdentity').value,receivableEnabled:$('#xcEnableReceivable').checked,payableEnabled:$('#xcEnablePayable').checked,accountMode:(()=>{const ar=$('#xcEnableReceivable').checked,ap=$('#xcEnablePayable').checked;if(ar&&ap)return '雙向往來';if($('#xcIdentity').value==='產農')return '產農入貨';if($('#xcIdentity').value==='內部單位')return '內部往來';return '一般銷貨'})(),accountRelationMode:(()=>{const ar=$('#xcEnableReceivable').checked,ap=$('#xcEnablePayable').checked;return ar&&ap?'雙向往來':(ap?'單向應付':'單向應收')})(),defaultDirection:$('#xcDirection').value,settlement:$('#xcSettlement').value,customSettlement:$('#xcCustomSettlement').value.trim(),settlementNote:$('#xcSettlementNote').value.trim(),deliveryWeekdays:[...work.querySelectorAll('.xcDeliveryWeekday:checked')].map(el=>Number(el.value)),collectionScheduleMode:$('#xcCollectionMode')?.value||'不指定',collectionRules:[...work.querySelectorAll('.xcCollectionRule')].map(el=>({sourceWeekday:Number(el.dataset.source),collectWeekday:el.value===''?null:Number(el.value)})).filter(r=>r.collectWeekday!==null),groupName:$('#xcGroup').value.trim(),parentUnit:$('#xcParent').value.trim(),ledgerOwner:'self',payer:$('#xcPayer').value.trim(),independentLedger:$('#xcIndependent').checked,consolidatedBilling:$('#xcConsolidated').checked,pricingDefault:$('#xcPricing').value,internalPriceRule:$('#xcInternalRule').value,freightDefault:$('#xcFreight').value,freightDefaultRate:Number($('#xcFreightRate').value||0),freightRules:rules,turnover:(()=>{const types=[...work.querySelectorAll('.xcContainerType:checked')].map(el=>el.value);return {types,basket:types.includes('籃子'),rack:types.includes('鐵架'),pallet:types.includes('棧板'),other:false,customTypes:types.filter(v=>!['籃子','鐵架','棧板'].includes(v)),rackNames:(()=>{const old=Array.isArray(x.turnover?.rackNames)?x.turnover.rackNames:[],by=new Map(old.map(v=>{const name=typeof v==='string'?v:String(v?.name||'');return [name.trim().toLowerCase(),typeof v==='string'?{id:'rack_'+Math.random().toString(36).slice(2,10),name}:v]}));const seenRack=new Set();return ($('#xcRackNames')?.value||'').split(/[、,，\n]+/).map(v=>v.trim()).filter(name=>{const k=name.toLowerCase();if(!name||seenRack.has(k))return false;seenRack.add(k);return true}).map(name=>{const hit=by.get(name.toLowerCase());return {id:String(hit?.id||('rack_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7))),name,active:true}})})(),basketChargeEnabled:$('#xcBasketBuyout').checked,basketChargeEnabled:$('#xcBasketBuyout').checked,basketBuyout:$('#xcBasketBuyout').checked,basketPrice:Number($('#xcBasketPrice').value||50),basketOwe:$('#xcBasketOwe').checked,basketReturn:$('#xcBasketReturn').checked,basketSurplus:$('#xcBasketSurplus').checked}})(),paymentMethods:selectedPayMethods,paymentDefault:payDefault,paymentOtherNames:selectedPayMethods.includes('其他')?($('#xcPaymentOtherNames')?.value||'').split(/[、,，\n]+/).map(v=>v.trim()).filter((v,i,a)=>v&&a.indexOf(v)===i):[],billShowTurnover:$('#xcBillShowTurnover').checked,ledgerShowTurnover:$('#xcLedgerShowTurnover').checked,usuallyPrintForm:$('#xcPrintForm').checked,usuallyDriverCollect:$('#xcDriverCollect').checked,usuallyReturnDocs:$('#xcReturnDocs').checked,farmerReceipt:$('#xcFarmerReceipt').checked,farmerReceiptCycle:$('#xcFarmerCycle').value.trim(),farmerReceiptRule:$('#xcFarmerRule').value.trim(),farmerReceiptConfirm:$('#xcFarmerConfirm').checked,outputNote:$('#xcOutputNote').value.trim(),reportLayout:($('#xcIdentity').value==='產農'?(x.reportLayout||'auto'):($('#xcReportLayout').value==='大量'?'dense80':'standard')),outputMethods:{billImage:$('#xcOutBillImage').checked,line:$('#xcOutBillImage').checked,image:$('#xcOutBillImage').checked,excel:$('#xcOutExcel').checked,pdf:$('#xcOutPdf').checked,paper80:$('#xcOut80').checked},vehicles:vehicles,note:$('#xcNote').value.trim(),active:$('#xcActive').checked,createdAt:x.createdAt||now,updatedAt:now};const idx=a.findIndex(v=>v.id===id);if(idx>=0)a[idx]=y;else a.push(y);try{if(!window.xrContactsCloud?.save)throw new Error('往來主檔雲端核心尚未載入');await window.xrContactsCloud.save(y)}catch(e){alert('往來資料尚未儲存：雲端主檔寫入失敗。\n\n'+(e?.message||e));return}write(a);saveSettingsSnapshot(y);alert('往來資料已儲存並同步雲端');renderList(work)};
+    const ar=$('#xcEnableReceivable').checked,ap=$('#xcEnablePayable').checked;if(!ar&&!ap){alert('請至少啟用一個帳本方向：應收帳或應付帳');return}const selectedPayMethods=[...work.querySelectorAll('.xcPaymentMethod:checked')].map(el=>el.value);if(!selectedPayMethods.length){alert('請至少勾選一種可用收／付款方式');return}const payDefault=$('#xcPayment').value;if(!selectedPayMethods.includes(payDefault)){alert('常用／預設方式必須包含在已勾選的收／付款方式內');return}     const now=new Date().toISOString();const y={...x,id:id||uid(),name,formalName:$('#xcFormal').value.trim(),code:$('#xcCode').value.trim(),phone:$('#xcPhone').value.trim(),address:$('#xcAddress').value.trim(),line:$('#xcLine').value.trim(),identity:$('#xcIdentity').value,receivableEnabled:$('#xcEnableReceivable').checked,payableEnabled:$('#xcEnablePayable').checked,accountMode:(()=>{const ar=$('#xcEnableReceivable').checked,ap=$('#xcEnablePayable').checked;if(ar&&ap)return '雙向往來';if($('#xcIdentity').value==='產農')return '產農入貨';if($('#xcIdentity').value==='內部單位')return '內部往來';return '一般銷貨'})(),accountRelationMode:(()=>{const ar=$('#xcEnableReceivable').checked,ap=$('#xcEnablePayable').checked;return ar&&ap?'雙向往來':(ap?'單向應付':'單向應收')})(),defaultDirection:$('#xcDirection').value,settlement:$('#xcSettlement').value,customSettlement:$('#xcCustomSettlement').value.trim(),settlementNote:$('#xcSettlementNote').value.trim(),billingPeriodFee:(()=>{const v=Number($('#xcBillingPeriodFee')?.value||0);return Number.isFinite(v)&&v>0?v:''})(),deliveryWeekdays:[...work.querySelectorAll('.xcDeliveryWeekday:checked')].map(el=>Number(el.value)),collectionScheduleMode:$('#xcCollectionMode')?.value||'不指定',collectionRules:[...work.querySelectorAll('.xcCollectionRule')].map(el=>({sourceWeekday:Number(el.dataset.source),collectWeekday:el.value===''?null:Number(el.value)})).filter(r=>r.collectWeekday!==null),groupName:$('#xcGroup').value.trim(),parentUnit:$('#xcParent').value.trim(),ledgerOwner:'self',payer:$('#xcPayer').value.trim(),independentLedger:$('#xcIndependent').checked,consolidatedBilling:$('#xcConsolidated').checked,pricingDefault:$('#xcPricing').value,internalPriceRule:$('#xcInternalRule').value,freightDefault:$('#xcFreight').value,freightDefaultRate:Number($('#xcFreightRate').value||0),freightRules:rules,turnover:(()=>{const types=[...work.querySelectorAll('.xcContainerType:checked')].map(el=>el.value);return {types,basket:types.includes('籃子'),rack:types.includes('鐵架'),pallet:types.includes('棧板'),other:false,customTypes:types.filter(v=>!['籃子','鐵架','棧板'].includes(v)),rackNames:(()=>{const old=Array.isArray(x.turnover?.rackNames)?x.turnover.rackNames:[],by=new Map(old.map(v=>{const name=typeof v==='string'?v:String(v?.name||'');return [name.trim().toLowerCase(),typeof v==='string'?{id:'rack_'+Math.random().toString(36).slice(2,10),name}:v]}));const seenRack=new Set();return ($('#xcRackNames')?.value||'').split(/[、,，\n]+/).map(v=>v.trim()).filter(name=>{const k=name.toLowerCase();if(!name||seenRack.has(k))return false;seenRack.add(k);return true}).map(name=>{const hit=by.get(name.toLowerCase());return {id:String(hit?.id||('rack_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7))),name,active:true}})})(),basketChargeEnabled:$('#xcBasketBuyout').checked,basketChargeEnabled:$('#xcBasketBuyout').checked,basketBuyout:$('#xcBasketBuyout').checked,basketPrice:Number($('#xcBasketPrice').value||50),basketOwe:$('#xcBasketOwe').checked,basketReturn:$('#xcBasketReturn').checked,basketSurplus:$('#xcBasketSurplus').checked}})(),paymentMethods:selectedPayMethods,paymentDefault:payDefault,paymentOtherNames:selectedPayMethods.includes('其他')?($('#xcPaymentOtherNames')?.value||'').split(/[、,，\n]+/).map(v=>v.trim()).filter((v,i,a)=>v&&a.indexOf(v)===i):[],billShowTurnover:$('#xcBillShowTurnover').checked,ledgerShowTurnover:$('#xcLedgerShowTurnover').checked,usuallyPrintForm:$('#xcPrintForm').checked,usuallyDriverCollect:$('#xcDriverCollect').checked,usuallyReturnDocs:$('#xcReturnDocs').checked,farmerReceipt:$('#xcFarmerReceipt').checked,farmerReceiptCycle:$('#xcFarmerCycle').value.trim(),farmerReceiptRule:$('#xcFarmerRule').value.trim(),farmerReceiptConfirm:$('#xcFarmerConfirm').checked,outputNote:$('#xcOutputNote').value.trim(),reportLayout:($('#xcIdentity').value==='產農'?(x.reportLayout||'auto'):($('#xcReportLayout').value==='大量'?'dense80':'standard')),outputMethods:{billImage:$('#xcOutBillImage').checked,line:$('#xcOutBillImage').checked,image:$('#xcOutBillImage').checked,excel:$('#xcOutExcel').checked,pdf:$('#xcOutPdf').checked,paper80:$('#xcOut80').checked},vehicles:vehicles,note:$('#xcNote').value.trim(),active:$('#xcActive').checked,createdAt:x.createdAt||now,updatedAt:now};const idx=a.findIndex(v=>v.id===id);if(idx>=0)a[idx]=y;else a.push(y);try{if(!window.xrContactsCloud?.save)throw new Error('往來主檔雲端核心尚未載入');await window.xrContactsCloud.save(y)}catch(e){alert('往來資料尚未儲存：雲端主檔寫入失敗。\n\n'+(e?.message||e));return}write(a);saveSettingsSnapshot(y);alert('往來資料已儲存並同步雲端');renderList(work)};
  }
  function hook(){const stage=document.getElementById('acctManagementStage');if(!stage||stage.dataset.xrContactsHooked)return;stage.dataset.xrContactsHooked='1';stage.addEventListener('click',e=>{const b=e.target.closest('[data-acct-stage-action]');if(!b)return;const a=b.dataset.acctStageAction;if(a!=='🔍 搜尋往來資料'&&a!=='＋ 新增往來對象')return;const work=document.getElementById('acctStageWork');if(!work)return;e.stopImmediatePropagation();if(a==='＋ 新增往來對象')renderEditor(work,'');else renderList(work);work.scrollIntoView({behavior:'smooth',block:'start'})},true)}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hook);else hook();
@@ -8621,430 +8437,5 @@ window.qNormalizeTurnAction=qN93TurnAction;
 <!-- N176：容器歷史查詢作用域核心修正；查詢使用同一 IIFE 內的身份正規化，不再引用不可見的 N172 私有函式。 -->
 <!-- N178：鐵架名稱正式核心：往來資料為唯一設定來源；不依廠商名稱硬編碼；rackNameId 穩定保存。N177 容器歷史查詢核心不修改。 -->
 <!-- N196：容器雙軸核心：stockDelta只管公司實體庫存、balanceDelta只管往來欠餘；歸還逐筆選是否計往來欠餘。快速做帳完成驗證允許只有容器交易。 -->
-
-<script>
-/* N212_PAINT_TIMING_DIAGNOSTIC */
-(function(){
-  const state = { down: 0, label: "", openDone: 0 };
-
-  function now(){ return performance.now(); }
-  function fmt(v){ return (Math.round(v * 10) / 10).toFixed(1); }
-
-  function getLabel(el){
-    if (!el) return "未知按鍵";
-    const t = (el.innerText || el.textContent || "").replace(/\s+/g," ").trim();
-    return t.slice(0,80) || el.getAttribute("aria-label") || el.id || el.tagName;
-  }
-
-  function box(){
-    let el = document.getElementById("n212PaintTiming");
-    if (!el){
-      el = document.createElement("div");
-      el.id = "n212PaintTiming";
-      el.style.cssText =
-        "position:fixed;right:12px;bottom:12px;z-index:2147483647;" +
-        "max-width:390px;background:rgba(25,25,25,.92);color:#fff;" +
-        "padding:10px 12px;border-radius:10px;font:12px/1.45 system-ui," +
-        "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" +
-        "box-shadow:0 4px 18px rgba(0,0,0,.25);white-space:pre-line;" +
-        "pointer-events:none;";
-      document.body.appendChild(el);
-    }
-    return el;
-  }
-
-  document.addEventListener("pointerdown", function(e){
-    const hit = e.target && e.target.closest ?
-      e.target.closest("button,a,[role='button'],[onclick],.card,.tile") : null;
-    if (!hit) return;
-    state.down = now();
-    state.label = getLabel(hit);
-  }, true);
-
-  // N211 already measures pointer->open and open internal.
-  // N212 adds post-open paint opportunity timing without changing app flow.
-  function schedulePaintSample(label, down, openDone){
-    requestAnimationFrame(function(){
-      const raf1 = now();
-      requestAnimationFrame(function(){
-        const raf2 = now();
-        const start = down || openDone;
-        const el = box();
-        el.textContent =
-          "N212 Paint Timing\n" +
-          "🖱 " + (label || "帳務切換") + "\n" +
-          "pointer→open完成: " + fmt(openDone - start) + " ms\n" +
-          "open完成→第1幀: " + fmt(raf1 - openDone) + " ms\n" +
-          "第1幀→第2幀: " + fmt(raf2 - raf1) + " ms\n" +
-          "pointer→第2幀: " + fmt(raf2 - start) + " ms";
-      });
-    });
-  }
-
-  // Capture clicks and sample immediately after the app's synchronous click work.
-  // queueMicrotask runs after the current click task, then rAF measures paint opportunity.
-  document.addEventListener("click", function(e){
-    const hit = e.target && e.target.closest ?
-      e.target.closest("button,a,[role='button'],[onclick],.card,.tile") : null;
-    if (!hit) return;
-    const label = state.label || getLabel(hit);
-    const down = state.down || now();
-    queueMicrotask(function(){
-      const openDone = now();
-      schedulePaintSample(label, down, openDone);
-    });
-  }, false);
-})();
-</script>
-
-
-<script>
-/* N213_LONGTASK_DIAGNOSTIC */
-(function () {
-  if (window.__N213_INSTALLED__) return;
-  window.__N213_INSTALLED__ = true;
-
-  const events = [];
-  const MAX_EVENTS = 40;
-  let lastPointer = 0;
-  let lastLabel = "";
-
-  function now() { return performance.now(); }
-  function fmt(n) { return (Math.round(n * 10) / 10).toFixed(1); }
-  function clean(s) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, 72); }
-
-  function labelOf(el) {
-    if (!el) return "";
-    const hit = el.closest && el.closest("button,a,[role='button'],[onclick],.card,.tile");
-    const node = hit || el;
-    return clean(node.innerText || node.textContent || node.getAttribute?.("aria-label") || node.id || node.tagName);
-  }
-
-  function add(type, name, duration, extra) {
-    events.push({
-      t: now(),
-      type,
-      name: clean(name),
-      duration: Number(duration || 0),
-      extra: clean(extra)
-    });
-    if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
-    render();
-  }
-
-  function panel() {
-    let el = document.getElementById("n213LongTaskPanel");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "n213LongTaskPanel";
-      el.style.cssText =
-        "position:fixed;right:12px;bottom:12px;z-index:2147483647;" +
-        "width:min(470px,calc(100vw - 24px));max-height:44vh;overflow:auto;" +
-        "background:rgba(20,20,20,.94);color:#fff;padding:10px 12px;" +
-        "border-radius:10px;font:12px/1.45 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" +
-        "box-shadow:0 4px 18px rgba(0,0,0,.28);white-space:pre-wrap;pointer-events:none;";
-      document.body.appendChild(el);
-    }
-    return el;
-  }
-
-  function render() {
-    if (!document.body) return;
-    const el = panel();
-    const recent = events.slice(-8);
-    const lines = ["N213 Long Task 定位"];
-    if (lastLabel) lines.push("最近按鍵：" + lastLabel);
-    if (!recent.length) {
-      lines.push("等待 >50ms 阻塞事件…");
-    } else {
-      for (const e of recent) {
-        const icon = e.type === "LONG" ? "🔴" : (e.type === "GAP" ? "🟠" : "⚪");
-        lines.push(icon + " " + e.type + " " + e.name + "  " + fmt(e.duration) + " ms" +
-          (e.extra ? "  " + e.extra : ""));
-      }
-    }
-    el.textContent = lines.join("\n");
-  }
-
-  document.addEventListener("pointerdown", function (e) {
-    lastPointer = now();
-    lastLabel = labelOf(e.target);
-  }, true);
-
-  // Browser-supported Long Task observer: records actual main-thread blocks >50ms.
-  try {
-    if ("PerformanceObserver" in window) {
-      const supported = PerformanceObserver.supportedEntryTypes || [];
-      if (supported.includes("longtask")) {
-        const po = new PerformanceObserver(function (list) {
-          for (const entry of list.getEntries()) {
-            let attribution = "";
-            try {
-              if (entry.attribution && entry.attribution.length) {
-                attribution = entry.attribution.map(a =>
-                  clean(a.name || a.containerName || a.containerSrc || a.containerId)
-                ).filter(Boolean).join(" | ");
-              }
-            } catch (_) {}
-            const sincePointer = lastPointer ? now() - lastPointer : 0;
-            add("LONG", lastLabel || entry.name || "main-thread",
-                entry.duration,
-                sincePointer ? ("距按下 " + fmt(sincePointer) + "ms" + (attribution ? " | " + attribution : "")) : attribution);
-          }
-        });
-        po.observe({ entryTypes: ["longtask"] });
-      } else {
-        add("INFO", "瀏覽器未提供 longtask observer", 0, "改用 event-loop gap 偵測");
-      }
-    }
-  } catch (err) {
-    add("INFO", "LongTask observer 啟動失敗", 0, err && err.message);
-  }
-
-  // Independent event-loop gap detector. Does not alter app behavior.
-  let expected = now() + 100;
-  setInterval(function () {
-    const t = now();
-    const gap = t - expected;
-    expected = t + 100;
-    if (gap >= 80) {
-      const sincePointer = lastPointer ? t - lastPointer : 0;
-      add("GAP", lastLabel || "event-loop",
-          gap,
-          sincePointer ? ("距按下 " + fmt(sincePointer) + "ms") : "");
-    }
-  }, 100);
-
-  // Lightweight wrappers around known hot-path functions, only if they exist.
-  const names = [
-    "renderAll", "applyRoleUI", "loadOrders", "loadDelivery",
-    "loadShortageReports", "loadStage9", "loadPackingChangeNotices",
-    "enforceActiveSession"
-  ];
-
-  function wrap(name) {
-    const original = window[name];
-    if (typeof original !== "function" || original.__N213_WRAPPED__) return;
-    function wrapped() {
-      const s = now();
-      let out;
-      try {
-        out = original.apply(this, arguments);
-      } catch (err) {
-        const d = now() - s;
-        if (d >= 20) add("FUNC", name, d, "同步例外前");
-        throw err;
-      }
-      const sync = now() - s;
-      if (sync >= 20) add("FUNC", name, sync, "同步");
-      if (out && typeof out.then === "function") {
-        const ps = now();
-        return out.then(
-          value => {
-            const total = now() - ps;
-            if (total >= 50) add("ASYNC", name, total, "Promise總耗時");
-            return value;
-          },
-          err => {
-            const total = now() - ps;
-            if (total >= 50) add("ASYNC", name, total, "Promise失敗");
-            throw err;
-          }
-        );
-      }
-      return out;
-    }
-    wrapped.__N213_WRAPPED__ = true;
-    try { window[name] = wrapped; } catch (_) {}
-  }
-
-  names.forEach(wrap);
-  // Some functions may be defined after this diagnostic script.
-  setTimeout(() => names.forEach(wrap), 1000);
-  setTimeout(() => names.forEach(wrap), 4000);
-
-  render();
-})();
-</script>
-
-
-<script>
-/* N214_SYNC_HOTSPOT_DIAGNOSTIC */
-(function(){
-  if (window.__N214_INSTALLED__) return;
-  window.__N214_INSTALLED__ = true;
-
-  const P = performance;
-  const logs = [];
-  const MAX = 24;
-  let lastClick = "";
-
-  function n(){ return P.now(); }
-  function f(v){ return (Math.round(v*10)/10).toFixed(1); }
-  function txt(v){ return String(v||"").replace(/\s+/g," ").trim().slice(0,76); }
-  function add(kind,name,ms,extra){
-    if (ms < 12 && kind !== "LONG") return;
-    logs.push({kind,name:txt(name),ms,extra:txt(extra)});
-    if (logs.length > MAX) logs.splice(0, logs.length-MAX);
-    draw();
-  }
-  function label(el){
-    if (!el) return "";
-    const x = el.closest && el.closest("button,a,[role=button],[onclick],.card,.tile");
-    const q = x || el;
-    return txt(q.innerText || q.textContent || q.id || q.tagName);
-  }
-  function pane(){
-    let e=document.getElementById("n214diag");
-    if(!e){
-      e=document.createElement("div");
-      e.id="n214diag";
-      e.style.cssText="position:fixed;right:10px;bottom:10px;z-index:2147483647;width:min(520px,calc(100vw - 20px));max-height:48vh;overflow:auto;background:rgba(15,15,15,.95);color:#fff;padding:10px 12px;border-radius:10px;font:12px/1.42 system-ui,-apple-system,'Segoe UI',sans-serif;white-space:pre-wrap;box-shadow:0 4px 18px #0005;pointer-events:none";
-      document.body.appendChild(e);
-    }
-    return e;
-  }
-  function draw(){
-    if(!document.body) return;
-    const a=["N214 同步熱點定位"];
-    if(lastClick) a.push("最近按鍵："+lastClick);
-    const recent=logs.slice(-10);
-    if(!recent.length) a.push("等待同步熱點…");
-    for(const x of recent){
-      const icon=x.ms>=1000?"🟥":x.ms>=100?"🟧":"⬜";
-      a.push(icon+" "+x.kind+" "+x.name+"  "+f(x.ms)+" ms"+(x.extra?"  "+x.extra:""));
-    }
-    pane().textContent=a.join("\n");
-  }
-
-  document.addEventListener("pointerdown",e=>{lastClick=label(e.target)},true);
-
-  // 1) Wrap known global hot paths. Measures synchronous body only.
-  const known = [
-    "renderAll","applyRoleUI","loadOrders","loadDelivery","loadShortageReports",
-    "loadStage9","loadPackingChangeNotices","enforceActiveSession",
-    "renderAccounting","renderAccountingHome","renderReminder","renderReminders",
-    "renderAnnouncement","renderAnnouncements","renderContainer","renderContainers"
-  ];
-  function wrapGlobal(name){
-    let fn;
-    try{ fn=window[name]; }catch(_){ return; }
-    if(typeof fn!=="function" || fn.__N214) return;
-    const w=function(){
-      const s=n();
-      try{return fn.apply(this,arguments);}
-      finally{
-        const d=n()-s;
-        if(d>=12) add("FUNC",name,d,"同步函式");
-      }
-    };
-    w.__N214=true;
-    try{ window[name]=w; }catch(_){}
-  }
-  function wrapKnown(){ known.forEach(wrapGlobal); }
-  wrapKnown(); setTimeout(wrapKnown,500); setTimeout(wrapKnown,2000); setTimeout(wrapKnown,6000);
-
-  // 2) Measure expensive DOM APIs used by legacy stacked modules.
-  function wrapProto(obj,key,labelName,threshold){
-    if(!obj) return;
-    const old=obj[key];
-    if(typeof old!=="function" || old.__N214) return;
-    const w=function(){
-      const s=n();
-      try{return old.apply(this,arguments);}
-      finally{
-        const d=n()-s;
-        if(d>=threshold) add("DOM",labelName,d, arguments[0] ? txt(arguments[0]) : "");
-      }
-    };
-    w.__N214=true;
-    try{obj[key]=w;}catch(_){}
-  }
-  wrapProto(Document.prototype,"querySelectorAll","document.querySelectorAll",15);
-  wrapProto(Element.prototype,"querySelectorAll","element.querySelectorAll",15);
-  wrapProto(Document.prototype,"querySelector","document.querySelector",15);
-  wrapProto(Element.prototype,"querySelector","element.querySelector",15);
-  wrapProto(Element.prototype,"closest","element.closest",15);
-
-  // 3) Measure JSON.stringify because large state comparisons were found in loaders.
-  try{
-    const oldStringify=JSON.stringify;
-    if(!oldStringify.__N214){
-      const w=function(){
-        const s=n();
-        try{return oldStringify.apply(this,arguments);}
-        finally{
-          const d=n()-s;
-          if(d>=15) add("JSON","JSON.stringify",d,"大型狀態比較");
-        }
-      };
-      w.__N214=true;
-      JSON.stringify=w;
-    }
-  }catch(_){}
-
-  // 4) Measure synchronous MutationObserver callbacks. This is a common source
-  // of post-render stalls in single-file apps with many layered patches.
-  try{
-    const NativeMO=window.MutationObserver;
-    if(NativeMO && !NativeMO.__N214){
-      function WrappedMO(cb){
-        const wrapped=function(records,observer){
-          const s=n();
-          try{return cb.apply(this,arguments);}
-          finally{
-            const d=n()-s;
-            if(d>=12) add("MO","MutationObserver callback",d,"records="+(records?records.length:0));
-          }
-        };
-        return new NativeMO(wrapped);
-      }
-      WrappedMO.prototype=NativeMO.prototype;
-      WrappedMO.__N214=true;
-      window.MutationObserver=WrappedMO;
-    }
-  }catch(_){}
-
-  // 5) Measure event listeners registered after N214 installation.
-  try{
-    const oldAdd=EventTarget.prototype.addEventListener;
-    if(!oldAdd.__N214){
-      const wm=new WeakMap();
-      const patched=function(type,listener,options){
-        if(typeof listener!=="function") return oldAdd.call(this,type,listener,options);
-        let byType=wm.get(listener);
-        if(!byType){byType={};wm.set(listener,byType);}
-        const k=String(type);
-        if(!byType[k]){
-          byType[k]=function(){
-            const s=n();
-            try{return listener.apply(this,arguments);}
-            finally{
-              const d=n()-s;
-              if(d>=20) add("EVENT",k+" listener",d,lastClick||"");
-            }
-          };
-        }
-        return oldAdd.call(this,type,byType[k],options);
-      };
-      patched.__N214=true;
-      EventTarget.prototype.addEventListener=patched;
-    }
-  }catch(_){}
-
-  // 6) LongTask remains as correlation proof.
-  try{
-    if(window.PerformanceObserver &&
-       (PerformanceObserver.supportedEntryTypes||[]).includes("longtask")){
-      const po=new PerformanceObserver(list=>{
-        for(const e of list.getEntries()) add("LONG","main-thread",e.duration,lastClick||"");
-      });
-      po.observe({entryTypes:["longtask"]});
-    }
-  }catch(_){}
-
-  draw();
-})();
-</script>
 
 </body></html>
