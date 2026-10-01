@@ -4368,6 +4368,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N198：容器事件快取；回籃／歸還統一進公司庫存；管理歸還固定同步往來欠餘；快速做帳既有規則保留：$0 容器不得單獨成帳。 -->
 <!-- N199：容器總覽雙軸顯示；公司實體庫存＝stockDelta，往來總欠／總餘＝balanceDelta；不修改既有欠餘核心。 -->
 <!-- N200：容器總覽顯示每一種容器的往來對象欠／餘明細；鐵架保留名稱分帳。只改顯示層，不修改 balanceDelta、stockDelta、快速做帳、管理歸還與四種列印。 -->
+<!-- N201：公司實體庫存方向補正；計籃=-qty、回籃/歸還=+qty，與金額正負完全分離；新快速做帳籃子事件正式寫入 stockDelta，歷史缺欄位資料於唯一正規化層補方向。不修改往來 balanceDelta 規則。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -6111,14 +6112,19 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       // 有單價 > 0 ＝容器買賣，只進帳本金額，絕不寫 balanceDelta。
       // 單價 0／空白＝實體容器異動，才寫 balanceDelta。籃子沿用計籃／回籃畫面語意；其他容器使用／歸還。
       const priced=Number(m.unitPrice)>0;
-      let balanceDelta;
+      let balanceDelta,stockDelta;
+      // N201：公司實體庫存與金額完全分離。籃子計籃＝實體出去(-)，回籃＝實體回公司(+)；不論是否有籃子金額。
+      if(type==='籃子'&&action==='計籃')stockDelta=-qty;
+      else if(type==='籃子'&&action==='回籃')stockDelta=qty;
+      else if(type!=='籃子'&&action==='歸還')stockDelta=qty;
+      // 往來欠／餘沿用既有規則：有價容器買賣不寫 balanceDelta；$0 實體異動才計往來欠餘。
       if(!priced){
         if(type==='籃子'&&action==='計籃')balanceDelta=-qty;
         else if(type==='籃子'&&action==='回籃')balanceDelta=qty;
         else if(type!=='籃子'&&action==='使用')balanceDelta=-qty;
         else if(type!=='籃子'&&action==='歸還')balanceDelta=qty;
       }
-      return {type,action,qty,unitPrice:m.unitPrice,amount:m.amount,note,rackNameId:rack?.id||'',rackName:rack?.name||'',...(balanceDelta!==undefined?{balanceDelta}: {})};
+      return {type,action,qty,unitPrice:m.unitPrice,amount:m.amount,note,rackNameId:rack?.id||'',rackName:rack?.name||'',...(balanceDelta!==undefined?{balanceDelta}: {}),...(stockDelta!==undefined?{stockDelta}: {})};
     }).filter(x=>x.type&&x.action&&x.qty>0);
   }
   function qQuickTurnoverMoney(work){const rows=qQuickTurnoverRows(work);return {unitPrice:0,amount:rows.reduce((a,x)=>a+(Number(x.amount)||0),0)}}
@@ -7546,8 +7552,9 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       const explicitStock=Number(t?.stockDelta??t?.stock_delta),explicitAsset=Number(t?.assetDelta??t?.asset_delta);
       let stockDelta=Number.isFinite(explicitStock)?explicitStock:0,assetDelta=Number.isFinite(explicitAsset)?explicitAsset:0;
       if(!Number.isFinite(explicitStock)){
-        // N198：不論來源，只要是回籃／歸還，實體都回到公司庫存。
-        if(action==='回籃'||action==='歸還')stockDelta=qty;
+        // N201：歷史資料補正。金額不決定實體方向；計籃一定出去(-)，回籃／歸還一定回公司(+)。
+        if(action==='計籃')stockDelta=-qty;
+        else if(action==='回籃'||action==='歸還')stockDelta=qty;
         else if(source==='容器管理'&&(action==='公司購入'||action==='期初庫存'))stockDelta=qty;
         else if(source==='容器管理'&&(action==='領用'||action==='報廢／遺失'))stockDelta=-qty;
       }
