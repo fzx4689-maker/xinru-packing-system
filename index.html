@@ -8094,6 +8094,21 @@ window.qNormalizeTurnAction=qN93TurnAction;
       :(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨');
   }
   function qN96SettlementDirection(r){return r?.txnType==='payment'?'payment':'receipt'}
+  // N225：完整明細的「活動方向」核心。只決定事件應出現在哪一側，不參與原始應收／應付本金計算。
+  // 原交易仍由 qN96DirectionMatch 判斷，避免 adjustment/refund 被當成第二筆債權債務重算。
+  function qN225ActivityDirectionMatch(r,direction){
+    if(!r)return false;
+    if(r.mode==='money_settlement')return qN96SettlementDirection(r)===direction;
+    if(r.mode==='money_refund'){
+      const d=String(r.accountDirection||'');
+      return direction==='payment'?d==='refund_from_supplier':d==='refund_customer';
+    }
+    if(qAccountingIsAdjustment(r)){
+      const d=String(r.accountDirection||'');
+      return direction==='payment'?d==='reduce_payable':d==='reduce_receivable';
+    }
+    return qN96DirectionMatch(r,direction);
+  }
   function qN96Time(r){return String(r?.createdAt||r?.updatedAt||'')}
   function qN96Date(r){return String(r?.date||'')}
   function qN96Cmp(a,b){
@@ -8114,10 +8129,10 @@ window.qNormalizeTurnAction=qN93TurnAction;
     const key=String(cutoff||'').trim();
     if(key){
       const byId=all.find(r=>String(r.id||'')===key);if(byId)return byId;
-      const dated=all.filter(r=>qN96Date(r)<=key&&(r.mode==='money_settlement'?qN96SettlementDirection(r)===direction:qN96DirectionMatch(r,direction))).sort(qN96Cmp);
+      const dated=all.filter(r=>qN96Date(r)<=key&&qN225ActivityDirectionMatch(r,direction)).sort(qN96Cmp);
       return dated[dated.length-1]||null;
     }
-    const eligible=all.filter(r=>r.mode==='money_settlement'?qN96SettlementDirection(r)===direction:qN96DirectionMatch(r,direction)).sort(qN96Cmp);
+    const eligible=all.filter(r=>qN225ActivityDirectionMatch(r,direction)).sort(qN96Cmp);
     return eligible[eligible.length-1]||null;
   }
   function qN96OutstandingAt(c,direction,cutoff){
@@ -8134,13 +8149,13 @@ window.qNormalizeTurnAction=qN93TurnAction;
     const cutoff=qN96ResolveCutoff(c,direction,cutoffInput),balances=qN96OutstandingAt(c,direction,cutoff);
     const open=balances.filter(x=>x.remain>0.000001),start=open.length?open[0].record:null;
     const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price');
-    const activities=start?all.filter(r=>qN96AtOrAfter(r,start)&&qN96AtOrBefore(r,cutoff)&&(r.mode==='money_settlement'?qN96SettlementDirection(r)===direction:qN96DirectionMatch(r,direction))).sort(qN96Cmp):[];
-    const transactionRows=activities.filter(r=>r.mode!=='money_settlement'),settlementRows=activities.filter(r=>r.mode==='money_settlement');
+    const activities=start?all.filter(r=>qN96AtOrAfter(r,start)&&qN96AtOrBefore(r,cutoff)&&qN225ActivityDirectionMatch(r,direction)).sort(qN96Cmp):[];
+    const transactionRows=activities.filter(r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)),settlementRows=activities.filter(r=>r.mode==='money_settlement'||r.mode==='money_refund'),adjustmentRows=activities.filter(r=>qAccountingIsAdjustment(r));
     return {
       schema:'xinru_general_complete_detail_v1',kind:'general',direction,contact:c||null,
       cutoff:cutoff||null,start:start||null,settled:open.length===0,
       outstanding:open.reduce((sum,x)=>sum+x.remain,0),openRows:open,
-      activities,transactions:transactionRows,settlements:settlementRows,
+      activities,transactions:transactionRows,settlements:settlementRows,adjustments:adjustmentRows,
       range:{from:start?.date||'',to:cutoff?.date||''}
     };
   }
