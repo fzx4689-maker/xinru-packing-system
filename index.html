@@ -4392,7 +4392,64 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N201：公司實體庫存方向補正；計籃=-qty、回籃/歸還=+qty，與金額正負完全分離；新快速做帳籃子事件正式寫入 stockDelta，歷史缺欄位資料於唯一正規化層補方向。不修改往來 balanceDelta 規則。 -->
 <!-- N203：產農快速做帳籃子例外。產農進貨時籃子動作改為「使用」；只寫 balanceDelta=-qty，stockDelta=0，金額固定0。公司實體庫存已於先前領用時扣除，不重複扣庫存。不修改一般客戶計籃/回籃與其他容器核心。 -->
 <!-- N207：純效能層優化；提醒批次 upsert、首頁切頁不重跑 autoPublish、前景恢復事件合併降頻。帳務/容器/金額核心未修改。 -->
-</body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
+\n<script id="xinru-perf-diagnostic-n209">
+/* N209 PURE PERFORMANCE DIAGNOSTIC — no Supabase writes, no business logic changes. */
+(function(){
+  const P={events:[],running:new Map(),seq:0,lastClick:null};
+  window.__xinruPerf=P;
+  function now(){return performance.now()}
+  function page(){
+    try{
+      const active=document.querySelector('.tab.active,[data-tab].active');
+      const acct=document.querySelector('#accountingWorkspace,#accountingPanel,#accountingCenter');
+      return (active?.textContent||active?.dataset?.tab||'')+(acct&&acct.offsetParent!==null?' / accounting':'');
+    }catch(e){return ''}
+  }
+  function push(type,name,ms,extra){
+    const e={t:new Date().toLocaleTimeString(),type,name,ms:Math.round(ms),page:page(),...(extra||{})};
+    P.events.push(e); if(P.events.length>120)P.events.shift();
+    if(ms>=100||type==='longtask'||type==='clicklag') console.warn('[N209 PERF]',e);
+    paint(e);
+  }
+  function paint(e){
+    let b=document.getElementById('xinruPerfBadge');
+    if(!b){
+      b=document.createElement('button'); b.id='xinruPerfBadge'; b.type='button';
+      b.style.cssText='position:fixed;right:8px;bottom:8px;z-index:2147483647;padding:7px 9px;border:1px solid #999;border-radius:9px;background:#fff;color:#222;font:12px/1.3 sans-serif;box-shadow:0 2px 8px #0003;opacity:.9';
+      b.textContent='⚙ 效能診斷';
+      b.onclick=function(){console.table(P.events.slice(-40)); alert('效能紀錄已輸出到 Console。\
+最近事件：'+JSON.stringify(P.events.slice(-5),null,2));};
+      document.body.appendChild(b);
+    }
+    if(e&&(e.ms>=100||e.type==='longtask'||e.type==='clicklag')) b.textContent='⚠ '+e.name+' '+e.ms+'ms';
+  }
+  function wrap(name){
+    const fn=window[name]; if(typeof fn!=='function'||fn.__n209wrapped)return;
+    const w=function(){
+      const id=++P.seq, st=now(); P.running.set(id,{name,st});
+      let r;
+      try{r=fn.apply(this,arguments)}catch(err){P.running.delete(id);push('fn-error',name,now()-st,{error:String(err)});throw err}
+      if(r&&typeof r.then==='function') return r.then(v=>{P.running.delete(id);push('fn',name,now()-st);return v},err=>{P.running.delete(id);push('fn-error',name,now()-st,{error:String(err)});throw err});
+      P.running.delete(id); push('fn',name,now()-st); return r;
+    };
+    Object.defineProperty(w,'__n209wrapped',{value:true}); window[name]=w;
+  }
+  ['renderAll','applyRoleUI','loadOrders','loadDelivery','loadDeliveryDrivers','loadShortageReports','loadStage9','renderPacking','renderWall','renderDelivery','renderToday','activateTab'].forEach(wrap);
+  // Retry once after load in case a later script defines a target.
+  window.addEventListener('load',()=>setTimeout(()=>['renderAll','applyRoleUI','loadOrders','loadDelivery','loadDeliveryDrivers','loadShortageReports','loadStage9','renderPacking','renderWall','renderDelivery','renderToday','activateTab'].forEach(wrap),0),{once:true});
+  document.addEventListener('click',function(ev){
+    const st=now(); const label=(ev.target?.closest?.('button,a,.tab')?.innerText||ev.target?.innerText||ev.target?.id||ev.target?.tagName||'click').trim().slice(0,50);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{const ms=now()-st;if(ms>=100)push('clicklag',label,ms,{running:[...P.running.values()].map(x=>x.name)})}));
+  },true);
+  if('PerformanceObserver' in window){
+    try{
+      const po=new PerformanceObserver(list=>{for(const x of list.getEntries()){push('longtask','Main thread long task',x.duration,{running:[...P.running.values()].map(v=>v.name)})}});
+      po.observe({type:'longtask',buffered:true});
+    }catch(e){console.info('[N209 PERF] longtask observer unavailable',e)}
+  }
+  paint(); console.info('[N209 PERF] diagnostic active. No data writes. Use window.__xinruPerf.events');
+})();
+</script>\n</body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
 .quickOrderDonePanel{margin-top:12px;padding:12px;border:1px solid #b9d8c5;background:#f3fbf6;border-radius:12px}.quickOrderDonePanel b{font-size:18px}.quickOrderF2Busy{opacity:.65;pointer-events:none}
