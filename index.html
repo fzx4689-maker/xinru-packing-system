@@ -1911,6 +1911,16 @@ body.wall-focus #wall .wallOrderNote{
 <style id="qN254-sort-style">
 .qN254Drag{border:0;background:transparent;font-size:18px;line-height:1;cursor:grab;padding:5px 3px;color:#667085;touch-action:none;flex:0 0 auto}.qN254Drag:active{cursor:grabbing}.qN254Dragging{opacity:.48;outline:2px dashed #98a2b3}.qN252SpecMain{justify-content:flex-start!important}.qN253MenuWrap{margin-left:auto}.qN252SpecMain>b{white-space:nowrap}.qN252SpecMain>strong{white-space:nowrap}
 </style>
+
+<style id="qN257-touch-sort-style">
+@media(max-width:700px){
+ .qN254Drag{min-width:36px!important;width:36px!important;min-height:52px!important;height:100%!important;margin:-6px 0 -6px -5px!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:20px!important;touch-action:none!important;-webkit-user-select:none!important;user-select:none!important}
+ .qN252SpecMain{grid-template-columns:36px minmax(0,1fr) 28px!important}
+ .qN254Dragging{opacity:.78!important;transform:scale(1.035);box-shadow:0 8px 20px rgba(0,0,0,.18)!important;outline:2px solid #22a35a!important;background:#fff!important;z-index:5}
+ .qN257DropBefore{border-top:3px dashed #22a35a!important}
+ .qN257DropAfter{border-bottom:3px dashed #22a35a!important}
+}
+</style>
 </head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
@@ -8205,16 +8215,32 @@ K白.kg
   }
   function qN254EnableDrag(work,paint){
     const grid=work.querySelector('.qN252SpecGrid');if(!grid)return;
-    let dragged=null,touchCard=null;
+    let dragged=null,touchCard=null,lastTarget=null,lastBefore=true,autoScroll=0;
+    const clearDrop=()=>{grid.querySelectorAll('.qN257DropBefore,.qN257DropAfter').forEach(x=>x.classList.remove('qN257DropBefore','qN257DropAfter'));lastTarget=null};
+    const stopScroll=()=>{if(autoScroll){cancelAnimationFrame(autoScroll);autoScroll=0}};
     const save=async()=>{try{await qN254SaveLiuheOrder(grid);await qN230Load();paint()}catch(e){alert('排序儲存失敗：'+(e?.message||e));await qN230Load();paint()}};
+    const place=(card,e)=>{
+      const hit=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('[data-n254-id]');
+      if(!hit||hit===card||hit.parentElement!==grid)return;
+      const r=hit.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+      const sameRow=Math.abs(e.clientY-cy)<r.height*.48;
+      const before=sameRow?(e.clientX<cx):(e.clientY<cy);
+      clearDrop();hit.classList.add(before?'qN257DropBefore':'qN257DropAfter');lastTarget=hit;lastBefore=before;
+      grid.insertBefore(card,before?hit:hit.nextSibling);
+    };
+    const scrollNearEdge=(clientY)=>{
+      stopScroll();const edge=90,speed=11;
+      const tick=()=>{let dy=0;if(clientY<edge)dy=-speed;else if(clientY>innerHeight-edge)dy=speed;if(dy){window.scrollBy(0,dy);autoScroll=requestAnimationFrame(tick)}};tick();
+    };
     grid.querySelectorAll('.qN254Drag').forEach(h=>{
       h.addEventListener('dragstart',e=>{dragged=h.closest('[data-n254-id]');dragged?.classList.add('qN254Dragging');if(e.dataTransfer)e.dataTransfer.effectAllowed='move'});
-      h.addEventListener('dragend',()=>{dragged?.classList.remove('qN254Dragging');dragged=null;save()});
-      h.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;touchCard=h.closest('[data-n254-id]');h.setPointerCapture?.(e.pointerId);touchCard?.classList.add('qN254Dragging');e.preventDefault()});
-      h.addEventListener('pointermove',e=>{if(!touchCard)return;const el=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('[data-n254-id]');if(el&&el!==touchCard&&el.parentElement===grid){const r=el.getBoundingClientRect();const before=e.clientY<r.top+r.height/2 || (Math.abs(e.clientY-(r.top+r.height/2))<r.height*.35&&e.clientX<r.left+r.width/2);grid.insertBefore(touchCard,before?el:el.nextSibling)}});
-      const end=e=>{if(!touchCard)return;touchCard.classList.remove('qN254Dragging');touchCard=null;save()};h.addEventListener('pointerup',end);h.addEventListener('pointercancel',end);
+      h.addEventListener('dragend',()=>{dragged?.classList.remove('qN254Dragging');dragged=null;clearDrop();save()});
+      h.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;touchCard=h.closest('[data-n254-id]');h.setPointerCapture?.(e.pointerId);touchCard?.classList.add('qN254Dragging');document.body.style.overscrollBehavior='none';e.preventDefault()});
+      h.addEventListener('pointermove',e=>{if(!touchCard)return;e.preventDefault();place(touchCard,e);scrollNearEdge(e.clientY)});
+      const end=e=>{if(!touchCard)return;stopScroll();clearDrop();touchCard.classList.remove('qN254Dragging');touchCard=null;document.body.style.overscrollBehavior='';save()};
+      h.addEventListener('pointerup',end);h.addEventListener('pointercancel',end);
     });
-    grid.addEventListener('dragover',e=>{if(!dragged)return;e.preventDefault();const el=e.target.closest('[data-n254-id]');if(!el||el===dragged)return;const r=el.getBoundingClientRect();const before=e.clientY<r.top+r.height/2 || (Math.abs(e.clientY-(r.top+r.height/2))<r.height*.35&&e.clientX<r.left+r.width/2);grid.insertBefore(dragged,before?el:el.nextSibling)});
+    grid.addEventListener('dragover',e=>{if(!dragged)return;e.preventDefault();place(dragged,e)});
   }
   function qN230RenderFarmerReceipt(work){work.innerHTML='<div class="quickV2"><b>🧾 農民收據</b><div class="helper" style="display:block!important;margin:5px 0 10px">保留原農民收據入口。</div><div class="acctStageGrid">'+['待分類確認','待開農收','已開農收','歷史查詢','⚙️ 分類管理'].map(x=>'<button class="acctStageBtn" data-n230-fr="'+qEsc(x)+'"><b>'+qEsc(x)+'</b></button>').join('')+'</div><div id="qN230FrWork"></div></div>';work.querySelectorAll('[data-n230-fr]').forEach(b=>b.onclick=()=>{work.querySelector('#qN230FrWork').innerHTML='<div class="acctWorkPlaceholder"><b>'+qEsc(b.dataset.n230Fr)+'</b><div class="helper">沿用既有農民收據規劃；未改動原帳務核心。</div></div>'})}
   const QN230_SALES_KEY='xinru_sales_document_drafts_v1';
@@ -8986,7 +9012,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
    const current=canonical(type)==='籃子'?(owed>0?'欠籃 '+qN181DisplayNumber(owed):(surplus>0?'餘籃 '+qN181DisplayNumber(surplus):'已結清')):(owed>0?'欠 '+qN181DisplayNumber(owed):(surplus>0?'餘 '+qN181DisplayNumber(surplus):'已結清'));
    const asc=(rows||[]).slice().reverse();
    const actionTotals=new Map();asc.forEach(e=>actionTotals.set(String(e.action||'進出'),(actionTotals.get(String(e.action||'進出'))||0)+(Number(e.qty)||0)));
-   const W=1080,pad=76,lineH=58,headH=300,footH=180+Math.ceil(actionTotals.size/2)*48,H=Math.max(620,headH+asc.length*lineH+footH);
+   const W=1080,pad=76,lineH=58,headH=300,footH=120+Math.ceil(actionTotals.size/2)*48,H=Math.max(560,headH+asc.length*lineH+footH);
    const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
    x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111827';x.textBaseline='middle';
    x.font='700 44px sans-serif';x.fillText('欣儒農產行｜'+canonical(type)+'往來明細',pad,70);
@@ -8999,15 +9025,13 @@ window.qNormalizeTurnAction=qN93TurnAction;
    y+=28;x.fillStyle='#111827';x.font='700 30px sans-serif';x.fillText('區間統計',pad,y);y+=52;x.font='28px sans-serif';
    let col=0;[...actionTotals.entries()].forEach(([a,n])=>{const xx=pad+(col%2)*430,yy=y+Math.floor(col/2)*48;x.fillText(a+'：'+qN181DisplayNumber(n),xx,yy);col++});
    y+=Math.ceil(actionTotals.size/2)*48+38;x.fillStyle='#111827';x.font='700 38px sans-serif';x.fillText('目前'+canonical(type)+'：'+current,pad,y);
-   x.font='24px sans-serif';x.fillStyle='#6b7280';x.fillText('目前欠／餘依完整歷史往來計算；上方明細依本次查詢區間。',pad,y+52);
    const fileName=(String(term).replace(/[\\/:*?"<>|]/g,'_')||'往來')+'_'+canonical(type)+'_'+(from||'最早')+'-'+(to||'現在')+'.png';
    const blob=()=>new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('圖片產生失敗')),'image/png'));
    const download=async()=>{try{const b=await blob(),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fileName;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}catch(e){alert(e?.message||e)}};
    const mask=document.createElement('div');mask.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.72);padding:12px;overflow:auto';
-   mask.innerHTML='<div style="width:min(760px,100%);margin:auto;background:#fff;border-radius:18px;padding:12px"><div style="display:flex;gap:8px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2;background:#fff;padding:4px 0 10px"><button class="btn gray" data-cimg="back">← 返回</button><b>容器往來圖片</b><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn primary" data-cimg="share">🟢 LINE 分享</button><button class="btn gray" data-cimg="copy">📋 複製圖片</button><button class="btn gray" data-cimg="save">🖼️ 下載</button></div></div><img alt="容器往來圖片" style="display:block;width:100%;height:auto" src="'+c.toDataURL('image/png')+'"></div>';
+   mask.innerHTML='<div style="width:min(760px,100%);margin:auto;background:#fff;border-radius:18px;padding:12px"><div style="display:flex;gap:8px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2;background:#fff;padding:4px 0 10px"><button class="btn gray" data-cimg="back">← 返回</button><b>容器往來圖片</b><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn primary" data-cimg="share">🟢 LINE 分享</button><button class="btn gray" data-cimg="copy">📋 複製圖片</button></div></div><img alt="容器往來圖片" style="display:block;width:100%;height:auto" src="'+c.toDataURL('image/png')+'"></div>';
    document.body.appendChild(mask);
    mask.querySelector('[data-cimg="back"]').onclick=()=>mask.remove();
-   mask.querySelector('[data-cimg="save"]').onclick=download;
    mask.querySelector('[data-cimg="share"]').onclick=async()=>{try{const b=await blob(),f=new File([b],fileName,{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({title:String(term)+' '+canonical(type)+'往來明細',files:[f]})}else{alert('這台電腦／瀏覽器不支援直接叫出 LINE 分享；可使用「複製圖片」後到 LINE 按 Ctrl＋V。')}}catch(e){if(e?.name!=='AbortError')alert('分享失敗：'+(e?.message||e))}};
    mask.querySelector('[data-cimg="copy"]').onclick=async()=>{try{const b=await blob();if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')throw new Error('瀏覽器不支援圖片剪貼簿');await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert('圖片已複製，可到 LINE 按 Ctrl＋V 貼上。')}catch(e){alert('無法直接複製圖片：'+(e?.message||e))}};
  }
