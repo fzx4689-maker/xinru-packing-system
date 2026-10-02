@@ -7551,6 +7551,87 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     const reason=prompt('退款原因：');if(reason===null)return null;if(!String(reason).trim())throw new Error('退款原因不能空白');const method=prompt('退款方式：',qMoneyMethods(c)[0]||'現金');if(method===null)return null;const note=prompt('備註（可留空）：')??'';const now=new Date().toISOString(),sale=source.txnType==='sale'||source.accountDirection==='receivable'||source.txnTypeLabel==='銷貨';
     const rec={id:qMoneyId(),schemaVersion:6,date:qToday(),customer:source.customer||'',contactId:source.contactId||null,type:source.type||c.identity||c.type||'',mode:'money_refund',txnType:'refund',txnTypeLabel:'退款',accountDirection:sale?'refund_customer':'refund_from_supplier',sourceRecordId:String(source.id||''),amount,total:amount,methods:[{method:String(method).trim()||'現金',amount}],reason:String(reason).trim(),note:String(note).trim(),status:'active',pricingStatus:'priced',createdAt:now,updatedAt:now,createdBy:qActor(),audit:[{action:'refund_create',at:now,by:qActor()}]};await qPersist(rec);return rec;
   }
+
+  // N235：交易修改核心救回。正式交易依資料型態回到同一筆原始紀錄修改，不另建第二筆。
+  function qN235EditAdjustment(work,id,backMode='today'){
+    const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));
+    if(!r||!qAccountingIsAdjustment(r)){alert('找不到扣款／折讓／退貨資料');return}
+    const label=qAccountingAdjustmentLabel(r.mode)||r.txnTypeLabel||'調整';
+    const source=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(r.sourceRecordId||''));
+    const c=qContact(r.contactId||r.customer||source?.contactId||source?.customer||'');
+    const own=qMoney(r.amount??r.total), sourceEffective=source?qAccountingEffectiveTotal(source,c):0;
+    const maxAmount=Math.max(own, qMoney(sourceEffective)+own);
+    const ri=r.returnItem||{};
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>✏️ 修改'+qEsc(label)+'｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">直接修改原紀錄，不新增第二筆。</div></div><button type="button" class="btn gray" id="qN235EditBack">← 返回交易明細</button></div>'+
+      '<div class="quickV2Record" style="margin-top:12px"><div class="quickV2Grid">'+
+      '<label>日期<input class="input" id="qN235AdjDate" type="date" value="'+qEsc(r.date||qToday())+'"></label>'+
+      (r.mode==='goods_return'?'<label>退貨品名<input class="input" id="qN235AdjName" value="'+qEsc(ri.name||'')+'"></label><label>公斤<input class="input" id="qN235AdjKg" inputmode="decimal" value="'+qEsc(ri.kg??'')+'"></label><label>數量<input class="input" id="qN235AdjQty" inputmode="decimal" value="'+qEsc(ri.qty??'')+'"></label>':'')+
+      '<label>金額<input class="input" id="qN235AdjAmount" inputmode="decimal" value="'+qEsc(own)+'"></label>'+
+      '<label style="grid-column:1/-1">原因<input class="input" id="qN235AdjReason" value="'+qEsc(r.reason||'')+'"></label>'+
+      '<label style="grid-column:1/-1">備註<input class="input" id="qN235AdjNote" value="'+qEsc(r.note||'')+'"></label>'+
+      '</div><div class="helper" style="display:block!important;margin-top:8px">目前這筆可修改的金額上限：$'+Math.round(maxAmount).toLocaleString('zh-TW')+'</div>'+
+      '<div class="quickV2OutputBtns" style="margin-top:12px"><button type="button" class="btn" id="qN235AdjSave">💾 儲存修改</button></div></div></div>';
+    work.querySelector('#qN235EditBack').onclick=()=>qShowRecordDetail(work,id,backMode,true);
+    work.querySelector('#qN235AdjSave').onclick=async()=>{
+      try{
+        const date=work.querySelector('#qN235AdjDate').value, amount=qMoney(work.querySelector('#qN235AdjAmount').value);
+        const reason=work.querySelector('#qN235AdjReason').value.trim(), note=work.querySelector('#qN235AdjNote').value.trim();
+        if(!date)throw new Error('請輸入日期');
+        if(amount<=0)throw new Error(label+'金額必須大於 0');
+        if(source&&amount>maxAmount+0.001)throw new Error(label+'金額不可超過原交易目前可調整金額');
+        if(!reason)throw new Error(label+'原因不能空白');
+        const next=JSON.parse(JSON.stringify(r)),now=new Date().toISOString();
+        const before={date:r.date,amount:qMoney(r.amount??r.total),reason:r.reason||'',note:r.note||'',returnItem:r.returnItem||null};
+        next.date=date;next.amount=amount;next.total=amount;next.reason=reason;next.note=note;next.updatedAt=now;
+        if(r.mode==='goods_return'){
+          const name=work.querySelector('#qN235AdjName').value.trim();
+          const kgRaw=work.querySelector('#qN235AdjKg').value.trim(),qtyRaw=work.querySelector('#qN235AdjQty').value.trim();
+          const kg=kgRaw===''?null:Number(kgRaw),qty=qtyRaw===''?null:Number(qtyRaw);
+          if(kg!==null&&(!Number.isFinite(kg)||kg<0))throw new Error('公斤不正確');
+          if(qty!==null&&(!Number.isFinite(qty)||qty<0))throw new Error('數量不正確');
+          next.returnItem={...(r.returnItem||{}),name,kg,qty};
+        }
+        next.audit=Array.isArray(r.audit)?r.audit.slice():[];
+        next.audit.push({action:'edit_adjustment',at:now,by:qActor(),before});
+        await qPersist(next);
+        if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
+        alert('已儲存修改');
+        qShowRecordDetail(work,id,backMode,true);
+      }catch(e){alert(e.message||String(e))}
+    };
+  }
+
+  function qN235EditRefund(work,id,backMode='today'){
+    const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));
+    if(!r||r.mode!=='money_refund'){alert('找不到退款資料');return}
+    const source=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(r.sourceRecordId||''));
+    const c=qContact(r.contactId||r.customer||source?.contactId||source?.customer||'');
+    const own=qMoney(r.amount??r.total), available=source?Math.max(own,qAccountingOverpaid(source,c)+own):own;
+    const method=Array.isArray(r.methods)&&r.methods[0]?String(r.methods[0].method||''):'';
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>✏️ 修改退款｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">直接修改原退款紀錄，不新增第二筆。</div></div><button type="button" class="btn gray" id="qN235RefundBack">← 返回交易明細</button></div>'+
+      '<div class="quickV2Record" style="margin-top:12px"><div class="quickV2Grid">'+
+      '<label>日期<input class="input" id="qN235RefundDate" type="date" value="'+qEsc(r.date||qToday())+'"></label>'+
+      '<label>金額<input class="input" id="qN235RefundAmount" inputmode="decimal" value="'+qEsc(own)+'"></label>'+
+      '<label>退款方式<input class="input" id="qN235RefundMethod" value="'+qEsc(method)+'"></label>'+
+      '<label style="grid-column:1/-1">原因<input class="input" id="qN235RefundReason" value="'+qEsc(r.reason||'')+'"></label>'+
+      '<label style="grid-column:1/-1">備註<input class="input" id="qN235RefundNote" value="'+qEsc(r.note||'')+'"></label>'+
+      '</div><div class="quickV2OutputBtns" style="margin-top:12px"><button type="button" class="btn" id="qN235RefundSave">💾 儲存修改</button></div></div></div>';
+    work.querySelector('#qN235RefundBack').onclick=()=>qShowRecordDetail(work,id,backMode,true);
+    work.querySelector('#qN235RefundSave').onclick=async()=>{
+      try{
+        const date=work.querySelector('#qN235RefundDate').value,amount=qMoney(work.querySelector('#qN235RefundAmount').value);
+        const method2=work.querySelector('#qN235RefundMethod').value.trim(),reason=work.querySelector('#qN235RefundReason').value.trim(),note=work.querySelector('#qN235RefundNote').value.trim();
+        if(!date)throw new Error('請輸入日期');if(amount<=0)throw new Error('退款金額必須大於 0');
+        if(source&&amount>available+0.001)throw new Error('退款金額超過目前可退款金額');
+        if(!method2)throw new Error('請輸入退款方式');if(!reason)throw new Error('退款原因不能空白');
+        const next=JSON.parse(JSON.stringify(r)),now=new Date().toISOString(),before={date:r.date,amount:own,methods:r.methods||[],reason:r.reason||'',note:r.note||''};
+        next.date=date;next.amount=amount;next.total=amount;next.methods=[{method:method2,amount}];next.reason=reason;next.note=note;next.updatedAt=now;
+        next.audit=Array.isArray(r.audit)?r.audit.slice():[];next.audit.push({action:'edit_refund',at:now,by:qActor(),before});
+        await qPersist(next);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();alert('已儲存修改');qShowRecordDetail(work,id,backMode,true);
+      }catch(e){alert(e.message||String(e))}
+    };
+  }
+
   function qAccountingEventsHtml(r){
     const events=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&String(x.sourceRecordId||'')===String(r.id||'')&&(qAccountingIsAdjustment(x)||x.mode==='money_refund')).sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
     if(!events.length)return '';
@@ -7671,7 +7752,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     work.innerHTML=qRecordDetailHtml(r);work.querySelector('#qDetailBack').onclick=()=>qReturnFromRecordDetail(work,backMode);
     work.querySelectorAll('.qMarkVehicleReturn').forEach(b=>b.onclick=async e=>{e.stopPropagation();try{const kind=b.dataset.returnKind,date=await qN236AskVehicleReturn(kind);if(!date)return;await qN234MarkVehicleReturn(b.dataset.recordId,kind,date);qShowRecordDetail(work,id,backMode,true)}catch(err){alert(err.message||String(err))}});
     if(r.status!=='void'){work.querySelector('[data-detail-out="bill"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('bill',r)});work.querySelector('[data-detail-out="excel"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('excel',r)});work.querySelector('[data-detail-out="pdf"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('pdf',r)});work.querySelector('[data-detail-out="paper"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('paper',r)})}
-    work.querySelector('[data-detail-manage="edit"]')?.addEventListener('click',()=>r.mode==='money_settlement'?qH10EditSettlement(work,id,backMode):qEditQuickRecord(work,id));
+    work.querySelector('[data-detail-manage="edit"]')?.addEventListener('click',()=>{if(r.mode==='money_settlement')return qH10EditSettlement(work,id,backMode);if(qAccountingIsAdjustment(r))return qN235EditAdjustment(work,id,backMode);if(r.mode==='money_refund')return qN235EditRefund(work,id,backMode);return qEditQuickRecord(work,id)});
     work.querySelector('[data-detail-manage="deduction"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'account_deduction'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
     work.querySelector('[data-detail-manage="allowance"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'account_allowance'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
     work.querySelector('[data-detail-manage="return"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'goods_return'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
