@@ -6551,11 +6551,14 @@ function qN107ContainerRows(contact,range){
       const priced=['計籃','回籃','計價','退籃退費','買斷'].includes(action)&&unit>0;
       const sign=['回籃','退籃退費'].includes(action)?-1:1;
       const stored=qN98Money(e.amount),turnAmount=priced?(stored!==0?stored:(qty*unit*sign)):0;
-      // N237：僅廠商正式帳本輸出時，鐵架品名顯示「鐵架名稱｜動作」。
+      // N238：周轉物正式帳本中央輸出核心。
+      // 不依身分、不依既有名單；任何現在或未來新增的往來對象，只要原始事件 type 是鐵架／棧板，
+      // 一律直接讀該事件已保存的 rackName + action 組成正式輸出名稱。
       // 原始 type/action/rackName、庫存、欠餘、金額核心全部保持不變。
-      const isVendor=String(contact?.identity||contact?.type||contact?.customerType||'').trim()==='廠商';
-      const outputName=(isVendor&&String(e.type||'')==='鐵架')
-        ?((String(e.rackName||'').trim()||'鐵架')+(action?'｜'+action:''))
+      const turnoverType=String(e.type||'').trim();
+      const namedAsset=(turnoverType==='鐵架'||turnoverType==='棧板');
+      const outputName=namedAsset
+        ?((String(e.rackName||'').trim()||turnoverType)+(action?'｜'+action:''))
         :(action==='回籃'?'回籃':String(e.type||'周轉物'));
       return {kind:'turnover',date:e.date||'',recordId:e.sourceRecordId||'',no:'',
         name:outputName,kg:'',qty:qty||'',pricing:'',
