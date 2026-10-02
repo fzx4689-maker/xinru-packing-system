@@ -6952,10 +6952,31 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qMoneyMethods(c){const a=Array.isArray(c?.paymentMethods)?c.paymentMethods.filter(Boolean):[];return a.length?a:[c?.paymentDefault||'現金']}
   // N233A8：儲值只有一套核心。結帳方式決定帳期；「儲值」只是一種收款／付款方式。
   function qStoredValueBalance(c){
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-    // 舊版儲值入金／扣款只做相容讀取，不再新增舊格式。
-    rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-    rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse){balance-=qMoney(r.amount||r.total);return}if(stored<=0)return;const allocs=Array.isArray(r.allocations)?r.allocations:[];let used=0;for(const a of allocs){const target=rows.find(x=>String(x?.id||'')===String(a?.recordId||''));const cap=target?Math.max(0,qAccountingEffectiveTotal(target,c)):qMoney(a?.amount);used+=Math.min(qMoney(a?.amount),cap)}const inferredCredit=Math.max(0,stored-used),savedCredit=Math.max(0,qMoney(r.creditAmount));balance+=Math.max(savedCredit,inferredCredit)});
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));
+    let balance=0;
+    // H5：儲值只走一套 Ledger。實際儲值收款視為「資金進入儲值帳」，
+    // 自動儲值扣款 storedValueUse 視為「儲值帳支出」。允許餘額為負數。
+    // 舊版 deposit／儲值扣款仍只做相容讀取。
+    rows.forEach(r=>{
+      if(r.txnType==='deposit') balance+=qMoney(r.deposit||r.amount||r.total);
+      if(r.payment==='儲值扣款') balance-=qMoney(r.paid);
+    });
+    rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{
+      if(r.storedValueUse){
+        balance-=qMoney(r.amount||r.total||r.allocatedAmount);
+        return;
+      }
+      const methods=Array.isArray(r.methods)?r.methods:[];
+      let stored=methods.filter(m=>String(m?.method||'').trim()==='儲值').reduce((a,m)=>a+qMoney(m?.amount),0);
+      // 舊資料相容：若主檔預設儲值，且此筆本身已標示 creditAmount／儲值文字，
+      // methods 遺失時才以實收金額作為儲值收款；不把現金／匯款誤算成儲值。
+      if(stored<=0&&String(c?.paymentDefault||'')==='儲值'){
+        const text=[r.note,r.reason,r.payment,r.paymentMethod,r.txnTypeLabel].map(x=>String(x||'')).join('|');
+        const hasOther=methods.some(m=>{const k=String(m?.method||'').trim();return k&&k!=='儲值'&&qMoney(m?.amount)>0});
+        if(!hasOther&&(qMoney(r.creditAmount)>0||text.includes('儲值'))) stored=qMoney(r.amount||r.total||r.paid);
+      }
+      if(stored>0) balance+=stored;
+    });
     return qMoney(balance);
   }
   async function qApplyStoredValueToRecord(c,record){if(!c||!record||record.status==='draft'||record.pricingStatus==='pending_price'||record.txnType!=='sale'||String(c.paymentDefault||'')!=='儲值')return 0;const due=qAccountingOutstanding(record,c);const use=due;if(use<=0)return 0;const now=new Date().toISOString(),settlement={id:qMoneyId(),schemaVersion:7,date:record.date||qToday(),customer:c.name||record.customer||'',contactId:c.id||record.contactId||null,type:c.identity||c.type||'',mode:'money_settlement',txnType:'receipt',txnTypeLabel:'收款',accountDirection:'settle_receivable',amount:use,total:use,paid:use,due:0,methods:[{method:'儲值',amount:use}],allocations:[{recordId:record.id,amount:use}],allocatedAmount:use,creditAmount:0,storedValueUse:true,note:'儲值自動扣款',vehicleSettlement:false,moneyReturned:false,moneyReturnedAt:null,receiptReturned:false,receiptReturnedAt:null,status:'active',pricingStatus:'priced',settlementStatus:'settled',createdAt:now,updatedAt:now,createdBy:qActor(),audit:[{action:'stored_value_auto_apply',recordId:record.id,amount:use,at:now,by:qActor()}]};await qPersist(settlement);return use}
