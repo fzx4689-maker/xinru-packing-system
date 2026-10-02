@@ -4481,6 +4481,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N258：容器 LINE 圖片直接讀正式容器事件＋qContainerBalance，不再接畫面 rows 二次統計；商品重量／參考價改與六禾相同卡片、選單、拖曳排序與響應式版型。 -->
 <!-- N264：以 N258 為唯一基底，只修容器 LINE／複製圖片底部高度；N259-N263 的其他容器顯示修改全部不帶入。 -->
 <!-- N265：農民收據精簡為農收整理＋分類設定；直接讀往來資料 farmerReceipt 與 accounting_records，每筆正式銷貨為一車；只做分類加總／月底提醒／已處理狀態，不開立收據、不改原帳務。 -->
+<!-- N266：補正 Supabase 2026 Data API 新表需明確 GRANT；不改 N265 農收分類算法、不改帳務、不改容器。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -8295,7 +8296,7 @@ K白.kg
   }
   async function qN265Render(work,tab='整理'){
     work.innerHTML='<div class="acctWorkPlaceholder">農收資料讀取中…</div>';
-    let data;try{data=await qN265Load()}catch(e){work.innerHTML='<div class="acctWorkPlaceholder"><b>農收分類資料尚未啟用</b><div class="helper">請先執行 N265 Supabase SQL。<br>'+qEsc(e.message||e)+'</div></div>';return}
+    let data;try{data=await qN265Load()}catch(e){const msg=String(e?.message||e||'');work.innerHTML='<div class="acctWorkPlaceholder"><b>農收分類資料讀取失敗</b><div class="helper">'+(/permission denied/i.test(msg)?'資料表已建立，但 Supabase Data API 尚未授權目前登入角色。請執行 N266 權限修正 SQL。':'請確認 Supabase 農收資料表與連線。')+'<br>'+qEsc(msg)+'</div></div>';return}
     const trips=qN265Trips(),now=qToday(),month=now.slice(0,7),pending=trips.filter(x=>String(x.record.date||'').slice(0,7)===month&&!data.status.get(String(x.record.id))?.processed);
     const reminderNames=[...new Set(pending.map(x=>x.contact?.name||x.record.customer))];
     const reminder='<div style="border:1px solid #f0c36a;background:#fff9e8;border-radius:14px;padding:12px;margin:10px 0"><b>🔔 本月農收提醒</b><div style="margin-top:6px">'+(reminderNames.length?reminderNames.map(n=>{const ntr=pending.filter(x=>(x.contact?.name||x.record.customer)===n);return '<div><b>'+qEsc(n)+'</b>｜'+ntr.length+' 車待處理</div>'}).join(''):'本月目前沒有待處理農收')+'</div></div>';
