@@ -4483,6 +4483,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N265：農民收據精簡為農收整理＋分類設定；直接讀往來資料 farmerReceipt 與 accounting_records，每筆正式銷貨為一車；只做分類加總／月底提醒／已處理狀態，不開立收據、不改原帳務。 -->
 <!-- N266：補正 Supabase 2026 Data API 新表需明確 GRANT；不改 N265 農收分類算法、不改帳務、不改容器。 -->
 <!-- N267：農收依往來資料 farmerReceiptRule 分一般/分類；farmerReceiptCycle 改正式週期選單。舊未設定規則預設一般農收。分類設定只收分類農收客戶商品。未改 accounting_records、容器、其他帳務。 -->
+<!-- N268：農收週期核心合併；每月/每週不再逐車提醒。分類籤可點擊查看商品。未改其他帳務與容器。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -8287,6 +8288,44 @@ K白.kg
     const v=String(c?.farmerReceiptCycle||'').trim();
     return ['每車／每次','每週','每月','自訂'].includes(v)?v:'每月';
   }
+  function qN268Date(d){const x=new Date(String(d||'')+'T12:00:00');return isNaN(x)?null:x}
+  function qN268WeekKey(d){
+    const x=qN268Date(d);if(!x)return String(d||'');
+    const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);
+    return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  }
+  function qN268PeriodKey(c,r){
+    const cyc=qN267ReceiptCycle(c),d=String(r?.date||'');
+    if(cyc==='每月')return d.slice(0,7);
+    if(cyc==='每週')return qN268WeekKey(d);
+    return String(r?.id||d);
+  }
+  function qN268PeriodLabel(c,r){
+    const cyc=qN267ReceiptCycle(c),d=String(r?.date||'');
+    if(cyc==='每月'){const p=d.slice(0,7).split('-');return (p[0]||'')+'年'+Number(p[1]||0)+'月'}
+    if(cyc==='每週'){
+      const k=qN268WeekKey(d),x=qN268Date(k);if(!x)return k;
+      const e=new Date(x);e.setDate(e.getDate()+6);
+      const f=z=>z.getFullYear()+'-'+String(z.getMonth()+1).padStart(2,'0')+'-'+String(z.getDate()).padStart(2,'0');
+      return f(x)+'～'+f(e);
+    }
+    return d;
+  }
+  function qN268GroupTrips(trips){
+    const mp=new Map();
+    trips.forEach(x=>{
+      const c=x.contact,r=x.record,cyc=qN267ReceiptCycle(c);
+      const who=String(c?.id||c?.code||c?.name||r.customer||'');
+      const key=who+'|'+cyc+'|'+qN268PeriodKey(c,r);
+      if(!mp.has(key))mp.set(key,{key,contact:c,records:[]});
+      mp.get(key).records.push(r);
+    });
+    return [...mp.values()].sort((x,y)=>String(y.records[0]?.date||'').localeCompare(String(x.records[0]?.date||'')));
+  }
+  function qN268StatusId(g){
+    if(g.records.length===1&&qN267ReceiptCycle(g.contact)==='每車／每次')return String(g.records[0].id);
+    return 'period:'+g.key;
+  }
   function qN265TripSummary(r,data,c){
     const mode=qN267ReceiptMode(c),groups=new Map(),unknown=[];
     if(mode!=='classified')return {mode,groups,unknown,total:0};
@@ -8299,28 +8338,73 @@ K白.kg
       if(!cat){unknown.push({name,amount});return}
       groups.set(cat,(groups.get(cat)||0)+amount);
     });
-    return {mode,groups,unknown,total:[...groups.values()].reduce((a,b)=>a+b,0)};
+    return {mode,groups,unknown,total:[...groups.values()].reduce((x,y)=>x+y,0)};
   }
   async function qN265Render(work,tab='整理'){
     work.innerHTML='<div class="acctWorkPlaceholder">農收資料讀取中…</div>';
     let data;try{data=await qN265Load()}catch(e){const msg=String(e?.message||e||'');work.innerHTML='<div class="acctWorkPlaceholder"><b>農收分類資料讀取失敗</b><div class="helper">'+(/permission denied/i.test(msg)?'資料表已建立，但 Supabase Data API 尚未授權目前登入角色。請執行 N266 權限修正 SQL。':'請確認 Supabase 農收資料表與連線。')+'<br>'+qEsc(msg)+'</div></div>';return}
-    const trips=qN265Trips(),now=qToday(),month=now.slice(0,7),pending=trips.filter(x=>String(x.record.date||'').slice(0,7)===month&&!data.status.get(String(x.record.id))?.processed);
-    const reminderNames=[...new Set(pending.map(x=>x.contact?.name||x.record.customer))];
-    const reminder='<div style="border:1px solid #f0c36a;background:#fff9e8;border-radius:14px;padding:12px;margin:10px 0"><b>🔔 本月農收提醒</b><div style="margin-top:6px">'+(reminderNames.length?reminderNames.map(n=>{const ntr=pending.filter(x=>(x.contact?.name||x.record.customer)===n);const c=ntr[0]?.contact,mode=qN267ReceiptMode(c)==='classified'?'分類農收':'一般農收',cycle=qN267ReceiptCycle(c);return '<div><b>'+qEsc(n)+'</b>｜'+ntr.length+' 車待處理｜'+mode+'・'+qEsc(cycle)+'</div>'}).join(''):'本月目前沒有待處理農收')+'</div></div>';
-    work.innerHTML='<div class="quickV2"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b style="font-size:20px">🧾 農民收據</b><div class="helper" style="display:block!important">只整理每次車趟需要開農收的分類金額；不在系統內開立收據。</div></div><div class="actions"><button class="btn '+(tab==='整理'?'primary':'gray')+'" data-fr-tab="整理">📋 農收整理</button><button class="btn '+(tab==='分類'?'primary':'gray')+'" data-fr-tab="分類">⚙️ 分類設定</button></div></div>'+reminder+'<div id="qN265Body"></div></div>';
+    const trips=qN265Trips(),now=qToday(),month=now.slice(0,7);
+    const monthGroups=qN268GroupTrips(trips.filter(x=>String(x.record.date||'').slice(0,7)===month));
+    const rb=new Map();
+    monthGroups.forEach(g=>{
+      if(data.status.get(qN268StatusId(g))?.processed)return;
+      const n=g.contact?.name||g.records[0]?.customer||'未命名';
+      if(!rb.has(n))rb.set(n,{contact:g.contact,count:0});
+      rb.get(n).count++;
+    });
+    const reminder='<div style="border:1px solid #f0c36a;background:#fff9e8;border-radius:14px;padding:12px;margin:10px 0"><b>🔔 本月農收提醒</b><div style="margin-top:6px">'+(rb.size?[...rb.entries()].map(([n,v])=>'<div><b>'+qEsc(n)+'</b>｜'+v.count+' 筆待處理｜'+(qN267ReceiptMode(v.contact)==='classified'?'分類農收':'一般農收')+'・'+qEsc(qN267ReceiptCycle(v.contact))+'</div>').join(''):'本月目前沒有待處理農收')+'</div></div>';
+    work.innerHTML='<div class="quickV2"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b style="font-size:20px">🧾 農民收據</b><div class="helper" style="display:block!important">依往來資料的農收處理方式與開立週期整理；不在系統內開立收據。</div></div><div class="actions"><button class="btn '+(tab==='整理'?'primary':'gray')+'" data-fr-tab="整理">📋 農收整理</button><button class="btn '+(tab==='分類'?'primary':'gray')+'" data-fr-tab="分類">⚙️ 分類設定</button></div></div>'+reminder+'<div id="qN265Body"></div></div>';
     work.querySelectorAll('[data-fr-tab]').forEach(b=>b.onclick=()=>qN265Render(work,b.dataset.frTab));
     const body=work.querySelector('#qN265Body');
+
     if(tab==='分類'){
-      const names=[...new Set(trips.filter(x=>qN267ReceiptMode(x.contact)==='classified').flatMap(x=>(x.record.items||[]).map(i=>String(i.name||'').trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
-      const catOpts=(selected='')=>['<option value="">待確認</option>',...data.cats.map(c=>'<option '+(c===selected?'selected':'')+'>'+qEsc(c)+'</option>'),'<option value="__exclude__">🚫 不開農收</option>'].join('');
-      body.innerHTML='<div style="border:1px solid #dfe4ea;border-radius:14px;padding:12px;margin:8px 0"><b>農收分類管理</b><div style="display:flex;gap:7px;flex-wrap:wrap;margin:9px 0">'+data.cats.map(c=>'<span style="padding:7px 10px;border:1px solid #dfe4ea;border-radius:999px;background:#f8fafb">'+qEsc(c)+'</span>').join('')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="qN265NewCat" class="input" style="max-width:220px" placeholder="新增分類名稱"><button id="qN265AddCat" class="btn gray">＋新增分類</button></div></div><div style="margin-top:14px"><b>商品分類設定</b><div class="helper">只顯示「分類農收」客戶帳單中的商品。</div><input id="qN265Search" class="input" style="max-width:300px;margin-top:8px" placeholder="搜尋商品"></div><div id="qN265RuleList"></div>';
-      const paint=()=>{const q=String(body.querySelector('#qN265Search')?.value||'').trim().toLowerCase(),hit=names.filter(n=>!q||n.toLowerCase().includes(q));body.querySelector('#qN265RuleList').innerHTML=hit.map(n=>{const r=data.rules.get(n),v=r?.excluded?'__exclude__':(r?.category||'');return '<div style="display:grid;grid-template-columns:minmax(120px,1fr) minmax(150px,240px);gap:8px;align-items:center;border-bottom:1px solid #edf0f2;padding:8px 0"><b>'+qEsc(n)+'</b><select class="input" data-fr-rule="'+qEsc(n)+'">'+catOpts(v).replace('value="__exclude__"','value="__exclude__" '+(v==='__exclude__'?'selected':''))+'</select></div>'}).join('')||'<div class="empty">沒有商品</div>';body.querySelectorAll('[data-fr-rule]').forEach(sel=>sel.onchange=async()=>{try{await qN265SaveRule(sel.dataset.frRule,sel.value,sel.value==='__exclude__');qN265Render(work,'分類')}catch(e){alert('儲存失敗：'+e.message)}})};
-      paint();body.querySelector('#qN265Search').oninput=paint;
+      const names=[...new Set(trips.filter(x=>qN267ReceiptMode(x.contact)==='classified').flatMap(x=>(x.record.items||[]).map(i=>String(i.name||'').trim()).filter(Boolean)))].sort((x,y)=>x.localeCompare(y,'zh-Hant'));
+      const catOpts=(selected='')=>['<option value="">待確認</option>',...data.cats.map(c=>'<option value="'+qEsc(c)+'" '+(c===selected?'selected':'')+'>'+qEsc(c)+'</option>'),'<option value="__exclude__" '+(selected==='__exclude__'?'selected':'')+'>🚫 不開農收</option>'].join('');
+      const countCat=c=>names.filter(n=>{const r=data.rules.get(n);return r&&!r.excluded&&r.category===c}).length;
+      const pendingCount=names.filter(n=>{const r=data.rules.get(n);return !r||(!r.excluded&&!r.category)}).length;
+      const excludedCount=names.filter(n=>data.rules.get(n)?.excluded).length;
+      body.innerHTML='<div style="border:1px solid #dfe4ea;border-radius:14px;padding:12px;margin:8px 0"><b>農收分類管理</b><div style="display:flex;gap:7px;flex-wrap:wrap;margin:9px 0">'+data.cats.map(c=>'<button class="btn gray" data-fr-cat="'+qEsc(c)+'">'+qEsc(c)+'（'+countCat(c)+'）</button>').join('')+'<button class="btn gray" data-fr-cat="__pending">待確認（'+pendingCount+'）</button><button class="btn gray" data-fr-cat="__excluded">不開農收（'+excludedCount+'）</button><button class="btn gray" data-fr-cat="">全部（'+names.length+'）</button></div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="qN265NewCat" class="input" style="max-width:220px" placeholder="新增分類名稱"><button id="qN265AddCat" class="btn gray">＋新增分類</button></div></div><div style="margin-top:14px"><b>商品分類設定</b><div class="helper">點上面的分類即可查看已分到該類的商品；只使用「分類農收」客戶帳單中的商品。</div><input id="qN265Search" class="input" style="max-width:300px;margin-top:8px" placeholder="搜尋商品"></div><div id="qN265RuleList"></div>';
+      let catFilter='';
+      const paint=()=>{
+        const q=String(body.querySelector('#qN265Search')?.value||'').trim().toLowerCase();
+        const hit=names.filter(n=>{
+          if(q&&!n.toLowerCase().includes(q))return false;
+          const r=data.rules.get(n);
+          if(catFilter==='__pending')return !r||(!r.excluded&&!r.category);
+          if(catFilter==='__excluded')return !!r?.excluded;
+          if(catFilter)return !!r&&!r.excluded&&r.category===catFilter;
+          return true;
+        });
+        body.querySelector('#qN265RuleList').innerHTML=hit.map(n=>{const r=data.rules.get(n),v=r?.excluded?'__exclude__':(r?.category||'');return '<div style="display:grid;grid-template-columns:minmax(120px,1fr) minmax(150px,240px);gap:8px;align-items:center;border-bottom:1px solid #edf0f2;padding:8px 0"><b>'+qEsc(n)+'</b><select class="input" data-fr-rule="'+qEsc(n)+'">'+catOpts(v)+'</select></div>'}).join('')||'<div class="empty">這個分類目前沒有商品</div>';
+        body.querySelectorAll('[data-fr-rule]').forEach(sel=>sel.onchange=async()=>{try{await qN265SaveRule(sel.dataset.frRule,sel.value,sel.value==='__exclude__');qN265Render(work,'分類')}catch(e){alert('儲存失敗：'+e.message)}});
+      };
+      paint();
+      body.querySelector('#qN265Search').oninput=paint;
+      body.querySelectorAll('[data-fr-cat]').forEach(b=>b.onclick=()=>{catFilter=b.dataset.frCat||'';paint()});
       body.querySelector('#qN265AddCat').onclick=async()=>{const name=body.querySelector('#qN265NewCat').value.trim();if(!name)return;const max=Math.max(0,...data.cats.map((_,i)=>(i+1)*10));const {error}=await sb.from('farmer_receipt_categories').upsert({name,sort_order:max+10,active:true},{onConflict:'name'});if(error)return alert('新增失敗：'+error.message);qN265Render(work,'分類')};
       return;
     }
+
     body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><input id="qN265Month" class="input" type="month" value="'+qEsc(month)+'" style="max-width:190px"><select id="qN265State" class="input" style="max-width:180px"><option value="pending">待處理</option><option value="done">已處理</option><option value="all">全部</option></select></div><div id="qN265Trips"></div>';
-    const paintTrips=()=>{const mo=body.querySelector('#qN265Month').value,st=body.querySelector('#qN265State').value;let hit=trips.filter(x=>!mo||String(x.record.date||'').slice(0,7)===mo).filter(x=>{const done=!!data.status.get(String(x.record.id))?.processed;return st==='all'||(st==='done'?done:!done)});body.querySelector('#qN265Trips').innerHTML=hit.map((x,idx)=>{const r=x.record,sum=qN265TripSummary(r,data,x.contact),done=!!data.status.get(String(r.id))?.processed,created=String(r.createdAt||'').slice(11,16),groups=[...sum.groups.entries()].map(([k,v])=>'<tr><td><b>'+qEsc(k)+'</b></td><td style="text-align:right"><b>'+qN265Money(v)+'</b></td></tr>').join(''),unknown=sum.unknown.map(u=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0"><span>'+qEsc(u.name)+'</span><span>'+qN265Money(u.amount)+'</span></div>').join('');return '<details style="border:1px solid #dfe4ea;border-radius:14px;padding:10px 12px;margin:8px 0;background:#fff" '+(idx===0?'open':'')+'><summary style="cursor:pointer;font-weight:900">'+qEsc(r.date||'')+'｜'+qEsc(x.contact?.name||r.customer)+(created?'｜'+created:'')+'　'+(done?'✓ 已處理':(sum.mode==='classified'?(sum.unknown.length?'🔴 '+sum.unknown.length+' 項待分類':'🟢 分類完成'):'🟡 一般農收待處理'))+'</summary><div style="margin-top:10px">'+(sum.mode==='classified'?((groups?'<table class="table"><thead><tr><th>農收分類</th><th style="text-align:right">金額</th></tr></thead><tbody>'+groups+'</tbody></table><div style="text-align:right;font-size:18px;font-weight:900;margin:10px 0">農收金額合計：'+qN265Money(sum.total)+'</div>':'<div class="helper">目前沒有已歸入農收的商品。</div>')+(unknown?'<div style="border:1px solid #f0b7b7;background:#fff5f5;border-radius:12px;padding:10px;margin-top:8px"><b>⚠️ 待確認商品</b>'+unknown+'<div class="helper">請到「分類設定」選擇農收分類或「不開農收」。</div></div>':'')):'<div style="border:1px solid #dfe4ea;background:#f8fafb;border-radius:12px;padding:10px"><b>一般農收</b><div class="helper">這位客戶不需要商品分類；開立完成後直接標記已處理。</div></div>')+'<div class="actions" style="margin-top:10px">'+(done?'<button class="btn gray" data-fr-undone="'+qEsc(r.id)+'">↩ 改回待處理</button>':'<button class="btn primary" data-fr-done="'+qEsc(r.id)+'">✓ 這車農收已處理</button>')+'</div></div></details>'}).join('')||'<div class="empty">這個月份沒有符合的車趟</div>';body.querySelectorAll('[data-fr-done]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frDone,true);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});body.querySelectorAll('[data-fr-undone]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frUndone,false);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}})};
+    const paintTrips=()=>{
+      const mo=body.querySelector('#qN265Month').value,st=body.querySelector('#qN265State').value;
+      const groups=qN268GroupTrips(trips.filter(x=>!mo||String(x.record.date||'').slice(0,7)===mo)).filter(g=>{
+        const done=!!data.status.get(qN268StatusId(g))?.processed;
+        return st==='all'||(st==='done'?done:!done);
+      });
+      body.querySelector('#qN265Trips').innerHTML=groups.map((g,idx)=>{
+        const c=g.contact,mode=qN267ReceiptMode(c),cycle=qN267ReceiptCycle(c),sid=qN268StatusId(g),done=!!data.status.get(sid)?.processed;
+        const sums=g.records.map(r=>qN265TripSummary(r,data,c)),agg=new Map(),unknown=[];
+        sums.forEach(z=>{z.groups.forEach((v,k)=>agg.set(k,(agg.get(k)||0)+v));unknown.push(...z.unknown)});
+        const total=[...agg.values()].reduce((x,y)=>x+y,0);
+        const rows=[...agg.entries()].map(([k,v])=>'<tr><td><b>'+qEsc(k)+'</b></td><td style="text-align:right"><b>'+qN265Money(v)+'</b></td></tr>').join('');
+        const un=unknown.map(u=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0"><span>'+qEsc(u.name)+'</span><span>'+qN265Money(u.amount)+'</span></div>').join('');
+        const label=qN268PeriodLabel(c,g.records[0]),status=done?'✓ 已處理':(mode==='classified'?(unknown.length?'🔴 '+unknown.length+' 項待分類':'🟢 分類完成'):'🟡 一般農收待處理');
+        return '<details style="border:1px solid #dfe4ea;border-radius:14px;padding:10px 12px;margin:8px 0;background:#fff" '+(idx===0?'open':'')+'><summary style="cursor:pointer;font-weight:900">'+qEsc(label)+'｜'+qEsc(c?.name||g.records[0]?.customer||'')+(cycle==='每車／每次'?'':'｜'+g.records.length+' 車')+'　'+status+'</summary><div style="margin-top:10px">'+(mode==='classified'?((rows?'<table class="table"><thead><tr><th>農收分類</th><th style="text-align:right">金額</th></tr></thead><tbody>'+rows+'</tbody></table><div style="text-align:right;font-size:18px;font-weight:900;margin:10px 0">農收金額合計：'+qN265Money(total)+'</div>':'<div class="helper">目前沒有已歸入農收的商品。</div>')+(un?'<div style="border:1px solid #f0b7b7;background:#fff5f5;border-radius:12px;padding:10px;margin-top:8px"><b>⚠️ 待確認商品</b>'+un+'<div class="helper">請到「分類設定」選擇農收分類或「不開農收」。</div></div>':'')):'<div style="border:1px solid #dfe4ea;background:#f8fafb;border-radius:12px;padding:10px"><b>一般農收・'+qEsc(cycle)+'</b><div class="helper">'+(cycle==='每車／每次'?'這車開立完成後直接標記已處理。':'本期共 '+g.records.length+' 車，依開立週期合併為 1 筆提醒；開立完成後直接標記已處理。')+'</div></div>')+'<div class="actions" style="margin-top:10px">'+(done?'<button class="btn gray" data-fr-undone="'+qEsc(sid)+'">↩ 改回待處理</button>':'<button class="btn primary" data-fr-done="'+qEsc(sid)+'" '+(mode==='classified'&&unknown.length?'disabled title="仍有待分類商品"':'')+'>✓ 這筆農收已處理</button>')+'</div></div></details>';
+      }).join('')||'<div class="empty">這個月份沒有符合的農收資料</div>';
+      body.querySelectorAll('[data-fr-done]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frDone,true);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});
+      body.querySelectorAll('[data-fr-undone]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frUndone,false);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});
+    };
     paintTrips();body.querySelector('#qN265Month').onchange=paintTrips;body.querySelector('#qN265State').onchange=paintTrips;
   }
   function qN230RenderFarmerReceipt(work){qN265Render(work,'整理')}
