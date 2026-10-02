@@ -4481,6 +4481,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N258：容器 LINE 圖片直接讀正式容器事件＋qContainerBalance，不再接畫面 rows 二次統計；商品重量／參考價改與六禾相同卡片、選單、拖曳排序與響應式版型。 -->
 <!-- N259：容器顯示核心統一。期初／調整依正式 balanceDelta 顯示欠／餘方向；查詢、個人明細、摘要、區間統計、LINE／複製圖片共用同一轉譯；不改容器計算核心。 -->
 <!-- N260：修正 N259 跨 script 作用域。查詢／圖片改由 window.qContainer* 正式共用入口呼叫；不改任何 balanceDelta、stockDelta、assetDelta 或商品重量功能。 -->
+<!-- N261：修正 N259 顯示核心內 canonical 跨 script 作用域；改經 window.xrContainerRegistry.canonical。容器查詢仍讀 window.qAllContainerEvents() 正式事件，不刪除、不改寫資料。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -8534,12 +8535,14 @@ window.qNormalizeTurnAction=qN93TurnAction;
      只負責把正式事件的 balanceDelta / qty 翻成現場文字；
      不修改 balanceDelta、stockDelta、assetDelta，也不重算欠餘。 */
   function qN259BalanceText(type,owed,surplus){
-    const t=canonical(type),o=Math.max(0,Number(owed)||0),su=Math.max(0,Number(surplus)||0);
+    const canon=(window.xrContainerRegistry&&typeof window.xrContainerRegistry.canonical==='function')?window.xrContainerRegistry.canonical:(v=>String(v||'').trim());
+    const t=canon(type),o=Math.max(0,Number(owed)||0),su=Math.max(0,Number(surplus)||0);
     if(t==='籃子')return o>0?'欠籃 '+qN181DisplayNumber(o):(su>0?'餘籃 '+qN181DisplayNumber(su):'已結清');
     return o>0?'欠 '+qN181DisplayNumber(o):(su>0?'餘 '+qN181DisplayNumber(su):'已結清');
   }
   function qN259EventDisplay(e){
-    const t=canonical(e?.type||''),a=String(e?.action||'進出'),q=Math.abs(Number(e?.qty)||0),d=Number(e?.balanceDelta)||0;
+    const canon=(window.xrContainerRegistry&&typeof window.xrContainerRegistry.canonical==='function')?window.xrContainerRegistry.canonical:(v=>String(v||'').trim());
+    const t=canon(e?.type||''),a=String(e?.action||'進出'),q=Math.abs(Number(e?.qty)||0),d=Number(e?.balanceDelta)||0;
     const basket=t==='籃子', n=v=>qN181DisplayNumber(Math.abs(Number(v)||0));
     if(a==='期初數量'){
       if(d<0)return {action:basket?'期初欠籃':'期初欠',qty:n(d),signed:d};
