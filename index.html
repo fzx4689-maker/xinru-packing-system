@@ -4479,11 +4479,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N233：容器查詢恢復修改／刪除管理入口；直接依 sourceRecordId 操作原始 accounting_records，不建立第二筆容器資料。 -->
 <!-- N234：恢復快速做帳未完成／草稿入口。草稿直接讀 accounting_records status=draft，跨日期顯示，繼續做帳沿用原 ID；不混入正式帳、不影響應收應付。 -->
 <!-- N258：容器 LINE 圖片直接讀正式容器事件＋qContainerBalance，不再接畫面 rows 二次統計；商品重量／參考價改與六禾相同卡片、選單、拖曳排序與響應式版型。 -->
-<!-- N259：容器顯示核心統一。期初／調整依正式 balanceDelta 顯示欠／餘方向；查詢、個人明細、摘要、區間統計、LINE／複製圖片共用同一轉譯；不改容器計算核心。 -->
-<!-- N260：修正 N259 跨 script 作用域。查詢／圖片改由 window.qContainer* 正式共用入口呼叫；不改任何 balanceDelta、stockDelta、assetDelta 或商品重量功能。 -->
-<!-- N261：修正 N259 顯示核心內 canonical 跨 script 作用域；改經 window.xrContainerRegistry.canonical。容器查詢仍讀 window.qAllContainerEvents() 正式事件，不刪除、不改寫資料。 -->
-<!-- N262：N259 新增顯示核心改為完整自包含，不再依賴其他 script 私有 canonical / qN181DisplayNumber；只修顯示作用域，不改資料、不改容器計算、不動商品重量。 -->
-<!-- N263：只修容器往來圖片高度：增加底部空間，完整顯示「目前籃子」；不改帳務、期初、欠餘、查詢、資料或商品重量。 -->
+<!-- N264：以 N258 為唯一基底，只修容器 LINE／複製圖片底部高度；N259-N263 的其他容器顯示修改全部不帶入。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -5921,7 +5917,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   function qTurnoverSummaryHtml(c){
     if(!c)return '';const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／鐵架／棧板／容器進出紀錄</span>';
-    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),ret=Math.max(0,Number(x.returned)||0);if(x.type==='籃子')return '<span class="acctTurnState"><b>籃子</b>｜'+(owe>0?'欠籃 '+owe:(sur>0?'餘籃 '+sur:'已結清'))+'</span>';return '<span class="acctTurnState"><b>'+qEsc(x.type)+'</b>｜'+(owe>0?'欠 '+owe:(sur>0?'餘 '+sur:'已結清'))+'</span>'}).join(' ');
+    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),ret=Math.max(0,Number(x.returned)||0);if(x.type==='籃子')return '<span class="acctTurnState"><b>籃子</b>｜'+(owe>0?'欠籃 '+owe:(sur>0?'餘籃 '+sur:'已結清'))+'</span>';return '<span class="acctTurnState"><b>'+qEsc(x.type)+'</b>｜'+(owe>0?'使用中 '+owe:(sur>0?'餘 '+sur:'已結清'))+'</span>'}).join(' ');
   }
   function qHomeContactAccountSummary(c){
     if(!c)return '';
@@ -8532,60 +8528,16 @@ window.qNormalizeTurnAction=qN93TurnAction;
   window.qAllContainerEvents=qN93AllContainerEvents;
   window.qContainerEventsForContact=qN93ContainerEventsForContact;
   window.qContainerBalance=qN93ContainerBalance;
-
-  /* N259：唯一容器顯示轉譯核心。
-     只負責把正式事件的 balanceDelta / qty 翻成現場文字；
-     不修改 balanceDelta、stockDelta、assetDelta，也不重算欠餘。 */
-  function qN259Num(v){
-    const n=Math.abs(Number(v)||0);
-    return Number.isInteger(n)?String(n):String(Number(n.toFixed(3)));
-  }
-  function qN259Canon(v){
-    const f=window.xrContainerRegistry&&window.xrContainerRegistry.canonical;
-    return typeof f==='function'?f(v):String(v||'').trim();
-  }
-  function qN259BalanceText(type,owed,surplus){
-    const t=qN259Canon(type),o=Math.max(0,Number(owed)||0),su=Math.max(0,Number(surplus)||0);
-    if(t==='籃子')return o>0?'欠籃 '+qN259Num(o):(su>0?'餘籃 '+qN259Num(su):'已結清');
-    return o>0?'欠 '+qN259Num(o):(su>0?'餘 '+qN259Num(su):'已結清');
-  }
-  function qN259EventDisplay(e){
-    const t=qN259Canon(e?.type||''),a=String(e?.action||'進出'),q=Math.abs(Number(e?.qty)||0),d=Number(e?.balanceDelta)||0;
-    const basket=t==='籃子', n=v=>qN259Num(v);
-    if(a==='期初數量'){
-      if(d<0)return {action:basket?'期初欠籃':'期初欠',qty:n(d),signed:d};
-      if(d>0)return {action:basket?'期初餘籃':'期初餘',qty:n(d),signed:d};
-      return {action:'期初數量',qty:n(q),signed:0};
-    }
-    if(a==='調整'){
-      if(d<0)return {action:basket?'調整欠籃':'調整欠',qty:n(d),signed:d};
-      if(d>0)return {action:basket?'調整餘籃':'調整餘',qty:n(d),signed:d};
-      return {action:'調整',qty:n(q),signed:0};
-    }
-    return {action:a,qty:n(q),signed:d};
-  }
-  function qN259PeriodTotals(events){
-    const m=new Map();
-    (events||[]).forEach(e=>{
-      const d=qN259EventDisplay(e),key=d.action;
-      m.set(key,(m.get(key)||0)+(Number(d.qty)||0));
-    });
-    return m;
-  }
-  window.qContainerBalanceText=qN259BalanceText;
-  window.qContainerEventDisplay=qN259EventDisplay;
-  window.qContainerPeriodTotals=qN259PeriodTotals;
-
   qTurnoverStateForContact=function(c){const events=qN93ContainerEventsForContact(c);return {events,rows:[...new Map(events.map(e=>[e.sourceRecordId,e.record])).values()],types:qN93ContainerBalance(events)}};
   qTurnoverSummaryHtml=function(c){
     const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／鐵架／棧板／容器進出紀錄</span>';
-    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),buy=Math.max(0,Number(x.buyout)||0),type=qEsc(x.type);let state=type+'｜'+qN259BalanceText(x.type,owe,sur);if(buy>0)state+='｜買斷 '+qN259Num(buy);return '<span class="acctTurnState"><b>'+state+'</b></span>'}).join('　');
+    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),buy=Math.max(0,Number(x.buyout)||0),type=qEsc(x.type);let state;if(x.type==='籃子')state=owe>0?'欠籃 '+owe:(sur>0?'餘籃 '+sur:'籃子已結清');else state=owe>0?type+'使用中 '+owe:(sur>0?'餘'+type+' '+sur:type+'已結清');if(buy>0)state+='｜買斷 '+buy;return '<span class="acctTurnState"><b>'+state+'</b></span>'}).join('　');
   };
   qOpenTurnoverForContact=function(entity,skipNavSave=false){
     const c=qContact(entity);if(!c)return;const publicKey=String(c.name||entity||'').trim();
     if(!skipNavSave)acctNavWrite({layer:'contactTurnover',section:'turnover',action:'detail',recordId:publicKey,detailId:'',backMode:'',searchTerm:publicKey});
     open('turnover',true);const w=document.getElementById('acctStageWork');if(!w)return;const events=qN93ContainerEventsForContact(c).slice().reverse();
-    w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧺 '+qEsc(c.name)+'｜籃子／鐵架／棧板／容器明細</b><div class="helper" style="display:block!important;margin-top:5px">目前狀態使用完整歷史計算；下方列出全部正式進出紀錄。</div></div></div><div class="quickV2ContactHint" style="margin:10px 0">'+qTurnoverSummaryHtml(c)+'</div><div>'+(events.length?events.map(e=>{const ed=qN259EventDisplay(e),dest=e.action==='歸還'&&e.source==='容器管理'?'｜入公司庫存＋計往來欠／餘':'';return '<div class="quickV2Record"><b>'+qEsc((e.date||'')+'｜'+e.type+'｜'+ed.action+' '+ed.qty+dest)+'</b><div class="helper" style="display:block!important">來源：'+qEsc(e.source)+(e.note?'｜'+qEsc(e.note):'')+'</div></div>'}).join(''):'<div class="empty">目前沒有籃子／鐵架／棧板／容器進出紀錄</div>')+'</div></div>';
+    w.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🧺 '+qEsc(c.name)+'｜籃子／鐵架／棧板／容器明細</b><div class="helper" style="display:block!important;margin-top:5px">目前狀態使用完整歷史計算；下方列出全部正式進出紀錄。</div></div></div><div class="quickV2ContactHint" style="margin:10px 0">'+qTurnoverSummaryHtml(c)+'</div><div>'+(events.length?events.map(e=>{const dest=e.action==='歸還'&&e.source==='容器管理'?'｜入公司庫存＋計往來欠／餘':'';return '<div class="quickV2Record"><b>'+qEsc((e.date||'')+'｜'+e.type+'｜'+e.action+' '+e.qty+dest)+'</b><div class="helper" style="display:block!important">來源：'+qEsc(e.source)+(e.note?'｜'+qEsc(e.note):'')+'</div></div>'}).join(''):'<div class="empty">目前沒有籃子／鐵架／棧板／容器進出紀錄</div>')+'</div></div>';
   };
   // N96：一般帳「完整明細」資料核心。只建立資料範圍，不改既有沖帳、容器與四種輸出。
   // 規則：以既有 allocations/paid 計算 cutoff 當下每筆餘額，找最早仍未完全消帳交易；
@@ -9059,15 +9011,15 @@ window.qNormalizeTurnAction=qN93TurnAction;
    const full=records().filter(e=>qN174EventContactMatch(e,term)).filter(e=>{const aa=aliasesFor(type);return aa.has(String(e.type||''))||canonical(e.type)===canonical(type)});
    const bal=(window.qContainerBalance?window.qContainerBalance(full):[]).find(x=>canonical(x.type)===canonical(type));
    const owed=Math.max(0,Number(bal?.owed)||0),surplus=Math.max(0,Number(bal?.surplus)||0);
-   const current=window.qContainerBalanceText(type,owed,surplus);
+   const current=canonical(type)==='籃子'?(owed>0?'欠籃 '+qN181DisplayNumber(owed):(surplus>0?'餘籃 '+qN181DisplayNumber(surplus):'已結清')):(owed>0?'欠 '+qN181DisplayNumber(owed):(surplus>0?'餘 '+qN181DisplayNumber(surplus):'已結清'));
    // N258：圖片不再接收另一份畫面 rows 重新統計；明細直接由正式 records() 同一事件集合依查詢日期切出。
    // 目前欠／餘仍由完整歷史 full → qContainerBalance() 計算，與容器正式核心一致。
    let periodRows=full.slice();
    if(from)periodRows=periodRows.filter(e=>String(e.date||'')>=from);
    if(to)periodRows=periodRows.filter(e=>String(e.date||'')<=to);
    const asc=periodRows.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.sourceRecordId||'').localeCompare(String(b.sourceRecordId||'')));
-   const actionTotals=window.qContainerPeriodTotals(asc);
-   const W=1080,pad=76,lineH=58,headH=300,footH=260+Math.ceil(actionTotals.size/2)*48,H=Math.max(700,headH+asc.length*lineH+footH); /* N263：完整容納區間統計＋目前籃子＋底部留白 */
+   const actionTotals=new Map();asc.forEach(e=>actionTotals.set(String(e.action||'進出'),(actionTotals.get(String(e.action||'進出'))||0)+(Number(e.qty)||0)));
+   const W=1080,pad=76,lineH=58,headH=300,footH=260+Math.ceil(actionTotals.size/2)*48,H=Math.max(700,headH+asc.length*lineH+footH); /* N264：僅增加圖片底部空間，完整顯示目前籃子 */
    const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
    x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111827';x.textBaseline='middle';
    x.font='700 44px sans-serif';x.fillText('欣儒農產行｜'+canonical(type)+'往來明細',pad,70);
@@ -9076,7 +9028,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
    x.strokeStyle='#d1d5db';x.lineWidth=2;x.beginPath();x.moveTo(pad,224);x.lineTo(W-pad,224);x.stroke();
    let y=264;x.fillStyle='#111827';x.font='700 27px sans-serif';x.fillText('日期',pad,y);x.fillText('動作',310,y);x.fillText('數量',610,y);x.fillText('名稱／備註',790,y);
    y+=42;x.font='28px sans-serif';
-   asc.forEach(e=>{const ed=window.qContainerEventDisplay(e);x.fillStyle='#111827';x.fillText(String(e.date||''),pad,y);x.fillText(String(ed.action||''),310,y);x.fillText(String(ed.qty||'0'),610,y);const extra=[e.rackName,e.note].filter(Boolean).join('｜');x.fillStyle='#4b5563';x.fillText(String(extra||''),790,y);x.strokeStyle='#eef0f3';x.beginPath();x.moveTo(pad,y+28);x.lineTo(W-pad,y+28);x.stroke();y+=lineH});
+   asc.forEach(e=>{x.fillStyle='#111827';x.fillText(String(e.date||''),pad,y);x.fillText(String(e.action||''),310,y);x.fillText(qN181DisplayNumber(e.qty),610,y);const extra=[e.rackName,e.note].filter(Boolean).join('｜');x.fillStyle='#4b5563';x.fillText(String(extra||''),790,y);x.strokeStyle='#eef0f3';x.beginPath();x.moveTo(pad,y+28);x.lineTo(W-pad,y+28);x.stroke();y+=lineH});
    y+=28;x.fillStyle='#111827';x.font='700 30px sans-serif';x.fillText('區間統計',pad,y);y+=52;x.font='28px sans-serif';
    let col=0;[...actionTotals.entries()].forEach(([a,n])=>{const xx=pad+(col%2)*430,yy=y+Math.floor(col/2)*48;x.fillText(a+'：'+qN181DisplayNumber(n),xx,yy);col++});
    y+=Math.ceil(actionTotals.size/2)*48+38;x.fillStyle='#111827';x.font='700 38px sans-serif';x.fillText('目前'+canonical(type)+'：'+current,pad,y);
@@ -9111,8 +9063,8 @@ window.qNormalizeTurnAction=qN93TurnAction;
      const who=term||'全部往來對象',kind=type||'全部容器',period=(from||to)?((from||'最早')+' ～ '+(to||'現在')):'全部期間';
      let summary='<div class="quickV2ContactHint" style="margin-bottom:10px"><b>'+esc(who)+'｜'+esc(kind)+'｜'+esc(period)+'｜共 '+rs.length+' 筆</b></div>';
      if(term&&type&&rs.length)summary+='<div style="margin:0 0 10px"><button type="button" class="btn primary" id="cqLineImage">🖼️ LINE／複製圖片</button></div>';
-     if(term&&rs.length){const bal=window.qContainerBalance?window.qContainerBalance(rs):[];summary+=bal.map(x=>'<div class="quickV2ContactHint"><b>'+esc(x.type)+'合計：</b>'+esc(window.qContainerBalanceText(x.type,x.owed,x.surplus))+'</div>').join('');if((!type||type==='鐵架')&&window.qRackBalance){const rb=window.qRackBalance(rs);if(rb.length)summary+='<div class="quickV2Record"><b>鐵架名稱明細</b>'+rb.map(x=>'<div>'+esc(x.rackName)+'：'+(x.owed?'欠 '+qN181DisplayNumber(x.owed):(x.surplus?'餘 '+qN181DisplayNumber(x.surplus):'0'))+'｜'+x.events.length+'筆</div>').join('')+'</div>'}}
-     work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>{const ed=window.qContainerEventDisplay(e),money=Number(e.amount)||0,unit=Math.abs(Number(e.unitPrice)||0),priced=unit>0&&['計籃','回籃','使用','歸還','計價','退籃退費'].includes(String(e.action||'')),moneyOnly=e.source==='做帳'&&unit>0,rack=e.type==='鐵架'?(e.rackName?'（'+e.rackName+'）':'（未指定名稱）'):'',dest=e.action==='歸還'&&e.source==='容器管理'?((e.record?.turnover?.balanceMode==='stock_and_balance'||Number(e.balanceDelta)!==0)?'｜入公司庫存＋計往來欠／餘':'｜只入公司庫存'):'';return '<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+esc(e.date+'｜'+(e.canonicalContactName||e.customer||'公司庫存')+'｜'+canonical(e.type)+rack+'｜'+ed.action+' '+ed.qty+dest+(priced?(' × '+(['回籃','歸還'].includes(e.action)?'-':'')+unit+' = '+qN177Money(money)) : ''))+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+(moneyOnly?'｜帳務計價；實體數量獨立計算':'')+'</div></div><div class="actions" style="margin:0;flex:0 0 auto"><button type="button" class="btn gray" data-cq-edit="'+esc(e.sourceRecordId)+'">✏️ 修改</button>'+((currentProfile?.role==='admin')?'<button type="button" class="btn red" data-cq-delete="'+esc(e.sourceRecordId)+'">🗑️ 刪除</button>':'')+'</div></div></div>'}).join(''):'<div class="empty">查無進出紀錄</div>');
+     if(term&&rs.length){const bal=window.qContainerBalance?window.qContainerBalance(rs):[];summary+=bal.map(x=>'<div class="quickV2ContactHint"><b>'+esc(x.type)+'合計：</b>'+(x.owed?'欠 '+qN181DisplayNumber(x.owed):(x.surplus?'餘 '+qN181DisplayNumber(x.surplus):'0'))+'</div>').join('');if((!type||type==='鐵架')&&window.qRackBalance){const rb=window.qRackBalance(rs);if(rb.length)summary+='<div class="quickV2Record"><b>鐵架名稱明細</b>'+rb.map(x=>'<div>'+esc(x.rackName)+'：'+(x.owed?'欠 '+qN181DisplayNumber(x.owed):(x.surplus?'餘 '+qN181DisplayNumber(x.surplus):'0'))+'｜'+x.events.length+'筆</div>').join('')+'</div>'}}
+     work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>{const money=Number(e.amount)||0,unit=Math.abs(Number(e.unitPrice)||0),priced=unit>0&&['計籃','回籃','使用','歸還','計價','退籃退費'].includes(String(e.action||'')),moneyOnly=e.source==='做帳'&&unit>0,rack=e.type==='鐵架'?(e.rackName?'（'+e.rackName+'）':'（未指定名稱）'):'',dest=e.action==='歸還'&&e.source==='容器管理'?((e.record?.turnover?.balanceMode==='stock_and_balance'||Number(e.balanceDelta)!==0)?'｜入公司庫存＋計往來欠／餘':'｜只入公司庫存'):'';return '<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+esc(e.date+'｜'+(e.canonicalContactName||e.customer||'公司庫存')+'｜'+canonical(e.type)+rack+'｜'+e.action+' '+e.qty+dest+(priced?(' × '+(['回籃','歸還'].includes(e.action)?'-':'')+unit+' = '+qN177Money(money)) : ''))+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+(moneyOnly?'｜帳務計價；實體數量獨立計算':'')+'</div></div><div class="actions" style="margin:0;flex:0 0 auto"><button type="button" class="btn gray" data-cq-edit="'+esc(e.sourceRecordId)+'">✏️ 修改</button>'+((currentProfile?.role==='admin')?'<button type="button" class="btn red" data-cq-delete="'+esc(e.sourceRecordId)+'">🗑️ 刪除</button>':'')+'</div></div></div>'}).join(''):'<div class="empty">查無進出紀錄</div>');
      const resultBox=work.querySelector('#cqResult');
       resultBox?.querySelector('#cqLineImage')?.addEventListener('click',()=>qN243ContainerImage({term,type,from,to}));
       resultBox?.querySelectorAll('[data-cq-edit]').forEach(btn=>btn.onclick=()=>{
