@@ -6951,41 +6951,33 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   }
   function qMoneyMethods(c){const a=Array.isArray(c?.paymentMethods)?c.paymentMethods.filter(Boolean):[];return a.length?a:[c?.paymentDefault||'現金']}
   // N233A8：儲值只有一套核心。結帳方式決定帳期；「儲值」只是一種收款／付款方式。
-  function qStoredValueBalance(c){
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));
-    // H6：中央「淨儲值」只讀正式帳務結果，不把原始儲值收款總額當成可用餘額。
-    // 1) 已分配到銷貨後形成的溢收，由既有 qContactCreditTotals() 取得（0299 = $10）。
-    // 2) 尚未分配的儲值入金／舊 deposit 仍屬可用儲值。
-    // 3) storedValueUse 是儲值支出，可把餘額扣成負數。
-    let balance=qMoney(qContactCreditTotals(c).receivableCredit||0);
+  // H11：沿用 H9 共用 Ledger；儲值客戶不建立第二筆「儲值扣抵」假收款。
+  function qStoredValueEnabled(c){return String(c?.paymentDefault||'').trim()==='儲值'}
+  function qStoredValueTrueInflow(c,range=null){
+    if(!qStoredValueEnabled(c))return 0;
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c));
+    const inRange=r=>!range||((!range.from||String(r.date||'')>=String(range.from))&&(!range.to||String(r.date||'')<=String(range.to)));
+    let total=0;
     rows.forEach(r=>{
-      if(r.txnType==='deposit') balance+=qMoney(r.deposit||r.amount||r.total);
-      if(r.payment==='儲值扣款') balance-=qMoney(r.paid);
-    });
-    rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{
-      if(r.storedValueUse){
-        balance-=qMoney(r.amount||r.total||r.allocatedAmount);
-        return;
-      }
+      if(!inRange(r)||r?.storedValueUse===true)return;
+      if(r.txnType==='deposit'){total+=qMoney(r.deposit||r.amount||r.total);return}
+      if(r.mode!=='money_settlement'||r.txnType!=='receipt')return;
       const methods=Array.isArray(r.methods)?r.methods:[];
       let stored=methods.filter(m=>String(m?.method||'').trim()==='儲值').reduce((a,m)=>a+qMoney(m?.amount),0);
-      if(stored<=0&&String(c?.paymentDefault||'')==='儲值'){
-        const text=[r.note,r.reason,r.payment,r.paymentMethod,r.txnTypeLabel].map(x=>String(x||'')).join('|');
-        const hasOther=methods.some(m=>{const k=String(m?.method||'').trim();return k&&k!=='儲值'&&qMoney(m?.amount)>0});
-        if(!hasOther&&(qMoney(r.creditAmount)>0||text.includes('儲值'))) stored=qMoney(r.amount||r.total||r.paid);
-      }
-      if(stored<=0)return;
-      const allocs=Array.isArray(r.allocations)?r.allocations:[];
-      // 有 allocation 的舊資料，其剩餘額已由 qContactCreditTotals() 的溢收核心計入；不可再把整筆 stored 重複加一次。
-      // 沒有 allocation 的純儲值入金，才直接加入可用儲值。
-      if(!allocs.length){
-        const explicitCredit=qMoney(r.creditAmount);
-        balance+=explicitCredit>0?explicitCredit:stored;
-      }
+      if(stored<=0){const text=[r.note,r.reason,r.payment,r.paymentMethod].map(x=>String(x||'')).join('|');if(text.includes('儲值'))stored=qMoney(r.amount||r.total||r.paid)}
+      total+=Math.max(0,stored);
     });
-    return qMoney(balance);
+    return qMoney(total);
   }
-  async function qApplyStoredValueToRecord(c,record){if(!c||!record||record.status==='draft'||record.pricingStatus==='pending_price'||record.txnType!=='sale'||String(c.paymentDefault||'')!=='儲值')return 0;const due=qAccountingOutstanding(record,c);const use=due;if(use<=0)return 0;const now=new Date().toISOString(),settlement={id:qMoneyId(),schemaVersion:7,date:record.date||qToday(),customer:c.name||record.customer||'',contactId:c.id||record.contactId||null,type:c.identity||c.type||'',mode:'money_settlement',txnType:'receipt',txnTypeLabel:'收款',accountDirection:'settle_receivable',amount:use,total:use,paid:use,due:0,methods:[{method:'儲值',amount:use}],allocations:[{recordId:record.id,amount:use}],allocatedAmount:use,creditAmount:0,storedValueUse:true,note:'儲值自動扣款',vehicleSettlement:false,moneyReturned:false,moneyReturnedAt:null,receiptReturned:false,receiptReturnedAt:null,status:'active',pricingStatus:'priced',settlementStatus:'settled',createdAt:now,updatedAt:now,createdBy:qActor(),audit:[{action:'stored_value_auto_apply',recordId:record.id,amount:use,at:now,by:qActor()}]};await qPersist(settlement);return use}
+  function qStoredValueBalance(c){
+    if(!qStoredValueEnabled(c))return 0;
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&qRecordBelongsToContact(r,c));
+    const inflow=qStoredValueTrueInflow(c);
+    const sales=rows.filter(r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).reduce((sum,r)=>sum+qAccountingEffectiveTotal(r,c),0);
+    return qMoney(inflow-sales);
+  }
+  async function qApplyStoredValueToRecord(c,record){return 0}
+
 
   function qRefundCreditRows(c,direction){
     return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund').map(r=>{
@@ -7563,17 +7555,36 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     (Array.isArray(r?.methods)?r.methods:[]).forEach(x=>add(x?.method));
     ['現金','匯款','司機代收','儲值'].forEach(add);return out;
   }
-  function qH10SettlementAvailableRows(c,r,direction){
-    const own=new Map((Array.isArray(r?.allocations)?r.allocations:[]).map(a=>[String(a?.recordId||''),qMoney(a?.amount)]));
-    const base=qOpenMoneyRows(c,direction),map=new Map();
-    base.forEach(x=>map.set(String(x.record.id),{record:x.record,due:qMoney(x.due)+(own.get(String(x.record.id))||0)}));
-    own.forEach((amt,id)=>{if(map.has(id))return;const rec=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===id);if(rec)map.set(id,{record:rec,due:amt})});
-    return [...map.values()].filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
+  // H11：共用收／付款修改核心。先排除正在修改的 settlement，再用同一套 open-row 規則重建 allocations。
+  function qH11SettlementAvailableRows(c,r,direction){
+    const all=(typeof acctRecords==='function'?acctRecords():[]);
+    const savedCloud=(typeof acctCloudRecords!=='undefined')?acctCloudRecords:undefined;
+    const withoutCurrent=all.filter(x=>String(x?.id||'')!==String(r?.id||''));
+    let restored=false;
+    try{
+      if(typeof acctCloudRecords!=='undefined'&&acctCloudRecords!==null){acctCloudRecords=withoutCurrent;restored=true}
+      const base=qOpenMoneyRows(c,direction);
+      return base.map(x=>({record:x.record,due:qMoney(x.due)})).filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
+    }finally{if(restored)acctCloudRecords=savedCloud}
   }
-  function qH10AutoAllocate(c,r,direction,amount,hasStored){
-    let left=qMoney(amount),out=[];for(const x of qH10SettlementAvailableRows(c,r,direction)){if(left<=0.000001)break;const take=Math.min(left,qMoney(x.due));if(take>0){out.push({recordId:x.record.id,amount:take});left-=take}}
+  function qH11ReallocateSettlement(c,r,direction,amount,hasStored){
+    let left=qMoney(amount),out=[];
+    for(const x of qH11SettlementAvailableRows(c,r,direction)){if(left<=0.000001)break;const take=Math.min(left,qMoney(x.due));if(take>0){out.push({recordId:x.record.id,amount:take});left=qMoney(left-take)}}
     if(left>0.001&&!(direction==='receipt'&&hasStored))throw new Error(direction==='receipt'?'收款金額超過目前可沖帳金額；若是預收款請使用「儲值」。':'付款金額超過目前可沖帳金額');
-    return {allocations:out,allocatedAmount:out.reduce((n,a)=>n+qMoney(a.amount),0),creditAmount:(direction==='receipt'&&hasStored)?Math.max(0,left):0};
+    return {allocations:out,allocatedAmount:qMoney(out.reduce((n,a)=>n+qMoney(a.amount),0)),creditAmount:(direction==='receipt'&&hasStored)?Math.max(0,qMoney(left)):0};
+  }
+  async function qH11UpdateMoneySettlement(c,r,patch){
+    if(!r||r.mode!=='money_settlement')throw new Error('這筆不是收／付款資料');
+    const direction=qSettlementDirection(r),amount=qMoney(patch.amount),methods=Array.isArray(patch.methods)?patch.methods:[];
+    const methodTotal=qMoney(methods.reduce((n,x)=>n+qMoney(x.amount),0));
+    if(amount<=0)throw new Error('金額必須大於 0');
+    if(Math.abs(methodTotal-amount)>0.001)throw new Error('收／付款方式金額合計必須等於總金額');
+    const hasStored=direction==='receipt'&&methods.some(x=>String(x?.method||'').trim()==='儲值'&&qMoney(x?.amount)>0);
+    const alloc=qH11ReallocateSettlement(c,r,direction,amount,hasStored),now=new Date().toISOString();
+    const before={date:r.date,amount:qMoney(r.amount??r.total),methods:Array.isArray(r.methods)?r.methods:[],allocations:Array.isArray(r.allocations)?r.allocations:[],allocatedAmount:qMoney(r.allocatedAmount),creditAmount:qMoney(r.creditAmount),note:r.note||'',moneyReturned:!!r.moneyReturned,moneyReturnedAt:r.moneyReturnedAt||null,receiptReturned:!!r.receiptReturned,receiptReturnedAt:r.receiptReturnedAt||null};
+    const next={...r,date:patch.date,amount,total:amount,paid:amount,due:0,methods,allocations:alloc.allocations,allocatedAmount:alloc.allocatedAmount,creditAmount:alloc.creditAmount,note:String(patch.note||'').trim(),moneyReturned:!!patch.moneyReturned,moneyReturnedAt:patch.moneyReturned?(patch.moneyReturnedAt||patch.date):null,receiptReturned:!!patch.receiptReturned,receiptReturnedAt:patch.receiptReturned?(patch.receiptReturnedAt||patch.date):null,updatedAt:now,audit:[...(Array.isArray(r.audit)?r.audit:[]),{action:'edit_money_settlement',at:now,by:qActor(),before,after:{date:patch.date,amount,methods,allocations:alloc.allocations,allocatedAmount:alloc.allocatedAmount,creditAmount:alloc.creditAmount,note:String(patch.note||'').trim(),moneyReturned:!!patch.moneyReturned,moneyReturnedAt:patch.moneyReturned?(patch.moneyReturnedAt||patch.date):null,receiptReturned:!!patch.receiptReturned,receiptReturnedAt:patch.receiptReturned?(patch.receiptReturnedAt||patch.date):null}}]};
+    if(alloc.allocations.length===1)next.sourceRecordId=alloc.allocations[0].recordId;else delete next.sourceRecordId;
+    await qPersist(next);return next;
   }
   function qH10EditSettlement(work,id,backMode='today'){
     const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r||r.mode!=='money_settlement'){alert('找不到收／付款資料');return}
@@ -7593,7 +7604,19 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
       '<div class="quickV2OutputBtns" style="margin-top:18px"><button type="button" class="btn green" id="qH10Save">💾 儲存修改</button><button type="button" class="btn gray" id="qH10Cancel2">取消</button></div></div>';
     const back=()=>qShowRecordDetail(work,id,backMode,true);work.querySelector('#qH10Cancel').onclick=back;work.querySelector('#qH10Cancel2').onclick=back;
     const syncDates=()=>{const mc=work.querySelector('#qH10MoneyReturned'),md=work.querySelector('#qH10MoneyReturnedAt'),rc=work.querySelector('#qH10ReceiptReturned'),rd=work.querySelector('#qH10ReceiptReturnedAt');md.disabled=!mc.checked;rd.disabled=!rc.checked;if(mc.checked&&!md.value)md.value=qToday();if(rc.checked&&!rd.value)rd.value=qToday()};work.querySelector('#qH10MoneyReturned').onchange=syncDates;work.querySelector('#qH10ReceiptReturned').onchange=syncDates;syncDates();
-    work.querySelector('#qH10Save').onclick=async()=>{const btn=work.querySelector('#qH10Save');try{btn.disabled=true;const date=work.querySelector('#qH10Date').value,amount=qMoney(work.querySelector('#qH10Amount').value);if(!date)throw new Error('請選擇日期');if(amount<=0)throw new Error('金額必須大於 0');const methods=[];work.querySelectorAll('[data-h10-method-check]').forEach(ch=>{if(!ch.checked)return;const name=ch.dataset.h10MethodCheck,inp=[...work.querySelectorAll('[data-h10-method-amount]')].find(x=>x.dataset.h10MethodAmount===name),v=qMoney(inp?.value);if(v>0)methods.push({method:name,amount:v})});const methodTotal=methods.reduce((n,x)=>n+qMoney(x.amount),0);if(Math.abs(methodTotal-amount)>0.001)throw new Error('收／付款方式金額合計必須等於總金額');const hasStored=methods.some(x=>x.method==='儲值'&&qMoney(x.amount)>0),alloc=qH10AutoAllocate(c,r,direction,amount,hasStored),now=new Date().toISOString(),before={date:r.date,amount:qMoney(r.amount??r.total),methods:Array.isArray(r.methods)?r.methods:[],allocations:Array.isArray(r.allocations)?r.allocations:[],note:r.note||'',moneyReturned:!!r.moneyReturned,moneyReturnedAt:r.moneyReturnedAt||null,receiptReturned:!!r.receiptReturned,receiptReturnedAt:r.receiptReturnedAt||null};const next={...r,date,amount,total:amount,paid:amount,due:0,methods,allocations:alloc.allocations,allocatedAmount:alloc.allocatedAmount,creditAmount:alloc.creditAmount,note:String(work.querySelector('#qH10Note').value||'').trim(),moneyReturned:work.querySelector('#qH10MoneyReturned').checked,moneyReturnedAt:work.querySelector('#qH10MoneyReturned').checked?(work.querySelector('#qH10MoneyReturnedAt').value||date):null,receiptReturned:work.querySelector('#qH10ReceiptReturned').checked,receiptReturnedAt:work.querySelector('#qH10ReceiptReturned').checked?(work.querySelector('#qH10ReceiptReturnedAt').value||date):null,updatedAt:now,audit:[...(Array.isArray(r.audit)?r.audit:[]),{action:'edit_money_settlement',at:now,by:qActor(),before}]};await qPersist(next);alert('✅ '+title+'資料已修改');qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e));btn.disabled=false}};
+    work.querySelector('#qH10Save').onclick=async()=>{
+      const btn=work.querySelector('#qH10Save');
+      try{
+        btn.disabled=true;
+        const date=work.querySelector('#qH10Date').value,amount=qMoney(work.querySelector('#qH10Amount').value);
+        if(!date)throw new Error('請選擇日期');
+        const methods=[];
+        work.querySelectorAll('[data-h10-method-check]').forEach(ch=>{if(!ch.checked)return;const name=ch.dataset.h10MethodCheck,inp=[...work.querySelectorAll('[data-h10-method-amount]')].find(x=>x.dataset.h10MethodAmount===name),v=qMoney(inp?.value);if(v>0)methods.push({method:name,amount:v})});
+        const next=await qH11UpdateMoneySettlement(c,r,{date,amount,methods,note:work.querySelector('#qH10Note')?.value||'',moneyReturned:!!work.querySelector('#qH10MoneyReturned')?.checked,moneyReturnedAt:work.querySelector('#qH10MoneyReturnedAt')?.value||null,receiptReturned:!!work.querySelector('#qH10ReceiptReturned')?.checked,receiptReturnedAt:work.querySelector('#qH10ReceiptReturnedAt')?.value||null});
+        alert('✅ '+title+'資料已修改；原交易編號不變。');
+        qShowRecordDetail(work,next.id,backMode,true);
+      }catch(e){alert(e.message||String(e))}finally{btn.disabled=false}
+    };
   }
   function qShowRecordDetail(work,id,backMode='today',skipNavSave=false){
     const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}
