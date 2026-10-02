@@ -6814,7 +6814,20 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     mask.querySelector('[data-n102="copy"]').onclick=async()=>{try{const b=await blob();if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')throw new Error('瀏覽器不支援圖片剪貼簿');await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert('圖片已複製，可到 LINE 按 Ctrl＋V 貼上。')}catch(e){alert('無法直接複製圖片：'+(e?.message||e))}};
   }
   // N109：四種輸出共用同一中央 model；容器最終結餘、合併後明細與連續序號皆不分手機／平板／電腦。
-  function qN105RunOutput(kind,entity){const model=qN98OutputModel(entity);if(model.kind==='missing_contact'){alert('找不到往來資料，無法輸出');return}if(kind==='bill')return qN102Image(model);if(kind==='excel')return qN98DownloadExcel(model);if(kind==='pdf')return qN101Pdf(model);if(kind==='paper')return qN101Paper(model)}
+  function qN105RunOutput(kind,entity){
+    // H7：共用輸出入口不得靜默失敗；四種輸出仍共用同一 N98 model，不改各 renderer。
+    try{
+      const model=qN98OutputModel(entity);
+      if(!model||model.kind==='missing_contact'){alert('找不到往來資料，無法輸出');return}
+      if(kind==='bill')return qN102Image(model);
+      if(kind==='excel')return qN98DownloadExcel(model);
+      if(kind==='pdf')return qN101Pdf(model);
+      if(kind==='paper')return qN101Paper(model);
+    }catch(err){
+      console.error('H7 四種輸出失敗',err);
+      alert('輸出資料建立失敗：'+(err?.message||String(err)));
+    }
+  }
   function qN104RunOutput(kind,entity){return qN105RunOutput(kind,entity)}
   function qN103RunOutput(kind,entity){return qN105RunOutput(kind,entity)}
   function qN100RunOutput(kind,entity){return qN105RunOutput(kind,entity)}
@@ -6952,6 +6965,9 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qMoneyMethods(c){const a=Array.isArray(c?.paymentMethods)?c.paymentMethods.filter(Boolean):[];return a.length?a:[c?.paymentDefault||'現金']}
   // N233A8：儲值只有一套核心。結帳方式決定帳期；「儲值」只是一種收款／付款方式。
   function qStoredValueBalance(c){
+    // H7：非儲值往來不進入儲值重算。避免四種輸出對每位客戶額外重跑完整沖帳核心。
+    const storedEnabled=String(c?.paymentDefault||'').trim()==='儲值'||(Array.isArray(c?.paymentMethods)&&c.paymentMethods.some(x=>String(x||'').trim()==='儲值'));
+    if(!storedEnabled)return 0;
     const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));
     // H6：中央「淨儲值」只讀正式帳務結果，不把原始儲值收款總額當成可用餘額。
     // 1) 已分配到銷貨後形成的溢收，由既有 qContactCreditTotals() 取得（0299 = $10）。
