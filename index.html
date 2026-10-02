@@ -4480,6 +4480,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N234：恢復快速做帳未完成／草稿入口。草稿直接讀 accounting_records status=draft，跨日期顯示，繼續做帳沿用原 ID；不混入正式帳、不影響應收應付。 -->
 <!-- N258：容器 LINE 圖片直接讀正式容器事件＋qContainerBalance，不再接畫面 rows 二次統計；商品重量／參考價改與六禾相同卡片、選單、拖曳排序與響應式版型。 -->
 <!-- N264：以 N258 為唯一基底，只修容器 LINE／複製圖片底部高度；N259-N263 的其他容器顯示修改全部不帶入。 -->
+<!-- N265：農民收據精簡為農收整理＋分類設定；直接讀往來資料 farmerReceipt 與 accounting_records，每筆正式銷貨為一車；只做分類加總／月底提醒／已處理狀態，不開立收據、不改原帳務。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -8244,7 +8245,77 @@ K白.kg
     });
     grid.addEventListener('dragover',e=>{if(!dragged)return;e.preventDefault();place(dragged,e)});
   }
-  function qN230RenderFarmerReceipt(work){work.innerHTML='<div class="quickV2"><b>🧾 農民收據</b><div class="helper" style="display:block!important;margin:5px 0 10px">保留原農民收據入口。</div><div class="acctStageGrid">'+['待分類確認','待開農收','已開農收','歷史查詢','⚙️ 分類管理'].map(x=>'<button class="acctStageBtn" data-n230-fr="'+qEsc(x)+'"><b>'+qEsc(x)+'</b></button>').join('')+'</div><div id="qN230FrWork"></div></div>';work.querySelectorAll('[data-n230-fr]').forEach(b=>b.onclick=()=>{work.querySelector('#qN230FrWork').innerHTML='<div class="acctWorkPlaceholder"><b>'+qEsc(b.dataset.n230Fr)+'</b><div class="helper">沿用既有農民收據規劃；未改動原帳務核心。</div></div>'})}
+  /* N265 農民收據：只做「當次車趟分類加總＋月底提醒」，不開立收據、不建立第二套帳務。 */
+  const QN265_DEFAULT_CATS=['水菜','生菜','根莖','地瓜','花果','辛香料','菇類'];
+  const qN265Money=v=>'$'+Math.round(Number(v)||0).toLocaleString('zh-TW');
+  const qN265GoodsAmount=i=>{
+    if(!i)return 0;
+    const st=String(i.itemStatus||'').trim();
+    if(['未送','缺貨','取消'].includes(st))return 0;
+    if(i.goodsAmount!==undefined&&i.goodsAmount!=='')return Number(i.goodsAmount)||0;
+    const a=i.amount===''?0:(Number(i.amount)||0),f=Number(i.freight)||0;
+    return Math.max(0,a-f);
+  };
+  const qN265NeedContacts=()=>qProfiles().filter(c=>c&&c.farmerReceipt===true&&c.active!==false);
+  const qN265RecordBelongs=(r,c)=>String(r?.contactId||'')===String(c?.id||'')||String(r?.customer||'').trim()===String(c?.name||'').trim();
+  const qN265Trips=()=>{
+    const cs=qN265NeedContacts(),rs=(typeof acctRecords==='function'?acctRecords():[]);
+    return rs.filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.mode!=='money_settlement'&&r.txnType==='sale'&&Array.isArray(r.items)&&r.items.length&&cs.some(c=>qN265RecordBelongs(r,c)))
+      .map(r=>({record:r,contact:cs.find(c=>qN265RecordBelongs(r,c))})).sort((a,b)=>String(b.record.date||'').localeCompare(String(a.record.date||''))||String(b.record.createdAt||'').localeCompare(String(a.record.createdAt||'')));
+  };
+  async function qN265Load(){
+    const [rr,cc,ss]=await Promise.all([
+      sb.from('farmer_receipt_product_rules').select('product_name,category,excluded'),
+      sb.from('farmer_receipt_categories').select('name,sort_order,active').eq('active',true).order('sort_order',{ascending:true}),
+      sb.from('farmer_receipt_trip_status').select('record_id,processed,processed_at,processed_by')
+    ]);
+    if(rr.error)throw rr.error;if(cc.error)throw cc.error;if(ss.error)throw ss.error;
+    return {rules:new Map((rr.data||[]).map(x=>[String(x.product_name||'').trim(),x])),cats:(cc.data||[]).map(x=>x.name),status:new Map((ss.data||[]).map(x=>[String(x.record_id),x]))};
+  }
+  async function qN265SaveRule(name,category,excluded=false){
+    const row={product_name:String(name||'').trim(),category:excluded?null:String(category||'').trim()||null,excluded:!!excluded,updated_at:new Date().toISOString(),updated_by:currentUser?.id||null};
+    const {error}=await sb.from('farmer_receipt_product_rules').upsert(row,{onConflict:'product_name'});if(error)throw error;
+  }
+  async function qN265SetProcessed(id,processed){
+    const row={record_id:String(id),processed:!!processed,processed_at:processed?new Date().toISOString():null,processed_by:processed?(currentProfile?.display_name||currentUser?.email||''):null,updated_at:new Date().toISOString()};
+    const {error}=await sb.from('farmer_receipt_trip_status').upsert(row,{onConflict:'record_id'});if(error)throw error;
+  }
+  function qN265TripSummary(r,data){
+    const groups=new Map(),unknown=[];
+    (r.items||[]).forEach(i=>{
+      const name=String(i.name||'').trim();if(!name)return;
+      const rule=data.rules.get(name),amount=qN265GoodsAmount(i);
+      if(!rule){unknown.push({name,amount});return}
+      if(rule.excluded)return;
+      const cat=String(rule.category||'').trim();
+      if(!cat){unknown.push({name,amount});return}
+      groups.set(cat,(groups.get(cat)||0)+amount);
+    });
+    return {groups,unknown,total:[...groups.values()].reduce((a,b)=>a+b,0)};
+  }
+  async function qN265Render(work,tab='整理'){
+    work.innerHTML='<div class="acctWorkPlaceholder">農收資料讀取中…</div>';
+    let data;try{data=await qN265Load()}catch(e){work.innerHTML='<div class="acctWorkPlaceholder"><b>農收分類資料尚未啟用</b><div class="helper">請先執行 N265 Supabase SQL。<br>'+qEsc(e.message||e)+'</div></div>';return}
+    const trips=qN265Trips(),now=qToday(),month=now.slice(0,7),pending=trips.filter(x=>String(x.record.date||'').slice(0,7)===month&&!data.status.get(String(x.record.id))?.processed);
+    const reminderNames=[...new Set(pending.map(x=>x.contact?.name||x.record.customer))];
+    const reminder='<div style="border:1px solid #f0c36a;background:#fff9e8;border-radius:14px;padding:12px;margin:10px 0"><b>🔔 本月農收提醒</b><div style="margin-top:6px">'+(reminderNames.length?reminderNames.map(n=>{const ntr=pending.filter(x=>(x.contact?.name||x.record.customer)===n);return '<div><b>'+qEsc(n)+'</b>｜'+ntr.length+' 車待處理</div>'}).join(''):'本月目前沒有待處理農收')+'</div></div>';
+    work.innerHTML='<div class="quickV2"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><b style="font-size:20px">🧾 農民收據</b><div class="helper" style="display:block!important">只整理每次車趟需要開農收的分類金額；不在系統內開立收據。</div></div><div class="actions"><button class="btn '+(tab==='整理'?'primary':'gray')+'" data-fr-tab="整理">📋 農收整理</button><button class="btn '+(tab==='分類'?'primary':'gray')+'" data-fr-tab="分類">⚙️ 分類設定</button></div></div>'+reminder+'<div id="qN265Body"></div></div>';
+    work.querySelectorAll('[data-fr-tab]').forEach(b=>b.onclick=()=>qN265Render(work,b.dataset.frTab));
+    const body=work.querySelector('#qN265Body');
+    if(tab==='分類'){
+      const names=[...new Set(trips.flatMap(x=>(x.record.items||[]).map(i=>String(i.name||'').trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+      const catOpts=(selected='')=>['<option value="">待確認</option>',...data.cats.map(c=>'<option '+(c===selected?'selected':'')+'>'+qEsc(c)+'</option>'),'<option value="__exclude__">🚫 不開農收</option>'].join('');
+      body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><input id="qN265Search" class="input" style="max-width:300px" placeholder="搜尋商品"><input id="qN265NewCat" class="input" style="max-width:220px" placeholder="新增分類名稱"><button id="qN265AddCat" class="btn gray">＋新增分類</button></div><div id="qN265RuleList"></div>';
+      const paint=()=>{const q=String(body.querySelector('#qN265Search')?.value||'').trim().toLowerCase(),hit=names.filter(n=>!q||n.toLowerCase().includes(q));body.querySelector('#qN265RuleList').innerHTML=hit.map(n=>{const r=data.rules.get(n),v=r?.excluded?'__exclude__':(r?.category||'');return '<div style="display:grid;grid-template-columns:minmax(120px,1fr) minmax(150px,240px);gap:8px;align-items:center;border-bottom:1px solid #edf0f2;padding:8px 0"><b>'+qEsc(n)+'</b><select class="input" data-fr-rule="'+qEsc(n)+'">'+catOpts(v).replace('value="__exclude__"','value="__exclude__" '+(v==='__exclude__'?'selected':''))+'</select></div>'}).join('')||'<div class="empty">沒有商品</div>';body.querySelectorAll('[data-fr-rule]').forEach(sel=>sel.onchange=async()=>{try{await qN265SaveRule(sel.dataset.frRule,sel.value,sel.value==='__exclude__');qN265Render(work,'分類')}catch(e){alert('儲存失敗：'+e.message)}})};
+      paint();body.querySelector('#qN265Search').oninput=paint;
+      body.querySelector('#qN265AddCat').onclick=async()=>{const name=body.querySelector('#qN265NewCat').value.trim();if(!name)return;const max=Math.max(0,...data.cats.map((_,i)=>(i+1)*10));const {error}=await sb.from('farmer_receipt_categories').upsert({name,sort_order:max+10,active:true},{onConflict:'name'});if(error)return alert('新增失敗：'+error.message);qN265Render(work,'分類')};
+      return;
+    }
+    body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><input id="qN265Month" class="input" type="month" value="'+qEsc(month)+'" style="max-width:190px"><select id="qN265State" class="input" style="max-width:180px"><option value="pending">待處理</option><option value="done">已處理</option><option value="all">全部</option></select></div><div id="qN265Trips"></div>';
+    const paintTrips=()=>{const mo=body.querySelector('#qN265Month').value,st=body.querySelector('#qN265State').value;let hit=trips.filter(x=>!mo||String(x.record.date||'').slice(0,7)===mo).filter(x=>{const done=!!data.status.get(String(x.record.id))?.processed;return st==='all'||(st==='done'?done:!done)});body.querySelector('#qN265Trips').innerHTML=hit.map((x,idx)=>{const r=x.record,sum=qN265TripSummary(r,data),done=!!data.status.get(String(r.id))?.processed,created=String(r.createdAt||'').slice(11,16),groups=[...sum.groups.entries()].map(([k,v])=>'<tr><td><b>'+qEsc(k)+'</b></td><td style="text-align:right"><b>'+qN265Money(v)+'</b></td></tr>').join(''),unknown=sum.unknown.map(u=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0"><span>'+qEsc(u.name)+'</span><span>'+qN265Money(u.amount)+'</span></div>').join('');return '<details style="border:1px solid #dfe4ea;border-radius:14px;padding:10px 12px;margin:8px 0;background:#fff" '+(idx===0?'open':'')+'><summary style="cursor:pointer;font-weight:900">'+qEsc(r.date||'')+'｜'+qEsc(x.contact?.name||r.customer)+(created?'｜'+created:'')+'　'+(done?'✓ 已處理':(sum.unknown.length?'🔴 '+sum.unknown.length+' 項待分類':'🟢 可開農收'))+'</summary><div style="margin-top:10px">'+(groups?'<table class="table"><thead><tr><th>農收分類</th><th style="text-align:right">金額</th></tr></thead><tbody>'+groups+'</tbody></table><div style="text-align:right;font-size:18px;font-weight:900;margin:10px 0">農收金額合計：'+qN265Money(sum.total)+'</div>':'<div class="helper">目前沒有已歸入農收的商品。</div>')+(unknown?'<div style="border:1px solid #f0b7b7;background:#fff5f5;border-radius:12px;padding:10px;margin-top:8px"><b>⚠️ 待確認商品</b>'+unknown+'<div class="helper">請到「分類設定」選擇農收分類或「不開農收」。</div></div>':'')+'<div class="actions" style="margin-top:10px">'+(done?'<button class="btn gray" data-fr-undone="'+qEsc(r.id)+'">↩ 改回待處理</button>':'<button class="btn primary" data-fr-done="'+qEsc(r.id)+'" '+(sum.unknown.length?'disabled title="仍有待分類商品"':'')+'>✓ 這車農收已處理</button>')+'</div></div></details>'}).join('')||'<div class="empty">這個月份沒有符合的車趟</div>';body.querySelectorAll('[data-fr-done]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frDone,true);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});body.querySelectorAll('[data-fr-undone]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frUndone,false);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}})};
+    paintTrips();body.querySelector('#qN265Month').onchange=paintTrips;body.querySelector('#qN265State').onchange=paintTrips;
+  }
+  function qN230RenderFarmerReceipt(work){qN265Render(work,'整理')}
   const QN230_SALES_KEY='xinru_sales_document_drafts_v1';
   function qN230SalesRows(){try{return JSON.parse(localStorage.getItem(QN230_SALES_KEY)||'[]')}catch(e){return[]}}
   function qN230SalesSave(rows){localStorage.setItem(QN230_SALES_KEY,JSON.stringify(rows))}
