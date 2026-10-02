@@ -8116,31 +8116,47 @@ K白.kg
   }
   async function qN242RenderInventory(){
     const stage=qN243EnterPackingStage(); if(!stage)return;
-    stage.innerHTML='<div class="card" style="margin:8px 0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><b>📦 每日包裝庫存</b><div class="helper">一天一份；原始文字與查詢表是同一份資料。空白數量／0 不上表。</div></div><button class="btn gray" id="qN242InvClose" type="button">← 返回包裝部</button></div><div id="qN242InvBody" style="margin-top:9px">讀取中…</div></div>';
-    const body=stage.querySelector('#qN242InvBody');
-    try{await qN242EnsureSeed();let docs=await qN242LoadDocs();let activeDate=qToday(),mode='edit';
-      const draw=()=>{
-        const doc=docs.find(x=>x.date===activeDate),raw=doc?.raw||'';
-        body.innerHTML='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn '+(mode==='edit'?'blue':'gray')+'" id="qN242EditTab">✏️ 今日輸入</button><button class="btn '+(mode==='query'?'blue':'gray')+'" id="qN242QueryTab">🔍 庫存查詢</button></div>'+
-        (mode==='edit'?'<div class="field"><label class="label">日期</label><input class="input" id="qN242Date" type="date" value="'+qEsc(activeDate)+'"></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin:7px 0"><button class="btn gray" id="qN242Carry" type="button">📋 帶入上一份</button><button class="btn gray" id="qN242Clear" type="button">清空重新輸入</button></div><textarea class="input" id="qN242Raw" style="min-height:360px;font-size:16px;line-height:1.55;white-space:pre-wrap" placeholder="直接一直輸入，例如：&#10;大庫&#10;青椒15kg&#10;薄荷葉.kg&#10;&#10;小庫&#10;薑17.3kg">'+qEsc(raw)+'</textarea><div class="helper" style="margin-top:5px">只有數量 > 0 的品項會進查詢表；像「薄荷葉.kg」仍保留原文，隔天可繼續帶入。</div><button class="btn primary" id="qN242Save" type="button" style="width:100%;margin-top:9px;min-height:48px">💾 儲存今日庫存</button><div id="qN242Preview" style="margin-top:10px">'+qN242Table(qN242Parse(raw))+'</div>'
-        :'<div style="display:grid;grid-template-columns:minmax(145px,.7fr) minmax(160px,1.3fr);gap:7px"><input class="input" id="qN242QueryDate" type="date" value="'+qEsc(activeDate)+'"><input class="input" id="qN242QueryKey" placeholder="🔍 搜尋品名"></div><div id="qN242QueryRows" style="margin-top:9px"></div>');
-        body.querySelector('#qN242EditTab').onclick=()=>{mode='edit';draw()};body.querySelector('#qN242QueryTab').onclick=()=>{mode='query';draw()};
-        if(mode==='edit'){
-          const date=body.querySelector('#qN242Date'),ta=body.querySelector('#qN242Raw'),prev=body.querySelector('#qN242Preview');
-          date.onchange=()=>{activeDate=date.value;draw()};ta.oninput=()=>{prev.innerHTML=qN242Table(qN242Parse(ta.value))};
-          body.querySelector('#qN242Clear').onclick=()=>{ta.value='';ta.dispatchEvent(new Event('input'))};
-          body.querySelector('#qN242Carry').onclick=()=>{const prior=docs.filter(x=>x.date<activeDate).sort((a,b)=>b.date.localeCompare(a.date))[0];if(!prior)return alert('前面沒有可帶入的庫存單');ta.value=prior.raw;ta.dispatchEvent(new Event('input'));};
-          body.querySelector('#qN242Save').onclick=async()=>{const btn=body.querySelector('#qN242Save');btn.disabled=true;try{await qN242SaveDoc(activeDate,ta.value);docs=await qN242LoadDocs();btn.textContent='✓ 已儲存';setTimeout(()=>{if(btn.isConnected){btn.textContent='💾 儲存今日庫存';btn.disabled=false}},900)}catch(e){btn.disabled=false;alert('儲存失敗：'+(e?.message||e))}};
-        }else{
-          const di=body.querySelector('#qN242QueryDate'),ki=body.querySelector('#qN242QueryKey'),box=body.querySelector('#qN242QueryRows');
-          const paint=()=>{activeDate=di.value;const key=String(ki.value||'').trim().toLowerCase();if(key){const hits=[];docs.forEach(d=>qN242Parse(d.raw).forEach(x=>{if((x.name+' '+x.note).toLowerCase().includes(key))hits.push({...x,date:d.date})}));box.innerHTML=hits.length?'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><tbody>'+hits.map(x=>'<tr><td style="padding:8px;border-bottom:1px solid #eee"><button class="btn gray" data-qn242-date="'+qEsc(x.date)+'">'+qEsc(x.date)+'</button></td><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(x.zone)+'</td><td style="padding:8px;border-bottom:1px solid #eee"><b>'+qEsc(x.name)+'</b></td><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(qDisplayNumber(x.qty)+' '+x.unit+(x.note?'｜'+x.note:''))+'</td></tr>').join('')+'</tbody></table></div>':'<div class="empty">找不到有庫存的品項</div>';box.querySelectorAll('[data-qn242-date]').forEach(b=>b.onclick=()=>{di.value=b.dataset.qn242Date;ki.value='';paint()})}else{const d=docs.find(x=>x.date===activeDate);box.innerHTML=d?'<div style="margin-bottom:7px"><b>'+qEsc(activeDate)+'｜當日有效庫存</b></div>'+qN242Table(qN242Parse(d.raw)):'<div class="empty">這一天沒有庫存單</div>'}};
-          di.onchange=paint;ki.oninput=paint;paint();
-        }
-      };draw();
-    }catch(e){body.innerHTML='<div class="empty">庫存讀取失敗：'+qEsc(e?.message||e)+'</div>'}
+    stage.innerHTML='<div class="card" style="margin:0"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2 style="margin:0">📦 每日包裝庫存</h2><div class="muted" style="margin-top:4px">一天一份；平常直接看庫存，需要更新時再展開修改。</div></div><button type="button" class="btn gray" id="qN242InvClose">← 返回包裝部</button></div><div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px"><label style="min-width:180px">日期<input id="qN242InvDate" type="date"></label><button type="button" class="btn gray" id="qN242InvEditToggle">✏️ 修改今日庫存</button></div><div id="qN242InvView" style="margin-top:12px"></div><div id="qN242InvEditor" style="display:none;margin-top:12px;border-top:1px solid #e5e7eb;padding-top:12px"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" class="btn gray" id="qN242InvCarry">📋 帶入上一份</button><button type="button" class="btn gray" id="qN242InvClear">清空重新輸入</button></div><textarea id="qN242InvRaw" style="width:100%;min-height:330px;font-size:17px;line-height:1.55" placeholder="大庫&#10;青椒15kg&#10;薄荷葉.kg&#10;&#10;小庫&#10;薑17.3kg&#10;&#10;包裝庫存&#10;蒜米11.5kg"></textarea><div class="muted" style="margin:6px 0 10px">原始文字完整保留；只有數量 &gt; 0 的品項會顯示在上方庫存表。</div><button type="button" class="btn primary" id="qN242InvSave" style="width:100%">💾 儲存今日庫存</button></div><div style="border-top:1px solid #e5e7eb;margin-top:18px;padding-top:14px"><b>🔎 查詢庫存</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><input id="qN242InvSearch" placeholder="輸入品名，例如：青椒" style="flex:1;min-width:180px"><button type="button" class="btn gray" id="qN242InvSearchBtn">查詢</button></div><div id="qN242InvSearchResult" style="margin-top:10px"></div></div></div>';
     stage.querySelector('#qN242InvClose').onclick=qN243ExitPackingStage;
-    stage.scrollIntoView({behavior:'smooth',block:'start'});
+    const dateEl=stage.querySelector('#qN242InvDate'),rawEl=stage.querySelector('#qN242InvRaw'),view=stage.querySelector('#qN242InvView'),editor=stage.querySelector('#qN242InvEditor');
+    const today=new Date().toLocaleDateString('en-CA');dateEl.value=today;
+    let docs=[];
+    const esc=qEsc;
+    function renderCards(raw){
+      const rows=qN242Parse(raw),zones=['大庫','小庫','包裝庫存'];
+      if(!rows.length){view.innerHTML='<div class="muted" style="padding:24px 8px;text-align:center">這一天目前沒有數量大於 0 的庫存。</div>';return}
+      let html='<style>.qN245InvGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.qN245InvItem{border:1px solid #e5e7eb;border-radius:10px;padding:9px 11px;min-width:0;background:#fff}.qN245InvName{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qN245InvQty{font-size:16px;margin-top:3px}.qN245InvNote{font-size:13px;color:#6b7280;margin-top:2px;white-space:normal}.qN245Zone{margin:14px 0 7px;font-size:18px;font-weight:900}@media(max-width:700px){.qN245InvGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.qN245InvItem{padding:8px}.qN245InvName,.qN245InvQty{font-size:15px}}</style>';
+      zones.forEach(z=>{const zr=rows.filter(x=>x.zone===z);if(!zr.length)return;html+='<div class="qN245Zone">'+esc(z)+' <span class="muted" style="font-size:13px;font-weight:500">('+zr.length+'項)</span></div><div class="qN245InvGrid">'+zr.map(x=>'<div class="qN245InvItem"><div class="qN245InvName">'+esc(x.name)+'</div><div class="qN245InvQty">'+esc(qN181DisplayNumber(x.qty))+' '+esc(x.unit)+'</div>'+(x.note?'<div class="qN245InvNote">'+esc(x.note)+'</div>':'')+'</div>').join('')+'</div>'});
+      const other=rows.filter(x=>!zones.includes(x.zone));if(other.length)html+='<div class="qN245Zone">其他</div><div class="qN245InvGrid">'+other.map(x=>'<div class="qN245InvItem"><div class="qN245InvName">'+esc(x.name)+'</div><div class="qN245InvQty">'+esc(qN181DisplayNumber(x.qty))+' '+esc(x.unit)+'</div>'+(x.note?'<div class="qN245InvNote">'+esc(x.note)+'</div>':'')+'</div>').join('')+'</div>';
+      view.innerHTML=html;
+    }
+    function loadDate(){
+      const d=docs.find(x=>x.date===dateEl.value);rawEl.value=d?.raw||'';renderCards(d?.raw||'');
+    }
+    try{await qN242EnsureSeed();docs=await qN242LoadDocs();loadDate()}catch(e){view.innerHTML='<div class="muted" style="padding:24px 8px">庫存讀取失敗：'+esc(e?.message||e)+'</div>'}
+    dateEl.onchange=loadDate;
+    stage.querySelector('#qN242InvEditToggle').onclick=()=>{
+      const open=editor.style.display==='none';editor.style.display=open?'block':'none';
+      stage.querySelector('#qN242InvEditToggle').textContent=open?'▲ 收起修改':'✏️ 修改今日庫存';
+      if(open)rawEl.focus();
+    };
+    stage.querySelector('#qN242InvCarry').onclick=()=>{
+      const prev=docs.filter(x=>x.date<dateEl.value).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      if(!prev)return alert('找不到更早的庫存資料');rawEl.value=prev.raw;
+    };
+    stage.querySelector('#qN242InvClear').onclick=()=>{rawEl.value='';rawEl.focus()};
+    stage.querySelector('#qN242InvSave').onclick=async()=>{
+      try{await qN242SaveDoc(dateEl.value,rawEl.value);docs=await qN242LoadDocs();loadDate();editor.style.display='none';stage.querySelector('#qN242InvEditToggle').textContent='✏️ 修改今日庫存';alert('今日庫存已儲存')}catch(e){alert('儲存失敗：'+(e?.message||e))}
+    };
+    stage.querySelector('#qN242InvSearchBtn').onclick=()=>{
+      const q=String(stage.querySelector('#qN242InvSearch').value||'').trim().toLowerCase(),box=stage.querySelector('#qN242InvSearchResult');
+      if(!q){box.innerHTML='<div class="muted">請輸入品名</div>';return}
+      const hit=[];docs.forEach(d=>qN242Parse(d.raw).forEach(r=>{if(r.name.toLowerCase().includes(q))hit.push({...r,date:d.date})}));
+      box.innerHTML=hit.length?'<div style="display:grid;gap:6px">'+hit.map(r=>'<button type="button" class="btn gray" data-inv-date="'+esc(r.date)+'" style="text-align:left;justify-content:flex-start">'+esc(r.date)+'｜'+esc(r.zone)+'｜'+esc(r.name)+' '+esc(qN181DisplayNumber(r.qty))+' '+esc(r.unit)+(r.note?'｜'+esc(r.note):'')+'</button>').join('')+'</div>':'<div class="muted">查無數量大於 0 的庫存</div>';
+      box.querySelectorAll('[data-inv-date]').forEach(b=>b.onclick=()=>{dateEl.value=b.dataset.invDate;loadDate();stage.scrollIntoView({behavior:'smooth',block:'start'})});
+    };
   }
+
   document.addEventListener('click',e=>{
     if(e.target.closest?.('#packingLiuheSpecBtn'))qN242RenderLiuheReadonly();
     if(e.target.closest?.('#packingInventoryBtn'))qN242RenderInventory();
