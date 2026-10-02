@@ -7669,13 +7669,46 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
   // N230：表格／單據正式主檔。六禾包裝規格與商品重量共用 Supabase product_master；歷史交易仍保存當筆 kg snapshot。
   const QN230_LIUHE='六禾包裝｜', QN230_WEIGHT='重量參考｜';
   const QN230_SEED=[
-    ['雲耳','0.05'],['黑木耳','0.1'],['乾香菇','0.03'],['金針花','0.02'],['特小輪','0.1'],['豆皮','2片'],['香菇','0.145'],['金針菇','0.2'],['秀珍菇','0.15'],['杏鮑菇','0.175'],['雪白','0.15'],['鴻禧','0.15'],['雙響','0.15'],['白精靈','0.125'],['雨來菇','0.15'],['黑木耳','0.19'],['黃金蟲草','0.0375'],['腐竹捲','0.07'],['巴西蘑菇','0.055'],['鹿茸菇','0.08'],['茶樹菇','0.08'],['豆皮','0.1'],['鈴鈴捲','0.07'],['中華豆腐','0.3'],['雞蛋豆腐','0.3'],['板豆腐','0.4'],['甜豆','0.1'],['荷豆','0.15'],['敏豆','0.2'],['芝麻葉','0.05'],['大辣','0.06'],['小辣','0.035'],['紅蔥頭','0.25'],['九層塔','0.05'],['香菜','0.05'],['黃豆芽','0.15'],['蔥','0.1'],['地瓜葉','0.25'],['青江','0.3'],['蚵白','0.3'],['K白','0.3'],['油菜','0.3'],['苜蓿芽','0.1'],['小豆苗','0.1'],['龍鬚菜','0.25'],['冰花','0.2'],['高麗菜芽','0.5'],['薄荷葉','0.01'],['秋葵','0.2'],['生豆包','0.6'],['豆干','0.4'],['青龍','0.15'],['帶殼茭白筍','0.6'],['奶白','0.2']
+    ['雲耳','0.05'],['黑木耳','0.17'],['乾香菇','0.03'],['金針花','0.02'],['特小輪','0.1'],['豆皮','0.1'],['香菇','0.145'],['金針菇','0.2'],['秀珍菇','0.15'],['杏鮑菇','0.175'],['雪白','0.15'],['鴻禧','0.15'],['雙響','0.15'],['白精靈','0.125'],['雨來菇','0.15'],['黃金蟲草','0.0375'],['腐竹捲','0.07'],['巴西蘑菇','0.055'],['鹿茸菇','0.08'],['茶樹菇','0.08'],['鈴鈴捲','0.07'],['中華豆腐','0.3'],['雞蛋豆腐','0.3'],['板豆腐','0.4'],['甜豆','0.1'],['荷豆','0.15'],['敏豆','0.2'],['芝麻葉','0.05'],['大辣','0.06'],['小辣','0.035'],['紅蔥頭','0.25'],['九層塔','0.05'],['香菜','0.05'],['黃豆芽','0.15'],['蔥','0.1'],['地瓜葉','0.25'],['青江','0.3'],['蚵白','0.3'],['K白','0.3'],['油菜','0.3'],['苜蓿芽','0.1'],['小豆苗','0.1'],['龍鬚菜','0.25'],['冰花','0.2'],['高麗菜芽','0.5'],['薄荷葉','0.01'],['秋葵','0.2'],['生豆包','0.6'],['豆干','0.4'],['青龍','0.15'],['帶殼茭白筍','0.6'],['奶白','0.2']
   ];
   let qN230Cache=[];
   function qN230Kg(spec){const x=String(spec||'').trim().toLowerCase();if(/^\d+(?:\.\d+)?$/.test(x))return Number(x)||0;const m=x.match(/([0-9.]+)\s*(kg|k|g)/);if(!m)return 0;const n=Number(m[1])||0;return m[2]==='g'?n/1000:n}
   function qN230PublicName(row,prefix){return String(row?.name||'').startsWith(prefix)?String(row.name).slice(prefix.length):String(row?.name||'')}
-  async function qN230Load(){try{const {data,error}=await sb.from('product_master').select('*').or('name.like.'+QN230_LIUHE+'%,name.like.'+QN230_WEIGHT+'%').order('name',{ascending:true});if(error)throw error;qN230Cache=(data||[]).map(x=>({id:x.id,name:x.name,spec:x.spec||'',unit:x.unit||'',price:Number(x.today_price||0),active:x.is_active!==false,category:x.category||''}));window.qN230MasterCache=qN230Cache;return qN230Cache}catch(e){console.warn('N230主檔讀取失敗',e);return qN230Cache}}
-  async function qN230EnsureSeed(){await qN230Load();const have=new Set(qN230Cache.filter(x=>x.name.startsWith(QN230_LIUHE)).map(x=>qN230PublicName(x,QN230_LIUHE)+'|'+String(qN230Kg(x.spec)||x.spec)));const add=QN230_SEED.filter(x=>qN230Kg(x[1])>0).filter(x=>!have.has(x[0]+'|'+String(qN230Kg(x[1])))).map(x=>({name:QN230_LIUHE+x[0],category:'六禾包裝規格',spec:String(qN230Kg(x[1])),unit:'包',today_price:0,is_active:true}));if(add.length){const {error}=await sb.from('product_master').insert(add);if(error)console.warn('N230初始規格建立失敗',error);await qN230Load()}}
+  // N233C：不用 PostgREST .or() 解析中文前綴；直接讀正式 product_master 後在前端只保留兩類主檔。
+  async function qN230Load(){
+    try{
+      const {data,error}=await sb.from('product_master').select('*').order('name',{ascending:true});
+      if(error)throw error;
+      qN230Cache=(data||[]).filter(x=>String(x.name||'').startsWith(QN230_LIUHE)||String(x.name||'').startsWith(QN230_WEIGHT)||x.category==='六禾包裝規格'||x.category==='商品重量參考').map(x=>({id:x.id,name:x.name,spec:x.spec||'',unit:x.unit||'',price:Number(x.today_price||0),active:x.is_active!==false,category:x.category||''}));
+      window.qN230MasterCache=qN230Cache;
+      return qN230Cache;
+    }catch(e){console.warn('N230主檔讀取失敗',e);return qN230Cache}
+  }
+  // 六禾一次性正式初始化／校正：每個品名只保留一筆六禾主檔；已存在者校正 K，沒有才新增。
+  async function qN230EnsureSeed(){
+    await qN230Load();
+    for(const [publicName,kgRaw] of QN230_SEED){
+      const kg=String(qN230Kg(kgRaw));
+      const fullName=QN230_LIUHE+publicName;
+      const hits=qN230Cache.filter(x=>x.name===fullName);
+      if(hits.length){
+        const keep=hits[0];
+        if(String(qN230Kg(keep.spec))!==kg||keep.category!=='六禾包裝規格'||keep.active===false){
+          const {error}=await sb.from('product_master').update({spec:kg,category:'六禾包裝規格',unit:'包',today_price:0,is_active:true,updated_at:new Date().toISOString()}).eq('id',keep.id);
+          if(error){console.warn('六禾規格校正失敗',publicName,error);continue}
+        }
+        for(const dup of hits.slice(1)){
+          const {error}=await sb.from('product_master').delete().eq('id',dup.id);
+          if(error)console.warn('六禾重複規格清理失敗',publicName,error);
+        }
+      }else{
+        const {error}=await sb.from('product_master').insert({name:fullName,category:'六禾包裝規格',spec:kg,unit:'包',today_price:0,is_active:true});
+        if(error)console.warn('六禾初始規格建立失敗',publicName,error);
+      }
+      await qN230Load();
+    }
+    return qN230Load();
+  }
   function qN230Find(prefix,name){const n=String(name||'').trim().toLowerCase();return qN230Cache.filter(x=>x.active!==false&&x.name.startsWith(prefix)&&qN230PublicName(x,prefix).trim().toLowerCase()===n)}
   function qN230TableHtml(rows,prefix,kind){return '<div class="qN230List">'+(rows.length?rows.map(x=>'<div class="quickV2Record" style="display:grid;grid-template-columns:minmax(130px,1.4fr) minmax(100px,.8fr) minmax(90px,.8fr) auto;gap:8px;align-items:center"><div><b>'+qEsc(qN230PublicName(x,prefix))+'</b></div><div><b>'+qDisplayNumber(qN230Kg(x.spec))+' K</b><div class="helper" style="display:block!important">'+(kind==='liuhe'?'包裝規格(K)':'常用重量(K)')+'</div></div><div>'+(kind==='weight'&&x.price?'參考價 $'+qDisplayNumber(x.price):'')+'</div><div style="display:flex;gap:5px"><button class="btn gray" data-n230-edit="'+qEsc(x.id)+'">修改</button><button class="btn red" data-n230-del="'+qEsc(x.id)+'">刪除</button></div></div>').join(''):'<div class="empty">目前沒有資料</div>')+'</div>'}
   async function qN230RenderMaster(work,kind){const prefix=kind==='liuhe'?QN230_LIUHE:QN230_WEIGHT;const title=kind==='liuhe'?'🥬 六禾包裝規格表':'📦 商品重量／參考價表';work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>'+title+'</b><div class="helper" style="display:block!important">搜尋、新增、修改、刪除；'+(kind==='liuhe'?'六禾做帳輸入品名時，公斤欄直接帶入包裝規格(K)。':'需要依公斤計運費時，做帳輸入品名會帶入常用重量(K)；當筆可修改且不回寫主檔，參考價只供查看。')+'</div></div></div><div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr auto;gap:7px;margin:10px 0"><input class="input" id="qN230Search" placeholder="搜尋品名／規格"><input class="input" id="qN230Name" placeholder="品名"><input class="input" id="qN230Spec" placeholder="' +(kind==='liuhe'?'包裝規格(K)，如 0.3':'常用重量(K)，如 3')+'"><input class="input" id="qN230Price" inputmode="decimal" placeholder="參考價（可空白）" '+(kind==='liuhe'?'style="display:none"':'')+'><button class="btn primary" id="qN230Add">＋ 新增</button></div><div id="qN230Rows"><div class="empty">資料載入中…</div></div></div>';
