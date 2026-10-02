@@ -2105,7 +2105,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
     </section>
 
     <section id="packing" class="panel packingCompactPanel">
-      <div class="card packingMainCard">
+      <div id="packingFirstLevel" class="card packingMainCard">
         <div class="packingCompactHead" style="justify-content:space-between;gap:10px">
   <div style="display:flex;align-items:center;gap:7px;min-width:0">
     <h2 style="margin:0">包裝部</h2>
@@ -2114,7 +2114,6 @@ body.auth-booting #mainApp{visibility:hidden!important}
   </div>
   <button type="button" id="packingHistoryBtn" class="btn gray">🔎 歷史派工單</button>
 </div>
-<div id="packingReferenceStage" style="display:none"></div>
         <div class="packingQuickTools" data-quick-source="packing">
           <div class="quickToolTabs">
             <button type="button" class="quickToolTab" data-tool="question">💬 現場詢問</button>
@@ -2129,6 +2128,8 @@ body.auth-booting #mainApp{visibility:hidden!important}
         </div>
         <div id="packingOrders"></div>
       </div>
+      <div id="packingReferenceStage" class="packingSecondLevel" style="display:none"></div>
+
     </section>
 
     <section id="wall" class="panel">
@@ -8090,19 +8091,21 @@ K白.kg
     if(!rows.length)return '<div class="empty" style="padding:14px">這一天沒有填入大於 0 的庫存數量</div>';
     return '<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:420px"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">區域</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">品名</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">數量</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">備註</th></tr></thead><tbody>'+rows.map(x=>'<tr><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(x.zone)+'</td><td style="padding:8px;border-bottom:1px solid #eee"><b>'+qEsc(x.name)+'</b></td><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(qDisplayNumber(x.qty)+' '+x.unit)+'</td><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(x.note||'')+'</td></tr>').join('')+'</tbody></table></div>';
   }
-  // N243-A：包裝部第二層。只切換畫面層級，不碰 renderPacking／現場回報／包裝訂單核心。
+  // N244-A：包裝部正式兩層結構。第一層整卡與第二層工作區互斥，不逐顆隱藏按鈕。
   function qN243EnterPackingStage(){
-    const stage=document.getElementById('packingReferenceStage'),card=stage?.closest('.packingMainCard');
-    if(!stage||!card)return null;
-    [...card.children].forEach(el=>{if(el!==stage){el.dataset.n243PrevDisplay=el.style.display||'';el.style.display='none'}});
+    const first=document.getElementById('packingFirstLevel');
+    const stage=document.getElementById('packingReferenceStage');
+    if(!first||!stage)return null;
+    first.style.display='none';
     stage.style.display='block';
     return stage;
   }
   function qN243ExitPackingStage(){
-    const stage=document.getElementById('packingReferenceStage'),card=stage?.closest('.packingMainCard');
-    if(!stage||!card)return;
+    const first=document.getElementById('packingFirstLevel');
+    const stage=document.getElementById('packingReferenceStage');
+    if(!first||!stage)return;
     stage.style.display='none';stage.innerHTML='';
-    [...card.children].forEach(el=>{if(el!==stage){el.style.display=el.dataset.n243PrevDisplay||'';delete el.dataset.n243PrevDisplay}});
+    first.style.display='';
   }
   async function qN242RenderLiuheReadonly(){
     const stage=qN243EnterPackingStage(); if(!stage)return;
