@@ -8079,7 +8079,29 @@ window.qNormalizeTurnAction=qN93TurnAction;
     const cutoff=qN96ResolveCutoff(c,direction,cutoffInput),balances=qN96OutstandingAt(c,direction,cutoff);
     const open=balances.filter(x=>x.remain>0.000001),start=open.length?open[0].record:null;
     const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price');
-    const activities=start?all.filter(r=>qN96AtOrAfter(r,start)&&qN96AtOrBefore(r,cutoff)&&qN225ActivityDirectionMatch(r,direction)).sort(qN96Cmp):[];
+    // A8H1：未結清帳單仍維持原 N96 規則；只有「已全部結清」時，改以當日正式流水＋allocation 關聯交易建立唯讀歷史明細。
+    // 不改 Supabase、不重算沖帳、不改 renderer，也不影響待收／待付的 outstanding 核心。
+    let activities=[];
+    if(start){
+      activities=all.filter(r=>qN96AtOrAfter(r,start)&&qN96AtOrBefore(r,cutoff)&&qN225ActivityDirectionMatch(r,direction)).sort(qN96Cmp);
+    }else if(cutoff){
+      const cutoffDate=qN96Date(cutoff);
+      const sameDay=all.filter(r=>qN96Date(r)===cutoffDate&&qN225ActivityDirectionMatch(r,direction));
+      const linkedIds=new Set();
+      sameDay.forEach(r=>{
+        if(r?.id)linkedIds.add(String(r.id));
+        (Array.isArray(r?.allocations)?r.allocations:[]).forEach(a=>{if(a?.recordId)linkedIds.add(String(a.recordId))});
+      });
+      // 若當日是收／付款，把它實際沖掉的原交易帶回完整明細；反向也把沖到當日交易的 settlement 帶回。
+      all.forEach(r=>{
+        const allocs=Array.isArray(r?.allocations)?r.allocations:[];
+        if(allocs.some(a=>linkedIds.has(String(a?.recordId||'')))){
+          if(r?.id)linkedIds.add(String(r.id));
+          allocs.forEach(a=>{if(a?.recordId)linkedIds.add(String(a.recordId))});
+        }
+      });
+      activities=all.filter(r=>linkedIds.has(String(r?.id||''))&&qN225ActivityDirectionMatch(r,direction)).sort(qN96Cmp);
+    }
     const transactionRows=activities.filter(r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)),settlementRows=activities.filter(r=>r.mode==='money_settlement'||r.mode==='money_refund'),adjustmentRows=activities.filter(r=>qAccountingIsAdjustment(r));
     return {
       schema:'xinru_general_complete_detail_v1',kind:'general',direction,contact:c||null,
