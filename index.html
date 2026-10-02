@@ -6953,10 +6953,11 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // N233A8：儲值只有一套核心。結帳方式決定帳期；「儲值」只是一種收款／付款方式。
   function qStoredValueBalance(c){
     const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));
-    let balance=0;
-    // H5：儲值只走一套 Ledger。實際儲值收款視為「資金進入儲值帳」，
-    // 自動儲值扣款 storedValueUse 視為「儲值帳支出」。允許餘額為負數。
-    // 舊版 deposit／儲值扣款仍只做相容讀取。
+    // H6：中央「淨儲值」只讀正式帳務結果，不把原始儲值收款總額當成可用餘額。
+    // 1) 已分配到銷貨後形成的溢收，由既有 qContactCreditTotals() 取得（0299 = $10）。
+    // 2) 尚未分配的儲值入金／舊 deposit 仍屬可用儲值。
+    // 3) storedValueUse 是儲值支出，可把餘額扣成負數。
+    let balance=qMoney(qContactCreditTotals(c).receivableCredit||0);
     rows.forEach(r=>{
       if(r.txnType==='deposit') balance+=qMoney(r.deposit||r.amount||r.total);
       if(r.payment==='儲值扣款') balance-=qMoney(r.paid);
@@ -6968,14 +6969,19 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       }
       const methods=Array.isArray(r.methods)?r.methods:[];
       let stored=methods.filter(m=>String(m?.method||'').trim()==='儲值').reduce((a,m)=>a+qMoney(m?.amount),0);
-      // 舊資料相容：若主檔預設儲值，且此筆本身已標示 creditAmount／儲值文字，
-      // methods 遺失時才以實收金額作為儲值收款；不把現金／匯款誤算成儲值。
       if(stored<=0&&String(c?.paymentDefault||'')==='儲值'){
         const text=[r.note,r.reason,r.payment,r.paymentMethod,r.txnTypeLabel].map(x=>String(x||'')).join('|');
         const hasOther=methods.some(m=>{const k=String(m?.method||'').trim();return k&&k!=='儲值'&&qMoney(m?.amount)>0});
         if(!hasOther&&(qMoney(r.creditAmount)>0||text.includes('儲值'))) stored=qMoney(r.amount||r.total||r.paid);
       }
-      if(stored>0) balance+=stored;
+      if(stored<=0)return;
+      const allocs=Array.isArray(r.allocations)?r.allocations:[];
+      // 有 allocation 的舊資料，其剩餘額已由 qContactCreditTotals() 的溢收核心計入；不可再把整筆 stored 重複加一次。
+      // 沒有 allocation 的純儲值入金，才直接加入可用儲值。
+      if(!allocs.length){
+        const explicitCredit=qMoney(r.creditAmount);
+        balance+=explicitCredit>0?explicitCredit:stored;
+      }
     });
     return qMoney(balance);
   }
