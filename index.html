@@ -6888,7 +6888,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     // 內部帳本仍由 ledgerShowTurnover 控制；兩者不可互相影響。
     const billShowTurnover=route.contact?.billShowTurnover!==false;
     const containerSnapshot=billShowTurnover?qN109CurrentContainerSnapshot(route.contact):{contact:route.contact,enabledTypes:[],balances:[],text:''};
-    return {schema:'xinru_complete_output_v1',kind:'general',dataMode:route.kind==='history'?'history':'statement',outputPartyLabel:'客戶',noFreight,reportLayout:route.reportLayout,contact:containerSnapshot.contact||route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),currentContainerText:containerSnapshot.text,currentContainerBalances:containerSnapshot.balances,currentContainerTypes:containerSnapshot.enabledTypes,source:route.data};
+    return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight,reportLayout:route.reportLayout,contact:containerSnapshot.contact||route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),currentContainerText:containerSnapshot.text,currentContainerBalances:containerSnapshot.balances,currentContainerTypes:containerSnapshot.enabledTypes,source:route.data};
   }
   // N119：大量模式四種正式輸出共用「單日表頭＋明細不重複日期」規則。
   function qN119IsLarge(model){return model?.kind==='general'&&model?.reportLayout==='large'}
@@ -8595,21 +8595,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
       range:{from:start?.date||'',to:cutoff?.date||''}
     };
   }
-  // N233A10：歷史 Ledger 與未結 Statement 正式分流。
-  // 歷史只讀既有正式交易；不新增、不搬移、不重寫 Supabase 資料，也不以未結清餘額決定交易是否存在。
-  function qN96HistoryLedger(c,direction='receipt',rangeInput=null){
-    direction=direction==='payment'?'payment':'receipt';
-    let from='',to='';
-    if(typeof rangeInput==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(rangeInput)){from=rangeInput;to=rangeInput}
-    else if(rangeInput&&typeof rangeInput==='object'){from=qN97IsoDate(rangeInput.from||rangeInput.dateFrom||'');to=qN97IsoDate(rangeInput.to||rangeInput.dateTo||'');if(from&&!to)to=from;if(to&&!from)from=to}
-    const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price'&&qN225ActivityDirectionMatch(r,direction));
-    const activities=all.filter(r=>{const d=qN96Date(r);return (!from||d>=from)&&(!to||d<=to)}).sort(qN96Cmp);
-    const transactionRows=activities.filter(r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r));
-    const settlementRows=activities.filter(r=>r.mode==='money_settlement'||r.mode==='money_refund');
-    const adjustmentRows=activities.filter(r=>qAccountingIsAdjustment(r));
-    const balances=qN96OutstandingAt(c,direction,null),open=balances.filter(x=>x.remain>0.000001);
-    return {schema:'xinru_history_ledger_v1',kind:'history',direction,contact:c||null,history:true,settled:open.length===0,outstanding:open.reduce((sum,x)=>sum+x.remain,0),openRows:open,activities,transactions:transactionRows,settlements:settlementRows,adjustments:adjustmentRows,range:{from,to}};
-  }
   // N97：統一輸出資料路由＋產農週表資料核心。此層只決定「資料從哪裡來」，不修改四種輸出 renderer。
   function qN97IsoDate(v){const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[0]:''}
   function qN97WeekRange(input){
@@ -8642,16 +8627,10 @@ window.qNormalizeTurnAction=qN93TurnAction;
     if(context==='farmer_weekly_batch')return {schema:'xinru_output_route_v1',kind:'farmer_weekly',contact:c,reportLayout:'farmer_weekly',data:qN97FarmerWeekly(opts.week||opts.date||entity?.date||'')};
     const requestedDirection=opts.direction||entity?.direction||'';const direction=requestedDirection==='payable'?'payment':(requestedDirection==='receivable'?'receipt':(requestedDirection||((entity?.txnType==='purchase'||entity?.accountDirection==='payable'||entity?.txnTypeLabel==='進貨')?'payment':'receipt')));
     const cutoff=opts.cutoff||entity?.id||entity?.date||null;
-    // N233A10：只有「個人帳本／完整歷史」走 History Ledger；目前帳單、待收待付仍維持原 Statement 核心。
-    const historyContext=context==='individual_ledger'||context==='history'||context==='complete_detail'||context==='ledger_history';
-    if(historyContext){
-      const range=(opts.dateFrom||opts.dateTo||entity?.dateFrom||entity?.dateTo)?{from:opts.dateFrom||entity?.dateFrom||'',to:opts.dateTo||entity?.dateTo||''}:(entity?.date||opts.date||'');
-      return {schema:'xinru_output_route_v1',kind:'history',contact:c,reportLayout:qN97EffectiveReportLayout(c),direction,data:qN96HistoryLedger(c,direction,range)};
-    }
     return {schema:'xinru_output_route_v1',kind:'general',contact:c,reportLayout:qN97EffectiveReportLayout(c),direction,data:qN96GeneralDetail(c,direction,cutoff)};
   }
   window.xrAccountingDetailCore={
-    version:'N233A10',general:qN96GeneralDetail,history:qN96HistoryLedger,outstandingAt:qN96OutstandingAt,
+    version:'N125',general:qN96GeneralDetail,outstandingAt:qN96OutstandingAt,
     formalRecords:qN96FormalRecords,compare:qN96Cmp,farmerWeekly:qN97FarmerWeekly,
     weekRange:qN97WeekRange,effectiveReportLayout:qN97EffectiveReportLayout,outputRoute:qN97OutputRoute,outputModel:qN98OutputModel
   };
