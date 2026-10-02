@@ -4487,6 +4487,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N269：僅移除每月／每週農收主列的原始車趟數顯示；週期合併核心不變。 -->
 <!-- N270：一般農收顯示本期貨款總額；可依往來資料啟用分張核對；分類名稱可改刪。分張資料獨立保存，不改原帳務。 -->
 <!-- N271：分類管理改乾淨主畫面＋單一管理入口；農收分張改逐張輸入、增刪與即時核對。未改帳務金額核心。 -->
+<!-- N272：一般農收本期貨款總額改抓同客戶同週期全部正式 sale 帳務，包含無商品明細的正負調整；分類農收算法不變。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -8294,7 +8295,23 @@ K白.kg
     if(Number.isFinite(direct)&&direct!==0)return direct;
     return (r?.items||[]).reduce((a,i)=>a+qN265GoodsAmount(i),0);
   }
-  function qN270GroupTotal(g){return g.records.reduce((a,r)=>a+qN270RecordTotal(r),0)}
+  function qN272FormalSaleRows(c){
+    const rs=(typeof acctRecords==='function'?acctRecords():[]);
+    return rs.filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.mode!=='money_settlement'&&r.txnType==='sale'&&qN265RecordBelongs(r,c));
+  }
+  function qN272SamePeriod(c,base,r){
+    const cyc=qN267ReceiptCycle(c);
+    if(cyc==='每月')return String(r?.date||'').slice(0,7)===String(base?.date||'').slice(0,7);
+    if(cyc==='每週')return qN268WeekKey(r?.date)===qN268WeekKey(base?.date);
+    return String(r?.id||'')===String(base?.id||'');
+  }
+  function qN270GroupTotal(g){
+    const c=g.contact,base=g.records[0];
+    if(qN267ReceiptMode(c)==='general'){
+      return qN272FormalSaleRows(c).filter(r=>qN272SamePeriod(c,base,r)).reduce((a,r)=>a+qN270RecordTotal(r),0);
+    }
+    return g.records.reduce((a,r)=>a+qN270RecordTotal(r),0);
+  }
 
   async function qN265SaveRule(name,category,excluded=false){
     const row={product_name:String(name||'').trim(),category:excluded?null:String(category||'').trim()||null,excluded:!!excluded,updated_at:new Date().toISOString(),updated_by:currentUser?.id||null};
