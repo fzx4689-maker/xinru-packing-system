@@ -4482,6 +4482,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N259：容器顯示核心統一。期初／調整依正式 balanceDelta 顯示欠／餘方向；查詢、個人明細、摘要、區間統計、LINE／複製圖片共用同一轉譯；不改容器計算核心。 -->
 <!-- N260：修正 N259 跨 script 作用域。查詢／圖片改由 window.qContainer* 正式共用入口呼叫；不改任何 balanceDelta、stockDelta、assetDelta 或商品重量功能。 -->
 <!-- N261：修正 N259 顯示核心內 canonical 跨 script 作用域；改經 window.xrContainerRegistry.canonical。容器查詢仍讀 window.qAllContainerEvents() 正式事件，不刪除、不改寫資料。 -->
+<!-- N262：N259 新增顯示核心改為完整自包含，不再依賴其他 script 私有 canonical / qN181DisplayNumber；只修顯示作用域，不改資料、不改容器計算、不動商品重量。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -8534,16 +8535,22 @@ window.qNormalizeTurnAction=qN93TurnAction;
   /* N259：唯一容器顯示轉譯核心。
      只負責把正式事件的 balanceDelta / qty 翻成現場文字；
      不修改 balanceDelta、stockDelta、assetDelta，也不重算欠餘。 */
+  function qN259Num(v){
+    const n=Math.abs(Number(v)||0);
+    return Number.isInteger(n)?String(n):String(Number(n.toFixed(3)));
+  }
+  function qN259Canon(v){
+    const f=window.xrContainerRegistry&&window.xrContainerRegistry.canonical;
+    return typeof f==='function'?f(v):String(v||'').trim();
+  }
   function qN259BalanceText(type,owed,surplus){
-    const canon=(window.xrContainerRegistry&&typeof window.xrContainerRegistry.canonical==='function')?window.xrContainerRegistry.canonical:(v=>String(v||'').trim());
-    const t=canon(type),o=Math.max(0,Number(owed)||0),su=Math.max(0,Number(surplus)||0);
-    if(t==='籃子')return o>0?'欠籃 '+qN181DisplayNumber(o):(su>0?'餘籃 '+qN181DisplayNumber(su):'已結清');
-    return o>0?'欠 '+qN181DisplayNumber(o):(su>0?'餘 '+qN181DisplayNumber(su):'已結清');
+    const t=qN259Canon(type),o=Math.max(0,Number(owed)||0),su=Math.max(0,Number(surplus)||0);
+    if(t==='籃子')return o>0?'欠籃 '+qN259Num(o):(su>0?'餘籃 '+qN259Num(su):'已結清');
+    return o>0?'欠 '+qN259Num(o):(su>0?'餘 '+qN259Num(su):'已結清');
   }
   function qN259EventDisplay(e){
-    const canon=(window.xrContainerRegistry&&typeof window.xrContainerRegistry.canonical==='function')?window.xrContainerRegistry.canonical:(v=>String(v||'').trim());
-    const t=canon(e?.type||''),a=String(e?.action||'進出'),q=Math.abs(Number(e?.qty)||0),d=Number(e?.balanceDelta)||0;
-    const basket=t==='籃子', n=v=>qN181DisplayNumber(Math.abs(Number(v)||0));
+    const t=qN259Canon(e?.type||''),a=String(e?.action||'進出'),q=Math.abs(Number(e?.qty)||0),d=Number(e?.balanceDelta)||0;
+    const basket=t==='籃子', n=v=>qN259Num(v);
     if(a==='期初數量'){
       if(d<0)return {action:basket?'期初欠籃':'期初欠',qty:n(d),signed:d};
       if(d>0)return {action:basket?'期初餘籃':'期初餘',qty:n(d),signed:d};
@@ -8571,7 +8578,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
   qTurnoverStateForContact=function(c){const events=qN93ContainerEventsForContact(c);return {events,rows:[...new Map(events.map(e=>[e.sourceRecordId,e.record])).values()],types:qN93ContainerBalance(events)}};
   qTurnoverSummaryHtml=function(c){
     const st=qTurnoverStateForContact(c);if(!st.types.length)return '<span class="acctTurnState emptyState">目前無籃子／鐵架／棧板／容器進出紀錄</span>';
-    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),buy=Math.max(0,Number(x.buyout)||0),type=qEsc(x.type);let state=type+'｜'+qN259BalanceText(x.type,owe,sur);if(buy>0)state+='｜買斷 '+qN181DisplayNumber(buy);return '<span class="acctTurnState"><b>'+state+'</b></span>'}).join('　');
+    return st.types.map(x=>{const owe=Math.max(0,Number(x.owed)||0),sur=Math.max(0,Number(x.surplus)||0),buy=Math.max(0,Number(x.buyout)||0),type=qEsc(x.type);let state=type+'｜'+qN259BalanceText(x.type,owe,sur);if(buy>0)state+='｜買斷 '+qN259Num(buy);return '<span class="acctTurnState"><b>'+state+'</b></span>'}).join('　');
   };
   qOpenTurnoverForContact=function(entity,skipNavSave=false){
     const c=qContact(entity);if(!c)return;const publicKey=String(c.name||entity||'').trim();
