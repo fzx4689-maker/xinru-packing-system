@@ -7699,8 +7699,11 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     if(hits.length>1){const opts=hits.map((x,i)=>(i+1)+'. '+qDisplayNumber(qN230Kg(x.spec))+'K').join('\n'),pick=prompt(name+' 有多個重量，請輸入編號：\n'+opts,'1');if(pick===null)return;hit=hits[Math.max(0,Math.min(hits.length-1,Number(pick||1)-1))]||hit}
     const kg=qN230Kg(hit.spec);if(kg>0){const input=row.querySelector('.qKg');if(input){input.value=String(kg);input.dataset.n230Auto='1';input.dataset.n230Spec=String(kg);input.dispatchEvent(new Event('input',{bubbles:true}))}}
   }
-  document.addEventListener('change',e=>{const n=e.target.closest?.('.qName');if(n)qN230ApplyWeightToRow(n.closest('[data-qrow]'))},true);
-  document.addEventListener('blur',e=>{const n=e.target.closest?.('.qName');if(n)qN230ApplyWeightToRow(n.closest('[data-qrow]'))},true);
+  // N233D1 DIAGNOSTIC ONLY: temporarily disable the two global capture listeners
+  // for automatic product-weight fill. No accounting routes, buttons, renderers,
+  // calculations, crop/photo logic, or stored data are changed in this diagnostic build.
+  // document.addEventListener('change',e=>{const n=e.target.closest?.('.qName');if(n)qN230ApplyWeightToRow(n.closest('[data-qrow]'))},true);
+  // document.addEventListener('blur',e=>{const n=e.target.closest?.('.qName');if(n)qN230ApplyWeightToRow(n.closest('[data-qrow]'))},true);
 
   function qRenderAccountingAction(section,a,skipNavSave=false){
     const work=document.getElementById('acctStageWork');if(!work)return;
