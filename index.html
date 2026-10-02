@@ -4483,6 +4483,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N260：修正 N259 跨 script 作用域。查詢／圖片改由 window.qContainer* 正式共用入口呼叫；不改任何 balanceDelta、stockDelta、assetDelta 或商品重量功能。 -->
 <!-- N261：修正 N259 顯示核心內 canonical 跨 script 作用域；改經 window.xrContainerRegistry.canonical。容器查詢仍讀 window.qAllContainerEvents() 正式事件，不刪除、不改寫資料。 -->
 <!-- N262：N259 新增顯示核心改為完整自包含，不再依賴其他 script 私有 canonical / qN181DisplayNumber；只修顯示作用域，不改資料、不改容器計算、不動商品重量。 -->
+<!-- N263：只修容器往來圖片高度：增加底部空間，完整顯示「目前籃子」；不改帳務、期初、欠餘、查詢、資料或商品重量。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -9066,7 +9067,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
    if(to)periodRows=periodRows.filter(e=>String(e.date||'')<=to);
    const asc=periodRows.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.sourceRecordId||'').localeCompare(String(b.sourceRecordId||'')));
    const actionTotals=window.qContainerPeriodTotals(asc);
-   const W=1080,pad=76,lineH=58,headH=300,footH=120+Math.ceil(actionTotals.size/2)*48,H=Math.max(560,headH+asc.length*lineH+footH);
+   const W=1080,pad=76,lineH=58,headH=300,footH=260+Math.ceil(actionTotals.size/2)*48,H=Math.max(700,headH+asc.length*lineH+footH); /* N263：完整容納區間統計＋目前籃子＋底部留白 */
    const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
    x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111827';x.textBaseline='middle';
    x.font='700 44px sans-serif';x.fillText('欣儒農產行｜'+canonical(type)+'往來明細',pad,70);
