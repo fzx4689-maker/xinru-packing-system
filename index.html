@@ -6658,7 +6658,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     // 內部帳本仍由 ledgerShowTurnover 控制；兩者不可互相影響。
     const billShowTurnover=route.contact?.billShowTurnover!==false;
     const containerSnapshot=billShowTurnover?qN109CurrentContainerSnapshot(route.contact):{contact:route.contact,enabledTypes:[],balances:[],text:''};
-    return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight,reportLayout:route.reportLayout,contact:containerSnapshot.contact||route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),currentContainerText:containerSnapshot.text,currentContainerBalances:containerSnapshot.balances,currentContainerTypes:containerSnapshot.enabledTypes,source:route.data};
+    return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight,reportLayout:route.reportLayout,contact:containerSnapshot.contact||route.contact,direction:route.direction,range:route.data?.range||{},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,route.data?.outstanding||0),storedValueBalance:qStoredValueBalance(containerSnapshot.contact||route.contact),currentContainerText:containerSnapshot.text,currentContainerBalances:containerSnapshot.balances,currentContainerTypes:containerSnapshot.enabledTypes,source:route.data};
   }
   // N119：大量模式四種正式輸出共用「單日表頭＋明細不重複日期」規則。
   function qN119IsLarge(model){return model?.kind==='general'&&model?.reportLayout==='large'}
@@ -6690,7 +6690,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN101SummaryText(model){
     const s=model.summary||{},parts=['貨款小計 '+qLedgerMoney(s.goods)];if(!model.noFreight)parts.push('運費小計 '+qLedgerMoney(s.freight));
     if(qN98Money(s.turnoverBuyout)!==0)parts.push('籃子小計 '+qLedgerMoney(s.turnoverBuyout));
-    return parts.join(' ＋ ')+' ＝ 總計 '+qLedgerMoney(s.total);
+    const stored=(model.kind==='general'&&String(model.contact?.paymentDefault||'')==='儲值')?(' ｜ 目前儲值 '+qLedgerMoney(model.storedValueBalance||0)):'';return parts.join(' ＋ ')+' ＝ 總計 '+qLedgerMoney(s.total)+stored;
   }
   function qN101PreviewScript(){return `<script>(function(){function fit(){document.querySelectorAll('.sheet').forEach(function(el){el.style.zoom='1';var maxW=Math.max(320,window.innerWidth-48),maxH=Math.max(420,window.innerHeight-105),w=el.offsetWidth,h=el.offsetHeight,sc=Math.min(1,maxW/w,maxH/h);el.style.zoom=String(sc)})}window.addEventListener('resize',fit);window.addEventListener('load',fit);window.doPrint=function(){document.querySelectorAll('.sheet').forEach(function(el){el.style.zoom='1'});window.print();setTimeout(fit,300)};window.goBackAcct=function(){window.close();setTimeout(function(){if(!window.closed)history.back()},120)};})();<\/script>`}
 
@@ -6784,7 +6784,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const W=720,pad=34,rowH=38,headH=190,containerText=qN103ContainerText(model),currentContainer=model.currentContainerText||'',buyoutText=qN104BuyoutTextModel(model);
     const rows=model.kind==='farmer_weekly'?model.groups.flatMap(g=>[{kind:'group',name:g.contact?.name||'產農'},...(g.rows||[])]):model.rows;
     // N104：LINE 圖片不是固定紙張；高度完全依「明細列＋結算列」計算，內容增加就自動往下長。
-    const footerLines=2+(buyoutText?1:0)+(containerText?1:0)+(currentContainer?1:0)+(model.kind==='general'?1:0);
+    const footerLines=2+(buyoutText?1:0)+(containerText?1:0)+(currentContainer?1:0)+(model.kind==='general'?1:0)+(model.kind==='general'&&String(model.contact?.paymentDefault||'')==='儲值'?1:0);
     const footerTopGap=28,footerLineH=34,footerBottom=34;
     const H=Math.max(360,headH+rows.length*rowH+footerTopGap+footerLines*footerLineH+footerBottom),cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
     x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111';x.textBaseline='middle';
@@ -6801,7 +6801,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(containerText){y+=footerLineH;txt(containerText,W-pad,y,18,true,'right')}
     if(currentContainer){y+=footerLineH;txt(currentContainer,pad,y,18,true,'left')}
     y+=footerLineH;txt('總計 '+money(model.summary.total),W-pad,y,23,true,'right');
-    if(model.kind==='general'){y+=footerLineH;txt('目前未結清 '+money(model.summary.outstanding),W-pad,y,22,true,'right')}
+    if(model.kind==='general'){y+=footerLineH;txt('目前未結清 '+money(model.summary.outstanding),W-pad,y,22,true,'right');if(String(model.contact?.paymentDefault||'')==='儲值'){y+=footerLineH;txt('目前儲值 '+money(model.storedValueBalance||0),W-pad,y,22,true,'right')}}
     return cv;
   }
   function qN102Image(model){
