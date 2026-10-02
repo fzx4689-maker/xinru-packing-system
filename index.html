@@ -4447,52 +4447,6 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N207：純效能層優化；提醒批次 upsert、首頁切頁不重跑 autoPublish、前景恢復事件合併降頻。帳務/容器/金額核心未修改。 -->
 <!-- N220：容器總覽白話方向顯示；依往來身分把既有 owed/surplus 翻成「客戶欠公司／公司欠客戶／公司欠產農／產農欠公司／公司欠廠商／廠商欠公司」；只改顯示，不修改 balanceDelta、stockDelta 或容器事件核心。 -->
 <!-- N221：容器總覽純顯示排版：桌機方向摘要兩欄、手機單欄；明細一人一行。籃子顯示欠籃/餘籃、保麗龍顯示欠/餘、鐵架與棧板顯示既有結餘正負數；不修改任何容器計算規則。 -->
-<script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -4575,52 +4529,6 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 <!-- 第五階段：現場單一職務極簡顯示、派工訂單管理入口、進口白K泰文音譯 -->
 <div id="iosPullRefresh" style="position:fixed;left:50%;top:8px;transform:translate(-50%,-70px);z-index:99999;background:#fff;border:1px solid #dbe2ea;border-radius:999px;padding:8px 14px;box-shadow:0 4px 18px #0002;font-weight:900;transition:transform .16s ease;pointer-events:none">↓ 下拉更新</div>
 <!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
-<script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
 </body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
 function acctLedgerCanvas(d){
@@ -6571,148 +6479,10 @@ let qN217IdentityCache = new WeakMap();
   function qPrintStandard80(c,ledger){
     const bilateral=String(c?.accountRelationMode||(c?.accountMode==='雙向往來'?'雙向往來':''))==='雙向往來',sales=qStatementRecords(c,ledger,'sale'),purchases=qStatementRecords(c,ledger,'purchase'),all=qStatementRecords(c,ledger,''),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
     let content='';if(bilateral){content+=qStandard80SectionHtml('① 對方欠我們｜應收帳',sales,c,'目前應收',ledger.receivable);content+=qStandard80SectionHtml('② 我們欠對方｜應付帳',purchases,c,'目前應付',ledger.payable)}else{const pay=String(c?.defaultDirection||'')==='付款'||(purchases.length&&!sales.length);content=qStandard80SectionHtml(pay?'應付明細':'應收明細',all,c,pay?'目前應付':'目前應收',pay?ledger.payable:ledger.receivable)}
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:9px}header{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:2mm;font-size:10px}.stmt{break-inside:auto;margin-bottom:3mm}.stmtHead{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:1.2mm 1.5mm;font-size:10px;background:#f3f3f3}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.65mm .5mm;text-align:center;vertical-align:middle}.txdate td{text-align:left;font-weight:900;background:#f7f7f7}.emptyrow{padding:4mm}.tot{text-align:right;border:1px solid #333;border-top:0;padding:1.2mm;font-weight:900;font-size:9px}</style></head><body><header><b>'+qCompanyHeader+'</b><span>往來對象：'+qEsc(c.name)+'</span><span>期間：'+qEsc(qLedgerStatementDateLabel())+'</span></header>'+content+'<script>window.onload=()=>window.print()<\/script><script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:9px}header{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:2mm;font-size:10px}.stmt{break-inside:auto;margin-bottom:3mm}.stmtHead{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:1.2mm 1.5mm;font-size:10px;background:#f3f3f3}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.65mm .5mm;text-align:center;vertical-align:middle}.txdate td{text-align:left;font-weight:900;background:#f7f7f7}.emptyrow{padding:4mm}.tot{text-align:right;border:1px solid #333;border-top:0;padding:1.2mm;font-weight:900;font-size:9px}</style></head><body><header><b>'+qCompanyHeader+'</b><span>往來對象：'+qEsc(c.name)+'</span><span>期間：'+qEsc(qLedgerStatementDateLabel())+'</span></header>'+content+'<script>window.onload=()=>window.print()<\/script></body></html>');w.document.close()
   }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close()
-  }
-  function qPrintRecord80(record){const c=qContact(record.contactId||record.customer)||{name:record.customer||'',freightDefault:'做帳時決定'},entry=qLedgerEntry(record),fake={entries:[entry],receivable:0,payable:0};const kind=entry.kind;if(kind==='sale')fake.receivable=qRecordTotal(record);if(kind==='purchase')fake.payable=qRecordTotal(record);/* N79：快速做帳與帳本查詢共用同一個80行排版決策。密集1–80不再只在帳本查詢生效。 */return qPrintSupermarket80(c,fake);const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const html=qStandard80SectionHtml(record.txnType==='purchase'?'進貨明細':'銷貨明細',[record],c,'','');w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:9px}header{display:flex;justify-content:space-between;margin-bottom:2mm}.stmtHead{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:1.2mm 1.5mm;font-size:10px;background:#f3f3f3}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.65mm .5mm;text-align:center}.txdate td{text-align:left;font-weight:900;background:#f7f7f7}.tot{text-align:right;border:1px solid #333;border-top:0;padding:1.2mm;font-weight:900}</style></head><body><header><b>'+qCompanyHeader+'</b><span>往來對象：'+qEsc(record.customer)+'</span></header>'+html+'<script>window.onload=()=>window.print()<\/script><script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close()}
-  function qPrintBill(record,mode){if(mode==='80')return qPrintRecord80(record);const rows=qBillRows(record),hasFreight=rows.some(x=>x.freight),c=qContact(record.customer),sum=qAmountSummary(record),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const narrow=mode==='80';let cols,body;if(narrow){cols='<th>序</th><th>品名</th><th>KG</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th>';body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price===''?(x.kind==='goods'?'待補':''):x.price)+'</td><td>'+qEsc(x.kind==='goods'?(x.goods===''?'':x.goods):'')+'</td><td>'+qEsc(x.kind==='goods'?(x.freight||''):'')+'</td></tr>').join('')}else{cols='<th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th>'+(hasFreight?'<th>運費</th>':'')+'<th>金額</th>';body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price===''?(x.kind==='goods'?'待補':''):x.price)+'</td>'+(hasFreight?'<td>'+qEsc(x.freight||'')+'</td>':'')+'<td>'+qEsc(x.goodsDisplay)+'</td></tr>').join('')}const sums='<table class="sum"><tr><th>貨款小計</th><td>$'+Math.round(sum.goods).toLocaleString('zh-TW')+'</td></tr><tr><th>運費小計</th><td>$'+Math.round(sum.freight).toLocaleString('zh-TW')+'</td></tr>'+(sum.turnover?'<tr><th>籃子小計</th><td>$'+Math.round(sum.turnover).toLocaleString('zh-TW')+'</td></tr>':'')+'<tr class="grand"><th>總計金額</th><td>$'+Math.round(sum.total).toLocaleString('zh-TW')+'</td></tr></table>';w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 帳單</title><style>@page{size:'+(narrow?'241mm 280mm':'A4')+';margin:'+(narrow?'4.2mm 18.9mm':'12mm')+'}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:'+(narrow?'10px':'13px')+';margin:0;'+(narrow?'width:203.2mm;':'')+'}h2{margin:0 0 5px}.meta{margin-bottom:6px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:'+(narrow?'2px 1px':'5px 4px')+';text-align:'+(narrow?'center':'right')+'}th:nth-child(2),td:nth-child(2){text-align:'+(narrow?'center':'left')+'}.sum{margin-top:8px;margin-left:auto;width:'+(narrow?'100%':'330px')+'}.sum th{text-align:left}.sum .grand{font-size:'+(narrow?'12px':'16px')+';font-weight:900}.note{margin-top:7px}</style></head><body><h2>'+qCompanyHeader+'</h2><div class="meta">客戶：'+qEsc(record.customer)+'　日期：'+qEsc(record.date)+'</div><table><thead><tr>'+cols+'</tr></thead><tbody>'+body+'</tbody></table>'+sums+(c?.outputNote?'<div class="note">備註：'+qEsc(c.outputNote)+'</div>':'')+'<script>window.onload=()=>{window.print()}<\/script><script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close()}
+  function qPrintRecord80(record){const c=qContact(record.contactId||record.customer)||{name:record.customer||'',freightDefault:'做帳時決定'},entry=qLedgerEntry(record),fake={entries:[entry],receivable:0,payable:0};const kind=entry.kind;if(kind==='sale')fake.receivable=qRecordTotal(record);if(kind==='purchase')fake.payable=qRecordTotal(record);/* N79：快速做帳與帳本查詢共用同一個80行排版決策。密集1–80不再只在帳本查詢生效。 */return qPrintSupermarket80(c,fake);const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const html=qStandard80SectionHtml(record.txnType==='purchase'?'進貨明細':'銷貨明細',[record],c,'','');w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:9px}header{display:flex;justify-content:space-between;margin-bottom:2mm}.stmtHead{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:1.2mm 1.5mm;font-size:10px;background:#f3f3f3}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.65mm .5mm;text-align:center}.txdate td{text-align:left;font-weight:900;background:#f7f7f7}.tot{text-align:right;border:1px solid #333;border-top:0;padding:1.2mm;font-weight:900}</style></head><body><header><b>'+qCompanyHeader+'</b><span>往來對象：'+qEsc(record.customer)+'</span></header>'+html+'<script>window.onload=()=>window.print()<\/script></body></html>');w.document.close()}
+  function qPrintBill(record,mode){if(mode==='80')return qPrintRecord80(record);const rows=qBillRows(record),hasFreight=rows.some(x=>x.freight),c=qContact(record.customer),sum=qAmountSummary(record),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const narrow=mode==='80';let cols,body;if(narrow){cols='<th>序</th><th>品名</th><th>KG</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th>';body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price===''?(x.kind==='goods'?'待補':''):x.price)+'</td><td>'+qEsc(x.kind==='goods'?(x.goods===''?'':x.goods):'')+'</td><td>'+qEsc(x.kind==='goods'?(x.freight||''):'')+'</td></tr>').join('')}else{cols='<th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th>'+(hasFreight?'<th>運費</th>':'')+'<th>金額</th>';body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price===''?(x.kind==='goods'?'待補':''):x.price)+'</td>'+(hasFreight?'<td>'+qEsc(x.freight||'')+'</td>':'')+'<td>'+qEsc(x.goodsDisplay)+'</td></tr>').join('')}const sums='<table class="sum"><tr><th>貨款小計</th><td>$'+Math.round(sum.goods).toLocaleString('zh-TW')+'</td></tr><tr><th>運費小計</th><td>$'+Math.round(sum.freight).toLocaleString('zh-TW')+'</td></tr>'+(sum.turnover?'<tr><th>籃子小計</th><td>$'+Math.round(sum.turnover).toLocaleString('zh-TW')+'</td></tr>':'')+'<tr class="grand"><th>總計金額</th><td>$'+Math.round(sum.total).toLocaleString('zh-TW')+'</td></tr></table>';w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 帳單</title><style>@page{size:'+(narrow?'241mm 280mm':'A4')+';margin:'+(narrow?'4.2mm 18.9mm':'12mm')+'}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:'+(narrow?'10px':'13px')+';margin:0;'+(narrow?'width:203.2mm;':'')+'}h2{margin:0 0 5px}.meta{margin-bottom:6px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:'+(narrow?'2px 1px':'5px 4px')+';text-align:'+(narrow?'center':'right')+'}th:nth-child(2),td:nth-child(2){text-align:'+(narrow?'center':'left')+'}.sum{margin-top:8px;margin-left:auto;width:'+(narrow?'100%':'330px')+'}.sum th{text-align:left}.sum .grand{font-size:'+(narrow?'12px':'16px')+';font-weight:900}.note{margin-top:7px}</style></head><body><h2>'+qCompanyHeader+'</h2><div class="meta">客戶：'+qEsc(record.customer)+'　日期：'+qEsc(record.date)+'</div><table><thead><tr>'+cols+'</tr></thead><tbody>'+body+'</tbody></table>'+sums+(c?.outputNote?'<div class="note">備註：'+qEsc(c.outputNote)+'</div>':'')+'<script>window.onload=()=>{window.print()}<\/script></body></html>');w.document.close()}
   function qBillBalanceSummary(record){if(record?.previewDraft)return null;const c=qContact(record?.contactId||record?.customer||'');if(!c)return null;const dir=(record.txnType==='purchase'||record.accountDirection==='payable')?'payment':'receipt',tot=qContactOpenTotals(c),pending=record?.pricingStatus==='pending_price'||qAmountSummary(record).pending,currentOutstanding=qRecordOutstanding(record),after=dir==='receipt'?tot.receivable:tot.payable,previous=Math.max(0,after-currentOutstanding),settled=!pending&&currentOutstanding<=0.000001;return {direction:dir,current:qRecordTotal(record),currentOutstanding,previous,after,settled,pending}}
   function qBillCanvas(record){const rows=qBillRows(record),c=qContact(record.customer),bal=qBillBalanceSummary(record),sum=qAmountSummary(record),hasFreight=rows.some(x=>x.freight),W=1080,pad=64,rowH=58,headH=250,balanceH=bal?190:(record?.previewDraft?90:0),noteH=c?.outputNote?90:35,H=headH+rowH*(rows.length+2)+balanceH+noteH+pad,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);if(record?.previewDraft){x.save();x.translate(W/2,H/2);x.rotate(-0.35);x.globalAlpha=.10;x.fillStyle='#b91c1c';x.font='900 86px sans-serif';x.textAlign='center';x.fillText('草稿｜非正式帳單',0,0);x.restore()}x.fillStyle='#111';x.textBaseline='middle';x.font='700 42px sans-serif';x.fillText(qCompanyHeader,pad,58);x.font='600 30px sans-serif';x.fillText('客戶：'+record.customer,pad,120);x.font='26px sans-serif';x.fillText('日期：'+record.date,pad,166);x.strokeStyle='#222';x.lineWidth=2;x.beginPath();x.moveTo(pad,205);x.lineTo(W-pad,205);x.stroke();const cols=hasFreight?[['序',42],['品名',320],['公斤',92],['數量',92],['單價',118],['運費',108],['金額',138]]:[['序',46],['品名',370],['公斤',102],['數量',102],['單價',130],['金額',155]];let cy=235,cx=pad;x.font='700 24px sans-serif';cols.forEach(([t,w],i)=>{x.textAlign=i===1?'left':'right';x.fillText(t,i===1?cx+8:cx+w-8,cy);cx+=w});cy+=40;x.font='24px sans-serif';rows.forEach(r=>{cx=pad;const vals=hasFreight?[r.no,r.name,qDisplayNumber(r.kg),r.qty,r.price,r.freight?qDisplayNumber(r.freight):'',r.goodsDisplay]:[r.no,r.name,qDisplayNumber(r.kg),r.qty,r.price,r.goodsDisplay];cols.forEach(([t,w],i)=>{x.textAlign=i===1?'left':'right';let v=String(vals[i]??'');if(i===1&&v.length>14)v=v.slice(0,14)+'…';x.fillText(v,i===1?cx+8:cx+w-8,cy);cx+=w});x.strokeStyle='#ddd';x.beginPath();x.moveTo(pad,cy+28);x.lineTo(W-pad,cy+28);x.stroke();cy+=rowH});x.textAlign='right';x.font='700 36px sans-serif';x.fillStyle='#111';x.font='700 28px sans-serif';x.fillText('貨款小計 $'+Math.round(sum.goods).toLocaleString('zh-TW'),W-pad,cy+8);x.fillText('運費小計 $'+Math.round(sum.freight).toLocaleString('zh-TW'),W-pad,cy+45);if(sum.turnover)x.fillText('籃子小計 $'+Math.round(sum.turnover).toLocaleString('zh-TW'),W-pad,cy+82);x.font='700 36px sans-serif';x.fillText('總計金額 $'+Math.round(sum.total).toLocaleString('zh-TW'),W-pad,cy+(sum.turnover?125:88));cy+=sum.turnover?165:128;if(record?.previewDraft){x.textAlign='left';x.fillStyle='#b91c1c';x.font='700 25px sans-serif';x.fillText('草稿預估｜尚未入帳，不影響目前應收／應付',pad,cy);cy+=55}if(bal){x.strokeStyle='#222';x.beginPath();x.moveTo(pad,cy-18);x.lineTo(W-pad,cy-18);x.stroke();x.textAlign='left';x.font='700 25px sans-serif';const recv=bal.direction==='receipt';x.fillText(recv?'應收狀態':'應付狀態',pad,cy+10);x.font='24px sans-serif';x.fillText((recv?'之前未結清：':'之前未結清：')+qLedgerMoney(bal.previous),pad,cy+52);if(bal.pending){x.fillStyle='#b45309';x.font='700 27px sans-serif';x.fillText('本筆待補價格｜暫不列入'+(recv?'應收':'應付'),pad,cy+96);x.fillStyle='#111'}else if(bal.settled){x.font='700 27px sans-serif';x.fillText('本筆已結清｜目前'+(recv?'累計應收：':'累計應付：')+qLedgerMoney(bal.after),pad,cy+96)}else{x.font='700 27px sans-serif';x.fillText('做帳後目前'+(recv?'累計應收：':'累計應付：')+qLedgerMoney(bal.after),pad,cy+96)}cy+=150}if(c?.outputNote){x.textAlign='left';x.fillStyle='#111';x.font='24px sans-serif';x.fillText('備註：'+c.outputNote,pad,cy)}return cv}
   function qCanvasBlob(record){return new Promise((resolve,reject)=>qBillCanvas(record).toBlob(b=>b?resolve(b):reject(new Error('帳單圖片產生失敗')),'image/png'))}
@@ -6913,53 +6683,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN99DocumentHtml(model,title){
     const large=qN119IsLarge(model),head=large?'<thead><tr><th>序</th><th>品名／摘要</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead>':'<thead><tr><th>日期</th><th>序</th><th>品名／摘要</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead>',renderRows=large?qN119LargeHtmlRows:qN99HtmlRows;
     const blocks=model.kind==='farmer_weekly'?model.groups.map(g=>'<h3>'+qEsc(g.contact?.name||'產農')+'</h3><table>'+head+'<tbody>'+renderRows(g.rows)+'</tbody></table>').join(''):'<table class="'+(model.noFreight?'nofreight':'')+'">'+head+'<tbody>'+renderRows(model.rows)+'</tbody></table>';
-    return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　目前未結清 '+qLedgerMoney(model.summary.outstanding)):'')+'</div><script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>';
+    return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　目前未結清 '+qLedgerMoney(model.summary.outstanding)):'')+'</div></body></html>';
   }
 
   // N101：中央輸出呈現核心。螢幕預覽與實際列印尺寸分離；全系統 PDF／報表紙只走這裡。
@@ -7017,53 +6741,7 @@ function qN233A9SettlementAppliedText(c,s){
     if(overflow.length){alert('以下產農本週明細超過單頁固定字級容量，系統不會拆頁或縮字：\n'+overflow.map(c=>c.name+'（'+c.rows.length+' 筆）').join('\n'));return}
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
     const pages=qN123FarmerPagesHtml(model,pageH);
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:'+cssPage+';margin:'+(paper?'4.2mm 18.9mm':'10mm')+'}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.farmerSheet{width:'+pageW+';height:'+pageH+'mm;margin:18px auto;background:#fff;display:grid;gap:2mm;align-items:start;box-shadow:0 2px 14px #999;overflow:hidden;break-after:page;page-break-after:always}.farmerSheet:last-child{break-after:auto;page-break-after:auto}.farmerSheet.cols1{grid-template-columns:1fr}.farmerSheet.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.farmerSheet.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.farmerCol{display:flex;flex-direction:column;gap:2mm;min-width:0}.farmerCard{border:1.2px dashed #555;break-inside:avoid;page-break-inside:avoid;padding:1mm;overflow:hidden}.farmerTitle{text-align:center;font-size:11pt;font-weight:900;line-height:5.2mm;white-space:nowrap}.farmerMeta{height:5.2mm;display:flex;align-items:center;justify-content:space-between;gap:1mm;font-size:9pt;white-space:nowrap;overflow:visible}.farmerCard table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt}.farmerCard th,.farmerCard td{border:1px solid #222;height:4.4mm;line-height:4.4mm;padding:0 .3mm;text-align:center;white-space:nowrap;overflow:hidden}.farmerCard th{font-weight:900}.farmerCard th:nth-child(1){width:23%}.farmerCard th:nth-child(2){width:7%}.farmerCard th:nth-child(3){width:28%}.farmerCard th:nth-child(4){width:11%}.farmerCard th:nth-child(5){width:14%}.farmerCard th:nth-child(6){width:17%}.farmerCard .item{text-align:left}.farmerCard .money{text-align:right}.farmerCard tfoot td{font-weight:900;height:5mm;line-height:5mm}.farmerCard tfoot td:first-child{text-align:right;padding-right:1mm}@media print{html,body{background:#fff}.toolbar{display:none!important}.farmerSheet{margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="window.close()">← 返回帳務</button><button onclick="window.print()">'+(paper?'🖨️ 列印 LQ-310':'📄 列印／另存 PDF')+'</button></div>'+pages+'<script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:'+cssPage+';margin:'+(paper?'4.2mm 18.9mm':'10mm')+'}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.farmerSheet{width:'+pageW+';height:'+pageH+'mm;margin:18px auto;background:#fff;display:grid;gap:2mm;align-items:start;box-shadow:0 2px 14px #999;overflow:hidden;break-after:page;page-break-after:always}.farmerSheet:last-child{break-after:auto;page-break-after:auto}.farmerSheet.cols1{grid-template-columns:1fr}.farmerSheet.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.farmerSheet.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.farmerCol{display:flex;flex-direction:column;gap:2mm;min-width:0}.farmerCard{border:1.2px dashed #555;break-inside:avoid;page-break-inside:avoid;padding:1mm;overflow:hidden}.farmerTitle{text-align:center;font-size:11pt;font-weight:900;line-height:5.2mm;white-space:nowrap}.farmerMeta{height:5.2mm;display:flex;align-items:center;justify-content:space-between;gap:1mm;font-size:9pt;white-space:nowrap;overflow:visible}.farmerCard table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt}.farmerCard th,.farmerCard td{border:1px solid #222;height:4.4mm;line-height:4.4mm;padding:0 .3mm;text-align:center;white-space:nowrap;overflow:hidden}.farmerCard th{font-weight:900}.farmerCard th:nth-child(1){width:23%}.farmerCard th:nth-child(2){width:7%}.farmerCard th:nth-child(3){width:28%}.farmerCard th:nth-child(4){width:11%}.farmerCard th:nth-child(5){width:14%}.farmerCard th:nth-child(6){width:17%}.farmerCard .item{text-align:left}.farmerCard .money{text-align:right}.farmerCard tfoot td{font-weight:900;height:5mm;line-height:5mm}.farmerCard tfoot td:first-child{text-align:right;padding-right:1mm}@media print{html,body{background:#fff}.toolbar{display:none!important}.farmerSheet{margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="window.close()">← 返回帳務</button><button onclick="window.print()">'+(paper?'🖨️ 列印 LQ-310':'📄 列印／另存 PDF')+'</button></div>'+pages+'</body></html>');w.document.close();
   }
   function qN101Pdf(model){
     if(model.kind==='farmer_weekly')return qN123FarmerPrint(model,'pdf');
@@ -7072,53 +6750,7 @@ function qN233A9SettlementAppliedText(c,s){
     const head=large?'<thead><tr><th>序</th><th>品名／摘要</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead>':'<thead><tr><th>日期</th><th>序</th><th>品名／摘要</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead>',renderRows=large?qN119LargeHtmlRows:qN99HtmlRows;
     const blocks=model.kind==='farmer_weekly'?model.groups.map(g=>'<h3>'+qEsc(g.contact?.name||'產農')+'</h3><table>'+head+'<tbody>'+renderRows(g.rows)+'</tbody></table>').join(''):'<table class="'+(model.noFreight?'nofreight':'')+'">'+head+'<tbody>'+renderRows(model.rows)+'</tbody></table>';
     const containerText=qN103ContainerText(model),currentContainer=model.currentContainerText||'',sum=qN101SummaryText(model)+(model.kind==='general'?('　｜　目前未結清 '+qLedgerMoney(model.summary.outstanding)):'')+(containerText?('<br><span class="containers">'+qEsc(containerText)+'</span>'):'')+(currentContainer?('<br><span class="containers current">'+qEsc(currentContainer)+'</span>'):'');
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:A4 portrait;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:12mm;box-shadow:0 2px 14px #999;font-size:12pt}h1{font-size:20pt;margin:0 0 3mm}h3{font-size:14pt;margin:5mm 0 2mm}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5pt}th,td{border:1px solid #555;padding:2.1mm 1.4mm;text-align:center;word-break:break-word}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.sum{margin-top:5mm;border-top:1px solid #444;padding-top:3mm;text-align:right;font-size:12.5pt;font-weight:800;line-height:1.6}.sum .containers{display:block;margin-top:1.5mm;font-size:12pt}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:210mm;min-height:297mm;margin:0;box-shadow:none;padding:12mm;break-after:page}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印／另存 PDF</button></div><section class="sheet"><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">'+sum+'</div></section>'+qN101PreviewScript()+'<script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:A4 portrait;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:12mm;box-shadow:0 2px 14px #999;font-size:12pt}h1{font-size:20pt;margin:0 0 3mm}h3{font-size:14pt;margin:5mm 0 2mm}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5pt}th,td{border:1px solid #555;padding:2.1mm 1.4mm;text-align:center;word-break:break-word}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.sum{margin-top:5mm;border-top:1px solid #444;padding-top:3mm;text-align:right;font-size:12.5pt;font-weight:800;line-height:1.6}.sum .containers{display:block;margin-top:1.5mm;font-size:12pt}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:210mm;min-height:297mm;margin:0;box-shadow:none;padding:12mm;break-after:page}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印／另存 PDF</button></div><section class="sheet"><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">'+sum+'</div></section>'+qN101PreviewScript()+'</body></html>');w.document.close();
   }
 
   function qN101Paper(model){
@@ -7138,53 +6770,7 @@ function qN233A9SettlementAppliedText(c,s){
     const largeHeaderMeta=()=>{const d=largeDate(),f=qN135FreightRateLabel(model);return '日期：'+d+qN135Weekday(d)+(f?'　'+f:'')};
     const pageHtml=pages.map(pg=>{let body;if(large){const left=pg.rows.slice(0,capacity),right=pg.rows.slice(capacity);body='<div class="twocol"><div class="papercol">'+largeTable(left)+'</div><div class="papercol">'+largeTable(right)+'</div></div>'}else body=table(pg.rows);let foot='';if(pg.isLast){const sm=pg.group.summary||model.summary;if(farmer){const ct=qN103ContainerTextFromRows(pg.group.rows||[]);foot='<div class="foot simple"><div>'+qEsc(qN101SummaryText({summary:sm}))+'</div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+'</div>'}else if(large){const ct=qN103ContainerText(model),cur=model.currentContainerText||'';foot='<div class="foot sign"><div class="calcLine">'+qEsc(qN101SummaryText(model).replace(/小計/g,''))+'</div><div class="payLine"><b>目前未結清 '+qLedgerMoney(model.summary.outstanding)+'</b><span>付款人：____________</span><span>付款日期：____________</span></div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+(cur?'<div class="container current">'+qEsc(cur)+'</div>':'')+'</div>'}else{const ct=qN103ContainerText(model),cur=model.currentContainerText||'';foot='<div class="foot simple"><div>'+qEsc(qN101SummaryText(model))+'</div>'+(ct?'<div class="container">'+qEsc(ct)+'</div>':'')+(cur?'<div class="container current">'+qEsc(cur)+'</div>':'')+'<div class="open">目前未結清 '+qLedgerMoney(model.summary.outstanding)+'</div></div>'}}return '<section class="sheet paper"><header><div class="companyLine">'+qEsc(qCompanyHeader)+'</div><div class="metaLine"><span>'+(model.outputPartyLabel||'客戶')+'：'+qEsc((farmer?pg.group.contact:model.contact)?.name||'')+'</span><span>'+(large?qEsc(largeHeaderMeta()):'期間：'+qEsc(qN98RangeLabel(model)))+'</span><span>第 '+pg.page+'/'+pg.count+' 頁</span></div></header>'+body+foot+'</section>'}).join('');
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>LQ-310 報表紙</title><style>@page{size:'+PAPER_W+'mm '+PAPER_H+'mm;margin:'+MARGIN_V+'mm 18.9mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:18px auto;background:#fff;position:relative;box-shadow:0 2px 14px #999;font-size:10.5pt;overflow:hidden}.paper{break-after:page;page-break-after:always}.paper:last-child{break-after:auto;page-break-after:auto}header{height:'+HEAD_H+'mm;display:flex;flex-direction:column;justify-content:center;font-size:'+(largeRowCount<=6?'12.5':(largeRowCount<=12?'11.5':'10.5'))+'pt;font-weight:700}.companyLine{width:100%;text-align:center;font-weight:900;line-height:8mm}.metaLine{width:100%;display:flex;justify-content:space-between;align-items:center;line-height:7mm}.twocol{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.4mm}.twocol .papercol{min-width:0}.twocol .papercol table{width:100%}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:'+TABLE_FONT+'pt}th,td{border:1px solid #333;height:'+ROW_H+'mm;padding:.6mm .7mm;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}thead th{height:'+COLHEAD_H+'mm;font-size:'+TABLE_FONT+'pt;font-weight:900}.name{text-align:left}.cash td{font-weight:700}.nofreight th:last-child,.nofreight td:last-child{display:none}.foot{position:absolute;left:0;right:0;bottom:0;border-top:1.4px solid #222;background:#fff;font-weight:900}.foot.simple{min-height:'+FOOT_H+'mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:2mm;padding:2mm 2.5mm;font-size:13.5pt}.foot.simple .open{font-size:15pt}.foot.simple .container{font-size:12pt;text-align:right}.foot.sign{height:'+FOOT_H+'mm;padding:1.4mm 2.5mm;display:flex;flex-direction:column;justify-content:center;gap:.8mm}.foot.sign .calcLine{text-align:right;white-space:nowrap;font-size:12pt}.foot.sign .payLine{display:flex;align-items:center;justify-content:space-between;gap:4mm;white-space:nowrap;font-size:11.5pt}.foot.sign .payLine b{font-size:12.5pt}.foot.sign .container{font-size:10.5pt;text-align:right}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印 LQ-310</button></div>'+pageHtml+qN101PreviewScript()+'<script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>LQ-310 報表紙</title><style>@page{size:'+PAPER_W+'mm '+PAPER_H+'mm;margin:'+MARGIN_V+'mm 18.9mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:18px auto;background:#fff;position:relative;box-shadow:0 2px 14px #999;font-size:10.5pt;overflow:hidden}.paper{break-after:page;page-break-after:always}.paper:last-child{break-after:auto;page-break-after:auto}header{height:'+HEAD_H+'mm;display:flex;flex-direction:column;justify-content:center;font-size:'+(largeRowCount<=6?'12.5':(largeRowCount<=12?'11.5':'10.5'))+'pt;font-weight:700}.companyLine{width:100%;text-align:center;font-weight:900;line-height:8mm}.metaLine{width:100%;display:flex;justify-content:space-between;align-items:center;line-height:7mm}.twocol{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.4mm}.twocol .papercol{min-width:0}.twocol .papercol table{width:100%}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:'+TABLE_FONT+'pt}th,td{border:1px solid #333;height:'+ROW_H+'mm;padding:.6mm .7mm;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}thead th{height:'+COLHEAD_H+'mm;font-size:'+TABLE_FONT+'pt;font-weight:900}.name{text-align:left}.cash td{font-weight:700}.nofreight th:last-child,.nofreight td:last-child{display:none}.foot{position:absolute;left:0;right:0;bottom:0;border-top:1.4px solid #222;background:#fff;font-weight:900}.foot.simple{min-height:'+FOOT_H+'mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:2mm;padding:2mm 2.5mm;font-size:13.5pt}.foot.simple .open{font-size:15pt}.foot.simple .container{font-size:12pt;text-align:right}.foot.sign{height:'+FOOT_H+'mm;padding:1.4mm 2.5mm;display:flex;flex-direction:column;justify-content:center;gap:.8mm}.foot.sign .calcLine{text-align:right;white-space:nowrap;font-size:12pt}.foot.sign .payLine{display:flex;align-items:center;justify-content:space-between;gap:4mm;white-space:nowrap;font-size:11.5pt}.foot.sign .payLine b{font-size:12.5pt}.foot.sign .container{font-size:10.5pt;text-align:right}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印 LQ-310</button></div>'+pageHtml+qN101PreviewScript()+'</body></html>');w.document.close();
   }
   // N137：正式四種輸出的對象標籤由中央 model 統一為「客戶」；LQ-310 上方公司抬頭置中兩行、底部恢復緊湊兩行。內部往來資料／帳本名稱不變。
   // N136：大量／超市報表底部結算改單行並縮短高度；少量資料連同表頭一起放大，保留 N135 日期星期／統一公斤運費與 N134 周轉物權限。
@@ -7477,7 +7063,7 @@ function qN233A9SettlementAppliedText(c,s){
       // Keep navigation state human-readable too; internal fixed ID remains only for identity resolution.
       try{const nav=acctNavRead();if(nav?.layer==='contactPayment')acctNavWrite({...nav,recordId:humanKey,searchTerm:humanKey})}catch(_e){}
     }else if(preset)inp.value=String(preset);
-    const paint=()=>{const noPrefill=suppressPrefillOnce;suppressPrefillOnce=false;const direct=presetContact;const hit=direct?{contact:direct}:qResolveContact(inp.value);presetContact=null;if(!hit){paintOpenList(inp.value.trim());return}const c=hit.contact,tot=qContactOpenTotals(c),credits=qContactCreditTotals(c);if(!direction)direction=tot.receivable>0?'receipt':(tot.payable>0?'payment':(c.defaultDirection==='付款'?'payment':'receipt'));const opens=qOpenMoneyRows(c,direction),methods=qMoneyMethods(c),label=direction==='receipt'?'收款':'付款',sum=opens.reduce((a,x)=>a+x.due,0),refundDir=credits.receivableCredit>0?'refund_customer':(credits.payableCredit>0?'refund_from_supplier':''),refundRows=refundDir?qRefundCreditRows(c,refundDir):[],refundTotal=refundRows.reduce((a,x)=>a+x.credit,0);acctNavWrite({layer:'contactPayment',section:'payment',action:label,recordId:String(c.name||''),detailId:'',backMode:'',searchTerm:String(c.name||'')});body.innerHTML='<div class="quickV2ContactInfo show" style="margin-top:10px">'+qContactInfoHtml(c)+'</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:10px 0"><div class="quickV2ContactHint"><b>目前應收</b><div style="font-size:21px;font-weight:900">'+qLedgerMoney(tot.receivable)+'</div></div><div class="quickV2ContactHint"><b>目前應付</b><div style="font-size:21px;font-weight:900">'+qLedgerMoney(tot.payable)+'</div></div><div class="quickV2ContactHint"><b>可用儲值</b><div style="font-size:21px;font-weight:900;color:#18703c">'+qLedgerMoney(qStoredValueBalance(c))+'</div></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button type="button" class="btn '+(direction==='receipt'?'primary':'gray')+'" data-money-dir="receipt">💰 收款</button><button type="button" class="btn '+(direction==='payment'?'primary':'gray')+'" data-money-dir="payment">💸 付款</button>'+(refundDir?'<button type="button" class="btn blue" id="qMoneyRefundToggle">↩️ '+(refundDir==='refund_customer'?'退款':'收回退款')+'｜可'+(refundDir==='refund_customer'?'退款 ':'收回 ')+qLedgerMoney(refundTotal)+'</button>':'')+'</div>'+(refundDir?'<div id="qMoneyRefundBox" style="display:none;margin:10px 0" class="quickV2Record"><b>↩️ '+(refundDir==='refund_customer'?'退款':'收回退款')+'</b><div class="helper" style="display:block!important;margin:4px 0 8px">只可使用已產生的溢收／溢付額度；不會修改原收款／付款紀錄。</div><div style="overflow:auto"><table class="quickV2Table" style="min-width:650px"><thead><tr><th>原交易日期</th><th>交易</th><th>可退款</th><th>本次金額</th></tr></thead><tbody>'+refundRows.map(x=>'<tr><td>'+qEsc(x.record.date||'')+'</td><td>'+qEsc((x.record.items||[]).map(v=>v.name).filter(Boolean).join('、')||x.record.txnTypeLabel||'交易')+'</td><td><b>'+qLedgerMoney(x.credit)+'</b></td><td><input class="input qRefundAlloc" data-record-id="'+qEsc(x.record.id)+'" data-max="'+x.credit+'" type="number" min="0" max="'+x.credit+'" step="1" value="0" style="max-width:150px"></td></tr>').join('')+'</tbody></table></div><div style="margin-top:10px"><b>退款方式</b><div id="qRefundMethods" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:7px">'+methods.map(m=>'<label class="quickV2ContactHint" style="display:flex;align-items:center;gap:7px"><span style="min-width:60px"><b>'+qEsc(m)+'</b></span><input class="input qRefundMethod" data-method="'+qEsc(m)+'" type="number" min="0" step="1" value="0"></label>').join('')+'</div></div><div class="field" style="margin-top:10px"><label class="label">原因／備註</label><input id="qRefundNote" class="input" placeholder="例如：折讓後退回差額"></div><div style="margin-top:10px"><b>本次合計：<span id="qRefundTotal">$0</span></b></div><button type="button" id="qRefundSave" class="btn green" style="margin-top:10px">✅ 確認'+(refundDir==='refund_customer'?'退款':'收回退款')+'</button></div>':'')+'<div class="quickV2ContactHint"><b>'+label+'未結清：'+qLedgerMoney(sum)+'</b><div class="helper">日期查詢不會改變這個真實未結清餘額。</div></div>'+(opens.length?'<div style="overflow:auto;margin-top:10px"><table class="quickV2Table" style="min-width:760px"><thead><tr><th>日期</th><th>交易</th><th>原金額</th><th>未結清</th><th>本次'+label+'</th></tr></thead><tbody>'+opens.map((x,i)=>'<tr><td>'+qEsc(x.record.date||'')+'</td><td>'+qEsc(x.record.txnTypeLabel||'')+'｜共 '+((x.record.items||[]).filter(v=>v&&v.name).length)+' 項'+'</td><td>'+qLedgerMoney(qRecordTotal(x.record))+'</td><td><b>'+qLedgerMoney(x.due)+'</b></td><td><input class="input qMoneyAlloc" data-record-id="'+qEsc(x.record.id)+'" data-max="'+x.due+'" type="number" min="0" max="'+x.due+'" step="1" value="0" style="max-width:150px"></td></tr>').join('')+'</tbody></table></div><div class="qMoneyMobileOpen">'+opens.map(x=>'<div class="quickV2Record"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+qEsc(x.record.date||'')+'｜'+qEsc(x.record.txnTypeLabel||'交易')+'</b><b>'+qLedgerMoney(x.due)+'</b></div><div class="helper">共 '+((x.record.items||[]).filter(v=>v&&v.name).length)+' 項｜原額 '+qLedgerMoney(qRecordTotal(x.record))+'</div><label class="label" style="margin-top:7px">本次'+label+'</label><input class="input qMoneyAlloc qMoneyAllocMobile" data-record-id="'+qEsc(x.record.id)+'" data-max="'+x.due+'" type="number" min="0" max="'+x.due+'" step="1" value="0"></div>').join('')+'</div><div style="margin-top:12px"><b>本次'+label+'合計：<span id="qMoneyTotal">$0</span></b></div><div style="margin-top:12px"><b>收／付款方式</b><div class="helper">可拆成多種方式，方式金額合計必須等於本次金額。</div><div id="qMoneyMethods" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:7px">'+methods.map(m=>'<label class="quickV2ContactHint" style="display:flex;align-items:center;gap:7px"><span style="min-width:60px"><b>'+qEsc(m)+'</b></span><input class="input qMoneyMethod" data-method="'+qEsc(m)+'" type="number" min="0" step="1" value="0"></label>').join('')+'</div></div>'+(String(c.settlement||'')==='車趟結'?'<div class="quickV2ContactHint qVehicleReturnBox" style="margin-top:12px"><b>🚚 車趟結交回狀態</b><div class="helper" style="display:block!important;margin:4px 0 8px">兩項分開記錄，可先完成其中一項。</div><div style="display:flex;gap:16px;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:7px;font-weight:900"><input id="qMoneyReturned" type="checkbox"> 💵 錢回來</label><label style="display:flex;align-items:center;gap:7px;font-weight:900"><input id="qReceiptReturned" type="checkbox"> 🧾 收據回來</label></div></div>':'')+'<div class="field" style="margin-top:10px"><label class="label">備註</label><input id="qMoneyNote" class="input" placeholder="可不填"></div><button type="button" id="qMoneySave" class="btn green" style="margin-top:10px">✅ 確認'+label+'</button>':'<div class="empty">目前沒有'+label+'未結清資料</div>')+'<div style="margin-top:14px"><b>最近收／付款／退款紀錄</b>'+qMoneyActivityRecords().filter(s=>qRecordBelongsToContact(s,c)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,20).map(s=>'<div class="quickV2Record"><div style="display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap"><b>'+qEsc(s.date||'')+'｜'+qEsc(s.txnTypeLabel||'')+'｜'+qLedgerMoney(s.amount||s.total)+'</b>'+(s.mode==='money_settlement'?'<button type="button" class="btn gray" data-settlement-image="'+qEsc(s.id)+'">📷 對帳圖片</button>':'')+'</div><div class="helper" style="display:block!important">'+qEsc((s.methods||[]).map(m=>m.method+' $'+Math.round(qMoney(m.amount))).join('＋'))+(s.note?'｜'+qEsc(s.note):'')+(qN233A9SettlementAppliedText(c,s)?'<div style="margin-top:4px;font-weight:800;color:#344054">沖帳：'+qEsc(qN233A9SettlementAppliedText(c,s))+'</div>':'')+'</div>'+((s.vehicleSettlement||String(c.settlement||'')==='車趟結')?'<div class="qVehicleReturnStatus" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:7px"><span class="badge '+(s.moneyReturned?'green':'gray')+'">💵 '+(s.moneyReturned?'錢已回 '+qN233ReturnDate(s.moneyReturnedAt):'錢未回')+'</span>'+(s.moneyReturned?'':'<button type="button" class="btn gray qMarkVehicleReturn" data-return-kind="money" data-record-id="'+qEsc(s.id)+'">💵 登記錢回來</button>')+'<span class="badge '+(s.receiptReturned?'green':'gray')+'">🧾 '+(s.receiptReturned?'收據已回 '+qN233ReturnDate(s.receiptReturnedAt):'收據未回')+'</span>'+(s.receiptReturned?'':'<button type="button" class="btn gray qMarkVehicleReturn" data-return-kind="receipt" data-record-id="'+qEsc(s.id)+'">🧾 登記收據回來</button>')+'</div>':'')+'</div>').join('')+'</div>';
+    const paint=()=>{const noPrefill=suppressPrefillOnce;suppressPrefillOnce=false;const direct=presetContact;const hit=direct?{contact:direct}:qResolveContact(inp.value);presetContact=null;if(!hit){paintOpenList(inp.value.trim());return}const c=hit.contact,tot=qContactOpenTotals(c),credits=qContactCreditTotals(c);if(!direction)direction=tot.receivable>0?'receipt':(tot.payable>0?'payment':(c.defaultDirection==='付款'?'payment':'receipt'));const opens=qOpenMoneyRows(c,direction),methods=qMoneyMethods(c),label=direction==='receipt'?'收款':'付款',sum=opens.reduce((a,x)=>a+x.due,0),refundDir=credits.receivableCredit>0?'refund_customer':(credits.payableCredit>0?'refund_from_supplier':''),refundRows=refundDir?qRefundCreditRows(c,refundDir):[],refundTotal=refundRows.reduce((a,x)=>a+x.credit,0);acctNavWrite({layer:'contactPayment',section:'payment',action:label,recordId:String(c.name||''),detailId:'',backMode:'',searchTerm:String(c.name||'')});body.innerHTML='<div class="quickV2ContactInfo show" style="margin-top:10px">'+qContactInfoHtml(c)+'</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:10px 0"><div class="quickV2ContactHint"><b>目前應收</b><div style="font-size:21px;font-weight:900">'+qLedgerMoney(tot.receivable)+'</div></div><div class="quickV2ContactHint"><b>目前應付</b><div style="font-size:21px;font-weight:900">'+qLedgerMoney(tot.payable)+'</div></div><div class="quickV2ContactHint"><b>可用儲值</b><div style="font-size:21px;font-weight:900;color:#18703c">'+qLedgerMoney(qStoredValueBalance(c))+'</div></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button type="button" class="btn '+(direction==='receipt'?'primary':'gray')+'" data-money-dir="receipt">💰 收款</button><button type="button" class="btn '+(direction==='payment'?'primary':'gray')+'" data-money-dir="payment">💸 付款</button>'+(refundDir?'<button type="button" class="btn blue" id="qMoneyRefundToggle">↩️ '+(refundDir==='refund_customer'?'退款':'收回退款')+'｜可'+(refundDir==='refund_customer'?'退款 ':'收回 ')+qLedgerMoney(refundTotal)+'</button>':'')+'</div>'+(refundDir?'<div id="qMoneyRefundBox" style="display:none;margin:10px 0" class="quickV2Record"><b>↩️ '+(refundDir==='refund_customer'?'退款':'收回退款')+'</b><div class="helper" style="display:block!important;margin:4px 0 8px">只可使用已產生的溢收／溢付額度；不會修改原收款／付款紀錄。</div><div style="overflow:auto"><table class="quickV2Table" style="min-width:650px"><thead><tr><th>原交易日期</th><th>交易</th><th>可退款</th><th>本次金額</th></tr></thead><tbody>'+refundRows.map(x=>'<tr><td>'+qEsc(x.record.date||'')+'</td><td>'+qEsc((x.record.items||[]).map(v=>v.name).filter(Boolean).join('、')||x.record.txnTypeLabel||'交易')+'</td><td><b>'+qLedgerMoney(x.credit)+'</b></td><td><input class="input qRefundAlloc" data-record-id="'+qEsc(x.record.id)+'" data-max="'+x.credit+'" type="number" min="0" max="'+x.credit+'" step="1" value="0" style="max-width:150px"></td></tr>').join('')+'</tbody></table></div><div style="margin-top:10px"><b>退款方式</b><div id="qRefundMethods" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:7px">'+methods.map(m=>'<label class="quickV2ContactHint" style="display:flex;align-items:center;gap:7px"><span style="min-width:60px"><b>'+qEsc(m)+'</b></span><input class="input qRefundMethod" data-method="'+qEsc(m)+'" type="number" min="0" step="1" value="0"></label>').join('')+'</div></div><div class="field" style="margin-top:10px"><label class="label">原因／備註</label><input id="qRefundNote" class="input" placeholder="例如：折讓後退回差額"></div><div style="margin-top:10px"><b>本次合計：<span id="qRefundTotal">$0</span></b></div><button type="button" id="qRefundSave" class="btn green" style="margin-top:10px">✅ 確認'+(refundDir==='refund_customer'?'退款':'收回退款')+'</button></div>':'')+'<div class="quickV2ContactHint"><b>'+label+'未結清：'+qLedgerMoney(sum)+'</b><div class="helper">日期查詢不會改變這個真實未結清餘額。</div></div>'+(opens.length?'<div style="overflow:auto;margin-top:10px"><table class="quickV2Table" style="min-width:760px"><thead><tr><th>日期</th><th>交易</th><th>原金額</th><th>未結清</th><th>本次'+label+'</th></tr></thead><tbody>'+opens.map((x,i)=>'<tr><td>'+qEsc(x.record.date||'')+'</td><td>'+qEsc(x.record.txnTypeLabel||'')+'｜共 '+((x.record.items||[]).filter(v=>v&&v.name).length)+' 項'+'</td><td>'+qLedgerMoney(qRecordTotal(x.record))+'</td><td><b>'+qLedgerMoney(x.due)+'</b></td><td><input class="input qMoneyAlloc" data-record-id="'+qEsc(x.record.id)+'" data-max="'+x.due+'" type="number" min="0" max="'+x.due+'" step="1" value="0" style="max-width:150px"></td></tr>').join('')+'</tbody></table></div><div class="qMoneyMobileOpen">'+opens.map(x=>'<div class="quickV2Record"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+qEsc(x.record.date||'')+'｜'+qEsc(x.record.txnTypeLabel||'交易')+'</b><b>'+qLedgerMoney(x.due)+'</b></div><div class="helper">共 '+((x.record.items||[]).filter(v=>v&&v.name).length)+' 項｜原額 '+qLedgerMoney(qRecordTotal(x.record))+'</div><label class="label" style="margin-top:7px">本次'+label+'</label><input class="input qMoneyAlloc qMoneyAllocMobile" data-record-id="'+qEsc(x.record.id)+'" data-max="'+x.due+'" type="number" min="0" max="'+x.due+'" step="1" value="0"></div>').join('')+'</div><div style="margin-top:12px"><b>本次'+label+'合計：<span id="qMoneyTotal">$0</span></b></div><div style="margin-top:12px"><b>收／付款方式</b><div class="helper">可拆成多種方式，方式金額合計必須等於本次金額。</div><div id="qMoneyMethods" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:7px">'+methods.map(m=>'<label class="quickV2ContactHint" style="display:flex;align-items:center;gap:7px"><span style="min-width:60px"><b>'+qEsc(m)+'</b></span><input class="input qMoneyMethod" data-method="'+qEsc(m)+'" type="number" min="0" step="1" value="0"></label>').join('')+'</div></div>'+(String(c.settlement||'')==='車趟結'?'<div class="quickV2ContactHint qVehicleReturnBox" style="margin-top:12px"><b>🚚 車趟結交回狀態</b><div class="helper" style="display:block!important;margin:4px 0 8px">兩項分開記錄，可先完成其中一項。</div><div style="display:flex;gap:16px;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:7px;font-weight:900"><input id="qMoneyReturned" type="checkbox"> 💵 錢回來</label><label style="display:flex;align-items:center;gap:7px;font-weight:900"><input id="qReceiptReturned" type="checkbox"> 🧾 收據回來</label></div></div>':'')+'<div class="field" style="margin-top:10px"><label class="label">備註</label><input id="qMoneyNote" class="input" placeholder="可不填"></div><button type="button" id="qMoneySave" class="btn green" style="margin-top:10px">✅ 確認'+label+'</button>':'<div class="empty">目前沒有'+label+'未結清資料</div>')+'<div style="margin-top:14px"><b>最近收／付款／退款紀錄</b>'+qMoneyActivityRecords().filter(s=>qRecordBelongsToContact(s,c)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,20).map(s=>'<div class="quickV2Record"><div style="display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap"><b>'+qEsc(s.date||'')+'｜'+qEsc(s.txnTypeLabel||'')+'｜'+qLedgerMoney(s.amount||s.total)+'</b>'+(s.mode==='money_settlement'?'<button type="button" class="btn gray" data-settlement-image="'+qEsc(s.id)+'">📷 對帳圖片</button>':'')+'</div><div class="helper" style="display:block!important">'+qEsc((s.methods||[]).map(m=>m.method+' $'+Math.round(qMoney(m.amount))).join('＋'))+(s.note?'｜'+qEsc(s.note):'')+'</div>'+((s.vehicleSettlement||String(c.settlement||'')==='車趟結')?'<div class="qVehicleReturnStatus" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:7px"><span class="badge '+(s.moneyReturned?'green':'gray')+'">💵 '+(s.moneyReturned?'錢已回 '+qN233ReturnDate(s.moneyReturnedAt):'錢未回')+'</span>'+(s.moneyReturned?'':'<button type="button" class="btn gray qMarkVehicleReturn" data-return-kind="money" data-record-id="'+qEsc(s.id)+'">💵 登記錢回來</button>')+'<span class="badge '+(s.receiptReturned?'green':'gray')+'">🧾 '+(s.receiptReturned?'收據已回 '+qN233ReturnDate(s.receiptReturnedAt):'收據未回')+'</span>'+(s.receiptReturned?'':'<button type="button" class="btn gray qMarkVehicleReturn" data-return-kind="receipt" data-record-id="'+qEsc(s.id)+'">🧾 登記收據回來</button>')+'</div>':'')+'</div>').join('')+'</div>';
       body.querySelectorAll('[data-money-dir]').forEach(b=>b.onclick=()=>{direction=b.dataset.moneyDir;paint()});
       body.querySelector('#qMoneyRefundToggle')?.addEventListener('click',()=>{const box=body.querySelector('#qMoneyRefundBox');if(box)box.style.display=box.style.display==='none'?'block':'none'});
       const qRefundRecalc=()=>{const a=[...body.querySelectorAll('.qRefundAlloc')].reduce((sum,x)=>sum+Math.min(qMoney(x.value),qMoney(x.dataset.max)),0),el=body.querySelector('#qRefundTotal');if(el)el.textContent=qLedgerMoney(a)};
@@ -7633,53 +7219,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     const emptyHtml=(seq)=>'<tr><td>'+seq+'</td><td>&nbsp;</td><td></td><td></td><td></td><td></td>'+(hasFreight?'<td></td>':'')+'</tr>';
     const tableHtml=(rows,startNo)=>'<table><thead><tr><th>序</th><th>品名</th><th>KG</th><th>數量</th><th>單價</th><th>貨款</th>'+(hasFreight?'<th>運費</th>':'')+'</tr></thead><tbody>'+Array.from({length:40},(_,i)=>rows[i]?rowHtml(rows[i],startNo+i):emptyHtml(startNo+i)).join('')+'</tbody></table>';
     sections.forEach(sec=>{const detail=txRows(sec.tx),sums=qStatementTotals(sec.tx.map(x=>x.record)),cashTotal=sec.cash.reduce((a,x)=>a+(Number(x.amount)||0),0);for(let start=0;start<Math.max(detail.length,1);start+=80){const page=detail.slice(start,start+80),pageNo=Math.floor(start/80)+1,pageCount=Math.max(1,Math.ceil(detail.length/80)),tables=tableHtml(page.slice(0,40),start+1)+tableHtml(page.slice(40,80),start+41);let cash='';if(pageNo===pageCount){cash='<div class="cash"><b>'+(sec.direction==='receivable'?'收款紀錄':'付款紀錄')+'</b>'+(sec.cash.length?'<table class="cashTable"><thead><tr><th>日期</th><th>方式／備註</th><th>金額</th></tr></thead><tbody>'+sec.cash.map(x=>'<tr><td><b>'+qEsc(x.date)+'</b></td><td><b>'+qEsc(x.method)+'</b></td><td><b>'+qLedgerMoney(x.amount)+'</b></td></tr>').join('')+'</tbody></table>':'<div class="cashEmpty">本期間沒有'+(sec.direction==='receivable'?'收款':'付款')+'紀錄</div>')+'</div>'}const totals=pageNo===pageCount?'<div class="tot">貨款小計 '+qLedgerMoney(sums.goods)+(hasFreight?'　運費小計 '+qLedgerMoney(sums.freight):'')+(sums.turnover?'　籃子小計 '+qLedgerMoney(sums.turnover):'')+'　交易總計 '+qLedgerMoney(sums.total)+'　'+(sec.direction==='receivable'?'本期收款 ':'本期付款 ')+qLedgerMoney(cashTotal)+'　<b>'+sec.balanceLabel+' '+qLedgerMoney(sec.balance)+'</b></div>':'';pages.push('<section class="page"><header><b>'+qCompanyHeader+'</b><span>往來對象：'+qEsc(c.name)+'</span><span>期間：'+qEsc(qLedgerStatementDateLabel())+'</span><span>'+qEsc(sec.title)+'｜第 '+pageNo+'/'+pageCount+' 頁</span></header><div class="sectionTitle"><b>'+qEsc(sec.title)+'</b><span>'+qEsc(sec.balanceLabel)+' '+qLedgerMoney(sec.balance)+'</span></div><div class="cols">'+tables+'</div>'+cash+totals+'</section>')}});
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:8px}.page{width:203.2mm;break-after:page;page-break-after:always}.page:last-child{break-after:auto;page-break-after:auto}header{display:flex;justify-content:space-between;align-items:center;font-size:9px;margin-bottom:1.4mm}.sectionTitle{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:.8mm 1mm;font-size:9px;background:#f3f3f3}.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2mm}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.35mm .4mm;height:4.65mm;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}.cash{margin-top:1.2mm}.cash>b{font-size:9px}.cashTable{margin-top:.5mm;font-size:8px}.cashTable th,.cashTable td{height:auto;padding:.6mm}.cashEmpty{border:1px solid #777;padding:1mm;margin-top:.5mm}.tot{text-align:right;font-size:9px;font-weight:900;margin-top:1.2mm;border-top:1px solid #333;padding-top:1mm}</style></head><body>'+pages.join('')+'<script>window.onload=()=>window.print()<\/script><script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:8px}.page{width:203.2mm;break-after:page;page-break-after:always}.page:last-child{break-after:auto;page-break-after:auto}header{display:flex;justify-content:space-between;align-items:center;font-size:9px;margin-bottom:1.4mm}.sectionTitle{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:.8mm 1mm;font-size:9px;background:#f3f3f3}.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2mm}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.35mm .4mm;height:4.65mm;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}.cash{margin-top:1.2mm}.cash>b{font-size:9px}.cashTable{margin-top:.5mm;font-size:8px}.cashTable th,.cashTable td{height:auto;padding:.6mm}.cashEmpty{border:1px solid #777;padding:1mm;margin-top:.5mm}.tot{text-align:right;font-size:9px;font-weight:900;margin-top:1.2mm;border-top:1px solid #333;padding-top:1mm}</style></head><body>'+pages.join('')+'<script>window.onload=()=>window.print()<\/script></body></html>');w.document.close();
   }
   function qPrintLedgerStatement(c,ledger,mode){
     if(mode==='80')return qPrintSupermarket80(c,ledger);
@@ -7695,53 +7235,7 @@ function qN233A9SettlementAppliedText(c,s){
     if(bilateral){content=section('① 對方欠我們｜應收帳','sale','receipt','目前應收',ledger.receivable)+section('② 我們欠對方｜應付帳','purchase','payment','目前應付',ledger.payable)}
     else{const pay=String(c?.defaultDirection||'')==='付款'||(entries.some(x=>x.kind==='purchase')&&!entries.some(x=>x.kind==='sale'));content=pay?section('應付帳','purchase','payment','目前應付',ledger.payable):section('應收帳','sale','receipt','目前應收',ledger.receivable)}
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 帳本</title><style>@page{size:A4;margin:10mm}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:12px;margin:0}h2{margin:0 0 4px}.meta{margin-bottom:8px}.sectionTitle{display:flex;justify-content:space-between;border:1px solid #555;border-bottom:0;padding:7px 8px;background:#f3f3f3;font-size:14px;margin-top:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:5px 6px;text-align:left}.money{text-align:right;white-space:nowrap}.cashRow td{font-weight:700;background:#fafafa}.summary{margin-top:0;border:1px solid #555;border-top:0;padding:7px;font-weight:800;text-align:right}.amountCore{margin-top:12px;border:1px solid #555;padding:7px;font-weight:800}.empty{text-align:center;color:#666}</style></head><body><h2>'+qCompanyHeader+'</h2><div class="meta">往來對象：'+qEsc(c.name)+'　期間：'+qEsc(qLedgerStatementDateLabel())+'</div>'+content+'<div class="amountCore">'+qLedgerAmountSummaryHtml(c,ledger)+'</div><script>window.onload=()=>window.print()<\/script><script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
-</body></html>');w.document.close()
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 帳本</title><style>@page{size:A4;margin:10mm}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:12px;margin:0}h2{margin:0 0 4px}.meta{margin-bottom:8px}.sectionTitle{display:flex;justify-content:space-between;border:1px solid #555;border-bottom:0;padding:7px 8px;background:#f3f3f3;font-size:14px;margin-top:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:5px 6px;text-align:left}.money{text-align:right;white-space:nowrap}.cashRow td{font-weight:700;background:#fafafa}.summary{margin-top:0;border:1px solid #555;border-top:0;padding:7px;font-weight:800;text-align:right}.amountCore{margin-top:12px;border:1px solid #555;padding:7px;font-weight:800}.empty{text-align:center;color:#666}</style></head><body><h2>'+qCompanyHeader+'</h2><div class="meta">往來對象：'+qEsc(c.name)+'　期間：'+qEsc(qLedgerStatementDateLabel())+'</div>'+content+'<div class="amountCore">'+qLedgerAmountSummaryHtml(c,ledger)+'</div><script>window.onload=()=>window.print()<\/script></body></html>');w.document.close()
   }
   // N43：正式客戶帳本／對帳單圖片。沿用帳本日期控制器；真實應收／應付仍使用完整歷史。
   function qLedgerStatementDateLabel(){
@@ -9053,51 +8547,5 @@ window.qNormalizeTurnAction=qN93TurnAction;
 <!-- N228：快速做帳「進貨」一律以往來對象作為來源；品項來源欄不適用且不參與儲存/成本判斷。移除 N211 畫面效能診斷；N219 正式效能核心保留。 -->
 <!-- N229：所有進貨一律無運費核心；不依往來身分。 -->
 <!-- N230：表格／單據中心；六禾包裝規格與商品重量主檔連動快速做帳。 -->
-<script>
-// N233A9: legacy stored-value settlements share the same central allocation core.
-function qN233A9StoredVirtualMap(c){
-  const out=new Map(); if(!c)return out;
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void');
-  const sales=rows.filter(r=>r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-  const used=new Map();
-  const settlements=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').sort((a,b)=>String(a.createdAt||a.date||'').localeCompare(String(b.createdAt||b.date||'')));
-  for(const st of settlements){
-    const allocs=Array.isArray(st.allocations)?st.allocations.filter(a=>qMoney(a?.amount)>0):[];
-    if(allocs.length){for(const a of allocs){const id=String(a.recordId||'');used.set(id,(used.get(id)||0)+qMoney(a.amount));}continue;}
-    const stored=(st.methods||[]).some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
-    if(!stored)continue;
-    let remain=qMoney(st.amount||st.total);
-    for(const r of sales){
-      if(remain<=0)break;
-      if(st.date&&r.date&&String(r.date)>String(st.date))continue;
-      const id=String(r.id||''), base=Math.max(0,qAccountingEffectiveTotal(r,c)-qMoney(r.paid)), already=used.get(id)||0, due=Math.max(0,base-already);
-      if(due<=0)continue; const take=Math.min(due,remain); used.set(id,already+take); out.set(id,(out.get(id)||0)+take); remain-=take;
-    }
-  }
-  return out;
-}
-function qAccountingPaidTotal(r,cutoff=''){
-  if(!r)return 0; const id=String(r.id||''),legacy=qMoney(r.paid);
-  const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-  let virtual=0; if(!cutoff){const c=qContact(r.contactId||r.customer||''); if(c)virtual=qN233A9StoredVirtualMap(c).get(id)||0;}
-  return legacy+settled+virtual;
-}
-function qStoredValueBalance(c){
-  const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&qRecordBelongsToContact(r,c));let balance=0;
-  rows.forEach(r=>{if(r.txnType==='deposit')balance+=qMoney(r.deposit||r.amount||r.total);if(r.payment==='儲值扣款')balance-=qMoney(r.paid)});
-  const virtual=qN233A9StoredVirtualMap(c);
-  rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').forEach(r=>{const stored=(r.methods||[]).filter(m=>String(m?.method||'')==='儲值').reduce((a,m)=>a+qMoney(m.amount),0);if(r.storedValueUse)balance-=qMoney(r.amount||r.total);else if(stored>0){const explicit=(r.allocations||[]).reduce((a,x)=>a+qMoney(x.amount),0);let applied=explicit;if(!explicit){const saleIds=new Set(rows.filter(x=>x.txnType==='sale'||x.accountDirection==='receivable'||x.txnTypeLabel==='銷貨').map(x=>String(x.id)));applied=Math.min(stored,[...virtual.entries()].filter(([id])=>saleIds.has(id)).reduce((a,[,v])=>a+v,0));}balance+=Math.max(0,stored-applied)}});
-  return Math.max(0,qMoney(balance));
-}
-function qN233A9SettlementAppliedText(c,s){
-  let allocs=Array.isArray(s?.allocations)?s.allocations.filter(a=>qMoney(a?.amount)>0):[];
-  if(!allocs.length&&(s?.methods||[]).some(m=>String(m?.method||'')==='儲值')){
-    const vm=qN233A9StoredVirtualMap(c);allocs=[...vm.entries()].filter(([,v])=>v>0).map(([recordId,amount])=>({recordId,amount}));
-  }
-  if(!allocs.length)return '';
-  const all=typeof acctRecords==='function'?acctRecords():[];
-  return allocs.map(a=>{const r=all.find(x=>String(x?.id||'')===String(a.recordId||''));if(!r)return '';const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');const trip=String(c?.settlement||'')==='車趟結'?' 車趟':'';return d+trip+' '+qLedgerMoney(a.amount)}).filter(Boolean).join('、');
-}
-</script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
