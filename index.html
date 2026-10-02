@@ -7530,7 +7530,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     if(!source||source.status==='void')throw new Error('這筆交易不可調整');
     const c=qContact(source.contactId||source.customer||''),label=qAccountingAdjustmentLabel(mode),available=qAccountingEffectiveTotal(source,c);
     if(available<=0)throw new Error('這筆交易目前沒有可調整金額');
-    let item=null,returnQty=null,returnKg=null;
+    let item=null,returnQty=null,returnKg=null,returnUnitPrice=null,amount=0;
     if(mode==='goods_return'){
       const items=Array.isArray(source.items)?source.items:[];if(!items.length)throw new Error('原交易沒有可退貨品項');
       const menu=items.map((x,i)=>(i+1)+'. '+String(x.name||'未命名')+'｜數量 '+String(x.qty??'—')+'｜公斤 '+String(x.kg??'—')+'｜$'+Math.round(qMoney(x.amount))).join('\n');
@@ -7538,11 +7538,24 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
       const q=prompt('退貨數量（沒有可留空）：',item.qty??'');if(q===null)return null;returnQty=q.trim()===''?null:Number(q);if(returnQty!==null&&(!Number.isFinite(returnQty)||returnQty<0))throw new Error('退貨數量不正確');
       const k=prompt('退貨公斤（沒有可留空）：',item.kg??'');if(k===null)return null;returnKg=k.trim()===''?null:Number(k);if(returnKg!==null&&(!Number.isFinite(returnKg)||returnKg<0))throw new Error('退貨公斤不正確');
     }
-    const raw=prompt(label+'金額：\n目前最多可調整 $'+Math.round(available).toLocaleString('zh-TW'));if(raw===null)return null;const amount=qMoney(raw);if(amount<=0)throw new Error(label+'金額必須大於 0');if(amount>available+0.001)throw new Error(label+'金額不可超過目前有效交易金額');
+    if(mode==='goods_return'){
+      const sourceQty=Number(item?.qty),sourceAmount=qMoney(item?.amount),sourcePrice=qMoney(item?.price);
+      const defaultPrice=sourcePrice>0?sourcePrice:(Number.isFinite(sourceQty)&&sourceQty>0?sourceAmount/sourceQty:0);
+      const p=prompt('退貨單價：',defaultPrice?String(defaultPrice):'');if(p===null)return null;returnUnitPrice=qMoney(p);
+      if(returnUnitPrice<0)throw new Error('退貨單價不能小於 0');
+      const calcQty=(returnQty!==null&&returnQty>0)?returnQty:((returnKg!==null&&returnKg>0)?returnKg:0);
+      if(calcQty<=0)throw new Error('請輸入退貨數量或公斤');
+      amount=calcQty*returnUnitPrice;
+      if(amount<=0)throw new Error('退貨總額必須大於 0');
+      if(amount>available+0.001)throw new Error('退貨總額 $'+Math.round(amount).toLocaleString('zh-TW')+' 超過目前最多可調整 $'+Math.round(available).toLocaleString('zh-TW'));
+      alert('退貨總額：$'+Math.round(amount).toLocaleString('zh-TW'));
+    }else{
+      const raw=prompt(label+'金額：\n目前最多可調整 $'+Math.round(available).toLocaleString('zh-TW'));if(raw===null)return null;amount=qMoney(raw);if(amount<=0)throw new Error(label+'金額必須大於 0');if(amount>available+0.001)throw new Error(label+'金額不可超過目前有效交易金額');
+    }
     const reason=prompt(label+'原因：');if(reason===null)return null;if(!String(reason).trim())throw new Error(label+'原因不能空白');
     const note=prompt('備註（可留空）：')??'';const now=new Date().toISOString();
     const rec={id:qMoneyId(),schemaVersion:6,date:qToday(),customer:source.customer||'',contactId:source.contactId||null,type:source.type||c?.identity||c?.type||'',mode,txnType:mode==='goods_return'?'return':mode==='account_allowance'?'allowance':'deduction',txnTypeLabel:label,accountDirection:(source.txnType==='purchase'||source.accountDirection==='payable'||source.txnTypeLabel==='進貨')?'reduce_payable':'reduce_receivable',sourceRecordId:String(source.id||''),amount,total:amount,reason:String(reason).trim(),note:String(note).trim(),status:'active',pricingStatus:'priced',createdAt:now,updatedAt:now,createdBy:qActor(),audit:[{action:mode+'_create',at:now,by:qActor()}]};
-    if(item)rec.returnItem={sourceItemIndex:source.items.indexOf(item),name:item.name||'',qty:returnQty,kg:returnKg,sourceQty:item.qty??null,sourceKg:item.kg??null,sourceAmount:qMoney(item.amount)};
+    if(item)rec.returnItem={sourceItemIndex:source.items.indexOf(item),name:item.name||'',qty:returnQty,kg:returnKg,unitPrice:returnUnitPrice,sourceQty:item.qty??null,sourceKg:item.kg??null,sourceAmount:qMoney(item.amount),sourceUnitPrice:qMoney(item.price)};
     await qPersist(rec);return rec;
   }
   async function qCreateAccountingRefund(source){
@@ -7565,8 +7578,8 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>✏️ 修改'+qEsc(label)+'｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">直接修改原紀錄，不新增第二筆。</div></div><button type="button" class="btn gray" id="qN235EditBack">← 返回交易明細</button></div>'+
       '<div class="quickV2Record" style="margin-top:12px"><div class="quickV2Grid">'+
       '<label>日期<input class="input" id="qN235AdjDate" type="date" value="'+qEsc(r.date||qToday())+'"></label>'+
-      (r.mode==='goods_return'?'<label>退貨品名<input class="input" id="qN235AdjName" value="'+qEsc(ri.name||'')+'"></label><label>公斤<input class="input" id="qN235AdjKg" inputmode="decimal" value="'+qEsc(ri.kg??'')+'"></label><label>數量<input class="input" id="qN235AdjQty" inputmode="decimal" value="'+qEsc(ri.qty??'')+'"></label>':'')+
-      '<label>金額<input class="input" id="qN235AdjAmount" inputmode="decimal" value="'+qEsc(own)+'"></label>'+
+      (r.mode==='goods_return'?'<label>退貨品名<input class="input" id="qN235AdjName" value="'+qEsc(ri.name||'')+'"></label><label>公斤<input class="input" id="qN235AdjKg" inputmode="decimal" value="'+qEsc(ri.kg??'')+'"></label><label>數量<input class="input" id="qN235AdjQty" inputmode="decimal" value="'+qEsc(ri.qty??'')+'"></label><label>單價<input class="input" id="qN235AdjUnitPrice" inputmode="decimal" value="'+qEsc(ri.unitPrice??(ri.qty?own/Number(ri.qty):''))+'"></label>':'')+
+      '<label>金額<input class="input" id="qN235AdjAmount" inputmode="decimal" value="'+qEsc(own)+'" '+(r.mode==='goods_return'?'readonly':'')+'></label>'+
       '<label style="grid-column:1/-1">原因<input class="input" id="qN235AdjReason" value="'+qEsc(r.reason||'')+'"></label>'+
       '<label style="grid-column:1/-1">備註<input class="input" id="qN235AdjNote" value="'+qEsc(r.note||'')+'"></label>'+
       '</div><div class="helper" style="display:block!important;margin-top:8px">目前這筆可修改的金額上限：$'+Math.round(maxAmount).toLocaleString('zh-TW')+'</div>'+
@@ -7574,9 +7587,18 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     work.querySelector('#qN235EditBack').onclick=()=>qShowRecordDetail(work,id,backMode,true);
     work.querySelector('#qN235AdjSave').onclick=async()=>{
       try{
-        const date=work.querySelector('#qN235AdjDate').value, amount=qMoney(work.querySelector('#qN235AdjAmount').value);
+        const date=work.querySelector('#qN235AdjDate').value;
+        let amount=qMoney(work.querySelector('#qN235AdjAmount').value);
         const reason=work.querySelector('#qN235AdjReason').value.trim(), note=work.querySelector('#qN235AdjNote').value.trim();
         if(!date)throw new Error('請輸入日期');
+        if(r.mode==='goods_return'){
+          const qtyRaw=work.querySelector('#qN235AdjQty').value.trim(),kgRaw=work.querySelector('#qN235AdjKg').value.trim();
+          const qty=qtyRaw===''?null:Number(qtyRaw),kg=kgRaw===''?null:Number(kgRaw),unitPrice=qMoney(work.querySelector('#qN235AdjUnitPrice').value);
+          const calcQty=(qty!==null&&qty>0)?qty:((kg!==null&&kg>0)?kg:0);
+          if(unitPrice<0)throw new Error('退貨單價不能小於 0');
+          if(calcQty<=0)throw new Error('請輸入退貨數量或公斤');
+          amount=calcQty*unitPrice;
+        }
         if(amount<=0)throw new Error(label+'金額必須大於 0');
         if(source&&amount>maxAmount+0.001)throw new Error(label+'金額不可超過原交易目前可調整金額');
         if(!reason)throw new Error(label+'原因不能空白');
@@ -7589,7 +7611,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
           const kg=kgRaw===''?null:Number(kgRaw),qty=qtyRaw===''?null:Number(qtyRaw);
           if(kg!==null&&(!Number.isFinite(kg)||kg<0))throw new Error('公斤不正確');
           if(qty!==null&&(!Number.isFinite(qty)||qty<0))throw new Error('數量不正確');
-          next.returnItem={...(r.returnItem||{}),name,kg,qty};
+          const unitPrice=qMoney(work.querySelector('#qN235AdjUnitPrice').value);next.returnItem={...(r.returnItem||{}),name,kg,qty,unitPrice};
         }
         next.audit=Array.isArray(r.audit)?r.audit.slice():[];
         next.audit.push({action:'edit_adjustment',at:now,by:qActor(),before});
