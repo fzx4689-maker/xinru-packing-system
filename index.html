@@ -6551,8 +6551,14 @@ function qN107ContainerRows(contact,range){
       const priced=['計籃','回籃','計價','退籃退費','買斷'].includes(action)&&unit>0;
       const sign=['回籃','退籃退費'].includes(action)?-1:1;
       const stored=qN98Money(e.amount),turnAmount=priced?(stored!==0?stored:(qty*unit*sign)):0;
+      // N237：僅廠商正式帳本輸出時，鐵架品名顯示「鐵架名稱｜動作」。
+      // 原始 type/action/rackName、庫存、欠餘、金額核心全部保持不變。
+      const isVendor=String(contact?.identity||contact?.type||contact?.customerType||'').trim()==='廠商';
+      const outputName=(isVendor&&String(e.type||'')==='鐵架')
+        ?((String(e.rackName||'').trim()||'鐵架')+(action?'｜'+action:''))
+        :(action==='回籃'?'回籃':String(e.type||'周轉物'));
       return {kind:'turnover',date:e.date||'',recordId:e.sourceRecordId||'',no:'',
-        name:action==='回籃'?'回籃':String(e.type||'周轉物'),kg:'',qty:qty||'',pricing:'',
+        name:outputName,kg:'',qty:qty||'',pricing:'',
         price:priced?unit:'',goods:turnAmount,freight:0,amount:turnAmount,
         turnoverType:e.type||'',turnoverAction:action,turnoverQty:qty,turnoverUnitPrice:unit,
         contactId:e.contactId||contact.id||'',contactName:e.customer||contact.name||'',createdAt:e.createdAt||''};
