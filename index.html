@@ -8061,28 +8061,28 @@ K白.kg
     return rows;
   }
   async function qN242LoadDocs(){
-    const {data,error}=await sb.from('product_master').select('*').like('name',QN242_INV_PREFIX+'%').order('name',{ascending:false});
-    if(error)throw error; return (data||[]).map(x=>({id:x.id,date:String(x.name||'').slice(QN242_INV_PREFIX.length),raw:String(x.spec||''),updatedAt:x.updated_at||x.created_at||''}));
+    const {data,error}=await sb.from('packing_daily_inventory').select('id,inventory_date,raw_text,created_at,updated_at').order('inventory_date',{ascending:false});
+    if(error)throw error; return (data||[]).map(x=>({id:x.id,date:String(x.inventory_date||''),raw:String(x.raw_text||''),updatedAt:x.updated_at||x.created_at||''}));
   }
   async function qN242EnsureSeed(){
-    const {data,error}=await sb.from('product_master').select('id').eq('name',qN242InvDateName(QN242_SEED_DATE)).limit(1);
+    const {data,error}=await sb.from('packing_daily_inventory').select('id').eq('inventory_date',QN242_SEED_DATE).limit(1);
     if(error)throw error;
     if(!(data||[]).length){
-      const r=await sb.from('product_master').insert({name:qN242InvDateName(QN242_SEED_DATE),category:QN242_INV_CATEGORY,spec:QN242_SEED_RAW,unit:'日',today_price:0,is_active:true});
+      const r=await sb.from('packing_daily_inventory').insert({inventory_date:QN242_SEED_DATE,raw_text:QN242_SEED_RAW,created_by:currentUser?.id||null,updated_by:currentUser?.id||null});
       if(r.error)throw r.error;
     }
   }
   async function qN242SaveDoc(date,raw){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('日期格式錯誤');
-    const name=qN242InvDateName(date), clean=qN242NormRaw(raw);
+    const clean=qN242NormRaw(raw);
     if(!clean)throw new Error('請輸入庫存內容');
-    const {data,error}=await sb.from('product_master').select('id').eq('name',name).limit(1);
+    const {data,error}=await sb.from('packing_daily_inventory').select('id').eq('inventory_date',date).limit(1);
     if(error)throw error;
     if((data||[]).length){
-      const r=await sb.from('product_master').update({spec:clean,category:QN242_INV_CATEGORY,unit:'日',today_price:0,is_active:true,updated_at:new Date().toISOString()}).eq('id',data[0].id);
+      const r=await sb.from('packing_daily_inventory').update({raw_text:clean,updated_by:currentUser?.id||null,updated_at:new Date().toISOString()}).eq('id',data[0].id);
       if(r.error)throw r.error;
     }else{
-      const r=await sb.from('product_master').insert({name,category:QN242_INV_CATEGORY,spec:clean,unit:'日',today_price:0,is_active:true});
+      const r=await sb.from('packing_daily_inventory').insert({inventory_date:date,raw_text:clean,created_by:currentUser?.id||null,updated_by:currentUser?.id||null});
       if(r.error)throw r.error;
     }
   }
@@ -8090,16 +8090,30 @@ K白.kg
     if(!rows.length)return '<div class="empty" style="padding:14px">這一天沒有填入大於 0 的庫存數量</div>';
     return '<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:420px"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">區域</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">品名</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">數量</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">備註</th></tr></thead><tbody>'+rows.map(x=>'<tr><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(x.zone)+'</td><td style="padding:8px;border-bottom:1px solid #eee"><b>'+qEsc(x.name)+'</b></td><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(qDisplayNumber(x.qty)+' '+x.unit)+'</td><td style="padding:8px;border-bottom:1px solid #eee">'+qEsc(x.note||'')+'</td></tr>').join('')+'</tbody></table></div>';
   }
+  // N243-A：包裝部第二層。只切換畫面層級，不碰 renderPacking／現場回報／包裝訂單核心。
+  function qN243EnterPackingStage(){
+    const stage=document.getElementById('packingReferenceStage'),card=stage?.closest('.packingMainCard');
+    if(!stage||!card)return null;
+    [...card.children].forEach(el=>{if(el!==stage){el.dataset.n243PrevDisplay=el.style.display||'';el.style.display='none'}});
+    stage.style.display='block';
+    return stage;
+  }
+  function qN243ExitPackingStage(){
+    const stage=document.getElementById('packingReferenceStage'),card=stage?.closest('.packingMainCard');
+    if(!stage||!card)return;
+    stage.style.display='none';stage.innerHTML='';
+    [...card.children].forEach(el=>{if(el!==stage){el.style.display=el.dataset.n243PrevDisplay||'';delete el.dataset.n243PrevDisplay}});
+  }
   async function qN242RenderLiuheReadonly(){
-    const stage=document.getElementById('packingReferenceStage'); if(!stage)return;
-    stage.style.display='block'; stage.innerHTML='<div class="card" style="margin:8px 0"><b>🥬 六禾包裝規格查詢</b><div class="helper">唯讀；新增／修改／刪除仍在「表格／單據 → 六禾包裝規格表」。</div><input id="qN242SpecSearch" class="input" placeholder="搜尋品名" style="margin:9px 0"><div id="qN242SpecRows">讀取中…</div><button class="btn gray" id="qN242SpecClose" type="button" style="margin-top:9px">← 返回包裝部</button></div>';
-    try{await qN230EnsureSeed();const paint=()=>{const q=String(stage.querySelector('#qN242SpecSearch')?.value||'').trim().toLowerCase(),rows=qN230Cache.filter(x=>x.active!==false&&x.name.startsWith(QN230_LIUHE)&&(!q||qN230PublicName(x,QN230_LIUHE).toLowerCase().includes(q)));stage.querySelector('#qN242SpecRows').innerHTML=rows.length?rows.map(x=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid #eee"><b>'+qEsc(qN230PublicName(x,QN230_LIUHE))+'</b><b>'+qEsc(qDisplayNumber(qN230Kg(x.spec)))+' K</b></div>').join(''):'<div class="empty">找不到規格</div>'};paint();stage.querySelector('#qN242SpecSearch').oninput=paint}catch(e){stage.querySelector('#qN242SpecRows').innerHTML='<div class="empty">讀取失敗：'+qEsc(e?.message||e)+'</div>'}
-    stage.querySelector('#qN242SpecClose').onclick=()=>{stage.style.display='none';stage.innerHTML=''};
+    const stage=qN243EnterPackingStage(); if(!stage)return;
+    stage.innerHTML='<div class="card" style="margin:8px 0"><b>🥬 六禾包裝規格查詢</b><div class="helper">唯讀；新增／修改／刪除仍在「表格／單據 → 六禾包裝規格表」。</div><input id="qN242SpecSearch" class="input" placeholder="搜尋品名" style="margin:9px 0"><div id="qN242SpecRows">讀取中…</div><button class="btn gray" id="qN242SpecClose" type="button" style="margin-top:9px">← 返回包裝部</button></div>';
+    try{const {data,error}=await sb.from('product_master').select('id,name,spec,is_active').like('name',QN230_LIUHE+'%').eq('is_active',true).order('name',{ascending:true});if(error)throw error;const readonlyRows=(data||[]);const paint=()=>{const q=String(stage.querySelector('#qN242SpecSearch')?.value||'').trim().toLowerCase(),rows=readonlyRows.filter(x=>!q||qN230PublicName(x,QN230_LIUHE).toLowerCase().includes(q));stage.querySelector('#qN242SpecRows').innerHTML=rows.length?rows.map(x=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid #eee"><b>'+qEsc(qN230PublicName(x,QN230_LIUHE))+'</b><b>'+qEsc(qDisplayNumber(qN230Kg(x.spec)))+' K</b></div>').join(''):'<div class="empty">找不到規格</div>'};paint();stage.querySelector('#qN242SpecSearch').oninput=paint}catch(e){stage.querySelector('#qN242SpecRows').innerHTML='<div class="empty">讀取失敗：'+qEsc(e?.message||e)+'</div>'}
+    stage.querySelector('#qN242SpecClose').onclick=qN243ExitPackingStage;
     stage.scrollIntoView({behavior:'smooth',block:'start'});
   }
   async function qN242RenderInventory(){
-    const stage=document.getElementById('packingReferenceStage'); if(!stage)return;
-    stage.style.display='block';stage.innerHTML='<div class="card" style="margin:8px 0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><b>📦 每日包裝庫存</b><div class="helper">一天一份；原始文字與查詢表是同一份資料。空白數量／0 不上表。</div></div><button class="btn gray" id="qN242InvClose" type="button">← 返回包裝部</button></div><div id="qN242InvBody" style="margin-top:9px">讀取中…</div></div>';
+    const stage=qN243EnterPackingStage(); if(!stage)return;
+    stage.innerHTML='<div class="card" style="margin:8px 0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><b>📦 每日包裝庫存</b><div class="helper">一天一份；原始文字與查詢表是同一份資料。空白數量／0 不上表。</div></div><button class="btn gray" id="qN242InvClose" type="button">← 返回包裝部</button></div><div id="qN242InvBody" style="margin-top:9px">讀取中…</div></div>';
     const body=stage.querySelector('#qN242InvBody');
     try{await qN242EnsureSeed();let docs=await qN242LoadDocs();let activeDate=qToday(),mode='edit';
       const draw=()=>{
@@ -8121,7 +8135,7 @@ K白.kg
         }
       };draw();
     }catch(e){body.innerHTML='<div class="empty">庫存讀取失敗：'+qEsc(e?.message||e)+'</div>'}
-    stage.querySelector('#qN242InvClose').onclick=()=>{stage.style.display='none';stage.innerHTML=''};
+    stage.querySelector('#qN242InvClose').onclick=qN243ExitPackingStage;
     stage.scrollIntoView({behavior:'smooth',block:'start'});
   }
   document.addEventListener('click',e=>{
@@ -8892,6 +8906,32 @@ window.qNormalizeTurnAction=qN93TurnAction;
    const ck=[c.id,c.name,c.formalName,c.code].map(qN176NormContactKey).filter(Boolean);
    return vals.some(v=>ck.includes(v));
  }
+
+ // N243-C：容器查詢 LINE 圖片。只讀既有 records() 與 qContainerBalance，不寫入、不改 balanceDelta/stockDelta。
+ function qN243ContainerImage({term,type,from,to,rows}){
+   if(!term||!type)return alert('請先指定「種類」與「往來對象」再出圖');
+   const full=records().filter(e=>qN174EventContactMatch(e,term)).filter(e=>{const aa=aliasesFor(type);return aa.has(String(e.type||''))||canonical(e.type)===canonical(type)});
+   const bal=(window.qContainerBalance?window.qContainerBalance(full):[]).find(x=>canonical(x.type)===canonical(type));
+   const owed=Math.max(0,Number(bal?.owed)||0),surplus=Math.max(0,Number(bal?.surplus)||0);
+   const current=canonical(type)==='籃子'?(owed>0?'欠籃 '+qN181DisplayNumber(owed):(surplus>0?'餘籃 '+qN181DisplayNumber(surplus):'已結清')):(owed>0?'欠 '+qN181DisplayNumber(owed):(surplus>0?'餘 '+qN181DisplayNumber(surplus):'已結清'));
+   const asc=(rows||[]).slice().reverse();
+   const actionTotals=new Map();asc.forEach(e=>actionTotals.set(String(e.action||'進出'),(actionTotals.get(String(e.action||'進出'))||0)+(Number(e.qty)||0)));
+   const W=1080,pad=76,lineH=58,headH=300,footH=180+Math.ceil(actionTotals.size/2)*48,H=Math.max(620,headH+asc.length*lineH+footH);
+   const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+   x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111827';x.textBaseline='middle';
+   x.font='700 44px sans-serif';x.fillText('欣儒農產行｜'+canonical(type)+'往來明細',pad,70);
+   x.font='700 38px sans-serif';x.fillText(String(term),pad,132);
+   x.font='28px sans-serif';x.fillStyle='#4b5563';x.fillText('查詢期間：'+(from||'最早')+' ～ '+(to||'現在'),pad,184);
+   x.strokeStyle='#d1d5db';x.lineWidth=2;x.beginPath();x.moveTo(pad,224);x.lineTo(W-pad,224);x.stroke();
+   let y=264;x.fillStyle='#111827';x.font='700 27px sans-serif';x.fillText('日期',pad,y);x.fillText('動作',310,y);x.fillText('數量',610,y);x.fillText('名稱／備註',790,y);
+   y+=42;x.font='28px sans-serif';
+   asc.forEach(e=>{x.fillStyle='#111827';x.fillText(String(e.date||''),pad,y);x.fillText(String(e.action||''),310,y);x.fillText(qN181DisplayNumber(e.qty),610,y);const extra=[e.rackName,e.note].filter(Boolean).join('｜');x.fillStyle='#4b5563';x.fillText(String(extra||''),790,y);x.strokeStyle='#eef0f3';x.beginPath();x.moveTo(pad,y+28);x.lineTo(W-pad,y+28);x.stroke();y+=lineH});
+   y+=28;x.fillStyle='#111827';x.font='700 30px sans-serif';x.fillText('區間統計',pad,y);y+=52;x.font='28px sans-serif';
+   let col=0;[...actionTotals.entries()].forEach(([a,n])=>{const xx=pad+(col%2)*430,yy=y+Math.floor(col/2)*48;x.fillText(a+'：'+qN181DisplayNumber(n),xx,yy);col++});
+   y+=Math.ceil(actionTotals.size/2)*48+38;x.fillStyle='#111827';x.font='700 38px sans-serif';x.fillText('目前'+canonical(type)+'：'+current,pad,y);
+   x.font='24px sans-serif';x.fillStyle='#6b7280';x.fillText('目前欠／餘依完整歷史往來計算；上方明細依本次查詢區間。',pad,y+52);
+   c.toBlob(blob=>{if(!blob)return alert('圖片產生失敗');const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(String(term).replace(/[\\/:*?"<>|]/g,'_')||'往來')+'_'+canonical(type)+'_'+(from||'最早')+'-'+(to||'現在')+'.png';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)},'image/png');
+ }
  function renderQuery(work){
    work.innerHTML='<div class="quickV2 xrContainerQuery"><b>🔍 籃子／鐵架／棧板／容器查詢</b><div id="cqAssetSummary" class="xrAssetSummary"></div><div class="xrContainerFilter"><div class="field"><label class="label">種類</label><select id="cqType" class="input"><option value="">全部</option>'+typeOptions()+'</select></div><div class="field"><label class="label">往來對象</label><input id="cqContact" class="input" list="cqContactList" autocomplete="off" placeholder="全部／輸入名稱"><datalist id="cqContactList"></datalist></div><div class="field"><label class="label">開始日期</label><input id="cqFrom" type="date" class="input"></div><div class="field"><label class="label">結束日期</label><input id="cqTo" type="date" class="input"></div><div class="xrFilterBtns"><button id="cqGo" class="btn primary" type="button">查詢</button><button id="cqClear" class="btn gray" type="button">清除</button></div></div><div id="cqResult" style="margin-top:12px"></div></div>';
    const te=work.querySelector('#cqType'),ce=work.querySelector('#cqContact'),dl=work.querySelector('#cqContactList'),fromEl=work.querySelector('#cqFrom'),toEl=work.querySelector('#cqTo');
@@ -8912,9 +8952,11 @@ window.qNormalizeTurnAction=qN93TurnAction;
      rs=rs.slice().reverse();
      const who=term||'全部往來對象',kind=type||'全部容器',period=(from||to)?((from||'最早')+' ～ '+(to||'現在')):'全部期間';
      let summary='<div class="quickV2ContactHint" style="margin-bottom:10px"><b>'+esc(who)+'｜'+esc(kind)+'｜'+esc(period)+'｜共 '+rs.length+' 筆</b></div>';
+     if(term&&type&&rs.length)summary+='<div style="margin:0 0 10px"><button type="button" class="btn primary" id="cqLineImage">🖼️ LINE 圖片</button></div>';
      if(term&&rs.length){const bal=window.qContainerBalance?window.qContainerBalance(rs):[];summary+=bal.map(x=>'<div class="quickV2ContactHint"><b>'+esc(x.type)+'合計：</b>'+(x.owed?'欠 '+qN181DisplayNumber(x.owed):(x.surplus?'餘 '+qN181DisplayNumber(x.surplus):'0'))+'</div>').join('');if((!type||type==='鐵架')&&window.qRackBalance){const rb=window.qRackBalance(rs);if(rb.length)summary+='<div class="quickV2Record"><b>鐵架名稱明細</b>'+rb.map(x=>'<div>'+esc(x.rackName)+'：'+(x.owed?'欠 '+qN181DisplayNumber(x.owed):(x.surplus?'餘 '+qN181DisplayNumber(x.surplus):'0'))+'｜'+x.events.length+'筆</div>').join('')+'</div>'}}
      work.querySelector('#cqResult').innerHTML=summary+(rs.length?rs.map(e=>{const money=Number(e.amount)||0,unit=Math.abs(Number(e.unitPrice)||0),priced=unit>0&&['計籃','回籃','使用','歸還','計價','退籃退費'].includes(String(e.action||'')),moneyOnly=e.source==='做帳'&&unit>0,rack=e.type==='鐵架'?(e.rackName?'（'+e.rackName+'）':'（未指定名稱）'):'',dest=e.action==='歸還'&&e.source==='容器管理'?((e.record?.turnover?.balanceMode==='stock_and_balance'||Number(e.balanceDelta)!==0)?'｜入公司庫存＋計往來欠／餘':'｜只入公司庫存'):'';return '<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+esc(e.date+'｜'+(e.canonicalContactName||e.customer||'公司庫存')+'｜'+canonical(e.type)+rack+'｜'+e.action+' '+e.qty+dest+(priced?(' × '+(['回籃','歸還'].includes(e.action)?'-':'')+unit+' = '+qN177Money(money)) : ''))+'</b><div class="helper" style="display:block!important">來源：'+esc(e.source)+(moneyOnly?'｜帳務計價；實體數量獨立計算':'')+'</div></div><div class="actions" style="margin:0;flex:0 0 auto"><button type="button" class="btn gray" data-cq-edit="'+esc(e.sourceRecordId)+'">✏️ 修改</button>'+((currentProfile?.role==='admin')?'<button type="button" class="btn red" data-cq-delete="'+esc(e.sourceRecordId)+'">🗑️ 刪除</button>':'')+'</div></div></div>'}).join(''):'<div class="empty">查無進出紀錄</div>');
      const resultBox=work.querySelector('#cqResult');
+      resultBox?.querySelector('#cqLineImage')?.addEventListener('click',()=>qN243ContainerImage({term,type,from,to,rows:rs}));
       resultBox?.querySelectorAll('[data-cq-edit]').forEach(btn=>btn.onclick=()=>{
         const id=String(btn.dataset.cqEdit||''),ev=records().find(x=>String(x.sourceRecordId)===id);
         if(!ev)return alert('找不到原始紀錄，請重新整理後再試');
