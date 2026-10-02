@@ -8772,6 +8772,20 @@ window.qNormalizeTurnAction=qN93TurnAction;
 .xrVehicleMeta{font-size:12px;color:#64748b;margin-top:4px}
 .xrVehicleTag{display:inline-block;border:1px solid #cbd5e1;border-radius:999px;padding:2px 7px;margin:2px 4px 2px 0;font-size:12px;background:#fff}
 @media(max-width:760px){.xrVehicleRow{grid-template-columns:1fr 1fr}.xrVehicleRow .xrVehicleNote{grid-column:1/-1}.xrVehicleRow .xrVehicleAction{grid-column:1/-1}}
+
+/* N256 六禾規格：真正響應式卡片，視窗縮窄時自動降欄，禁止內容重疊 */
+.qN252SpecGrid,.qN252ReadonlyGrid{grid-template-columns:repeat(5,minmax(230px,1fr))!important}
+.qN252SpecMain{display:grid!important;grid-template-columns:28px minmax(0,1fr) auto 32px;gap:6px!important;align-items:center!important;width:100%;min-width:0}
+.qN252SpecMain>b{min-width:0!important;white-space:normal!important;overflow-wrap:anywhere;line-height:1.18}
+.qN252SpecMain>strong{white-space:nowrap!important;justify-self:end}
+.qN252SpecMain>.qN253MenuWrap{margin-left:0!important;justify-self:end}
+.qN252ReadonlyCard{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:6px!important;align-items:center!important}
+.qN252ReadonlyCard>b{white-space:normal!important;overflow-wrap:anywhere;line-height:1.18}
+.qN252ReadonlyCard>strong{white-space:nowrap!important;justify-self:end}
+@media(max-width:1450px) and (min-width:1101px){.qN252SpecGrid,.qN252ReadonlyGrid{grid-template-columns:repeat(4,minmax(230px,1fr))!important}}
+@media(max-width:1100px) and (min-width:701px){.qN252SpecGrid,.qN252ReadonlyGrid{grid-template-columns:repeat(3,minmax(220px,1fr))!important}}
+@media(max-width:700px){.qN252SpecGrid,.qN252ReadonlyGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}.qN252SpecCard,.qN252ReadonlyCard{min-width:0!important;padding:6px 5px!important}.qN252SpecMain{grid-template-columns:22px minmax(0,1fr) 28px!important;grid-template-areas:"drag text menu" "drag weight menu";column-gap:3px!important;row-gap:1px!important;align-items:center!important}.qN252SpecMain>.qN254Drag{grid-area:drag;padding:3px 1px!important;font-size:16px}.qN252SpecMain>b{grid-area:text;font-size:13px!important;line-height:1.12}.qN252SpecMain>strong{grid-area:weight;justify-self:start;font-size:12px!important;line-height:1.1}.qN252SpecMain>.qN253MenuWrap{grid-area:menu}.qN252ReadonlyCard{grid-template-columns:1fr!important;gap:1px!important}.qN252ReadonlyCard>b{font-size:13px!important}.qN252ReadonlyCard>strong{justify-self:start;font-size:12px!important}}
+@media(max-width:390px){.qN252SpecGrid,.qN252ReadonlyGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 </style>
 
 <script id="xrContactsV2Script">
