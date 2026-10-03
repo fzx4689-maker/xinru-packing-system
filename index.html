@@ -6962,7 +6962,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
-  // N322：容器金額核心定義統一：只有「數量帳」獨立追蹤；容器金額絕不獨立，直接併入正式貨款應收／應付。
+  // N323：資金帳戶正式核心：公司帳戶／公司現金可查看唯一流水；帳戶互轉以同一 transferId 建立一出一入，不影響損益或往來帳。\n  // N322：容器金額核心定義統一：只有「數量帳」獨立追蹤；容器金額絕不獨立，直接併入正式貨款應收／應付。
   // N321：容器負項正式折抵應收／應付：回籃等負金額直接扣入同帳期與目前餘額，不再只出現在流水表。\n  // N320：容器金額唯一帳款核心：有金額的籃子／鐵架／棧板／容器直接併入應收應付，且交易明細顯示真實容器名稱、數量、單價、正負金額。
   // N319：資金帳戶第一個正式核心：原收款／付款／退款直接派生唯一資金流水，不重複KEY；公司收支仍為非往來帳人工入口。
   // N318：產農週報自動分頁核心固定：頁尾18mm安全區、整卡放不下即換頁；尺寸/字級不再依每週資料量調整。
@@ -8989,8 +8989,8 @@ K白.kg
     const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft');
     const out=[];
     all.forEach(r=>{
-      if(r.mode==='company_cashflow'){
-        out.push({...r,fundSource:'company_cashflow',fundSourceId:String(r.id||'')});
+      if(r.mode==='company_cashflow'||r.mode==='fund_transfer'){
+        out.push({...r,fundSource:r.mode,fundSourceId:String(r.id||'')});
         return;
       }
       if(r.mode!=='money_settlement'&&r.mode!=='money_refund')return;
@@ -9070,16 +9070,51 @@ K白.kg
       back.addEventListener('click',()=>qRenderFundHome(document.getElementById('acctStageWork')),{once:true});
     }
   }
+  function qRenderFundAccount(work,account){
+    qFundStageHeader('sub',qFundAccountLabel(account));
+    const rows=qFundRows().filter(r=>!r.fundPending&&String(r.fundAccount||'')===String(account)).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    const bal=qFundBalance(account);
+    work.innerHTML='<div class="quickV2"><div class="quickV2ContactHint"><b>'+qEsc(qFundAccountLabel(account))+'</b><div style="font-size:28px;font-weight:900;margin-top:6px">'+qFundMoney(bal)+'</div><div class="helper">正式餘額｜只由唯一資金流水累計</div></div>'+
+      '<div class="actions" style="margin:12px 0"><button class="btn primary" type="button" id="qFundTransferBtn">⇄ 帳戶互轉</button></div>'+
+      '<b>帳戶流水</b><div class="acctQueueList" style="margin-top:8px">'+(rows.length?rows.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'資金異動')+'</b><div class="helper">'+qEsc(r.customer||r.fundCategory||'')+(r.fundSubcategory?'｜'+qEsc(r.fundSubcategory):'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有資金流水</div>')+'</div></div>';
+    work.querySelector('#qFundTransferBtn').onclick=()=>qRenderFundTransfer(work,account);
+  }
+  function qRenderFundTransfer(work,fromDefault='company_bank'){
+    qFundStageHeader('sub','帳戶互轉');
+    const opts='<option value="company_bank">公司帳戶</option><option value="company_cash">公司現金</option>';
+    work.innerHTML='<div class="quickV2"><b>⇄ 帳戶互轉</b><div class="helper" style="display:block!important;margin:5px 0 10px">只搬移公司自己的資金，不產生收入、支出、應收或應付；同一轉帳 ID 會形成一出一入兩筆資金流水。</div>'+
+      '<div class="quickV2Head"><div class="field"><label class="label">日期 *</label><input id="qTransferDate" class="input" type="date" value="'+qToday()+'"></div>'+
+      '<div class="field"><label class="label">轉出帳戶 *</label><select id="qTransferFrom" class="input">'+opts+'</select></div>'+
+      '<div class="field"><label class="label">轉入帳戶 *</label><select id="qTransferTo" class="input">'+opts+'</select></div>'+
+      '<div class="field"><label class="label">金額 *</label><input id="qTransferAmount" class="input" inputmode="decimal" placeholder="例如 10000"></div></div>'+
+      '<div class="field" style="margin-top:8px"><label class="label">備註</label><input id="qTransferNote" class="input" placeholder="可不填"></div>'+
+      '<div class="actions" style="margin-top:10px"><button id="qTransferSave" class="btn primary" type="button">完成轉帳</button></div></div>';
+    const from=work.querySelector('#qTransferFrom'),to=work.querySelector('#qTransferTo');from.value=fromDefault==='company_cash'?'company_cash':'company_bank';to.value=from.value==='company_bank'?'company_cash':'company_bank';
+    from.onchange=()=>{if(to.value===from.value)to.value=from.value==='company_bank'?'company_cash':'company_bank'};
+    to.onchange=()=>{if(to.value===from.value)from.value=to.value==='company_bank'?'company_cash':'company_bank'};
+    work.querySelector('#qTransferSave').onclick=async()=>{try{
+      const amount=Math.round(Number(work.querySelector('#qTransferAmount').value||0));if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確轉帳金額');
+      if(from.value===to.value)throw new Error('轉出與轉入帳戶不可相同');
+      const transferId='transfer_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),now=new Date().toISOString(),date=work.querySelector('#qTransferDate').value||qToday(),note=work.querySelector('#qTransferNote').value.trim(),actor=(typeof qActor==='function'?qActor():'');
+      const base={schemaVersion:1,date,customer:'公司內帳',contactId:'',mode:'fund_transfer',txnType:'fund_movement',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',fundKind:'transfer',fundCategory:'帳戶互轉',fundAmount:amount,transferId,note,createdAt:now,updatedAt:now,createdBy:actor};
+      await saveAccountingCloud({...base,id:transferId+'_out',txnTypeLabel:'帳戶轉出',fundSubcategory:qFundAccountLabel(from.value)+' → '+qFundAccountLabel(to.value),fundAccount:from.value,fundDelta:-amount});
+      await saveAccountingCloud({...base,id:transferId+'_in',txnTypeLabel:'帳戶轉入',fundSubcategory:qFundAccountLabel(from.value)+' → '+qFundAccountLabel(to.value),fundAccount:to.value,fundDelta:amount});
+      if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundHome(document.getElementById('acctStageWork'));alert('帳戶互轉已完成');
+    }catch(e){alert(e.message||String(e))}};
+  }
   function qRenderFundHome(work){
     qFundStageHeader('home');
     const bank=qFundBalance('company_bank'),cash=qFundBalance('company_cash');
     work.innerHTML='<div class="quickV2"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+
-      '<div class="quickV2ContactHint"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">期初 $0｜只依正式資金異動累計</div></div>'+
-      '<div class="quickV2ContactHint"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">期初 $0｜只依正式資金異動累計</div></div></div>'+
+      '<button type="button" class="quickV2ContactHint" data-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
+      '<button type="button" class="quickV2ContactHint" data-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">正式餘額｜點入查看流水</div></button></div>'+
+      '<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="qFundTransferHome">⇄ 帳戶互轉</button></div>'+
       '<div class="acctStageGrid" style="margin-top:12px">'+
       ['💵 公司收支','👤 員工零用金','🧾 收到的支票','🛒 代購毛利','📋 資金紀錄'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+
       '</div></div>';
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='📋 資金紀錄')qRenderFundHistory(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能會在下一階段接入同一個資金異動核心；目前不建立第二套資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
+    work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
+    work.querySelector('#qFundTransferHome').onclick=()=>qRenderFundTransfer(work,'company_bank');
+    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='📋 資金紀錄')qRenderFundHistory(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能將接入同一個資金異動核心；不建立第二套資金資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
   }
   function qRenderCompanyCashflow(work){
     const cats=qFundCategories(),vehicles=qCompanyVehicles();
@@ -9105,7 +9140,7 @@ K白.kg
     work.innerHTML='<div class="quickV2"><b>📋 資金紀錄</b><div class="helper" style="display:block!important;margin:5px 0 10px">唯一正式資金流水：既有收款／付款／退款自動帶入；公司收支才人工建立。未能判定實際資金帳戶的交易會標示「待確認」，不會亂算進公司帳戶或公司現金。</div><div class="acctQueueList">'+
       (rows.length?rows.map(r=>{
         const pending=!!r.fundPending;
-        const source=r.fundSource==='company_cashflow'?'人工公司收支':'帳務自動帶入';
+        const source=r.fundSource==='company_cashflow'?'人工公司收支':r.fundSource==='fund_transfer'?'帳戶互轉':'帳務自動帶入';
         return '<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'資金異動')+'｜'+qEsc(r.customer||r.fundCategory||'')+'</b><div class="helper">'+qEsc(qFundAccountLabel(r.fundAccount))+'｜'+qEsc(r.fundSubcategory||r.fundMethod||'')+'｜'+qEsc(source)+(pending?'｜⚠️ '+qEsc(r.fundPendingReason||'待確認'):'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>'
       }).join(''):'<div class="empty">目前沒有資金異動</div>')+'</div></div>';
   }
