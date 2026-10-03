@@ -4487,6 +4487,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N269：僅移除每月／每週農收主列的原始車趟數顯示；週期合併核心不變。 -->
 <!-- N270：一般農收顯示本期貨款總額；可依往來資料啟用分張核對；分類名稱可改刪。分張資料獨立保存，不改原帳務。 -->
 <!-- N271：分類管理改乾淨主畫面＋單一管理入口；農收分張改逐張輸入、增刪與即時核對。未改帳務金額核心。 -->
+<!-- N274：修正交易查詢四種輸出往來解析；qResolveContact 回傳 wrapper，輸出必須傳入其 contact 主檔。 -->
 <!-- N273：收支查詢升級為交易查詢；整合正式銷貨/進貨/收付款/調整/退貨/退款＋往來搜尋＋四種中央輸出；不修改原帳務計算核心。 -->
 <!-- N272：一般農收本期貨款總額改抓同客戶同週期全部正式 sale 帳務，包含無商品明細的正負調整；分類農收算法不變。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
@@ -7993,7 +7994,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
       '<div style="display:grid;grid-template-columns:minmax(220px,1fr) 180px;gap:8px;margin-top:10px"><div class="field"><label class="label">搜尋往來對象／編號／品項／備註／付款方式</label><input id="qMoneyHistorySearch" class="input" autocomplete="off" placeholder="例如：0299、長青、安中"></div><div class="field"><label class="label">交易類型</label><select id="qMoneyHistoryType" class="input"><option value="">全部交易</option><option>銷貨</option><option>進貨</option><option>收款</option><option>付款</option><option>調整</option><option>折讓</option><option>退貨</option><option>退款</option><option>收回退款</option></select></div></div>'+
       '<div id="qMoneyHistoryOutputs" style="display:none;gap:8px;flex-wrap:wrap;margin:10px 0"></div><div id="qMoneyHistoryList"></div></div>';
     const inp=work.querySelector('#qMoneyHistorySearch'),sel=work.querySelector('#qMoneyHistoryType'),list=work.querySelector('#qMoneyHistoryList'),outs=work.querySelector('#qMoneyHistoryOutputs');
-    const resolveExact=key=>{if(!key)return null;try{return qResolveContact(key)||qContact(key)}catch(e){return qContact(key)}};
+    const resolveExact=key=>{if(!key)return null;try{const hit=qResolveContact(key);return hit?.contact||qContact(key)||null}catch(e){return qContact(key)||null}};
     const paint=()=>{
       const key=String(inp?.value||'').trim().toLowerCase(),type=String(sel?.value||'');
       const filtered=rows.filter(r=>{const c=qContact(r.contactId)||qContact(r.customer),items=(r.items||[]).map(x=>x?.name||'').join(' '),methods=(r.methods||[]).map(m=>m.method).join(' '),text=[r.date,typeOf(r),r.customer,c?.name,c?.code,r.note,items,methods].join(' ').toLowerCase();return (!key||text.includes(key))&&(!type||typeOf(r)===type)});
