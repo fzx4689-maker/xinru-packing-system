@@ -4487,6 +4487,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N269：僅移除每月／每週農收主列的原始車趟數顯示；週期合併核心不變。 -->
 <!-- N270：一般農收顯示本期貨款總額；可依往來資料啟用分張核對；分類名稱可改刪。分張資料獨立保存，不改原帳務。 -->
 <!-- N271：分類管理改乾淨主畫面＋單一管理入口；農收分張改逐張輸入、增刪與即時核對。未改帳務金額核心。 -->
+<!-- N273：收支查詢升級為交易查詢；整合正式銷貨/進貨/收付款/調整/退貨/退款＋往來搜尋＋四種中央輸出；不修改原帳務計算核心。 -->
 <!-- N272：一般農收本期貨款總額改抓同客戶同週期全部正式 sale 帳務，包含無商品明細的正負調整；分類農收算法不變。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
@@ -5859,7 +5860,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     entry:{title:'✍️ 快速做帳',desc:'銷貨／進貨、運費、草稿、待補價格與周轉物統一在這裡完成。',items:['開始快速做帳','做帳紀錄']},
     farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'入貨可先不填價格；週帳與實際付款分開。',items:['入貨紀錄','待補價格','本週週帳','待領款']},
     vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','待補價格','異常處理','廠商對帳']},
-    payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 收支查詢','🏦 資金帳戶','📊 報表']},
+    payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 交易查詢','🏦 資金帳戶','📊 報表']},
     ledger:{title:'📒 帳本',desc:'搜尋往來對象，查看完整應收／應付、收付款與帳務流水。',items:[]},
     turnover:{title:'🧺 籃子／鐵架／棧板／容器管理',desc:'日常容器一律由快速做帳建立；這裡只負責查詢、盤點修正與容器設定。',items:['🔍 籃子／鐵架／棧板／容器查詢','📋 盤點／差異','⚙️ 籃子／鐵架／棧板／容器設定']},
     contacts:{title:'👥 往來資料',desc:'同一個往來對象只建立一份主資料，內部以固定ID關聯。',items:['🔍 搜尋往來資料','＋ 新增往來對象']},
@@ -6697,6 +6698,17 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight:direction==='payment'&&/產農|廠商/.test(String(contact?.identity||contact?.type||'')),reportLayout:qN97EffectiveReportLayout(contact),contact:snapshot.contact||contact,direction,range:{from:record.date||'',to:record.date||''},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities:[record],directEvent:true}};
   }
   function qN98OutputModel(record){
+    if(record?.context==='transaction_history'){
+      const c=qContact(record.contactId||record.customer||'');
+      if(!c)return {schema:'xinru_complete_output_v1',kind:'missing_contact',rows:[],summary:qN98Summary([])};
+      const from=String(record.dateFrom||''),to=String(record.dateTo||''),wanted=String(record.transactionType||'');
+      const typeOf=r=>{if(r.mode==='money_refund')return r.accountDirection==='refund_from_supplier'?'收回退款':'退款';if(r.mode==='money_settlement')return r.txnType==='payment'?'付款':'收款';if(qAccountingIsAdjustment(r))return r.mode==='goods_return'?'退貨':(r.mode==='account_allowance'?'折讓':'調整');if(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')return '進貨';if(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')return '銷貨';return r.txnTypeLabel||'交易'};
+      const acts=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&qRecordBelongsToContact(r,c)).filter(r=>{const d=String(r.date||'');return (!from||d>=from)&&(!to||d<=to)&&(!wanted||typeOf(r)===wanted)}).sort((a,b)=>qN96Cmp(a,b));
+      let rows=[];acts.forEach(r=>{if(r.mode==='money_settlement'||r.mode==='money_refund')rows.push(qN98SettlementRow(r,c));else rows.push(...qN222RowsFromActivity(r,c))});
+      rows=qN107SortRows(rows);let seq=0;rows=rows.map(r=>r?.kind==='settlement'?r:{...r,no:++seq,displaySeq:seq});
+      const snap=c.billShowTurnover!==false?qN109CurrentContainerSnapshot(c):{contact:c,enabledTypes:[],balances:[],text:''};
+      return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,transactionHistory:true}};
+    }
     const direct=qN224DirectEventOutputModel(record);if(direct)return direct;
     const route=qN97OutputRoute(record,{context:record?.context||'',direction:record?.direction||'',cutoff:record?.id||record?.date,week:record?.date});
     if(route.kind==='missing_contact')return {schema:'xinru_complete_output_v1',kind:'missing_contact',route,rows:[],summary:qN98Summary([])};
@@ -7962,19 +7974,35 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
 
   function qRenderMoneyHistory(work){
     const state=qAcctDateState();
-    const rows=qMoneyActivityRecords().filter(r=>qAcctRecordInDateRange(r,state)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
-    const totalReceipt=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt').reduce((a,r)=>a+qMoney(r.amount||r.total),0);
-    const totalPayment=rows.filter(r=>r.mode==='money_settlement'&&r.txnType==='payment').reduce((a,r)=>a+qMoney(r.amount||r.total),0);
-    const totalRefund=rows.filter(r=>r.mode==='money_refund'&&r.accountDirection==='refund_customer').reduce((a,r)=>a+qMoney(r.amount||r.total),0);
-    const totalRefundBack=rows.filter(r=>r.mode==='money_refund'&&r.accountDirection==='refund_from_supplier').reduce((a,r)=>a+qMoney(r.amount||r.total),0);
-    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🔍 收支查詢</b><div class="helper" style="display:block!important;margin-top:5px">只查已實際完成的收款／付款／退款紀錄；日期沿用上方共用日期查詢。</div></div><div style="text-align:right"><b>收款 '+qLedgerMoney(totalReceipt)+'｜付款 '+qLedgerMoney(totalPayment)+'｜退款 '+qLedgerMoney(totalRefund)+'｜收回退款 '+qLedgerMoney(totalRefundBack)+'</b><div class="helper">'+qEsc(qAcctDateLabel(state))+'</div></div></div><div class="field" style="margin-top:10px"><label class="label">搜尋往來對象／編號／備註／付款方式</label><input id="qMoneyHistorySearch" class="input" autocomplete="off" placeholder="例如：0299、長青、現金、匯款"></div><div id="qMoneyHistoryList"></div></div>';
-    const inp=work.querySelector('#qMoneyHistorySearch'),list=work.querySelector('#qMoneyHistoryList');
-    const paint=()=>{
-      const key=String(inp?.value||'').trim().toLowerCase();
-      const filtered=rows.filter(r=>{const c=qContact(r.contactId)||qContact(r.customer);const text=[r.date,r.txnTypeLabel,r.customer,c?.name,c?.code,r.note,(r.methods||[]).map(m=>m.method).join(' ')].join(' ').toLowerCase();return !key||text.includes(key)});
-      list.innerHTML=filtered.length?filtered.map(r=>{const c=qContact(r.contactId)||qContact(r.customer),isRefund=r.mode==='money_refund',icon=isRefund?'↩️':(r.txnType==='payment'?'💸':'💰');return '<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>'+icon+' '+qEsc(r.txnTypeLabel||(r.txnType==='payment'?'付款':'收款'))+'｜'+qEsc(c?.name||r.customer||'')+'</b><div class="helper" style="display:block!important">'+qEsc(r.date||'')+'｜'+qEsc((r.methods||[]).map(m=>m.method+' '+qLedgerMoney(m.amount)).join('＋')||'未填方式')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><div style="display:flex;align-items:center;gap:8px"><b>'+qLedgerMoney(r.amount||r.total)+'</b>'+'</div></div></div>'}).join(''):'<div class="empty">目前沒有符合條件的收／付款／退款紀錄</div>';
+    const source=(typeof acctRecords==='function'?acctRecords():[]);
+    const rows=source.filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&qAcctRecordInDateRange(r,state))
+      .filter(r=>r.mode==='money_settlement'||r.mode==='money_refund'||qAccountingIsAdjustment(r)||Array.isArray(r.items)||r.txnType==='sale'||r.txnType==='purchase')
+      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    const typeOf=r=>{
+      if(r.mode==='money_refund')return r.accountDirection==='refund_from_supplier'?'收回退款':'退款';
+      if(r.mode==='money_settlement')return r.txnType==='payment'?'付款':'收款';
+      if(qAccountingIsAdjustment(r))return r.mode==='goods_return'?'退貨':(r.mode==='account_allowance'?'折讓':'調整');
+      if(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')return '進貨';
+      if(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')return '銷貨';
+      return r.txnTypeLabel||'交易';
     };
-    inp?.addEventListener('input',paint);paint();
+    const amountOf=r=>qMoney(r.amount??r.total??(typeof qRecordTotal==='function'?qRecordTotal(r):0));
+    const totals={};rows.forEach(r=>{const t=typeOf(r);totals[t]=(totals[t]||0)+amountOf(r)});
+    const summary=['銷貨','進貨','收款','付款','退款'].filter(k=>totals[k]).map(k=>k+' '+qLedgerMoney(totals[k])).join('｜');
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🔍 交易查詢</b><div class="helper" style="display:block!important;margin-top:5px">查詢往來對象的銷貨、進貨、收款、付款、調整、退貨與退款；只讀既有正式交易，不另建立資料。</div></div><div style="text-align:right"><b>'+(summary||'目前期間沒有正式交易')+'</b><div class="helper">'+qEsc(qAcctDateLabel(state))+'</div></div></div>'+
+      '<div style="display:grid;grid-template-columns:minmax(220px,1fr) 180px;gap:8px;margin-top:10px"><div class="field"><label class="label">搜尋往來對象／編號／品項／備註／付款方式</label><input id="qMoneyHistorySearch" class="input" autocomplete="off" placeholder="例如：0299、長青、安中"></div><div class="field"><label class="label">交易類型</label><select id="qMoneyHistoryType" class="input"><option value="">全部交易</option><option>銷貨</option><option>進貨</option><option>收款</option><option>付款</option><option>調整</option><option>折讓</option><option>退貨</option><option>退款</option><option>收回退款</option></select></div></div>'+
+      '<div id="qMoneyHistoryOutputs" style="display:none;gap:8px;flex-wrap:wrap;margin:10px 0"></div><div id="qMoneyHistoryList"></div></div>';
+    const inp=work.querySelector('#qMoneyHistorySearch'),sel=work.querySelector('#qMoneyHistoryType'),list=work.querySelector('#qMoneyHistoryList'),outs=work.querySelector('#qMoneyHistoryOutputs');
+    const resolveExact=key=>{if(!key)return null;try{return qResolveContact(key)||qContact(key)}catch(e){return qContact(key)}};
+    const paint=()=>{
+      const key=String(inp?.value||'').trim().toLowerCase(),type=String(sel?.value||'');
+      const filtered=rows.filter(r=>{const c=qContact(r.contactId)||qContact(r.customer),items=(r.items||[]).map(x=>x?.name||'').join(' '),methods=(r.methods||[]).map(m=>m.method).join(' '),text=[r.date,typeOf(r),r.customer,c?.name,c?.code,r.note,items,methods].join(' ').toLowerCase();return (!key||text.includes(key))&&(!type||typeOf(r)===type)});
+      const exact=resolveExact(String(inp?.value||'').trim());
+      if(exact){outs.style.display='flex';outs.innerHTML='<button class="btn primary" data-th-out="bill">📱 圖片／LINE</button><button class="btn gray" data-th-out="excel">📊 Excel</button><button class="btn gray" data-th-out="pdf">📄 PDF</button><button class="btn gray" data-th-out="paper">🖨️ 報表紙</button>';outs.querySelectorAll('[data-th-out]').forEach(b=>b.onclick=()=>qN100RunOutput(b.dataset.thOut,{context:'transaction_history',contactId:exact.id,customer:exact.name,dateFrom:state.dateFrom||'',dateTo:state.dateTo||'',transactionType:type}));}else{outs.style.display='none';outs.innerHTML=''}
+      list.innerHTML=filtered.length?filtered.map(r=>{const c=qContact(r.contactId)||qContact(r.customer),t=typeOf(r),icon=t==='付款'?'💸':t==='收款'?'💰':t==='進貨'?'📥':t==='銷貨'?'📤':t.includes('退款')?'↩️':'🧾',methods=(r.methods||[]).map(m=>m.method+' '+qLedgerMoney(m.amount)).join('＋'),items=(r.items||[]).map(v=>v?.name).filter(Boolean).join('、');return '<div class="quickV2Record" data-qtx="'+qEsc(r.id)+'" style="cursor:pointer"><div class="quickV2RecordTop"><div><b>'+icon+' '+qEsc(t)+'｜'+qEsc(c?.name||r.customer||'')+'</b><div class="helper" style="display:block!important">'+qEsc(r.date||'')+(items?'｜'+qEsc(items):'')+(methods?'｜'+qEsc(methods):'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><div style="display:flex;align-items:center;gap:8px"><b>'+qLedgerMoney(amountOf(r))+'</b></div></div></div>'}).join(''):'<div class="empty">目前沒有符合條件的交易紀錄</div>';
+      list.querySelectorAll('[data-qtx]').forEach(card=>card.onclick=()=>qShowRecordDetail(work,card.dataset.qtx,'transaction_history'));
+    };
+    inp?.addEventListener('input',paint);sel?.addEventListener('change',paint);paint();
   }
 
 
@@ -8501,7 +8529,7 @@ K白.kg
     if(section==='farmer'&&a==='本週週帳'){renderFarmerWeekly(work);return;}
     if(section==='farmer'&&a==='待領款'){renderFarmerPayables(work);return;}
     if(section==='payment'&&(a==='💰 收款'||a==='💸 付款')){qRenderMoneyCenter(work,'',a==='💸 付款'?'payment':'receipt');return;}
-    if(section==='payment'&&a==='🔍 收支查詢'){qRenderMoneyHistory(work);return;}
+    if(section==='payment'&&(a==='🔍 交易查詢'||a==='🔍 收支查詢')){qRenderMoneyHistory(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
     // N76：往來資料搜尋是正式 route。F5 恢復時直接重建名單，不可掉到 placeholder。
     if(section==='contacts'&&a==='🔍 搜尋往來資料'){
