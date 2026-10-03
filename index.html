@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- N303 UNIQUE BILLING PERIOD CORE: qN292PeriodMeta is the only billing-period authority; layout cannot redefine period. -->
 <html lang="zh-Hant">
 <head>
 
@@ -6051,50 +6052,41 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qBillingParseDate(v){const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),12,0,0,0);return Number.isNaN(d.getTime())?null:d}
   function qBillingDateText(d){if(!(d instanceof Date)||Number.isNaN(d.getTime()))return '';const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day}
   function qBillingAddDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+Number(n||0),12,0,0,0)}
-  function qBillingPeriodFor(c,dateText){
-    const d=qBillingParseDate(dateText),type=String(c?.settlement||'現結').trim();
-    if(!d)return {ok:false,type,start:'',end:'',key:'',reason:'日期格式錯誤'};
-    if(type==='儲值'){start=new Date(d);end=new Date(d)} // N233A8：舊主檔「儲值」相容為現結；儲值只屬付款方式。
-    if(type==='自訂')return {ok:false,type,start:'',end:'',key:'',reason:'自訂帳期不自動猜測'};
-    let start=new Date(d),end=new Date(d);const dow=d.getDay();
-    if(type==='車趟結'){
-      const days=[...new Set((Array.isArray(c?.deliveryWeekdays)?c.deliveryWeekdays:[]).map(Number).filter(v=>Number.isInteger(v)&&v>=0&&v<=6))].sort((a,b)=>a-b);
-      if(!days.length)return {ok:false,type,start:'',end:'',key:'',reason:'車趟結尚未設定固定車趟'};
-      let ahead=7;for(const w of days){const diff=(w-dow+7)%7;if(diff<ahead)ahead=diff}end=qBillingAddDays(d,ahead);
-      const endDow=end.getDay();let back=7;for(const w of days){const diff=(endDow-w+7)%7;if(diff>0&&diff<back)back=diff}start=qBillingAddDays(end,-back+1);
-    }else if(type==='3日結'){
-      if(dow<=3){start=qBillingAddDays(d,-dow);end=qBillingAddDays(start,3)}else{start=qBillingAddDays(d,4-dow);end=qBillingAddDays(start,2)}
-    }else if(type==='週結'){start=qBillingAddDays(d,-dow);end=qBillingAddDays(start,6)}
-    else if(type==='半月結'){if(d.getDate()<=15){start=new Date(d.getFullYear(),d.getMonth(),1,12);end=new Date(d.getFullYear(),d.getMonth(),15,12)}else{start=new Date(d.getFullYear(),d.getMonth(),16,12);end=new Date(d.getFullYear(),d.getMonth()+1,0,12)}}
-    else if(type==='月結'){start=new Date(d.getFullYear(),d.getMonth(),1,12);end=new Date(d.getFullYear(),d.getMonth()+1,0,12)}
-    else if(type!=='現結')return {ok:false,type,start:'',end:'',key:'',reason:'未支援的結帳方式'};
-    const a=qBillingDateText(start),b=qBillingDateText(end),cid=String(c?.id||c?.code||c?.name||'').trim();return {ok:true,type,start:a,end:b,key:[cid,type,a,b].join('|'),reason:''};
-  }
-  // N292：帳期／帳單沖帳核心。一般往來的收付款必須只屬於一張帳期；儲值客戶維持儲值餘額核心。
+  // N303：唯一帳期核心。全系統的帳單、收付款、未結清、手續費、提醒與四種輸出，只能讀 qN292PeriodMeta。
   function qN292PeriodMeta(c,record){
-    const settlement=String(c?.settlement||'現結').trim(),d=String(record?.date||''),cid=String(c?.id||c?.code||c?.name||'').trim();
-    // N297：儲值型也走唯一帳期核心，但固定以自然月切帳；儲值餘額本身仍可跨月延續。
+    const settlement=String(c?.settlement||'現結').trim(),d=String(record?.date||''),cid=String(c?.id||c?.code||c?.name||'').trim(),dt=qBillingParseDate(d);
+    if(!dt)return {ok:false,key:'',type:settlement,start:'',end:'',label:'',reason:'日期格式錯誤'};
+    const rid=String(record?.id||record?.recordId||'').trim();
+    // 儲值是付款方式；對外帳單固定自然月，儲值餘額可跨月延續。
     if(String(c?.paymentDefault||'').trim()==='儲值'){
-      const dt=qBillingParseDate(d);if(dt){const start=new Date(dt.getFullYear(),dt.getMonth(),1,12),end=new Date(dt.getFullYear(),dt.getMonth()+1,0,12),a=qBillingDateText(start),b=qBillingDateText(end);return {ok:true,key:[cid,'儲值月帳',a,b].join('|'),type:'儲值月帳',start:a,end:b,label:a.slice(0,7)+' 月帳'};}
+      const a=qBillingDateText(new Date(dt.getFullYear(),dt.getMonth(),1,12)),b=qBillingDateText(new Date(dt.getFullYear(),dt.getMonth()+1,0,12));
+      return {ok:true,key:[cid,'儲值月帳',a,b].join('|'),type:'儲值月帳',start:a,end:b,label:a.slice(0,7)+' 月帳'};
     }
-    // N293：車趟結不是固定星期區間帳。每一筆正式銷貨／進貨（每一車趟）就是獨立帳期。
-    // deliveryWeekdays 只用於車趟／收款排程，不得拿來合併實際帳款。
-    if(settlement==='車趟結'){
-      const rid=String(record?.id||record?.recordId||'').trim();
-      return {ok:true,key:[cid,'車趟結',rid||d].join('|'),type:'車趟結',start:d,end:d,label:d||'未指定日期',recordId:rid};
+    // 現結、車趟結：每一筆正式交易就是一張帳，配送星期只供排程使用。
+    if(settlement==='現結'||settlement==='車趟結'){
+      return {ok:true,key:[cid,settlement,rid||d].join('|'),type:settlement,start:d,end:d,label:d,recordId:rid};
     }
-    // 現結同樣以單筆正式交易為獨立帳，避免同日多筆被錯誤視為同一帳。
-    if(settlement==='現結'){
-      const rid=String(record?.id||record?.recordId||'').trim();
-      return {ok:true,key:[cid,'現結',rid||d].join('|'),type:'現結',start:d,end:d,label:d||'未指定日期',recordId:rid};
+    if(settlement==='自訂')return {ok:true,key:[cid,'自訂',rid||d].join('|'),type:'自訂',start:d,end:d,label:d,recordId:rid};
+    let ps=new Date(dt),pe=new Date(dt);
+    if(settlement==='3日結'){
+      // 每月固定三天一帳：1-3、4-6、7-9…；月底最後一帳收至月底。
+      const day=dt.getDate(),sd=Math.floor((day-1)/3)*3+1,last=new Date(dt.getFullYear(),dt.getMonth()+1,0,12).getDate(),ed=Math.min(sd+2,last);
+      ps=new Date(dt.getFullYear(),dt.getMonth(),sd,12);pe=new Date(dt.getFullYear(),dt.getMonth(),ed,12);
+    }else if(settlement==='週結'){
+      ps=qBillingAddDays(dt,-dt.getDay());pe=qBillingAddDays(ps,6);
+    }else if(settlement==='半月結'){
+      if(dt.getDate()<=15){ps=new Date(dt.getFullYear(),dt.getMonth(),1,12);pe=new Date(dt.getFullYear(),dt.getMonth(),15,12)}
+      else{ps=new Date(dt.getFullYear(),dt.getMonth(),16,12);pe=new Date(dt.getFullYear(),dt.getMonth()+1,0,12)}
+    }else if(settlement==='月結'){
+      ps=new Date(dt.getFullYear(),dt.getMonth(),1,12);pe=new Date(dt.getFullYear(),dt.getMonth()+1,0,12);
+    }else{
+      return {ok:true,key:[cid,'single',rid||d].join('|'),type:settlement,start:d,end:d,label:d,recordId:rid};
     }
-    const p=qBillingPeriodFor(c,d);
-    if(!p?.ok)return {ok:true,key:[cid,'single',String(record?.id||d)].join('|'),type:settlement,start:d,end:d,label:d||'未指定日期'};
-    const type=String(p.type||settlement);let label='';
-    if(type==='月結')label=(p.start||'').slice(0,7)+' 月帳';
-    else label=(p.start===p.end?p.start:[p.start,p.end].filter(Boolean).join(' ～ '));
-    return {...p,label:label||p.key};
+    const a=qBillingDateText(ps),b=qBillingDateText(pe),label=settlement==='月結'?a.slice(0,7)+' 月帳':(a===b?a:a+' ～ '+b);
+    return {ok:true,key:[cid,settlement,a,b].join('|'),type:settlement,start:a,end:b,label};
   }
+  // 舊名稱只保留相容呼叫，不再擁有任何帳期算法。
+  function qBillingPeriodFor(c,dateText){return qN292PeriodMeta(c,{date:String(dateText||''),id:''})}
   function qN292AllocationPeriods(c,allocations){
     const byId=new Map((typeof acctRecords==='function'?acctRecords():[]).map(r=>[String(r?.id||''),r]));
     const map=new Map();
@@ -6111,7 +6103,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   // N227：每帳期手續費核心。往來資料留空＝完全不啟用；有金額才依正式 qBillingPeriodFor period.key 每帳期扣一次應收。
   // 不建立手續費交易、不改原始銷貨、不依客戶名稱硬編碼；收款、未結清、完整明細與四種輸出共用同一推導。
   function qBillingPeriodFeeAmount(c){const n=Number(c?.billingPeriodFee);return Number.isFinite(n)&&n>0?n:0}
-  function qBillingPeriodFeeKey(c,record){const p=qBillingPeriodFor(c,record?.date||'');return p?.ok?p.key:''}
+  function qBillingPeriodFeeKey(c,record){const p=qN292PeriodMeta(c,record);return p?.ok?p.key:''}
   function qBillingApplyFeeToOpenRows(c,direction,rows){
     const list=(rows||[]).map(x=>({...x,due:Math.max(0,qMoney(x?.due))}));
     const fee=qBillingPeriodFeeAmount(c);if(direction!=='receipt'||fee<=0||!list.length)return list;
@@ -6128,7 +6120,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     const fee=qBillingPeriodFeeAmount(c);if(direction!=='receipt'||fee<=0)return [];
     const seen=new Set(),out=[];
     (activities||[]).filter(r=>r&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN96DirectionMatch(r,'receipt')).forEach(r=>{
-      const p=qBillingPeriodFor(c,r.date||'');if(!p?.ok||seen.has(p.key))return;seen.add(p.key);
+      const p=qN292PeriodMeta(c,r);if(!p?.ok||seen.has(p.key))return;seen.add(p.key);
       out.push({kind:'adjustment',date:p.end||r.date||'',recordId:'billing_fee:'+p.key,no:'',name:'手續費',kg:'',qty:'',pricing:'每帳期',price:'',goods:-fee,freight:0,amount:-fee,adjustmentMode:'billing_period_fee',adjustmentLabel:'手續費',sourceRecordId:'',reason:'每帳期手續費',note:'',contactId:c?.id||'',contactName:c?.name||'',createdAt:''});
     });
     return out;
@@ -6181,7 +6173,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
         }
         // 相容：若既有未結清交易能推導出收款日，也納入同一行程集合，不建立第二套應收。
         for(const x of recv){
-          const p=qBillingPeriodFor(c,x.record?.date||'');if(!p.ok)continue;
+          const p=qN292PeriodMeta(c,x.record);if(!p.ok)continue;
           const d=qCollectionDueDateFor(c,p);if(d.ok&&d.date&&d.date<=horizon)dueDates.add(d.date);
         }
         for(const due of dueDates)raw.push({
@@ -6196,7 +6188,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       const sales=all.filter(r=>r&&r.mode!=='money_settlement'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'));
       const byPeriod=new Map();
       for(const r of sales){
-        const p=qBillingPeriodFor(c,r.date||'');if(!p.ok||!p.end)continue;
+        const p=qN292PeriodMeta(c,r);if(!p.ok||!p.end)continue;
         const cur=byPeriod.get(p.key)||{amount:0,count:0,period:p};
         cur.amount+=qMoney(qRecordTotal(r));cur.count+=1;byPeriod.set(p.key,cur);
       }
@@ -6912,15 +6904,15 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN119SingleDate(model){const dates=[...new Set((model?.rows||[]).map(r=>String(r?.date||'').trim()).filter(Boolean))];if(dates.length===1)return dates[0];const from=String(model?.range?.from||''),to=String(model?.range?.to||'');return from&&from===to?from:(dates[0]||from||to||'')}
   function qN135Weekday(dateText){const m=String(dateText||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return '';const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));if(Number.isNaN(d.getTime()))return '';return '（'+['日','一','二','三','四','五','六'][d.getDay()]+'）'}
   function qN135FreightRateLabel(model){if(!qN119IsLarge(model))return '';const c=model?.contact||{};if(String(c.freightDefault||'')!=='公斤')return '';const rate=Number(c.freightDefaultRate);return Number.isFinite(rate)&&rate>0?('運費：'+String(rate)+'元/K'):''}
-  function qN119DateLabel(model){const f=qN135FreightRateLabel(model);if(model?.periodSummary?.periodType==='儲值月帳')return '期間：'+qN98RangeLabel(model)+(f?'　'+f:'');if(!qN119IsLarge(model))return '期間：'+qN98RangeLabel(model);const d=qN119SingleDate(model);return '日期：'+d+qN135Weekday(d)+(f?'　'+f:'')}
+  function qN119DateLabel(model){const f=qN135FreightRateLabel(model),t=String(model?.periodSummary?.periodType||model?.source?.period?.type||'');if(t==='現結'||t==='車趟結'){const d=String(model?.range?.from||qN119SingleDate(model)||'');return '日期：'+d+qN135Weekday(d)+(f?'　'+f:'')}return '期間：'+qN98RangeLabel(model)+(f?'　'+f:'')}
   function qN98RangeLabel(m){return [m?.range?.from,m?.range?.to].filter(Boolean).join(' ～ ')||''}
   function qN98CsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
   function qN98DownloadExcel(model){
-    const large=qN119IsLarge(model),storedMonth=model?.periodSummary?.periodType==='儲值月帳',singleDate=large&&!storedMonth?qN119SingleDate(model):'',freightRateLabel=qN135FreightRateLabel(model),csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),((large&&!storedMonth)?'日期,':'期間,')+((large&&!storedMonth)?(singleDate+qN135Weekday(singleDate)):qN98RangeLabel(model))].concat(freightRateLabel?['運費,'+freightRateLabel.replace(/^運費：/,'')]:[]).concat(['',large?(model.outputPartyLabel+',類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'):(model.outputPartyLabel+',日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額')]);
+    const large=qN119IsLarge(model),periodType=String(model?.periodSummary?.periodType||model?.source?.period?.type||''),singlePeriod=periodType==='現結'||periodType==='車趟結',singleDate=singlePeriod?String(model?.range?.from||qN119SingleDate(model)||''):'',freightRateLabel=qN135FreightRateLabel(model),csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),(singlePeriod?'日期,':'期間,')+(singlePeriod?(singleDate+qN135Weekday(singleDate)):qN98RangeLabel(model))].concat(freightRateLabel?['運費,'+freightRateLabel.replace(/^運費：/,'')]:[]).concat(['',large?(model.outputPartyLabel+',類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'):(model.outputPartyLabel+',日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額')]);
     const pushRows=(rows,cname)=>rows.forEach(x=>{const vals=large?[x.contactName||cname||'',x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??'']:[x.contactName||cname||'',x.date,x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??''];csv.push(vals.map(qN98CsvCell).join(','))});
     if(model.kind==='farmer_weekly')model.groups.forEach(g=>pushRows(g.rows,g.contact?.name));else pushRows(model.rows,model.contact?.name);
     csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);if(qN98Money(model.summary.turnoverBuyout)!==0)csv.push('籃子小計,'+model.summary.turnoverBuyout);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general'){qN277OpenLines(model).forEach(x=>csv.push(x.label+','+qN98Money(x.value)));}
-    const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+((large&&!storedMonth)?qN119SingleDate(model):qN98RangeLabel(model))+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+    const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+(singlePeriod?singleDate:qN98RangeLabel(model))+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   }
 
   // N99：修正輸出呈現；資料仍沿用 N98 同一份完整明細模型。
