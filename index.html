@@ -6971,7 +6971,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}.double{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.double table{font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
-  // N326：資金帳戶第二層：員工零用金、收到的支票正式接唯一資金流水；零用金移交不當費用、在手支票不先灌銀行餘額。\n  // N325：帳單版型唯一核心：單欄跨日／雙欄跨日／雙欄單日；身分不再決定版型，清除「超市→大量」fallback；舊 dense80/large 遷移為雙欄單日。\n  // N324：貸款管理正式接入唯一資金核心：車貸／銀行貸款／私人借款／負責人借款／其他；借款非收入、還款非一般支出；未知本金利息不猜。\n  // N323：資金帳戶正式核心：公司帳戶／公司現金可查看唯一流水；帳戶互轉以同一 transferId 建立一出一入，不影響損益或往來帳。\n  // N322：容器金額核心定義統一：只有「數量帳」獨立追蹤；容器金額絕不獨立，直接併入正式貨款應收／應付。
+  // N327：正式資金帳戶主檔：公司收支／貸款／支票／零用金／互轉共用帳戶清單；可新增銀行或現金帳戶。\n  // N326：資金帳戶第二層：員工零用金、收到的支票正式接唯一資金流水；零用金移交不當費用、在手支票不先灌銀行餘額。\n  // N325：帳單版型唯一核心：單欄跨日／雙欄跨日／雙欄單日；身分不再決定版型，清除「超市→大量」fallback；舊 dense80/large 遷移為雙欄單日。\n  // N324：貸款管理正式接入唯一資金核心：車貸／銀行貸款／私人借款／負責人借款／其他；借款非收入、還款非一般支出；未知本金利息不猜。\n  // N323：資金帳戶正式核心：公司帳戶／公司現金可查看唯一流水；帳戶互轉以同一 transferId 建立一出一入，不影響損益或往來帳。\n  // N322：容器金額核心定義統一：只有「數量帳」獨立追蹤；容器金額絕不獨立，直接併入正式貨款應收／應付。
   // N321：容器負項正式折抵應收／應付：回籃等負金額直接扣入同帳期與目前餘額，不再只出現在流水表。\n  // N320：容器金額唯一帳款核心：有金額的籃子／鐵架／棧板／容器直接併入應收應付，且交易明細顯示真實容器名稱、數量、單價、正負金額。
   // N319：資金帳戶第一個正式核心：原收款／付款／退款直接派生唯一資金流水，不重複KEY；公司收支仍為非往來帳人工入口。
   // N318：產農週報自動分頁核心固定：頁尾18mm安全區、整卡放不下即換頁；尺寸/字級不再依每週資料量調整。
@@ -9092,7 +9092,7 @@ K白.kg
   }
   function qRenderFundTransfer(work,fromDefault='company_bank'){
     qFundStageHeader('sub','帳戶互轉');
-    const opts='<option value="company_bank">公司帳戶</option><option value="company_cash">公司現金</option>';
+    const opts=''+qFundAccountOptions('company_bank')+'';
     work.innerHTML='<div class="quickV2"><b>⇄ 帳戶互轉</b><div class="helper" style="display:block!important;margin:5px 0 10px">只搬移公司自己的資金，不產生收入、支出、應收或應付；同一轉帳 ID 會形成一出一入兩筆資金流水。</div>'+
       '<div class="quickV2Head"><div class="field"><label class="label">日期 *</label><input id="qTransferDate" class="input" type="date" value="'+qToday()+'"></div>'+
       '<div class="field"><label class="label">轉出帳戶 *</label><select id="qTransferFrom" class="input">'+opts+'</select></div>'+
@@ -9169,7 +9169,7 @@ K白.kg
     work.innerHTML='<div class="quickV2"><div class="quickV2ContactHint"><b>'+qEsc(l.loanName||'貸款')+'</b><div class="helper">'+qEsc([l.loanType,l.lender,v?[v.vehiclePlate,v.vehicleName].filter(Boolean).join('｜'):''].filter(Boolean).join('｜'))+'</div>'+
       '<div style="margin-top:8px"><b>每期 '+(s.installment?qFundMoney(s.installment):'未設定')+'</b>｜已繳 '+s.paidCount+' 期'+(s.remainingPeriods!=null?'｜剩餘 '+s.remainingPeriods+' 期':'')+(s.estimatedRemaining!=null?'｜預估剩餘應繳 '+qFundMoney(s.estimatedRemaining):'')+'</div><div class="helper">預估剩餘應繳不是本金餘額；未提供本金／利息資料時系統不自行推算。</div></div>'+
       '<div class="actions" style="margin:12px 0"><button class="btn primary" id="qLoanBorrow" type="button">＋ 借款入帳</button><button class="btn" id="qLoanRepay" type="button">－ 登記還款</button></div>'+
-      '<b>貸款流水</b><div class="acctQueueList" style="margin-top:8px">'+(ms.length?ms.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper">'+qEsc(qFundAccountLabel(r.fundAccount))+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有借款／還款紀錄</div>')+'</div></div>';
+      '<b>貸款流水</b><div class="acctQueueList" style="margin-top:8px">'+(ms.length?ms.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper">'+qEsc(qFundAccountName(r.fundAccount))+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有借款／還款紀錄</div>')+'</div></div>';
     work.querySelector('#qLoanBorrow').onclick=()=>qRenderLoanMovement(work,l,'borrow');
     work.querySelector('#qLoanRepay').onclick=()=>qRenderLoanMovement(work,l,'repay');
   }
@@ -9179,7 +9179,7 @@ K白.kg
     work.innerHTML='<div class="quickV2"><b>'+qEsc(l.loanName||'貸款')+'｜'+(isBorrow?'借款入帳':'還款')+'</b><div class="helper" style="display:block!important;margin:5px 0 10px">'+(isBorrow?'這筆只增加資金與貸款紀錄，不列營業收入。':'不知道本金／利息時直接記本期實際付款總額，不強迫拆分。')+'</div>'+
       '<div class="quickV2Head"><div class="field"><label class="label">日期 *</label><input id="qLoanMoveDate" class="input" type="date" value="'+qToday()+'"></div>'+
       '<div class="field"><label class="label">金額 *</label><input id="qLoanMoveAmount" class="input" inputmode="decimal" value="'+(suggested||'')+'" placeholder="實際'+(isBorrow?'入帳':'繳款')+'金額"></div>'+
-      '<div class="field"><label class="label">'+(isBorrow?'入帳':'付款')+'帳戶 *</label><select id="qLoanMoveAccount" class="input"><option value="company_bank">公司帳戶</option><option value="company_cash">公司現金</option></select></div>'+
+      '<div class="field"><label class="label">'+(isBorrow?'入帳':'付款')+'帳戶 *</label><select id="qLoanMoveAccount" class="input">'+qFundAccountOptions('company_bank')+'</select></div>'+
       '<div class="field"><label class="label">備註</label><input id="qLoanMoveNote" class="input" placeholder="可不填"></div></div>'+
       '<div class="actions" style="margin-top:10px"><button id="qLoanMoveSave" class="btn primary" type="button">完成</button></div></div>';
     work.querySelector('#qLoanMoveSave').onclick=async()=>{try{
@@ -9199,7 +9199,7 @@ K白.kg
     const returned=rows.filter(r=>r.pettyAction==='return').reduce((a,r)=>a+Math.abs(Number(r.fundDelta)||0),0);
     work.innerHTML='<div class="quickV2"><div class="quickV2ContactHint"><b>👤 員工零用金</b><div style="font-size:26px;font-weight:900;margin-top:6px">目前在外 '+qFundMoney(Math.max(0,issued-returned))+'</div><div class="helper">發放零用金＝公司資金移交員工保管，不直接當公司費用；實際報帳支出仍由公司收支記錄。</div></div>'+
       '<div class="actions" style="margin:12px 0"><button class="btn primary" id="qPettyIssue">＋ 發放零用金</button><button class="btn" id="qPettyReturn">↩ 繳回零用金</button></div>'+
-      '<div class="acctQueueList">'+(rows.length?rows.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.employeeName||'未填員工')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper">'+qEsc(qFundAccountLabel(r.fundAccount))+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有零用金紀錄</div>')+'</div></div>';
+      '<div class="acctQueueList">'+(rows.length?rows.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.employeeName||'未填員工')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper">'+qEsc(qFundAccountName(r.fundAccount))+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有零用金紀錄</div>')+'</div></div>';
     work.querySelector('#qPettyIssue').onclick=()=>qRenderPettyCashEntry(work,'issue');
     work.querySelector('#qPettyReturn').onclick=()=>qRenderPettyCashEntry(work,'return');
   }
@@ -9209,7 +9209,7 @@ K白.kg
       '<div class="field"><label class="label">日期 *</label><input id="qPettyDate" class="input" type="date" value="'+qToday()+'"></div>'+
       '<div class="field"><label class="label">員工 *</label><input id="qPettyEmployee" class="input" placeholder="員工姓名"></div>'+
       '<div class="field"><label class="label">金額 *</label><input id="qPettyAmount" class="input" inputmode="decimal" placeholder="例如 3000"></div>'+
-      '<div class="field"><label class="label">'+(issue?'轉出':'繳回')+'帳戶 *</label><select id="qPettyAccount" class="input"><option value="company_cash">公司現金</option><option value="company_bank">公司帳戶</option></select></div></div>'+
+      '<div class="field"><label class="label">'+(issue?'轉出':'繳回')+'帳戶 *</label><select id="qPettyAccount" class="input">'+qFundAccountOptions('company_cash')+'</select></div></div>'+
       '<div class="field" style="margin-top:8px"><label class="label">備註</label><input id="qPettyNote" class="input" placeholder="可不填"></div>'+
       '<div class="actions" style="margin-top:10px"><button id="qPettySave" class="btn primary" type="button">完成登記</button></div></div>';
     work.querySelector('#qPettySave').onclick=async()=>{try{
@@ -9254,6 +9254,45 @@ K白.kg
       if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderChecks(document.getElementById('acctStageWork'));
     }catch(e){alert(e.message||String(e))}
   }
+  // N327：正式資金帳戶主檔。所有資金功能共用，不再各自寫死「公司帳戶／公司現金」。
+  function qFundAccountMasters(){
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='fund_account_master'&&r.status!=='void');
+    if(rows.length)return rows.sort((a,b)=>(Number(a.sortOrder)||0)-(Number(b.sortOrder)||0)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+    return [
+      {id:'company_bank',accountCode:'company_bank',accountName:'公司帳戶',accountType:'bank',builtin:true,status:'active'},
+      {id:'company_cash',accountCode:'company_cash',accountName:'公司現金',accountType:'cash',builtin:true,status:'active'}
+    ];
+  }
+  function qFundAccountKey(a){return String(a?.accountCode||a?.id||'')}
+  function qFundAccountName(key){
+    const a=qFundAccountMasters().find(x=>qFundAccountKey(x)===String(key||''));
+    return a?.accountName||qFundAccountLabel(key);
+  }
+  function qFundAccountOptions(selected){
+    return qFundAccountMasters().filter(a=>a.status!=='inactive').map(a=>'<option value="'+qEsc(qFundAccountKey(a))+'"'+(String(selected||'')===qFundAccountKey(a)?' selected':'')+'>'+qEsc(a.accountName||qFundAccountKey(a))+'</option>').join('');
+  }
+  function qRenderFundAccounts(work){
+    qFundStageHeader('sub','資金帳戶管理');
+    const accounts=qFundAccountMasters();
+    work.innerHTML='<div class="quickV2"><div class="actions" style="margin-bottom:12px"><button class="btn primary" id="qFundAccountNew" type="button">＋ 新增資金帳戶</button></div>'+
+      '<div class="helper" style="display:block!important;margin-bottom:10px">公司收支、貸款、支票、零用金、帳戶互轉全部共用這份帳戶主檔。</div>'+
+      '<div class="acctQueueList">'+accounts.map(a=>{const key=qFundAccountKey(a),bal=qFundRows().filter(r=>String(r.fundAccount||'')===key).reduce((s,r)=>s+Number(r.fundDelta||0),0);return '<div class="acctQueueRow"><div><b>'+qEsc(a.accountName||key)+'</b><div class="helper">'+qEsc(a.accountType==='cash'?'現金':'銀行／資金帳戶')+(a.note?'｜'+qEsc(a.note):'')+'</div></div><strong>'+qFundMoney(bal)+'</strong></div>'}).join('')+'</div></div>';
+    work.querySelector('#qFundAccountNew').onclick=()=>qRenderFundAccountEditor(work);
+  }
+  function qRenderFundAccountEditor(work){
+    qFundStageHeader('sub','新增資金帳戶');
+    work.innerHTML='<div class="quickV2"><b>＋ 新增資金帳戶</b><div class="quickV2Head" style="margin-top:10px">'+
+      '<div class="field"><label class="label">帳戶類型 *</label><select id="qFAType" class="input"><option value="bank">銀行／其他資金帳戶</option><option value="cash">現金</option></select></div>'+
+      '<div class="field"><label class="label">帳戶名稱 *</label><input id="qFAName" class="input" placeholder="例如：台新銀行／一銀西螺／公司現金"></div>'+
+      '<div class="field"><label class="label">備註</label><input id="qFANote" class="input" placeholder="可不填"></div></div>'+
+      '<div class="actions" style="margin-top:10px"><button id="qFASave" class="btn primary" type="button">建立帳戶</button></div></div>';
+    work.querySelector('#qFASave').onclick=async()=>{try{
+      const name=work.querySelector('#qFAName').value.trim();if(!name)throw new Error('請輸入帳戶名稱');
+      if(qFundAccountMasters().some(a=>String(a.accountName||'').trim()===name))throw new Error('已有相同名稱的資金帳戶');
+      const now=new Date().toISOString(),id='fundacct_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),r={id,schemaVersion:1,date:qToday(),customer:'公司內帳',contactId:'',mode:'fund_account_master',txnType:'fund_account_master',txnTypeLabel:'資金帳戶',status:'active',accountCode:id,accountName:name,accountType:work.querySelector('#qFAType').value,note:work.querySelector('#qFANote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
+      await saveAccountingCloud(r);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundAccounts(document.getElementById('acctStageWork'));
+    }catch(e){alert(e.message||String(e))}};
+  }
   function qRenderFundHome(work){
     qFundStageHeader('home');
     const bank=qFundBalance('company_bank'),cash=qFundBalance('company_cash');
@@ -9262,11 +9301,11 @@ K白.kg
       '<button type="button" class="quickV2ContactHint" data-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">正式餘額｜點入查看流水</div></button></div>'+
       '<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="qFundTransferHome">⇄ 帳戶互轉</button></div>'+
       '<div class="acctStageGrid" style="margin-top:12px">'+
-      ['💵 公司收支','💳 貸款管理','👤 員工零用金','🧾 收到的支票','🛒 代購毛利','📋 資金紀錄'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+
+      ['🏦 資金帳戶管理','💵 公司收支','💳 貸款管理','👤 員工零用金','🧾 收到的支票','🛒 代購毛利','📋 資金紀錄'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+
       '</div></div>';
     work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
     work.querySelector('#qFundTransferHome').onclick=()=>qRenderFundTransfer(work,'company_bank');
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='🧾 收到的支票')qRenderChecks(work);else if(a==='📋 資金紀錄')qRenderFundHistory(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能將接入同一個資金異動核心；不建立第二套資金資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
+    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='🧾 收到的支票')qRenderChecks(work);else if(a==='📋 資金紀錄')qRenderFundHistory(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能將接入同一個資金異動核心；不建立第二套資金資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
   }
   function qRenderCompanyCashflow(work){
     const cats=qFundCategories(),vehicles=qCompanyVehicles();
@@ -9278,7 +9317,7 @@ K白.kg
       '<div class="field"><label class="label">分類 *</label><select id="qFundCat" class="input">'+catOpts+'</select></div>'+
       '<div class="field"><label class="label">細項 *</label><select id="qFundSub" class="input"></select></div></div>'+
       '<div class="quickV2Head" style="margin-top:8px"><div class="field"><label class="label">金額 *</label><input id="qFundAmount" class="input" inputmode="decimal" placeholder="例如 3000"></div>'+
-      '<div class="field"><label class="label">資金帳戶 *</label><select id="qFundAccount" class="input"><option value="company_bank">公司帳戶</option><option value="company_cash">公司現金</option></select></div>'+
+      '<div class="field"><label class="label">資金帳戶 *</label><select id="qFundAccount" class="input">'+qFundAccountOptions('company_bank')+'</select></div>'+
       '<div class="field" id="qFundVehicleBox" style="display:none"><label class="label">車輛 *</label><select id="qFundVehicle" class="input"><option value="">請選擇車籍資料</option>'+vehicleOpts+'</select><div class="helper">'+(vehicles.length?'直接連結車籍資料 ID':'目前沒有車籍資料，請先到「車輛管理 → 車輛資料」建立')+'</div></div>'+
       '<div class="field"><label class="label">備註</label><input id="qFundNote" class="input" placeholder="可不填"></div></div>'+
       '<div class="actions" style="margin-top:10px"><button id="qFundSave" class="btn primary" type="button">完成登記</button></div><div id="qFundRecent" style="margin-top:14px"></div></div>';
@@ -9293,7 +9332,7 @@ K白.kg
       (rows.length?rows.map(r=>{
         const pending=!!r.fundPending;
         const source=r.fundSource==='company_cashflow'?'人工公司收支':r.fundSource==='fund_transfer'?'帳戶互轉':r.fundSource==='loan_movement'?'貸款管理':r.fundSource==='fund_special'?'資金子帳':'帳務自動帶入';
-        return '<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'資金異動')+'｜'+qEsc(r.customer||r.fundCategory||'')+'</b><div class="helper">'+qEsc(qFundAccountLabel(r.fundAccount))+'｜'+qEsc(r.fundSubcategory||r.fundMethod||'')+'｜'+qEsc(source)+(pending?'｜⚠️ '+qEsc(r.fundPendingReason||'待確認'):'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>'
+        return '<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'資金異動')+'｜'+qEsc(r.customer||r.fundCategory||'')+'</b><div class="helper">'+qEsc(qFundAccountName(r.fundAccount))+'｜'+qEsc(r.fundSubcategory||r.fundMethod||'')+'｜'+qEsc(source)+(pending?'｜⚠️ '+qEsc(r.fundPendingReason||'待確認'):'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>'
       }).join(''):'<div class="empty">目前沒有資金異動</div>')+'</div></div>';
   }
   function qRenderAccountingAction(section,a,skipNavSave=false){
