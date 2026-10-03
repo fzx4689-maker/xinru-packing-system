@@ -6798,25 +6798,22 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN297PeriodStatusLines(model){
     const x=model?.periodSummary;if(!x)return null;
     const lines=[],isPay=model.direction==='payment';
-    // 車趟結／現結不套跨帳期前帳模型，維持既有逐張結算。
+
+    // 車趟結／現結：只保留最短且一致的「已收/應收」或「已付/應付」。
     if(x.periodType==='車趟結'||x.periodType==='現結'){
-      if(x.paidAmount>0){
-        if(x.settled)lines.push({label:(isPay?'本期已付清':'本期已結清'),text:(x.settledDate?('結清日期 '+x.settledDate):'')});
-        else lines.push({label:(isPay?'本期已付款':'本期已入帳'),value:x.paidAmount,text:(x.lastPaymentDate?('入帳日期 '+x.lastPaymentDate):'')});
-      }
-      if(!x.settled)lines.push({label:isPay?'本期未付清':'本期未結清',value:x.outstanding});
+      if(x.paidAmount>0)lines.push({label:isPay?'已付':'已收',value:x.paidAmount});
+      lines.push({label:isPay?'應付':'應收',value:x.outstanding});
       return lines;
     }
-    // N308：這組跨帳期簡表只屬於「客戶應收」。
-    // 廠商／中盤／產農應付不套用；其應付輸出維持既有模型。
+
+    // 應付對象（廠商／中盤／產農等）不套客戶跨期前帳，只統一成已付／應付。
     if(isPay){
-      if(x.paidAmount>0){
-        if(x.settled)lines.push({label:'本期已付清',text:(x.settledDate?('結清日期 '+x.settledDate):'')});
-        else lines.push({label:'本期已付款',value:x.paidAmount,text:(x.lastPaymentDate?('付款日期 '+x.lastPaymentDate):'')});
-      }
-      if(!x.settled)lines.push({label:'本期未付',value:x.outstanding});
+      if(x.paidAmount>0)lines.push({label:'已付',value:x.paidAmount});
+      lines.push({label:'應付',value:x.outstanding});
       return lines;
     }
+
+    // 客戶帳期型：前期有金額才顯示；本期固定；已收有金額才顯示；最後只留一個應收。
     if(x.priorOutstanding>0.000001)lines.push({label:'前期',value:x.priorOutstanding});
     lines.push({label:'本期',value:x.originalAmount});
     if(x.paidAmount>0)lines.push({label:'已收',value:x.paidAmount});
@@ -6962,6 +6959,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
+  // N316：四種正式列印結算文字統一由 qN277OpenLines 單一核心產生；應收／應付／儲值不再各 renderer 自訂名稱。
   // N315：產農週報正式雙欄：整紙203.2mm可列印區，每位產農99mm；14pt/12pt固定，不縮字，滿欄才換頁。
   // N314：產農報表紙固定 203.2mm 實體可列印寬度；取消 78% 相對縮放，欄寬改用 mm；維持 14pt/12pt 與多頁。
   // N313：產農週報單欄維持12pt可讀字體，卡片寬度收斂至78%置中；不縮字、不硬塞一頁。
@@ -6983,7 +6981,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const closing=qMoney(v?.closingBalance||0);
     if(closing>0.000001)return {label:'目前可用儲值',value:closing};
     if(closing<-0.000001)return {label:'目前欠貨款',value:Math.abs(closing)};
-    return {label:'目前儲值餘額',value:0};
+    return {label:'儲值金',value:0,forceSign:true};
   }
   function qN305StoredValueInflowDetails(c,range=null){
     if(!qStoredValueEnabled(c))return [];
@@ -7045,20 +7043,36 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // receipt＝應收、payment＝應付；雙向往來也依目前正在看的帳務方向，不自行把兩邊混在一起。
   function qN277OpenLines(model){
     if(!model||model.kind!=='general')return [];
-    // N298：儲值月帳優先於一般應收摘要，固定顯示自然月的期初／入金／消費／期末。
-    if(qN101IsStoredValue(model)&&model?.periodSummary?.storedValue){
-      const v=model.periodSummary.storedValue,closing=qMoney(v.closingBalance||0),p=[];
-      if(Math.abs(qMoney(v.openingBalance||0))>0.000001)p.push({label:'期初儲值',value:v.openingBalance});
-      p.push({label:'本月消費',value:v.periodConsumption},{label:'本月儲值入金',value:v.periodInflow});
-      p.push({label:'目前儲值金',value:closing,forceSign:true});
+
+    // N316：四種正式輸出唯一「結算摘要核心」。
+    // LINE圖片 / PDF / LQ-310報表紙 / Excel 只能讀這裡的語意，不再各自命名。
+    if(qN101IsStoredValue(model)){
+      const v=model?.periodSummary?.storedValue;
+      if(v){
+        const closing=qMoney(v.closingBalance||0),p=[];
+        if(Math.abs(qMoney(v.openingBalance||0))>0.000001)p.push({label:'期初儲值',value:v.openingBalance});
+        p.push({label:'本月消費',value:v.periodConsumption});
+        p.push({label:'本月儲值入金',value:v.periodInflow});
+        p.push({label:'儲值金',value:closing,forceSign:true});
+        return p;
+      }
+      const b=qMoney(model.storedValueBalance||0);
+      return [{label:'儲值金',value:b,forceSign:true}];
+    }
+
+    // 有帳期模型時，一律由同一帳期摘要產生文字。
+    const periodLines=qN297PeriodStatusLines(model);
+    if(periodLines)return periodLines;
+
+    // 查詢／非帳期 fallback 也只保留「應收／應付」，移除舊的「目前…未結清」多套說法。
+    if(model.direction==='transaction_history'&&model.transactionHistoryOpen){
+      const o=model.transactionHistoryOpen,p=[];
+      if(o.showReceipt)p.push({label:'應收',value:o.receivable||0});
+      if(o.showPayment)p.push({label:'應付',value:o.payable||0});
       return p;
     }
-    // 一般單張帳期輸出讀唯一帳期摘要，禁止把整個客戶總未結清冒充本張帳餘額。
-    const periodLines=qN297PeriodStatusLines(model);if(periodLines)return periodLines;
-    if(qN101IsStoredValue(model)){const b=qMoney(model.storedValueBalance||0);return [{label:'本月儲值入金',value:qN101StoredValueInflow(model)},b>0?{label:'目前可用儲值',value:b}:(b<0?{label:'目前欠貨款',value:Math.abs(b)}:{label:'目前儲值餘額',value:0})];}
-    if(model.direction==='transaction_history'&&model.transactionHistoryOpen){const o=model.transactionHistoryOpen,p=[];if(o.showReceipt)p.push({label:'目前應收未結清',value:o.receivable||0});if(o.showPayment)p.push({label:'目前應付未結清',value:o.payable||0});return p}
-    if(model.direction==='payment')return [{label:'目前應付未結清',value:model.summary?.outstanding||0}];
-    if(model.direction==='receipt')return [{label:'目前應收未結清',value:model.summary?.outstanding||0}];
+    if(model.direction==='payment')return [{label:'應付',value:model.summary?.outstanding||0}];
+    if(model.direction==='receipt')return [{label:'應收',value:model.summary?.outstanding||0}];
     return [];
   }
   function qN307StoredValueHeaderText(c){
