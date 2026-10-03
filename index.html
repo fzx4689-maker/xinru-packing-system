@@ -1945,6 +1945,7 @@ body.wall-focus #wall .wallOrderNote{
   #acctManagementGrid [data-acct-manage="vehicle"]{order:9}
 }
 </style>
+<!-- N297 帳期結算唯一核心：帳期摘要／前帳／正式交易筆數／儲值自然月 -->
 </head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
@@ -6067,6 +6068,10 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   // N292：帳期／帳單沖帳核心。一般往來的收付款必須只屬於一張帳期；儲值客戶維持儲值餘額核心。
   function qN292PeriodMeta(c,record){
     const settlement=String(c?.settlement||'現結').trim(),d=String(record?.date||''),cid=String(c?.id||c?.code||c?.name||'').trim();
+    // N297：儲值型也走唯一帳期核心，但固定以自然月切帳；儲值餘額本身仍可跨月延續。
+    if(String(c?.paymentDefault||'').trim()==='儲值'){
+      const dt=qBillingParseDate(d);if(dt){const start=new Date(dt.getFullYear(),dt.getMonth(),1,12),end=new Date(dt.getFullYear(),dt.getMonth()+1,0,12),a=qBillingDateText(start),b=qBillingDateText(end);return {ok:true,key:[cid,'儲值月帳',a,b].join('|'),type:'儲值月帳',start:a,end:b,label:a.slice(0,7)+' 月帳'};}
+    }
     // N293：車趟結不是固定星期區間帳。每一筆正式銷貨／進貨（每一車趟）就是獨立帳期。
     // deliveryWeekdays 只用於車趟／收款排程，不得拿來合併實際帳款。
     if(settlement==='車趟結'){
@@ -6764,6 +6769,27 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const snapshot=contact?.billShowTurnover!==false?qN109CurrentContainerSnapshot(contact):{contact,enabledTypes:[],balances:[],text:''};
     return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight:direction==='payment'&&/產農|廠商/.test(String(contact?.identity||contact?.type||'')),reportLayout:qN97EffectiveReportLayout(contact),contact:snapshot.contact||contact,direction,range:{from:record.date||'',to:record.date||''},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities:[record],directEvent:true}};
   }
+  // N297：唯一帳期結算摘要核心。帳本、收付款與四種輸出不得再自行重算帳期狀態。
+  function qN297BillingPeriodSummary(c,direction,period,activities){
+    const members=(activities||[]).filter(Boolean),ids=new Set(members.map(r=>String(r.id||''))),originalAmount=members.reduce((n,r)=>n+qMoney(qRecordTotal(r)),0);
+    const settlements=qMoneySettlements().filter(x=>qRecordBelongsToContact(x,c)&&((direction==='receipt'&&x.txnType==='receipt')||(direction==='payment'&&x.txnType==='payment'))).map(x=>{const amount=(Array.isArray(x.allocations)?x.allocations:[]).filter(a=>ids.has(String(a?.recordId||''))).reduce((n,a)=>n+qMoney(a?.amount),0);return {record:x,amount}}).filter(x=>x.amount>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
+    const paid=Math.min(originalAmount,settlements.reduce((n,x)=>n+x.amount,0)),outstanding=Math.max(0,originalAmount-paid),lastPaymentDate=settlements.length?String(settlements[settlements.length-1].record.date||''):'',settled=originalAmount>0&&outstanding<=0.000001;
+    const allFormal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,direction));
+    const prior=allFormal.filter(r=>{const p=qN292PeriodMeta(c,r);return p?.ok&&String(p.key)!==String(period?.key||'')&&String(p.end||r.date||'')<String(period?.start||'')});
+    const priorOutstanding=prior.reduce((n,r)=>n+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
+    return {periodKey:period?.key||'',periodType:period?.type||'',periodStart:period?.start||'',periodEnd:period?.end||'',periodLabel:period?.label||'',originalRecordCount:members.length,originalAmount,paidAmount:paid,outstanding,settled,settledDate:settled?lastPaymentDate:'',lastPaymentDate,priorOutstanding,settlements};
+  }
+  function qN297PeriodStatusLines(model){
+    const x=model?.periodSummary;if(!x)return null;
+    const lines=[];
+    if(x.paidAmount>0){
+      if(x.settled)lines.push({label:(model.direction==='payment'?'本期已付清':'本期已結清'),text:(x.settledDate?('結清日期 '+x.settledDate):'')});
+      else lines.push({label:(model.direction==='payment'?'本期已付款':'本期已入帳'),value:x.paidAmount,text:(x.lastPaymentDate?('入帳日期 '+x.lastPaymentDate):'')});
+    }
+    if(!x.settled)lines.push({label:model.direction==='payment'?'本期未付清':'本期未結清',value:x.outstanding});
+    if(x.priorOutstanding>0.000001)lines.push({label:'累積前帳',value:x.priorOutstanding});
+    return lines;
+  }
   // N294：單張帳期四種輸出核心。
   // 從帳本點進某一筆正式銷貨／進貨後，LINE／Excel／PDF／報表紙只輸出該筆所屬帳期。
   // 實際收／付款日期只屬金流，不得把別張帳或後續收款混入本張帳單。
@@ -6788,9 +6814,9 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const noFreight=direction==='payment'&&/產農|廠商/.test(String(c?.identity||c?.type||''));
     if(noFreight)rows=rows.map(r=>({...r,freight:0,amount:(Number(r.goods)||0)+(Number(r.turnoverAmount)||0)}));
     const billShowTurnover=c?.billShowTurnover!==false,snapshot=billShowTurnover?qN109CurrentContainerSnapshot(c):{contact:c,enabledTypes:[],balances:[],text:''};
-    // 未結清只計本帳期，不使用整個往來對象的累計餘額。
-    const outstanding=activities.reduce((sum,r)=>sum+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
-    return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight,reportLayout:qN97EffectiveReportLayout(c),contact:snapshot.contact||c,direction,range:{from:selected.start||record.date||'',to:selected.end||record.date||''},rows,settlements:[],summary:qN98Summary(rows,outstanding),storedValueBalance:qStoredValueBalance(snapshot.contact||c),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities,period:selected,selectedBillingPeriod:true}};
+    // N297：單張帳單只讀唯一帳期摘要；客戶累積前帳與本期未結清分開。
+    const periodSummary=qN297BillingPeriodSummary(c,direction,selected,activities),outstanding=periodSummary.outstanding;
+    return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight,reportLayout:qN97EffectiveReportLayout(c),contact:snapshot.contact||c,direction,range:{from:selected.start||record.date||'',to:selected.end||record.date||''},rows,settlements:[],summary:qN98Summary(rows,outstanding),periodSummary,storedValueBalance:qStoredValueBalance(snapshot.contact||c),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities,period:selected,selectedBillingPeriod:true}};
   }
   function qN98OutputModel(record){
     if(record?.context==='transaction_history'){
@@ -6883,15 +6909,15 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // receipt＝應收、payment＝應付；雙向往來也依目前正在看的帳務方向，不自行把兩邊混在一起。
   function qN277OpenLines(model){
     if(!model||model.kind!=='general')return [];
+    // N297：單張帳期輸出一律優先讀帳期摘要，禁止再把整個客戶總未結清冒充本張帳餘額。
+    const periodLines=qN297PeriodStatusLines(model);if(periodLines)return periodLines;
     if(qN101IsStoredValue(model))return [{label:'儲值入金',value:qN101StoredValueInflow(model)},{label:'目前儲值餘額',value:model.storedValueBalance||0}];
     if(model.direction==='transaction_history'&&model.transactionHistoryOpen){const o=model.transactionHistoryOpen,p=[];if(o.showReceipt)p.push({label:'目前應收未結清',value:o.receivable||0});if(o.showPayment)p.push({label:'目前應付未結清',value:o.payable||0});return p}
     if(model.direction==='payment')return [{label:'目前應付未結清',value:model.summary?.outstanding||0}];
     if(model.direction==='receipt')return [{label:'目前應收未結清',value:model.summary?.outstanding||0}];
-    // N279：收付款日期＋收到支票附加資料核心；不建立第二套 settlement。
-  // N278：方向不明時不再顯示模糊的「目前未結清」，更不能偷偷當成應收。
     return [];
   }
-  function qN101OpenSummaryText(model){return qN277OpenLines(model).map(x=>x.label+' '+qLedgerMoney(x.value)).join(' ｜ ')}
+  function qN101OpenSummaryText(model){return qN277OpenLines(model).map(x=>x.label+(x.value!=null?(' '+qLedgerMoney(x.value)):'')+(x.text?('｜'+x.text):'')).join(' ｜ ')}
   function qN101SummaryText(model){
     const s=model.summary||{},parts=['貨款小計 '+qLedgerMoney(s.goods)];if(!model.noFreight)parts.push('運費小計 '+qLedgerMoney(s.freight));
     if(qN98Money(s.turnoverBuyout)!==0)parts.push('籃子小計 '+qLedgerMoney(s.turnoverBuyout));
@@ -7445,7 +7471,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
       const ledgerNavKey=String(c.name||inp.value||'').replace(/^(?:legacy:)+/i,'');acctNavWrite({layer:'ledgerContact',section:'ledger',action:'🔍 搜尋帳本',recordId:ledgerNavKey,detailId:'',backMode:''});
       const defaultPay=mode==='單向應付'||String(c.defaultDirection||'')==='付款'||/產農|廠商/.test(String(c.identity||''));
       const dirs=isBilateral?['receivable','payable']:[defaultPay?'payable':'receivable'];
-      const summary='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0"><div class="quickV2ContactHint"><b>目前應收</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivable)+'</div></div><div class="quickV2ContactHint"><b>目前應付</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payable)+'</div></div>'+(ledger.receivableCredit>0?'<div class="quickV2ContactHint"><b>溢收／可退款</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivableCredit)+'</div></div>':'')+(ledger.payableCredit>0?'<div class="quickV2ContactHint"><b>溢付／可收回</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payableCredit)+'</div></div>':'')+'<div class="quickV2ContactHint"><b>正式交易</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+ledger.entries.filter(x=>!x.isVoid).length+' 筆</div></div></div>'+(c.ledgerShowTurnover!==false?'<div class="quickV2ContactHint" style="margin:8px 0"><b>🧺 目前籃子／鐵架／棧板／容器：</b> '+qTurnoverSummaryHtml(c)+'</div>':'');
+      const summary='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0"><div class="quickV2ContactHint"><b>目前應收</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivable)+'</div></div><div class="quickV2ContactHint"><b>目前應付</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payable)+'</div></div>'+(ledger.receivableCredit>0?'<div class="quickV2ContactHint"><b>溢收／可退款</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivableCredit)+'</div></div>':'')+(ledger.payableCredit>0?'<div class="quickV2ContactHint"><b>溢付／可收回</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payableCredit)+'</div></div>':'')+'<div class="quickV2ContactHint"><b>正式交易</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+ledger.entries.filter(x=>!x.isVoid&&(x.kind==='sale'||x.kind==='purchase')).length+' 筆</div></div></div>'+(c.ledgerShowTurnover!==false?'<div class="quickV2ContactHint" style="margin:8px 0"><b>🧺 目前籃子／鐵架／棧板／容器：</b> '+qTurnoverSummaryHtml(c)+'</div>':'');
       const pending=ledger.pendingCount?'<div class="quickV2ContactHint" style="margin:8px 0"><b>⚠️ 待補價格 '+ledger.pendingCount+' 筆</b>｜價格完成前不列入應收／應付。</div>':'';
       const sectionHtml=dirs.map(dir=>{const label=dir==='receivable'?'應收帳':'應付帳',rows=ledger.entries.filter(x=>x.direction===dir).slice().reverse(),balance=dir==='receivable'?ledger.receivable:ledger.payable,credit=dir==='receivable'?ledger.receivableCredit:ledger.payableCredit;return '<div class="quickV2Record" data-ledger-dir="'+dir+'"><div class="quickV2RecordTop"><div><b>'+(dir==='receivable'?'📗 ':'📕 ')+label+'</b><div class="helper" style="display:block!important">'+(dir==='receivable'?'銷貨＋收款明細':'進貨＋付款明細')+'｜不與另一張帳自動互抵</div></div><b style="font-size:20px">目前 '+qLedgerMoney(balance)+(dir==='receivable'&&typeof qStoredValueEnabled==='function'&&qStoredValueEnabled(c)?'｜儲值 '+qLedgerMoney(qStoredValueBalance(c)):'')+(credit>0?'｜'+(dir==='receivable'?'溢收 ':'溢付 ')+qLedgerMoney(credit):'')+'</b></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn primary" data-ledger-out="bill" data-dir="'+dir+'">📱 圖片／LINE</button><button class="btn gray" data-ledger-out="excel" data-dir="'+dir+'">📊 Excel</button><button class="btn gray" data-ledger-out="pdf" data-dir="'+dir+'">📄 PDF</button><button class="btn gray" data-ledger-out="paper" data-dir="'+dir+'">🖨️ 報表紙</button></div><div style="overflow:auto"><table class="quickV2Table" style="min-width:720px"><thead><tr><th>日期</th><th>類型</th><th>品項</th><th>'+(dir==='receivable'?'應收':'應付')+'</th><th>餘額</th></tr></thead><tbody>'+(rows.length?rows.map(x=>{const r=x.record,cls=x.isVoid?' style="opacity:.55;text-decoration:line-through"':'',status=x.isVoid?'🚫 作廢':(x.pending?'⚠️ 待補價格':qEsc(x.label||'')),money=x.kind==='receipt'||x.kind==='payment'?('-'+qLedgerMoney(x.total)):qLedgerMoney(dir==='receivable'?x.receivable:x.payable),run=dir==='receivable'?x.runningReceivable:x.runningPayable;return '<tr data-ledger-record="'+qEsc(r.id)+'" style="cursor:pointer"'+cls+'><td>'+qEsc(r.date||'')+'</td><td><b>'+status+'</b></td><td><b>'+qN233LedgerCompactSummary(x)+'</b></td><td>'+money+'</td><td><b>'+qLedgerMoney(run||0)+'</b></td></tr>'}).join(''):'<tr><td colspan="5" class="empty">目前沒有'+label+'紀錄</td></tr>')+'</tbody></table></div></div>'}).join('');
       box.innerHTML='<div class="quickV2ContactInfo show">'+qContactInfoHtml(c)+(hit.matchedBy==='vehicle'?'<div class="quickV2ContactHint"><b>🚙 '+qEsc(hit.vehiclePlate)+'</b> → '+qEsc(c.name)+'</div>':'')+'</div>'+summary+pending+'<label style="display:flex;align-items:center;gap:7px;margin:8px 0;font-weight:800"><input type="checkbox" id="qLedgerIncludeVoid" '+(includeVoid?'checked':'')+'> 顯示作廢紀錄</label>'+sectionHtml;
