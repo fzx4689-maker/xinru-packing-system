@@ -6763,6 +6763,34 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const snapshot=contact?.billShowTurnover!==false?qN109CurrentContainerSnapshot(contact):{contact,enabledTypes:[],balances:[],text:''};
     return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight:direction==='payment'&&/產農|廠商/.test(String(contact?.identity||contact?.type||'')),reportLayout:qN97EffectiveReportLayout(contact),contact:snapshot.contact||contact,direction,range:{from:record.date||'',to:record.date||''},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities:[record],directEvent:true}};
   }
+  // N294：單張帳期四種輸出核心。
+  // 從帳本點進某一筆正式銷貨／進貨後，LINE／Excel／PDF／報表紙只輸出該筆所屬帳期。
+  // 實際收／付款日期只屬金流，不得把別張帳或後續收款混入本張帳單。
+  function qN294PeriodOutputModel(record){
+    if(!record||record.context==='transaction_history'||record.mode==='money_settlement'||record.mode==='money_refund'||qAccountingIsAdjustment(record))return null;
+    const isTx=record.txnType==='sale'||record.txnType==='purchase'||record.accountDirection==='receivable'||record.accountDirection==='payable'||record.txnTypeLabel==='銷貨'||record.txnTypeLabel==='進貨';
+    if(!isTx)return null;
+    const c=qContact(record.contactId||record.customer||'');if(!c)return null;
+    const direction=qN278ResolveOutputDirection(record,c,{})||((record.txnType==='purchase'||record.accountDirection==='payable'||record.txnTypeLabel==='進貨')?'payment':'receipt');
+    const selected=qN292PeriodMeta(c,record);if(!selected?.ok)return null;
+    const formal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price');
+    const activities=formal.filter(r=>{
+      if(r.mode==='money_settlement'||r.mode==='money_refund'||qAccountingIsAdjustment(r))return false;
+      if(!qN225ActivityDirectionMatch(r,direction))return false;
+      const p=qN292PeriodMeta(c,r);return p?.ok&&String(p.key)===String(selected.key);
+    }).sort(qN96Cmp);
+    if(!activities.length)return null;
+    let rows=[];activities.forEach(r=>rows.push(...qN222RowsFromActivity(r,c)));
+    rows.push(...qBillingPeriodFeeRows(c,direction,activities));
+    rows.push(...qN107ContainerRows(c,{from:selected.start||record.date||'',to:selected.end||record.date||''}));
+    rows=qN108MergeItemRows(qN107SortRows(rows));let displaySeq=0;rows=rows.map(r=>({...r,no:++displaySeq,displaySeq}));
+    const noFreight=direction==='payment'&&/產農|廠商/.test(String(c?.identity||c?.type||''));
+    if(noFreight)rows=rows.map(r=>({...r,freight:0,amount:(Number(r.goods)||0)+(Number(r.turnoverAmount)||0)}));
+    const billShowTurnover=c?.billShowTurnover!==false,snapshot=billShowTurnover?qN109CurrentContainerSnapshot(c):{contact:c,enabledTypes:[],balances:[],text:''};
+    // 未結清只計本帳期，不使用整個往來對象的累計餘額。
+    const outstanding=activities.reduce((sum,r)=>sum+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
+    return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight,reportLayout:qN97EffectiveReportLayout(c),contact:snapshot.contact||c,direction,range:{from:selected.start||record.date||'',to:selected.end||record.date||''},rows,settlements:[],summary:qN98Summary(rows,outstanding),storedValueBalance:qStoredValueBalance(snapshot.contact||c),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities,period:selected,selectedBillingPeriod:true}};
+  }
   function qN98OutputModel(record){
     if(record?.context==='transaction_history'){
       const c=qContact(record.contactId||record.customer||'');
@@ -6795,6 +6823,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       const singleOutstanding=showPayment&&!showReceipt?open.payable:(showReceipt&&!showPayment?open.receivable:0);
       return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,singleOutstanding),transactionHistoryOpen:{receivable:open.receivable,payable:open.payable,showReceipt,showPayment},storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,transactionHistory:true}};
     }
+    const periodModel=qN294PeriodOutputModel(record);if(periodModel)return periodModel;
     const direct=qN224DirectEventOutputModel(record);if(direct)return direct;
     const route=qN97OutputRoute(record,{context:record?.context||'',direction:record?.direction||'',cutoff:record?.id||record?.date,week:record?.date});
     if(route.kind==='missing_contact')return {schema:'xinru_complete_output_v1',kind:'missing_contact',route,rows:[],summary:qN98Summary([])};
@@ -9654,6 +9683,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     4) renderQuery 原有籃子總覽／欠餘統計完整保留。 */
 })();
 </script>
+<!-- N294: 單張帳期四種輸出核心；帳本交易明細輸出只讀所選 billing period，不再累計跨帳期。 -->
 <!-- N99: LINE圖片／PDF／LQ-310報表紙呈現修正版；沿用 N98 共用完整明細資料模型。 -->
 <!-- N114: 做帳操作驗證修復：空白新增列不列入缺資料；完成鍵不再因缺資料 disabled，改由 qBuildRecord 逐列提示；待補價格與暫存未完成名稱分流。 -->
 <!-- N126：寄車多規格取最後公斤值；產農週帳固定最多雙欄並統一可讀字級；新增嫩薑泰文。 -->
