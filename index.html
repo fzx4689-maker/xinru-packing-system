@@ -8602,15 +8602,32 @@ K白.kg
     '電話／網路':['電話費','網路費','其他'],'設備／維修':['設備購置','設備維修','其他'],'耗材／用品':['辦公用品','清潔用品','其他'],
     '稅費':['稅金','規費','其他'],'其他支出':['其他'],'其他收入':['其他']
   }}
+  function qFundStageHeader(mode='home',title=''){
+    const head=stage.querySelector('.acctStageHead'),back=stage.querySelector('#acctStageBack');
+    if(!head||!back)return;
+    const h3=head.querySelector('h3'),desc=head.querySelector('.helper');
+    if(mode==='home'){
+      if(h3)h3.textContent='🏦 資金帳戶';
+      if(desc)desc.textContent='公司帳戶與公司現金的資金管理；收支、零用金、支票、代購毛利與資金紀錄都從這裡進入。';
+      back.textContent='← 返回收款／付款';
+      back.onclick=()=>open('payment',false);
+    }else{
+      if(h3)h3.textContent=title||'🏦 資金帳戶';
+      if(desc)desc.textContent='';
+      back.textContent='← 返回資金帳戶';
+      back.onclick=()=>qRenderFundHome(document.getElementById('acctStageWork'));
+    }
+  }
   function qRenderFundHome(work){
+    qFundStageHeader('home');
     const bank=qFundBalance('company_bank'),cash=qFundBalance('company_cash');
     work.innerHTML='<div class="quickV2"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+
       '<div class="quickV2ContactHint"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">期初 $0｜只依正式資金異動累計</div></div>'+
       '<div class="quickV2ContactHint"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">期初 $0｜只依正式資金異動累計</div></div></div>'+
       '<div class="acctStageGrid" style="margin-top:12px">'+
       ['💵 公司收支','👤 員工零用金','🧾 收到的支票','🛒 代購毛利','📋 資金紀錄'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+
-      '</div><div id="qFundWork" style="margin-top:12px"></div></div>';
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction,box=work.querySelector('#qFundWork');if(a==='💵 公司收支')qRenderCompanyCashflow(box);else if(a==='📋 資金紀錄')qRenderFundHistory(box);else box.innerHTML='<div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能會在下一階段接入同一個資金異動核心；目前不建立第二套資料。</div></div>';box.scrollIntoView({behavior:'smooth',block:'start'})});
+      '</div></div>';
+    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='📋 資金紀錄')qRenderFundHistory(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能會在下一階段接入同一個資金異動核心；目前不建立第二套資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
   }
   function qRenderCompanyCashflow(work){
     const cats=qFundCategories(),vehicles=qCompanyVehicles();
@@ -8629,7 +8646,7 @@ K白.kg
     const cat=work.querySelector('#qFundCat'),sub=work.querySelector('#qFundSub'),kind=work.querySelector('#qFundKind'),vb=work.querySelector('#qFundVehicleBox');
     const sync=()=>{sub.innerHTML=(cats[cat.value]||['其他']).map(x=>'<option>'+qEsc(x)+'</option>').join('');vb.style.display=cat.value==='車輛費用'?'block':'none';if(cat.value==='其他收入')kind.value='income'};cat.onchange=sync;sync();
     const paint=()=>{const rows=qFundRows().slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,30);work.querySelector('#qFundRecent').innerHTML='<b>最近公司收支</b><div class="acctQueueList" style="margin-top:8px">'+(rows.length?rows.map(r=>{const v=qVehicleById(r.vehicleId);return '<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.fundCategory||'')+'｜'+qEsc(r.fundSubcategory||'')+'</b><div class="helper">'+qEsc([v?[v.vehiclePlate,v.vehicleName].filter(Boolean).join('｜'):'',r.note].filter(Boolean).join('｜'))+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>'}).join(''):'<div class="empty">目前沒有公司收支紀錄</div>')+'</div>'};paint();
-    work.querySelector('#qFundSave').onclick=async()=>{try{const amount=Number(work.querySelector('#qFundAmount').value||0),isExpense=kind.value==='expense',category=cat.value,vehicleId=category==='車輛費用'?work.querySelector('#qFundVehicle').value:'';if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確金額');if(category==='車輛費用'&&!vehicleId)throw new Error('車輛費用請先選擇車籍資料');const now=new Date().toISOString(),r={id:'fund_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qFundDate').value||qToday(),customer:'公司內帳',contactId:'',mode:'company_cashflow',txnType:'fund_movement',txnTypeLabel:isExpense?'公司支出':'公司收入',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',fundKind:isExpense?'expense':'income',fundCategory:category,fundSubcategory:sub.value,fundAccount:work.querySelector('#qFundAccount').value,fundAmount:Math.round(amount),fundDelta:(isExpense?-1:1)*Math.round(amount),vehicleId,note:work.querySelector('#qFundNote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};await saveAccountingCloud(r);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundHome(document.getElementById('acctStageWork'));alert('公司收支已建立')}catch(e){alert(e.message||String(e))}};
+    work.querySelector('#qFundSave').onclick=async()=>{try{const amount=Number(work.querySelector('#qFundAmount').value||0),isExpense=kind.value==='expense',category=cat.value,vehicleId=category==='車輛費用'?work.querySelector('#qFundVehicle').value:'';if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確金額');if(category==='車輛費用'&&!vehicleId)throw new Error('車輛費用請先選擇車籍資料');const now=new Date().toISOString(),r={id:'fund_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qFundDate').value||qToday(),customer:'公司內帳',contactId:'',mode:'company_cashflow',txnType:'fund_movement',txnTypeLabel:isExpense?'公司支出':'公司收入',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',fundKind:isExpense?'expense':'income',fundCategory:category,fundSubcategory:sub.value,fundAccount:work.querySelector('#qFundAccount').value,fundAmount:Math.round(amount),fundDelta:(isExpense?-1:1)*Math.round(amount),vehicleId,note:work.querySelector('#qFundNote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};await saveAccountingCloud(r);if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'));alert('公司收支已建立')}catch(e){alert(e.message||String(e))}};
   }
   function qRenderFundHistory(work){const rows=qFundRows().slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));work.innerHTML='<div class="quickV2"><b>📋 資金紀錄</b><div class="helper" style="display:block!important;margin:5px 0 10px">公司帳戶／公司現金的正式異動流水。期初皆為 $0。</div><div class="acctQueueList">'+(rows.length?rows.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'')+'｜'+qEsc(r.fundCategory||'')+'／'+qEsc(r.fundSubcategory||'')+'</b><div class="helper">'+qEsc(r.fundAccount==='company_bank'?'公司帳戶':'公司現金')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有資金異動</div>')+'</div></div>'}
   function qRenderVehicleMaster(work){
@@ -9581,6 +9598,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
 <!-- N228：快速做帳「進貨」一律以往來對象作為來源；品項來源欄不適用且不參與儲存/成本判斷。移除 N211 畫面效能診斷；N219 正式效能核心保留。 -->
 <!-- N229：所有進貨一律無運費核心；不依往來身分。 -->
 <!-- N230：表格／單據中心；六禾包裝規格與商品重量主檔連動快速做帳。 -->
-<!-- N283：資金帳戶第一階段：公司帳戶／公司現金期初0、公司收支、資金紀錄、車籍主檔與 vehicleId 連動。 -->
+<!-- N284：資金帳戶層級整理：資金帳戶獨立標題；第二層進入後只顯示該功能，返回資金帳戶，不與收款／付款標題或其他功能卡混層。 -->
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
