@@ -4487,6 +4487,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N269：僅移除每月／每週農收主列的原始車趟數顯示；週期合併核心不變。 -->
 <!-- N270：一般農收顯示本期貨款總額；可依往來資料啟用分張核對；分類名稱可改刪。分張資料獨立保存，不改原帳務。 -->
 <!-- N271：分類管理改乾淨主畫面＋單一管理入口；農收分張改逐張輸入、增刪與即時核對。未改帳務金額核心。 -->
+<!-- N281：交易查詢日期控制直接接全帳務 qAcctDateState 核心；畫面、統計、清單、四種輸出共用同一日期區間，未結清仍讀完整歷史核心。 -->
 <!-- N276：交易查詢未結清依往來主檔帳務方向顯示；金額仍讀 N39 正式應收／應付核心，日期區間不影響顯示方向。 -->
 <!-- N274：修正交易查詢四種輸出往來解析；qResolveContact 回傳 wrapper，輸出必須傳入其 contact 主檔。 -->
 <!-- N273：收支查詢升級為交易查詢；整合正式銷貨/進貨/收付款/調整/退貨/退款＋往來搜尋＋四種中央輸出；不修改原帳務計算核心。 -->
@@ -8052,9 +8053,18 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     const totals={};rows.forEach(r=>{const t=typeOf(r);totals[t]=(totals[t]||0)+amountOf(r)});
     const summary=['銷貨','進貨','收款','付款','退款'].filter(k=>totals[k]).map(k=>k+' '+qLedgerMoney(totals[k])).join('｜');
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🔍 交易查詢</b><div class="helper" style="display:block!important;margin-top:5px">查詢往來對象的銷貨、進貨、收款、付款、調整、退貨與退款；只讀既有正式交易，不另建立資料。</div></div><div style="text-align:right"><b>'+(summary||'目前期間沒有正式交易')+'</b><div class="helper">'+qEsc(qAcctDateLabel(state))+'</div></div></div>'+
+      '<div class="quickV2ContactHint" style="margin-top:10px"><div style="display:flex;gap:7px;align-items:end;flex-wrap:wrap"><button type="button" class="btn gray" id="qMoneyHistoryToday">今天</button><button type="button" class="btn gray" id="qMoneyHistoryYesterday">昨天</button><div class="field" style="margin:0;min-width:170px"><label class="label">開始日期</label><input id="qMoneyHistoryFrom" class="input" type="date" value="'+qEsc(state.dateFrom||'')+'"></div><div class="field" style="margin:0;min-width:170px"><label class="label">結束日期</label><input id="qMoneyHistoryTo" class="input" type="date" value="'+qEsc(state.dateTo||'')+'"></div><button type="button" class="btn blue" id="qMoneyHistoryDateApply">🔍 查詢日期</button><button type="button" class="btn gray" id="qMoneyHistoryDateClear">全部日期</button><span class="helper" style="margin-left:auto">目前：'+qEsc(qAcctDateLabel(state))+'</span></div></div>'+
       '<div style="display:grid;grid-template-columns:minmax(220px,1fr) 180px;gap:8px;margin-top:10px"><div class="field"><label class="label">搜尋往來對象／編號／品項／備註／付款方式</label><input id="qMoneyHistorySearch" class="input" autocomplete="off" placeholder="例如：0299、長青、安中"></div><div class="field"><label class="label">交易類型</label><select id="qMoneyHistoryType" class="input"><option value="">全部交易</option><option>銷貨</option><option>進貨</option><option>收款</option><option>付款</option><option>調整</option><option>折讓</option><option>退貨</option><option>退款</option><option>收回退款</option></select></div></div>'+
       '<div id="qMoneyHistoryOutputs" style="display:none;gap:8px;flex-wrap:wrap;margin:10px 0"></div><div id="qMoneyHistoryList"></div></div>';
     const inp=work.querySelector('#qMoneyHistorySearch'),sel=work.querySelector('#qMoneyHistoryType'),list=work.querySelector('#qMoneyHistoryList'),outs=work.querySelector('#qMoneyHistoryOutputs');
+    const dateFrom=work.querySelector('#qMoneyHistoryFrom'),dateTo=work.querySelector('#qMoneyHistoryTo');
+    const applyDateRange=(from,to)=>{qAcctSetDateRange(from,to);qRenderMoneyHistory(work);qAcctSyncDateController()};
+    work.querySelector('#qMoneyHistoryDateApply')?.addEventListener('click',()=>applyDateRange(dateFrom?.value||'',dateTo?.value||''));
+    work.querySelector('#qMoneyHistoryDateClear')?.addEventListener('click',()=>{qAcctClearDateRange();qRenderMoneyHistory(work);qAcctSyncDateController()});
+    work.querySelector('#qMoneyHistoryToday')?.addEventListener('click',()=>{const d=qToday();applyDateRange(d,d)});
+    work.querySelector('#qMoneyHistoryYesterday')?.addEventListener('click',()=>{const d=new Date(qToday()+'T12:00:00');d.setDate(d.getDate()-1);const y=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');applyDateRange(y,y)});
+    dateFrom?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyDateRange(dateFrom.value,dateTo?.value||'')}});
+    dateTo?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyDateRange(dateFrom?.value||'',dateTo.value)}});
     const resolveExact=key=>{if(!key)return null;try{const hit=qResolveContact(key);return hit?.contact||qContact(key)||null}catch(e){return qContact(key)||null}};
     const paint=()=>{
       const key=String(inp?.value||'').trim().toLowerCase(),type=String(sel?.value||'');
