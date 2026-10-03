@@ -6797,13 +6797,21 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   }
   function qN297PeriodStatusLines(model){
     const x=model?.periodSummary;if(!x)return null;
-    const lines=[];
-    if(x.paidAmount>0){
-      if(x.settled)lines.push({label:(model.direction==='payment'?'本期已付清':'本期已結清'),text:(x.settledDate?('結清日期 '+x.settledDate):'')});
-      else lines.push({label:(model.direction==='payment'?'本期已付款':'本期已入帳'),value:x.paidAmount,text:(x.lastPaymentDate?('入帳日期 '+x.lastPaymentDate):'')});
+    const lines=[],isPay=model.direction==='payment';
+    // 車趟結／現結不套跨帳期前帳模型，維持既有逐張結算。
+    if(x.periodType==='車趟結'||x.periodType==='現結'){
+      if(x.paidAmount>0){
+        if(x.settled)lines.push({label:(isPay?'本期已付清':'本期已結清'),text:(x.settledDate?('結清日期 '+x.settledDate):'')});
+        else lines.push({label:(isPay?'本期已付款':'本期已入帳'),value:x.paidAmount,text:(x.lastPaymentDate?('入帳日期 '+x.lastPaymentDate):'')});
+      }
+      if(!x.settled)lines.push({label:isPay?'本期未付清':'本期未結清',value:x.outstanding});
+      return lines;
     }
-    if(!x.settled)lines.push({label:model.direction==='payment'?'本期未付清':'本期未結清',value:x.outstanding});
-    if(x.priorOutstanding>0.000001)lines.push({label:'累積前帳',value:x.priorOutstanding});
+    if(x.priorOutstanding>0.000001)lines.push({label:isPay?'前期未付':'前期未結',value:x.priorOutstanding});
+    lines.push({label:isPay?'本期帳款':'本期帳款',value:x.originalAmount});
+    if(x.paidAmount>0)lines.push({label:isPay?'本期已付款':'本期已收款',value:x.paidAmount});
+    lines.push({label:isPay?'本期未付':'本期未結',value:x.outstanding});
+    lines.push({label:isPay?'目前總應付':'目前總應收',value:qMoney((x.priorOutstanding||0)+(x.outstanding||0))});
     return lines;
   }
   // N294：單張帳期四種輸出核心。
@@ -6825,9 +6833,10 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(!activities.length)return null;
     let rows=[];activities.forEach(r=>rows.push(...qN222RowsFromActivity(r,c)));
     if(qStoredValueEnabled(c))rows.push(...qN306StoredValueDetailRows(c,{from:selected.start||record.date||'',to:selected.end||record.date||''}));
+    else rows.push(...qN307PeriodSettlementRows(c,direction,selected,activities));
     rows.push(...qBillingPeriodFeeRows(c,direction,activities));
     rows.push(...qN107ContainerRows(c,{from:selected.start||record.date||'',to:selected.end||record.date||''}));
-    rows=qN108MergeItemRows(qN107SortRows(rows));let displaySeq=0;rows=rows.map(r=>({...r,no:++displaySeq,displaySeq}));
+    rows=qN108MergeItemRows(qN107SortRows(rows));let displaySeq=0;rows=rows.map(r=>{if(r.kind==='settlement')return {...r,no:'',displaySeq:''};return {...r,no:++displaySeq,displaySeq}});
     const noFreight=direction==='payment'&&/產農|廠商/.test(String(c?.identity||c?.type||''));
     if(noFreight)rows=rows.map(r=>({...r,freight:0,amount:(Number(r.goods)||0)+(Number(r.turnoverAmount)||0)}));
     const billShowTurnover=c?.billShowTurnover!==false,snapshot=billShowTurnover?qN109CurrentContainerSnapshot(c):{contact:c,enabledTypes:[],balances:[],text:''};
@@ -6944,6 +6953,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
+  // N307：帳期跨期前帳＋部分收付款進明細；儲值摘要單一餘額；車趟結／現結維持原核心。
   // N306：儲值每筆入金正式進明細＋泰文「菇」共用詞；沿用 N305 帳期／手續費核心。
   // N305：儲值顯示＋帳期手續費統一核心。儲值負餘額顯示欠貨款，並列每次入金日期/可用時間；帳期手續費納入未結清。
   // N101：中央輸出呈現核心。螢幕預覽與實際列印尺寸分離；全系統 PDF／報表紙只走這裡。
@@ -6994,6 +7004,26 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     }));
   }
 
+  // N307：帳期型收／付款進正式明細時間軸；車趟結／現結維持原流程，儲值型由 N306 專用入金列處理。
+  function qN307PeriodSettlementRows(c,direction,period,activities){
+    if(!c||qStoredValueEnabled(c))return [];
+    const st=String(c?.settlement||period?.type||'').trim();
+    if(st==='車趟結'||st==='現結')return [];
+    const ids=new Set((activities||[]).map(r=>String(r?.id||'')).filter(Boolean));
+    return qMoneySettlements().filter(x=>x&&qRecordBelongsToContact(x,c)&&((direction==='receipt'&&x.txnType==='receipt')||(direction==='payment'&&x.txnType==='payment'))).map(x=>{
+      const allocated=(Array.isArray(x.allocations)?x.allocations:[]).filter(a=>ids.has(String(a?.recordId||''))).reduce((n,a)=>n+qMoney(a?.amount),0);
+      if(allocated<=0.000001)return null;
+      const methods=(Array.isArray(x.methods)?x.methods:[]).map(m=>String(m?.method||'').trim()).filter(Boolean).join('＋')||'';
+      return {
+        kind:'settlement',date:String(x.date||''),createdAt:String(x.createdAt||x.created_at||''),
+        name:(direction==='payment'?'付款':'收款')+(methods?('｜'+methods):''),
+        summary:direction==='payment'?'付款':'收款',
+        amount:-qMoney(allocated),goods:0,freight:0,turnoverAmount:0,
+        moneySettlement:true,recordId:String(x.id||'')
+      };
+    }).filter(Boolean);
+  }
+
   // N277：全系統四種正式輸出的未結清摘要只走這個中央核心。
   // receipt＝應收、payment＝應付；雙向往來也依目前正在看的帳務方向，不自行把兩邊混在一起。
   function qN277OpenLines(model){
@@ -7007,6 +7037,11 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(model.direction==='payment')return [{label:'目前應付未結清',value:model.summary?.outstanding||0}];
     if(model.direction==='receipt')return [{label:'目前應收未結清',value:model.summary?.outstanding||0}];
     return [];
+  }
+  function qN307StoredValueHeaderText(c){
+    if(!qStoredValueEnabled(c))return '';
+    const b=qMoney(qStoredValueBalance(c)||0);
+    return '儲值金：'+(b>0?'+':'')+qLedgerMoney(b);
   }
   function qN101OpenSummaryText(model){
     return qN277OpenLines(model).map(x=>x.label+(x.value!=null?(' '+qLedgerMoney(x.value)):'')+(x.text?('｜'+x.text):'')).join(' ｜ ');
@@ -7564,9 +7599,9 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
       const ledgerNavKey=String(c.name||inp.value||'').replace(/^(?:legacy:)+/i,'');acctNavWrite({layer:'ledgerContact',section:'ledger',action:'🔍 搜尋帳本',recordId:ledgerNavKey,detailId:'',backMode:''});
       const defaultPay=mode==='單向應付'||String(c.defaultDirection||'')==='付款'||/產農|廠商/.test(String(c.identity||''));
       const dirs=isBilateral?['receivable','payable']:[defaultPay?'payable':'receivable'];
-      const summary='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0"><div class="quickV2ContactHint"><b>目前應收</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivable)+'</div></div><div class="quickV2ContactHint"><b>目前應付</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payable)+'</div></div>'+(ledger.receivableCredit>0?'<div class="quickV2ContactHint"><b>溢收／可退款</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivableCredit)+'</div></div>':'')+(ledger.payableCredit>0?'<div class="quickV2ContactHint"><b>溢付／可收回</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payableCredit)+'</div></div>':'')+'<div class="quickV2ContactHint"><b>正式交易</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+ledger.entries.filter(x=>!x.isVoid&&(x.kind==='sale'||x.kind==='purchase')).length+' 筆</div></div></div>'+(c.ledgerShowTurnover!==false?'<div class="quickV2ContactHint" style="margin:8px 0"><b>🧺 目前籃子／鐵架／棧板／容器：</b> '+qTurnoverSummaryHtml(c)+'</div>':'');
+      const summary=(typeof qStoredValueEnabled==='function'&&qStoredValueEnabled(c)?('<div style="display:grid;grid-template-columns:minmax(180px,260px);gap:8px;margin:10px 0"><div class="quickV2ContactHint"><b>儲值金</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+((qStoredValueBalance(c)>0?'+':'')+qLedgerMoney(qStoredValueBalance(c)))+'</div></div></div>'):('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0"><div class="quickV2ContactHint"><b>目前應收</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivable)+'</div></div><div class="quickV2ContactHint"><b>目前應付</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payable)+'</div></div>'+(ledger.receivableCredit>0?'<div class="quickV2ContactHint"><b>溢收／可退款</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.receivableCredit)+'</div></div>':'')+(ledger.payableCredit>0?'<div class="quickV2ContactHint"><b>溢付／可收回</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+qLedgerMoney(ledger.payableCredit)+'</div></div>':'')+'<div class="quickV2ContactHint"><b>正式交易</b><div style="font-size:20px;font-weight:900;margin-top:3px">'+ledger.entries.filter(x=>!x.isVoid&&(x.kind==='sale'||x.kind==='purchase')).length+' 筆</div></div></div>'))+(c.ledgerShowTurnover!==false?'<div class="quickV2ContactHint" style="margin:8px 0"><b>🧺 目前籃子／鐵架／棧板／容器：</b> '+qTurnoverSummaryHtml(c)+'</div>':'');
       const pending=ledger.pendingCount?'<div class="quickV2ContactHint" style="margin:8px 0"><b>⚠️ 待補價格 '+ledger.pendingCount+' 筆</b>｜價格完成前不列入應收／應付。</div>':'';
-      const sectionHtml=dirs.map(dir=>{const label=dir==='receivable'?'應收帳':'應付帳',rows=ledger.entries.filter(x=>x.direction===dir).slice().reverse(),balance=dir==='receivable'?ledger.receivable:ledger.payable,credit=dir==='receivable'?ledger.receivableCredit:ledger.payableCredit;return '<div class="quickV2Record" data-ledger-dir="'+dir+'"><div class="quickV2RecordTop"><div><b>'+(dir==='receivable'?'📗 ':'📕 ')+label+'</b><div class="helper" style="display:block!important">'+(dir==='receivable'?'銷貨＋收款明細':'進貨＋付款明細')+'｜不與另一張帳自動互抵</div></div><b style="font-size:20px">目前 '+qLedgerMoney(balance)+(dir==='receivable'&&typeof qStoredValueEnabled==='function'&&qStoredValueEnabled(c)?'｜儲值 '+qLedgerMoney(qStoredValueBalance(c)):'')+(credit>0?'｜'+(dir==='receivable'?'溢收 ':'溢付 ')+qLedgerMoney(credit):'')+'</b></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn primary" data-ledger-out="bill" data-dir="'+dir+'">📱 圖片／LINE</button><button class="btn gray" data-ledger-out="excel" data-dir="'+dir+'">📊 Excel</button><button class="btn gray" data-ledger-out="pdf" data-dir="'+dir+'">📄 PDF</button><button class="btn gray" data-ledger-out="paper" data-dir="'+dir+'">🖨️ 報表紙</button></div><div style="overflow:auto"><table class="quickV2Table" style="min-width:720px"><thead><tr><th>日期</th><th>類型</th><th>品項</th><th>'+(dir==='receivable'?'應收':'應付')+'</th><th>餘額</th></tr></thead><tbody>'+(rows.length?rows.map(x=>{const r=x.record,cls=x.isVoid?' style="opacity:.55;text-decoration:line-through"':'',status=x.isVoid?'🚫 作廢':(x.pending?'⚠️ 待補價格':qEsc(x.label||'')),money=x.kind==='receipt'||x.kind==='payment'?('-'+qLedgerMoney(x.total)):qLedgerMoney(dir==='receivable'?x.receivable:x.payable),run=dir==='receivable'?x.runningReceivable:x.runningPayable;return '<tr data-ledger-record="'+qEsc(r.id)+'" style="cursor:pointer"'+cls+'><td>'+qEsc(r.date||'')+'</td><td><b>'+status+'</b></td><td><b>'+qN233LedgerCompactSummary(x)+'</b></td><td>'+money+'</td><td><b>'+qLedgerMoney(run||0)+'</b></td></tr>'}).join(''):'<tr><td colspan="5" class="empty">目前沒有'+label+'紀錄</td></tr>')+'</tbody></table></div></div>'}).join('');
+      const sectionHtml=dirs.map(dir=>{const label=dir==='receivable'?'應收帳':'應付帳',rows=ledger.entries.filter(x=>x.direction===dir).slice().reverse(),balance=dir==='receivable'?ledger.receivable:ledger.payable,credit=dir==='receivable'?ledger.receivableCredit:ledger.payableCredit;return '<div class="quickV2Record" data-ledger-dir="'+dir+'"><div class="quickV2RecordTop"><div><b>'+(dir==='receivable'?'📗 ':'📕 ')+label+'</b><div class="helper" style="display:block!important">'+(dir==='receivable'?'銷貨＋收款明細':'進貨＋付款明細')+'｜不與另一張帳自動互抵</div></div><b style="font-size:20px">'+((dir==='receivable'&&typeof qStoredValueEnabled==='function'&&qStoredValueEnabled(c))?qN307StoredValueHeaderText(c):('目前 '+qLedgerMoney(balance)+(credit>0?'｜'+(dir==='receivable'?'溢收 ':'溢付 ')+qLedgerMoney(credit):'')))+'</b></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn primary" data-ledger-out="bill" data-dir="'+dir+'">📱 圖片／LINE</button><button class="btn gray" data-ledger-out="excel" data-dir="'+dir+'">📊 Excel</button><button class="btn gray" data-ledger-out="pdf" data-dir="'+dir+'">📄 PDF</button><button class="btn gray" data-ledger-out="paper" data-dir="'+dir+'">🖨️ 報表紙</button></div><div style="overflow:auto"><table class="quickV2Table" style="min-width:720px"><thead><tr><th>日期</th><th>類型</th><th>品項</th><th>'+(dir==='receivable'?'應收':'應付')+'</th><th>餘額</th></tr></thead><tbody>'+(rows.length?rows.map(x=>{const r=x.record,cls=x.isVoid?' style="opacity:.55;text-decoration:line-through"':'',status=x.isVoid?'🚫 作廢':(x.pending?'⚠️ 待補價格':qEsc(x.label||'')),money=x.kind==='receipt'||x.kind==='payment'?('-'+qLedgerMoney(x.total)):qLedgerMoney(dir==='receivable'?x.receivable:x.payable),run=dir==='receivable'?x.runningReceivable:x.runningPayable;return '<tr data-ledger-record="'+qEsc(r.id)+'" style="cursor:pointer"'+cls+'><td>'+qEsc(r.date||'')+'</td><td><b>'+status+'</b></td><td><b>'+qN233LedgerCompactSummary(x)+'</b></td><td>'+money+'</td><td><b>'+qLedgerMoney(run||0)+'</b></td></tr>'}).join(''):'<tr><td colspan="5" class="empty">目前沒有'+label+'紀錄</td></tr>')+'</tbody></table></div></div>'}).join('');
       box.innerHTML='<div class="quickV2ContactInfo show">'+qContactInfoHtml(c)+(hit.matchedBy==='vehicle'?'<div class="quickV2ContactHint"><b>🚙 '+qEsc(hit.vehiclePlate)+'</b> → '+qEsc(c.name)+'</div>':'')+'</div>'+summary+pending+'<label style="display:flex;align-items:center;gap:7px;margin:8px 0;font-weight:800"><input type="checkbox" id="qLedgerIncludeVoid" '+(includeVoid?'checked':'')+'> 顯示作廢紀錄</label>'+sectionHtml;
       box.querySelector('#qLedgerIncludeVoid')?.addEventListener('change',paint);
       box.querySelectorAll('[data-ledger-out]').forEach(b=>b.onclick=()=>{const ds=qAcctDateState(),date=ds.dateTo||ds.dateFrom||'';qN100RunOutput(b.dataset.ledgerOut,{context:'individual_ledger',contactId:c.id,customer:c.name,date,direction:b.dataset.dir})});
