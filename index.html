@@ -4487,6 +4487,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N269：僅移除每月／每週農收主列的原始車趟數顯示；週期合併核心不變。 -->
 <!-- N270：一般農收顯示本期貨款總額；可依往來資料啟用分張核對；分類名稱可改刪。分張資料獨立保存，不改原帳務。 -->
 <!-- N271：分類管理改乾淨主畫面＋單一管理入口；農收分張改逐張輸入、增刪與即時核對。未改帳務金額核心。 -->
+<!-- N275：交易查詢四種輸出未結清改接 N39 正式應收／應付核心；雙向往來分開顯示，不互抵。 -->
 <!-- N274：修正交易查詢四種輸出往來解析；qResolveContact 回傳 wrapper，輸出必須傳入其 contact 主檔。 -->
 <!-- N273：收支查詢升級為交易查詢；整合正式銷貨/進貨/收付款/調整/退貨/退款＋往來搜尋＋四種中央輸出；不修改原帳務計算核心。 -->
 <!-- N272：一般農收本期貨款總額改抓同客戶同週期全部正式 sale 帳務，包含無商品明細的正負調整；分類農收算法不變。 -->
@@ -6708,7 +6709,12 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       let rows=[];acts.forEach(r=>{if(r.mode==='money_settlement'||r.mode==='money_refund')rows.push(qN98SettlementRow(r,c));else rows.push(...qN222RowsFromActivity(r,c))});
       rows=qN107SortRows(rows);let seq=0;rows=rows.map(r=>r?.kind==='settlement'?r:{...r,no:++seq,displaySeq:seq});
       const snap=c.billShowTurnover!==false?qN109CurrentContainerSnapshot(c):{contact:c,enabledTypes:[],balances:[],text:''};
-      return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,transactionHistory:true}};
+      // N275：交易查詢四種輸出的「目前未結清」不能用明細合計，也不能預設 0。
+      // 直接沿用 N39 正式應收／應付核心；雙向往來若本次查詢同時含兩個方向，分開顯示，不互抵。
+      const sideOf=r=>{if(r?.mode==='money_settlement')return r.txnType==='payment'?'payment':'receipt';if(r?.mode==='money_refund')return r.accountDirection==='refund_from_supplier'?'payment':'receipt';const d=String(r?.accountDirection||'');if(d==='payable'||d==='reduce_payable')return 'payment';if(d==='receivable'||d==='reduce_receivable')return 'receipt';if(r?.txnType==='purchase'||r?.txnTypeLabel==='進貨')return 'payment';if(r?.txnType==='sale'||r?.txnTypeLabel==='銷貨')return 'receipt';return ''};
+      const sides=new Set(acts.map(sideOf).filter(Boolean)),open=qContactOpenTotals(c),showReceipt=sides.has('receipt'),showPayment=sides.has('payment');
+      const singleOutstanding=showPayment&&!showReceipt?open.payable:(showReceipt&&!showPayment?open.receivable:0);
+      return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,singleOutstanding),transactionHistoryOpen:{receivable:open.receivable,payable:open.payable,showReceipt,showPayment},storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,transactionHistory:true}};
     }
     const direct=qN224DirectEventOutputModel(record);if(direct)return direct;
     const route=qN97OutputRoute(record,{context:record?.context||'',direction:record?.direction||'',cutoff:record?.id||record?.date,week:record?.date});
@@ -6745,7 +6751,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const large=qN119IsLarge(model),singleDate=large?qN119SingleDate(model):'',freightRateLabel=qN135FreightRateLabel(model),csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),(large?'日期,':'期間,')+(large?(singleDate+qN135Weekday(singleDate)):qN98RangeLabel(model))].concat(freightRateLabel?['運費,'+freightRateLabel.replace(/^運費：/,'')]:[]).concat(['',large?(model.outputPartyLabel+',類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'):(model.outputPartyLabel+',日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額')]);
     const pushRows=(rows,cname)=>rows.forEach(x=>{const vals=large?[x.contactName||cname||'',x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??'']:[x.contactName||cname||'',x.date,x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??''];csv.push(vals.map(qN98CsvCell).join(','))});
     if(model.kind==='farmer_weekly')model.groups.forEach(g=>pushRows(g.rows,g.contact?.name));else pushRows(model.rows,model.contact?.name);
-    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);if(qN98Money(model.summary.turnoverBuyout)!==0)csv.push('籃子小計,'+model.summary.turnoverBuyout);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general'){if(qN101IsStoredValue(model)){csv.push('儲值入金,'+qN101StoredValueInflow(model));csv.push('目前儲值餘額,'+(model.storedValueBalance||0))}else csv.push('目前未結清,'+model.summary.outstanding);}
+    csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);if(qN98Money(model.summary.turnoverBuyout)!==0)csv.push('籃子小計,'+model.summary.turnoverBuyout);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general'){if(qN101IsStoredValue(model)){csv.push('儲值入金,'+qN101StoredValueInflow(model));csv.push('目前儲值餘額,'+(model.storedValueBalance||0))}else if(model.direction==='transaction_history'&&model.transactionHistoryOpen){const o=model.transactionHistoryOpen;if(o.showReceipt)csv.push('目前應收未結清,'+(o.receivable||0));if(o.showPayment)csv.push('目前應付未結清,'+(o.payable||0));}else csv.push('目前未結清,'+model.summary.outstanding);}
     const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+(large?qN119SingleDate(model):qN98RangeLabel(model))+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   }
 
@@ -6767,6 +6773,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN101OpenSummaryText(model){
     if(!model||model.kind!=='general')return '';
     if(qN101IsStoredValue(model))return '儲值入金 '+qLedgerMoney(qN101StoredValueInflow(model))+' ｜ 目前儲值餘額 '+qLedgerMoney(model.storedValueBalance||0);
+    if(model.direction==='transaction_history'&&model.transactionHistoryOpen){const o=model.transactionHistoryOpen,p=[];if(o.showReceipt)p.push('目前應收未結清 '+qLedgerMoney(o.receivable||0));if(o.showPayment)p.push('目前應付未結清 '+qLedgerMoney(o.payable||0));return p.join(' ｜ ')||'目前未結清 '+qLedgerMoney(model.summary?.outstanding||0)}
     return '目前未結清 '+qLedgerMoney(model.summary?.outstanding||0);
   }
   function qN101SummaryText(model){
@@ -6866,7 +6873,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const W=720,pad=34,rowH=38,headH=190,containerText=qN103ContainerText(model),currentContainer=model.currentContainerText||'',buyoutText=qN104BuyoutTextModel(model);
     const rows=model.kind==='farmer_weekly'?model.groups.flatMap(g=>[{kind:'group',name:g.contact?.name||'產農'},...(g.rows||[])]):model.rows;
     // N104：LINE 圖片不是固定紙張；高度完全依「明細列＋結算列」計算，內容增加就自動往下長。
-    const footerLines=2+(buyoutText?1:0)+(containerText?1:0)+(currentContainer?1:0)+(model.kind==='general'?(qN101IsStoredValue(model)?2:1):0);
+    const thOpenLines=(model.direction==='transaction_history'&&model.transactionHistoryOpen)?((model.transactionHistoryOpen.showReceipt?1:0)+(model.transactionHistoryOpen.showPayment?1:0)):1;const footerLines=2+(buyoutText?1:0)+(containerText?1:0)+(currentContainer?1:0)+(model.kind==='general'?(qN101IsStoredValue(model)?2:thOpenLines):0);
     const footerTopGap=28,footerLineH=34,footerBottom=34;
     const H=Math.max(360,headH+rows.length*rowH+footerTopGap+footerLines*footerLineH+footerBottom),cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
     x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111';x.textBaseline='middle';
@@ -6883,7 +6890,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(containerText){y+=footerLineH;txt(containerText,W-pad,y,18,true,'right')}
     if(currentContainer){y+=footerLineH;txt(currentContainer,pad,y,18,true,'left')}
     y+=footerLineH;txt('總計 '+money(model.summary.total),W-pad,y,23,true,'right');
-    if(model.kind==='general'){if(qN101IsStoredValue(model)){y+=footerLineH;txt('儲值入金 '+money(qN101StoredValueInflow(model)),W-pad,y,22,true,'right');y+=footerLineH;txt('目前儲值餘額 '+money(model.storedValueBalance||0),W-pad,y,22,true,'right')}else{y+=footerLineH;txt('目前未結清 '+money(model.summary.outstanding),W-pad,y,22,true,'right')}}
+    if(model.kind==='general'){if(qN101IsStoredValue(model)){y+=footerLineH;txt('儲值入金 '+money(qN101StoredValueInflow(model)),W-pad,y,22,true,'right');y+=footerLineH;txt('目前儲值餘額 '+money(model.storedValueBalance||0),W-pad,y,22,true,'right')}else if(model.direction==='transaction_history'&&model.transactionHistoryOpen){const o=model.transactionHistoryOpen;if(o.showReceipt){y+=footerLineH;txt('目前應收未結清 '+money(o.receivable||0),W-pad,y,22,true,'right')}if(o.showPayment){y+=footerLineH;txt('目前應付未結清 '+money(o.payable||0),W-pad,y,22,true,'right')}}else{y+=footerLineH;txt('目前未結清 '+money(model.summary.outstanding),W-pad,y,22,true,'right')}}
     return cv;
   }
   function qN102Image(model){
