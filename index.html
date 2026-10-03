@@ -6030,36 +6030,44 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(clear&&!clear.dataset.bound){clear.dataset.bound='1';clear.onclick=()=>{const f=document.getElementById('acctDateFrom'),t=document.getElementById('acctDateTo');if(f)f.value='';if(t)t.value='';qAcctApplyController()}}
   }
   function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctFirstLedgerSearch')?.classList.remove('hidden');const dc=document.getElementById('acctDateController');if(dc)dc.style.removeProperty('display');document.querySelector('.acctManagementHome>h2')?.classList.remove('hidden');document.querySelector('.acctManagementHome>h2+div.helper')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr){const ds=qAcctDateState();if(ds.dateFrom||ds.dateTo)qPaintDateRangeResults();else if(document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();else{sr.innerHTML='';sr.style.display='none'}}document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
-  // N331：收款／付款第一層效能修正。單次巡覽建立快照；分類名單延遲載入，不在首頁重跑完整未結清。
-  let qN331MoneySnapshot=null;
-  function qN331BuildMoneySnapshot(force=false){
-    if(qN331MoneySnapshot&&!force)return qN331MoneySnapshot;
+  // N332：應收應付摘要快取。首頁直接讀摘要；帳務資料異動後才失效重算，避免每次進第一層掃完整歷史。
+  let qN332MoneySnapshot=null;
+  const QN332_CACHE_KEY='q_accounting_money_summary_v1';
+  function qN332LoadCache(){
+    if(qN332MoneySnapshot)return qN332MoneySnapshot;
+    try{const x=JSON.parse(localStorage.getItem(QN332_CACHE_KEY)||'null');if(x&&x.groups&&x.receiptTotal!=null&&x.paymentTotal!=null)qN332MoneySnapshot=x}catch(e){}
+    return qN332MoneySnapshot;
+  }
+  function qN332SaveCache(s){qN332MoneySnapshot=s;try{localStorage.setItem(QN332_CACHE_KEY,JSON.stringify(s))}catch(e){}return s}
+  function qN332Invalidate(){qN332MoneySnapshot=null;try{localStorage.removeItem(QN332_CACHE_KEY)}catch(e){}}
+  function qN332BuildMoneySnapshot(force=false){
+    if(!force){const cached=qN332LoadCache();if(cached)return cached}
     const groups={receipt:{'一般客戶':[],超市:[],中盤:[],'其他應收':[]},payment:{產農:[],廠商:[],中盤:[],'其他應付':[]}};
     let receiptTotal=0,paymentTotal=0;
     qN219WithCalc(()=>{
       const candidates=qAccountingMoneyContactCandidates();
       for(const c of candidates){
         const tot=qContactOpenTotals(c),r=Number(tot?.receivable||0),p=Number(tot?.payable||0),id=String(c?.identity||'').trim();
-        if(r>0.000001){const g=id==='超市'?'超市':id==='中盤'?'中盤':(id==='一般客戶'||id==='客戶')?'一般客戶':'其他應收';groups.receipt[g].push({c,due:r});receiptTotal+=r}
-        if(p>0.000001){const g=id==='產農'?'產農':id==='廠商'?'廠商':id==='中盤'?'中盤':'其他應付';groups.payment[g].push({c,due:p});paymentTotal+=p}
+        if(r>0.000001){const g=id==='超市'?'超市':id==='中盤'?'中盤':(id==='一般客戶'||id==='客戶')?'一般客戶':'其他應收';groups.receipt[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:r});receiptTotal+=r}
+        if(p>0.000001){const g=id==='產農'?'產農':id==='廠商'?'廠商':id==='中盤'?'中盤':'其他應付';groups.payment[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:p});paymentTotal+=p}
       }
     });
-    qN331MoneySnapshot={groups,receiptTotal,paymentTotal,builtAt:Date.now()};return qN331MoneySnapshot;
+    return qN332SaveCache({groups,receiptTotal,paymentTotal,builtAt:Date.now()});
   }
-  function qN331OverviewHtml(){
-    const s=qN331BuildMoneySnapshot(true);
-    const card=(dir,title,names,total)=>'<div style="min-width:0"><div style="font-size:18px;font-weight:900;margin-bottom:8px">'+title+'　'+qLedgerMoney(total)+'</div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'+names.map(g=>{const rows=s.groups[dir][g]||[],amt=rows.reduce((a,x)=>a+x.due,0);return '<button type="button" class="btn gray" data-n331-dir="'+dir+'" data-n331-group="'+qEsc(g)+'" style="height:auto;min-height:64px;text-align:left;justify-content:flex-start"><span><b>'+qEsc(g)+'　'+qLedgerMoney(amt)+'</b><small style="display:block;margin-top:4px">'+rows.length+' 個往來對象</small></span></button>'}).join('')+'</div></div>';
-    return '<div id="qN331Overview" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px">'+card('receipt','💰 目前應收',['一般客戶','超市','中盤','其他應收'],s.receiptTotal)+card('payment','💸 目前應付',['產農','廠商','中盤','其他應付'],s.paymentTotal)+'</div>';
+  function qN332OverviewHtml(){
+    const s=qN332LoadCache()||qN332BuildMoneySnapshot(true);
+    const card=(dir,title,names,total)=>'<div style="min-width:0"><div style="font-size:18px;font-weight:900;margin-bottom:8px">'+title+'　'+qLedgerMoney(total)+'</div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'+names.map(g=>{const rows=s.groups[dir][g]||[],amt=rows.reduce((a,x)=>a+Number(x.due||0),0);return '<button type="button" class="btn gray" data-n332-dir="'+dir+'" data-n332-group="'+qEsc(g)+'" style="height:auto;min-height:64px;text-align:left;justify-content:flex-start"><span><b>'+qEsc(g)+'　'+qLedgerMoney(amt)+'</b><small style="display:block;margin-top:4px">'+rows.length+' 個往來對象</small></span></button>'}).join('')+'</div></div>';
+    return '<div id="qN332Overview" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px">'+card('receipt','💰 目前應收',['一般客戶','超市','中盤','其他應收'],s.receiptTotal)+card('payment','💸 目前應付',['產農','廠商','中盤','其他應付'],s.paymentTotal)+'</div>';
   }
-  function qN331OpenGroup(dir,group){
-    const work=document.getElementById('acctStageWork'),grid=document.querySelector('#acctStage .acctStageGrid'),overview=document.getElementById('qN331Overview');if(!work)return;
+  function qN332OpenGroup(dir,group){
+    const work=document.getElementById('acctStageWork'),grid=document.querySelector('#acctStage .acctStageGrid'),overview=document.getElementById('qN332Overview');if(!work)return;
     if(grid)grid.style.display='none';if(overview)overview.style.display='none';
-    const s=qN331BuildMoneySnapshot(),rows=(s.groups?.[dir]?.[group]||[]).slice().sort((a,b)=>b.due-a.due||String(a.c?.name||'').localeCompare(String(b.c?.name||''))),total=rows.reduce((a,x)=>a+x.due,0);
-    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>'+(dir==='receipt'?'💰 應收':'💸 應付')+'｜'+qEsc(group)+'｜'+qLedgerMoney(total)+'</b><div class="helper">點往來對象後才載入該對象的正式收款／付款內容。</div></div><button type="button" class="btn gray" id="qN331Back">← 返回分類總覽</button></div><div class="acctQueueList" style="margin-top:10px">'+(rows.length?rows.map(x=>'<button type="button" class="acctQueueRow" data-n331-contact="'+qEsc(x.c.id||x.c.contactId||x.c.code||x.c.name)+'" style="width:100%;text-align:left;cursor:pointer"><div><b>'+qEsc(x.c.code?x.c.code+'｜'+x.c.name:x.c.name)+'</b><div class="helper">'+qEsc(x.c.identity||x.c.type||'')+'</div></div><div><strong>'+qLedgerMoney(x.due)+'</strong><span style="margin-left:8px">處理 →</span></div></button>').join(''):'<div class="empty">目前沒有未結清資料</div>')+'</div></div>';
-    work.querySelector('#qN331Back').onclick=()=>open('payment');
-    work.querySelectorAll('[data-n331-contact]').forEach(b=>b.onclick=()=>{const c=qContact(b.dataset.n331Contact);if(c)qRenderMoneyCenter(work,c.id||c.contactId||c.code||c.name,dir)});
+    const s=qN332LoadCache()||qN332BuildMoneySnapshot(true),rows=(s.groups?.[dir]?.[group]||[]).slice().sort((a,b)=>Number(b.due||0)-Number(a.due||0)||String(a.name||'').localeCompare(String(b.name||''))),total=rows.reduce((a,x)=>a+Number(x.due||0),0);
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>'+(dir==='receipt'?'💰 應收':'💸 應付')+'｜'+qEsc(group)+'｜'+qLedgerMoney(total)+'</b><div class="helper">摘要已快取；點往來對象後才載入該對象正式收款／付款內容。</div></div><button type="button" class="btn gray" id="qN332Back">← 返回分類總覽</button></div><div class="acctQueueList" style="margin-top:10px">'+(rows.length?rows.map(x=>'<button type="button" class="acctQueueRow" data-n332-contact="'+qEsc(x.id||x.code||x.name)+'" style="width:100%;text-align:left;cursor:pointer"><div><b>'+qEsc(x.code?x.code+'｜'+x.name:x.name)+'</b><div class="helper">'+qEsc(x.identity||'')+'</div></div><div><strong>'+qLedgerMoney(x.due)+'</strong><span style="margin-left:8px">處理 →</span></div></button>').join(''):'<div class="empty">目前沒有未結清資料</div>')+'</div></div>';
+    work.querySelector('#qN332Back').onclick=()=>open('payment');
+    work.querySelectorAll('[data-n332-contact]').forEach(b=>b.onclick=()=>qRenderMoneyCenter(work,b.dataset.n332Contact,dir));
   }
-  function qN331Bind(){document.querySelectorAll('#qN331Overview [data-n331-dir]').forEach(b=>b.onclick=()=>qN331OpenGroup(b.dataset.n331Dir,b.dataset.n331Group))}
+  function qN332Bind(){document.querySelectorAll('#qN332Overview [data-n332-dir]').forEach(b=>b.onclick=()=>qN332OpenGroup(b.dataset.n332Dir,b.dataset.n332Group))}
   function open(key,skipNavSave=false,opts={}){if(!skipNavSave)acctNavWrite({layer:'section',section:key,action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();
     const d=defs[key];if(!d)return;
     grid.style.display='none';stage.style.display='block';document.querySelector('.acctFirstLedgerSearch')?.classList.add('hidden');const dc=document.getElementById('acctDateController');if(dc)dc.style.setProperty('display','none','important');document.querySelector('.acctManagementHome>h2')?.classList.add('hidden');document.querySelector('.acctManagementHome>h2+div.helper')?.classList.add('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='none';const sr=document.getElementById('acctGlobalSearchResults');if(sr)sr.style.display='none';
@@ -6069,9 +6077,9 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
       if(isBank&&bankLocked)return '<button type="button" class="acctStageBtn acctStageLocked" disabled><b>'+x+'</b><span>僅管理員可查看與操作</span></button>';
       return '<button type="button" class="acctStageBtn" data-acct-stage-action="'+x.replace(/"/g,'&quot;')+'"><b>'+x+'</b></button>';
     }).join('');
-    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div>'+(key==='payment'?qN331OverviewHtml():'')+(key==='ledger'?'':'<div class="acctStageGrid">'+items+'</div>')+'<div id="acctStageWork" class="acctStageWork"></div>';stage.classList.remove('xrTurnoverStage','acctActionLayer');
+    stage.innerHTML='<div class="acctStageHead"><button type="button" class="btn gray" id="acctStageBack">← 返回帳務中心</button><div><h3>'+d.title+'</h3><div class="helper">'+d.desc+'</div></div></div>'+(key==='payment'?qN332OverviewHtml():'')+(key==='ledger'?'':'<div class="acctStageGrid">'+items+'</div>')+'<div id="acctStageWork" class="acctStageWork"></div>';stage.classList.remove('xrTurnoverStage','acctActionLayer');
     document.getElementById('acctStageBack')?.addEventListener('click',()=>home());
-    if(key==='payment')qN331Bind();
+    if(key==='payment')qN332Bind();
     if(key==='ledger'&&!opts.deferLedgerRender){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
   }
   document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>open(btn.dataset.acctManage)));
@@ -7002,7 +7010,13 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}.double{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.double table{font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
-  // N331：收款付款分類效能修正：首頁單次快照、分類延遲載入、點對象才進原穩定收付款流程；避免首頁重複掃描完整歷史。\n  // N329：舊帳待確認資金帳戶認領：可批次指定實際帳戶；原收付款交易不改寫，指定後才納入該帳戶餘額。\n  // N328：資金帳戶補強：員工個別零用金餘額、支票指定實際入帳帳戶、貸款第一期繳款日、首頁各帳戶餘額。\n  // N327：正式資金帳戶主檔：公司收支／貸款／支票／零用金／互轉共用帳戶清單；可新增銀行或現金帳戶。\n  // N326：資金帳戶第二層：員工零用金、收到的支票正式接唯一資金流水；零用金移交不當費用、在手支票不先灌銀行餘額。\n  // N325：帳單版型唯一核心：單欄跨日／雙欄跨日／雙欄單日；身分不再決定版型，清除「超市→大量」fallback；舊 dense80/large 遷移為雙欄單日。\n  // N324：貸款管理正式接入唯一資金核心：車貸／銀行貸款／私人借款／負責人借款／其他；借款非收入、還款非一般支出；未知本金利息不猜。\n  // N323：資金帳戶正式核心：公司帳戶／公司現金可查看唯一流水；帳戶互轉以同一 transferId 建立一出一入，不影響損益或往來帳。\n  // N322：容器金額核心定義統一：只有「數量帳」獨立追蹤；容器金額絕不獨立，直接併入正式貨款應收／應付。
+  // N332：應收應付摘要快取：第一層直接讀快取，帳務寫入後才失效重算；避免每次進頁掃完整歷史。\n  // N331：收款付款分類效能修正：首頁單次快照、分類延遲載入、點對象才進原穩定收付款流程；避免首頁重複掃描完整歷史。\n  // N332 cache invalidation hook：任何正式帳務寫入後，下次進收款／付款才重建一次摘要。
+  if(typeof saveAccountingCloud==='function'&&!saveAccountingCloud.__qN332Wrapped){
+    const __qN332SaveAccountingCloud=saveAccountingCloud;
+    saveAccountingCloud=async function(...args){const out=await __qN332SaveAccountingCloud.apply(this,args);qN332Invalidate();return out};
+    saveAccountingCloud.__qN332Wrapped=true;
+  }
+  // N329：舊帳待確認資金帳戶認領：可批次指定實際帳戶；原收付款交易不改寫，指定後才納入該帳戶餘額。\n  // N328：資金帳戶補強：員工個別零用金餘額、支票指定實際入帳帳戶、貸款第一期繳款日、首頁各帳戶餘額。\n  // N327：正式資金帳戶主檔：公司收支／貸款／支票／零用金／互轉共用帳戶清單；可新增銀行或現金帳戶。\n  // N326：資金帳戶第二層：員工零用金、收到的支票正式接唯一資金流水；零用金移交不當費用、在手支票不先灌銀行餘額。\n  // N325：帳單版型唯一核心：單欄跨日／雙欄跨日／雙欄單日；身分不再決定版型，清除「超市→大量」fallback；舊 dense80/large 遷移為雙欄單日。\n  // N324：貸款管理正式接入唯一資金核心：車貸／銀行貸款／私人借款／負責人借款／其他；借款非收入、還款非一般支出；未知本金利息不猜。\n  // N323：資金帳戶正式核心：公司帳戶／公司現金可查看唯一流水；帳戶互轉以同一 transferId 建立一出一入，不影響損益或往來帳。\n  // N322：容器金額核心定義統一：只有「數量帳」獨立追蹤；容器金額絕不獨立，直接併入正式貨款應收／應付。
   // N321：容器負項正式折抵應收／應付：回籃等負金額直接扣入同帳期與目前餘額，不再只出現在流水表。\n  // N320：容器金額唯一帳款核心：有金額的籃子／鐵架／棧板／容器直接併入應收應付，且交易明細顯示真實容器名稱、數量、單價、正負金額。
   // N319：資金帳戶第一個正式核心：原收款／付款／退款直接派生唯一資金流水，不重複KEY；公司收支仍為非往來帳人工入口。
   // N318：產農週報自動分頁核心固定：頁尾18mm安全區、整卡放不下即換頁；尺寸/字級不再依每週資料量調整。
