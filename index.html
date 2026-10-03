@@ -1921,6 +1921,30 @@ body.wall-focus #wall .wallOrderNote{
  .qN257DropAfter{border-bottom:3px dashed #22a35a!important}
 }
 </style>
+
+<style id="n285AccountingOrder">
+/* N285 帳務中心：只調顯示順序，不複製功能、不改權限／資料核心。 */
+#acctManagementGrid [data-acct-manage="entry"]{order:1}
+#acctManagementGrid [data-acct-manage="payment"]{order:2}
+#acctManagementGrid [data-acct-manage="ledger"]{order:3}
+#acctManagementGrid [data-acct-manage="farmer"]{order:4}
+#acctManagementGrid [data-acct-manage="contacts"]{order:5}
+#acctManagementGrid [data-acct-manage="turnover"]{order:6}
+#acctManagementGrid [data-acct-manage="receipt"]{order:7}
+#acctManagementGrid [data-acct-manage="vendor"]{order:8}
+#acctManagementGrid [data-acct-manage="vehicle"]{order:9}
+@media(max-width:760px){
+  #acctManagementGrid [data-acct-manage="entry"]{order:1}
+  #acctManagementGrid [data-acct-manage="payment"]{order:2}
+  #acctManagementGrid [data-acct-manage="ledger"]{order:3}
+  #acctManagementGrid [data-acct-manage="contacts"]{order:4}
+  #acctManagementGrid [data-acct-manage="turnover"]{order:5}
+  #acctManagementGrid [data-acct-manage="farmer"]{order:6}
+  #acctManagementGrid [data-acct-manage="vendor"]{order:7}
+  #acctManagementGrid [data-acct-manage="receipt"]{order:8}
+  #acctManagementGrid [data-acct-manage="vehicle"]{order:9}
+}
+</style>
 </head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
@@ -8602,20 +8626,24 @@ K白.kg
     '電話／網路':['電話費','網路費','其他'],'設備／維修':['設備購置','設備維修','其他'],'耗材／用品':['辦公用品','清潔用品','其他'],
     '稅費':['稅金','規費','其他'],'其他支出':['其他'],'其他收入':['其他']
   }}
+  // N285：資金帳戶返回鍵使用獨立 navigation handler。
+  // open() 原本會在 acctStageBack 掛「返回帳務中心」addEventListener；只改 onclick 無法覆蓋它。
+  // 每次進資金層級時 clone 返回鍵，移除舊 listener，再依目前層級綁定唯一返回規則。
   function qFundStageHeader(mode='home',title=''){
-    const head=stage.querySelector('.acctStageHead'),back=stage.querySelector('#acctStageBack');
-    if(!head||!back)return;
+    const head=stage.querySelector('.acctStageHead'),oldBack=stage.querySelector('#acctStageBack');
+    if(!head||!oldBack)return;
+    const back=oldBack.cloneNode(true);oldBack.replaceWith(back);
     const h3=head.querySelector('h3'),desc=head.querySelector('.helper');
     if(mode==='home'){
       if(h3)h3.textContent='🏦 資金帳戶';
       if(desc)desc.textContent='公司帳戶與公司現金的資金管理；收支、零用金、支票、代購毛利與資金紀錄都從這裡進入。';
       back.textContent='← 返回收款／付款';
-      back.onclick=()=>open('payment',false);
+      back.addEventListener('click',()=>open('payment',false),{once:true});
     }else{
       if(h3)h3.textContent=title||'🏦 資金帳戶';
       if(desc)desc.textContent='';
       back.textContent='← 返回資金帳戶';
-      back.onclick=()=>qRenderFundHome(document.getElementById('acctStageWork'));
+      back.addEventListener('click',()=>qRenderFundHome(document.getElementById('acctStageWork')),{once:true});
     }
   }
   function qRenderFundHome(work){
@@ -9599,5 +9627,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
 <!-- N229：所有進貨一律無運費核心；不依往來身分。 -->
 <!-- N230：表格／單據中心；六禾包裝規格與商品重量主檔連動快速做帳。 -->
 <!-- N284：資金帳戶層級整理：資金帳戶獨立標題；第二層進入後只顯示該功能，返回資金帳戶，不與收款／付款標題或其他功能卡混層。 -->
+<!-- N285：修正資金返回鍵舊 listener 衝突；帳務首頁電腦／手機依指定順序顯示，同一組功能與權限不複製。 -->
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
