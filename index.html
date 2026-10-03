@@ -6052,7 +6052,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   function qBillingParseDate(v){const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),12,0,0,0);return Number.isNaN(d.getTime())?null:d}
   function qBillingDateText(d){if(!(d instanceof Date)||Number.isNaN(d.getTime()))return '';const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day}
   function qBillingAddDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+Number(n||0),12,0,0,0)}
-  // N303：唯一帳期核心。全系統的帳單、收付款、未結清、手續費、提醒與四種輸出，只能讀 qN292PeriodMeta。
+  // N304：唯一帳期核心。全系統的帳單、收付款、未結清、手續費、提醒與四種輸出，只能讀 qN292PeriodMeta；個人帳本輸出也先選正式交易後進 N294。
   function qN292PeriodMeta(c,record){
     const settlement=String(c?.settlement||'現結').trim(),d=String(record?.date||''),cid=String(c?.id||c?.code||c?.name||'').trim(),dt=qBillingParseDate(d);
     if(!dt)return {ok:false,key:'',type:settlement,start:'',end:'',label:'',reason:'日期格式錯誤'};
@@ -6831,6 +6831,20 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight,reportLayout:qN97EffectiveReportLayout(c),contact:snapshot.contact||c,direction,range:{from:selected.start||record.date||'',to:selected.end||record.date||''},rows,settlements:[],summary:qN98Summary(rows,outstanding),periodSummary,storedValueBalance:qStoredValueBalance(snapshot.contact||c),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities,period:selected,selectedBillingPeriod:true}};
   }
   function qN98OutputModel(record){
+    // N304：個人帳本上方四種輸出不得再用「目前日期」直接走舊 route 重建單日帳。
+    // 先由帳本日期找到該方向的一筆正式交易，再一律交給 N294 → N292 唯一帳期核心。
+    // 因此週結/3日結/半月結/月結會輸出整個所屬帳期；儲值付款模式固定輸出整個自然月。
+    if(record?.context==='individual_ledger'){
+      const c=qContact(record.contactId||record.customer||'');
+      if(c){
+        const dir=String(record.direction||'')==='payable'?'payment':'receipt',anchor=String(record.date||'');
+        const formal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,dir)).sort(qN96Cmp);
+        const exact=formal.filter(r=>String(r.date||'')===anchor);
+        const prior=formal.filter(r=>!anchor||String(r.date||'')<=anchor);
+        const picked=(exact.length?exact[exact.length-1]:(prior.length?prior[prior.length-1]:(formal.length?formal[formal.length-1]:null)));
+        if(picked){const m=qN294PeriodOutputModel(picked);if(m)return m}
+      }
+    }
     if(record?.context==='transaction_history'){
       const c=qContact(record.contactId||record.customer||'');
       if(!c)return {schema:'xinru_complete_output_v1',kind:'missing_contact',rows:[],summary:qN98Summary([])};
