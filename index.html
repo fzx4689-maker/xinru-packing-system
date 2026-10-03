@@ -6782,8 +6782,12 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return {openingBalance:opening,periodInflow:inflow,periodConsumption:consumption,closingBalance:closing};
   }
   function qN297BillingPeriodSummary(c,direction,period,activities){
-    const members=(activities||[]).filter(Boolean),ids=new Set(members.map(r=>String(r.id||''))),originalAmount=members.reduce((n,r)=>n+qMoney(qRecordTotal(r)),0);
+    const members=(activities||[]).filter(Boolean),ids=new Set(members.map(r=>String(r.id||'')));
+    const rawOriginalAmount=members.reduce((n,r)=>n+qMoney(qRecordTotal(r)),0);
+    const periodFee=(direction==='receipt'&&members.length)?qBillingPeriodFeeAmount(c):0;
+    const originalAmount=qMoney(Math.max(0,rawOriginalAmount-periodFee));
     const storedValue=qN298StoredValuePeriodSummary(c,period);
+    if(storedValue)storedValue.inflowDetails=qN305StoredValueInflowDetails(c,{from:period?.start||'',to:period?.end||''});
     const settlements=qMoneySettlements().filter(x=>qRecordBelongsToContact(x,c)&&((direction==='receipt'&&x.txnType==='receipt')||(direction==='payment'&&x.txnType==='payment'))).map(x=>{const amount=(Array.isArray(x.allocations)?x.allocations:[]).filter(a=>ids.has(String(a?.recordId||''))).reduce((n,a)=>n+qMoney(a?.amount),0);return {record:x,amount}}).filter(x=>x.amount>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
     const paid=Math.min(originalAmount,settlements.reduce((n,x)=>n+x.amount,0)),outstanding=Math.max(0,originalAmount-paid),lastPaymentDate=settlements.length?String(settlements[settlements.length-1].record.date||''):'',settled=originalAmount>0&&outstanding<=0.000001;
     const allFormal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,direction));
@@ -6939,26 +6943,63 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
+  // N305：儲值顯示＋帳期手續費統一核心。儲值負餘額顯示欠貨款，並列每次入金日期/可用時間；帳期手續費納入未結清。
   // N101：中央輸出呈現核心。螢幕預覽與實際列印尺寸分離；全系統 PDF／報表紙只走這裡。
   // H12：儲值客戶四種正式輸出統一結算摘要。
   // 儲值客戶不顯示「目前未結清」；固定顯示「儲值入金」＋「目前儲值餘額」。
   function qN101IsStoredValue(model){return model?.kind==='general'&&String(model?.contact?.paymentDefault||'').trim()==='儲值'}
   function qN101StoredValueInflow(model){return qN101IsStoredValue(model)?qStoredValueTrueInflow(model.contact,model?.range||null):0}
+  // N305：儲值月帳的人類可讀摘要只走這裡；負餘額不再顯示「負儲值」，改成「目前欠貨款」。
+  function qN305StoredValueClosingLine(v){
+    const closing=qMoney(v?.closingBalance||0);
+    if(closing>0.000001)return {label:'目前可用儲值',value:closing};
+    if(closing<-0.000001)return {label:'目前欠貨款',value:Math.abs(closing)};
+    return {label:'目前儲值餘額',value:0};
+  }
+  function qN305StoredValueInflowDetails(c,range=null){
+    if(!qStoredValueEnabled(c))return [];
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c));
+    const inRange=r=>!range||((!range.from||String(r.date||'')>=String(range.from))&&(!range.to||String(r.date||'')<=String(range.to)));
+    const out=[];
+    rows.forEach(r=>{
+      if(!inRange(r)||r?.storedValueUse===true)return;
+      let amount=0;
+      if(r.txnType==='deposit')amount=qMoney(r.deposit||r.amount||r.total);
+      else if(r.mode==='money_settlement'&&r.txnType==='receipt'){
+        const methods=Array.isArray(r.methods)?r.methods:[];
+        amount=methods.filter(m=>String(m?.method||'').trim()==='儲值').reduce((a,m)=>a+qMoney(m?.amount),0);
+        if(amount<=0){const text=[r.note,r.reason,r.payment,r.paymentMethod].map(x=>String(x||'')).join('|');if(text.includes('儲值'))amount=qMoney(r.amount||r.total||r.paid)}
+      }
+      amount=Math.max(0,qMoney(amount));if(amount<=0)return;
+      const rawTime=String(r.createdAt||r.created_at||r.updatedAt||r.updated_at||'').trim();
+      let time='';
+      if(rawTime){const d=new Date(rawTime);if(!Number.isNaN(d.getTime()))time=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+      out.push({date:String(r.date||''),time,amount,recordId:String(r.id||'')});
+    });
+    return out.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.time).localeCompare(String(b.time))||String(a.recordId).localeCompare(String(b.recordId)));
+  }
   // N277：全系統四種正式輸出的未結清摘要只走這個中央核心。
   // receipt＝應收、payment＝應付；雙向往來也依目前正在看的帳務方向，不自行把兩邊混在一起。
   function qN277OpenLines(model){
     if(!model||model.kind!=='general')return [];
     // N298：儲值月帳優先於一般應收摘要，固定顯示自然月的期初／入金／消費／期末。
-    if(qN101IsStoredValue(model)&&model?.periodSummary?.storedValue){const v=model.periodSummary.storedValue;return [{label:'期初儲值餘額',value:v.openingBalance},{label:'本月儲值入金',value:v.periodInflow},{label:'本月消費',value:v.periodConsumption},{label:'期末儲值餘額',value:v.closingBalance}]}
+    if(qN101IsStoredValue(model)&&model?.periodSummary?.storedValue){const v=model.periodSummary.storedValue;return [{label:'期初儲值餘額',value:v.openingBalance},{label:'本月儲值入金',value:v.periodInflow},{label:'本月消費',value:v.periodConsumption},qN305StoredValueClosingLine(v)]}
     // 一般單張帳期輸出讀唯一帳期摘要，禁止把整個客戶總未結清冒充本張帳餘額。
     const periodLines=qN297PeriodStatusLines(model);if(periodLines)return periodLines;
-    if(qN101IsStoredValue(model))return [{label:'本月儲值入金',value:qN101StoredValueInflow(model)},{label:'期末儲值餘額',value:model.storedValueBalance||0}];
+    if(qN101IsStoredValue(model)){const b=qMoney(model.storedValueBalance||0);return [{label:'本月儲值入金',value:qN101StoredValueInflow(model)},b>0?{label:'目前可用儲值',value:b}:(b<0?{label:'目前欠貨款',value:Math.abs(b)}:{label:'目前儲值餘額',value:0})];}
     if(model.direction==='transaction_history'&&model.transactionHistoryOpen){const o=model.transactionHistoryOpen,p=[];if(o.showReceipt)p.push({label:'目前應收未結清',value:o.receivable||0});if(o.showPayment)p.push({label:'目前應付未結清',value:o.payable||0});return p}
     if(model.direction==='payment')return [{label:'目前應付未結清',value:model.summary?.outstanding||0}];
     if(model.direction==='receipt')return [{label:'目前應收未結清',value:model.summary?.outstanding||0}];
     return [];
   }
-  function qN101OpenSummaryText(model){return qN277OpenLines(model).map(x=>x.label+(x.value!=null?(' '+qLedgerMoney(x.value)):'')+(x.text?('｜'+x.text):'')).join(' ｜ ')}
+  function qN101OpenSummaryText(model){
+    const base=qN277OpenLines(model).map(x=>x.label+(x.value!=null?(' '+qLedgerMoney(x.value)):'')+(x.text?('｜'+x.text):'')).join(' ｜ ');
+    if(!qN101IsStoredValue(model)||!model?.periodSummary?.storedValue)return base;
+    const d=model.periodSummary.storedValue.inflowDetails||[];
+    if(!d.length)return base;
+    const detail=d.map(x=>'儲值 '+x.date+(x.time?(' '+x.time):'')+' '+qLedgerMoney(x.amount)).join(' ｜ ');
+    return base+' ｜ '+detail;
+  }
   function qN101SummaryText(model){
     const s=model.summary||{},parts=['貨款小計 '+qLedgerMoney(s.goods)];if(!model.noFreight)parts.push('運費小計 '+qLedgerMoney(s.freight));
     if(qN98Money(s.turnoverBuyout)!==0)parts.push('籃子小計 '+qLedgerMoney(s.turnoverBuyout));
