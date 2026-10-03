@@ -7010,7 +7010,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}.double{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.double table{font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
-  // N333：代購毛利分析：直接讀正式交易的來源＝代購與實際成本；缺成本只列待補，不誤算毛利。\n  // N332：應收應付摘要快取：第一層直接讀快取，帳務寫入後才失效重算；避免每次進頁掃完整歷史。\n  // N331：收款付款分類效能修正：首頁單次快照、分類延遲載入、點對象才進原穩定收付款流程；避免首頁重複掃描完整歷史。\n  // N332 cache invalidation hook：任何正式帳務寫入後，下次進收款／付款才重建一次摘要。
+  // N334：代購毛利儀表板：日期快捷／自訂期間／搜尋／對象彙總表／毛利率／待補成本獨立區／明細表。\n  // N333：代購毛利分析：直接讀正式交易的來源＝代購與實際成本；缺成本只列待補，不誤算毛利。\n  // N332：應收應付摘要快取：第一層直接讀快取，帳務寫入後才失效重算；避免每次進頁掃完整歷史。\n  // N331：收款付款分類效能修正：首頁單次快照、分類延遲載入、點對象才進原穩定收付款流程；避免首頁重複掃描完整歷史。\n  // N332 cache invalidation hook：任何正式帳務寫入後，下次進收款／付款才重建一次摘要。
   if(typeof saveAccountingCloud==='function'&&!saveAccountingCloud.__qN332Wrapped){
     const __qN332SaveAccountingCloud=saveAccountingCloud;
     saveAccountingCloud=async function(...args){const out=await __qN332SaveAccountingCloud.apply(this,args);qN332Invalidate();return out};
@@ -9381,13 +9381,57 @@ K白.kg
   }
   function qRenderProxyProfit(work){
     qFundStageHeader('sub','代購毛利');
-    const rows=qProxyProfitRows(),done=rows.filter(x=>x.cost!=null),pending=rows.filter(x=>x.cost==null);
-    const revenue=done.reduce((s,x)=>s+x.revenue,0),cost=done.reduce((s,x)=>s+x.cost,0),profit=done.reduce((s,x)=>s+x.profit,0);
-    const customers={};done.forEach(x=>{const k=x.customer||'未填對象';if(!customers[k])customers[k]={revenue:0,cost:0,profit:0,count:0};customers[k].revenue+=x.revenue;customers[k].cost+=x.cost;customers[k].profit+=x.profit;customers[k].count++});
-    work.innerHTML='<div class="quickV2"><div class="quickV2ContactHint"><b>🛒 代購毛利</b><div class="helper" style="display:block!important;margin-top:5px">直接分析既有做帳中「來源＝代購」的品項。沒有成本的品項只列待補成本，不會把收入誤算成毛利。</div></div>'+
-      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0"><div class="miniStat"><span>已知收入</span><b>'+qFundMoney(revenue)+'</b></div><div class="miniStat"><span>已知成本</span><b>'+qFundMoney(cost)+'</b></div><div class="miniStat"><span>已知毛利</span><b>'+qFundMoney(profit)+'</b></div><div class="miniStat"><span>待補成本</span><b>'+pending.length+' 筆</b></div></div>'+
-      '<h4>依往來對象</h4><div class="acctQueueList">'+(Object.keys(customers).length?Object.entries(customers).sort((a,b)=>b[1].profit-a[1].profit).map(([n,v])=>'<div class="acctQueueRow"><div><b>'+qEsc(n)+'</b><div class="helper">'+v.count+' 筆｜收入 '+qFundMoney(v.revenue)+'｜成本 '+qFundMoney(v.cost)+'</div></div><strong>毛利 '+qFundMoney(v.profit)+'</strong></div>').join(''):'<div class="empty">目前沒有已完成成本的代購資料</div>')+'</div>'+
-      '<h4 style="margin-top:16px">代購明細</h4><div class="acctQueueList">'+(rows.length?rows.map(x=>'<div class="acctQueueRow"><div><b>'+qEsc(x.date)+'｜'+qEsc(x.customer)+'｜'+qEsc(x.name)+'</b><div class="helper">收入 '+qFundMoney(x.revenue)+'｜'+(x.cost==null?'⚠️ 待補成本':'成本 '+qFundMoney(x.cost))+'</div></div><strong>'+(x.profit==null?'待補成本':'毛利 '+qFundMoney(x.profit))+'</strong></div>').join(''):'<div class="empty">目前沒有來源＝代購的正式交易</div>')+'</div></div>';
+    const all=qProxyProfitRows();
+    const today=qLocalDate(), d=new Date(today+'T00:00:00');
+    const iso=x=>{const z=new Date(x);return z.getFullYear()+'-'+String(z.getMonth()+1).padStart(2,'0')+'-'+String(z.getDate()).padStart(2,'0')};
+    const monday=new Date(d);monday.setDate(d.getDate()-((d.getDay()+6)%7));
+    const monthStart=today.slice(0,8)+'01';
+    work.innerHTML='<div class="quickV2 qProxyDash">'+
+      '<div class="quickV2ContactHint"><b>🛒 代購毛利</b><div class="helper" style="display:block!important;margin-top:5px">直接分析正式交易「來源＝代購」。缺成本不納入毛利與毛利率。</div></div>'+
+      '<div class="qProxyTools" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">'+
+        '<button class="btn gray" data-range="today">今天</button><button class="btn gray" data-range="yesterday">昨天</button><button class="btn gray" data-range="week">本週</button><button class="btn gray" data-range="month">本月</button><button class="btn gray" data-range="all">全部</button>'+
+        '<input type="date" id="qProxyFrom"><input type="date" id="qProxyTo"><button class="btn gray" id="qProxyApply">查詢期間</button>'+
+        '<input id="qProxySearch" placeholder="搜尋對象／品名" style="min-width:220px;flex:1">'+
+      '</div><div id="qProxyBody"></div></div>';
+    let from='',to='',search='',customer='';
+    const escAttr=s=>qEsc(String(s||'')).replace(/"/g,'&quot;');
+    function render(){
+      let rows=all.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to));
+      if(search){const k=search.toLowerCase();rows=rows.filter(x=>(String(x.customer)+' '+String(x.name)).toLowerCase().includes(k))}
+      if(customer)rows=rows.filter(x=>String(x.customer)===customer);
+      const done=rows.filter(x=>x.cost!=null),pending=rows.filter(x=>x.cost==null);
+      const revenue=done.reduce((s,x)=>s+x.revenue,0),cost=done.reduce((s,x)=>s+x.cost,0),profit=done.reduce((s,x)=>s+x.profit,0),margin=revenue?profit/revenue*100:0;
+      const customers={};done.forEach(x=>{const k=x.customer||'未填對象';if(!customers[k])customers[k]={revenue:0,cost:0,profit:0,count:0};let v=customers[k];v.revenue+=x.revenue;v.cost+=x.cost;v.profit+=x.profit;v.count++});
+      const stat=(label,val,sub='')=>'<div class="miniStat" style="padding:14px"><span>'+label+'</span><b style="font-size:24px">'+val+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>';
+      const tableHead='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>';
+      const body=document.getElementById('qProxyBody');
+      body.innerHTML=
+        '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0">'+
+          stat('已知收入',qFundMoney(revenue))+stat('已知成本',qFundMoney(cost))+stat('已知毛利',qFundMoney(profit),'毛利率 '+margin.toFixed(1)+'%')+stat('待補成本',pending.length+' 筆')+
+        '</div>'+
+        (customer?'<div style="margin:8px 0"><button class="btn gray" id="qProxyClearCustomer">← 顯示全部對象</button>　<b>目前：'+qEsc(customer)+'</b></div>':'')+
+        '<h4>依往來對象</h4>'+tableHead+'<th>對象</th><th>筆數</th><th>收入</th><th>成本</th><th>毛利</th><th>毛利率</th></tr></thead><tbody>'+
+        (Object.keys(customers).length?Object.entries(customers).sort((a,b)=>b[1].profit-a[1].profit).map(([n,v])=>'<tr data-customer="'+escAttr(n)+'" style="cursor:pointer;border-top:1px solid #dfe5ec"><td><b>'+qEsc(n)+'</b></td><td>'+v.count+'</td><td style="text-align:right">'+qFundMoney(v.revenue)+'</td><td style="text-align:right">'+qFundMoney(v.cost)+'</td><td style="text-align:right"><b>'+qFundMoney(v.profit)+'</b></td><td style="text-align:right">'+(v.revenue?v.profit/v.revenue*100:0).toFixed(1)+'%</td></tr>').join(''):'<tr><td colspan="6">目前沒有已完成成本的代購資料</td></tr>')+
+        '</tbody></table></div>'+
+        (pending.length?'<h4 style="margin-top:18px">⚠️ 待補成本</h4>'+tableHead+'<th>日期</th><th>對象</th><th>品名</th><th>收入</th></tr></thead><tbody>'+pending.map(x=>'<tr style="border-top:1px solid #dfe5ec"><td>'+qEsc(x.date)+'</td><td>'+qEsc(x.customer)+'</td><td>'+qEsc(x.name)+'</td><td style="text-align:right">'+qFundMoney(x.revenue)+'</td></tr>').join('')+'</tbody></table></div>':'')+
+        '<h4 style="margin-top:18px">代購明細</h4>'+tableHead+'<th>日期</th><th>對象</th><th>品名</th><th>收入</th><th>成本</th><th>毛利</th><th>毛利率</th></tr></thead><tbody>'+
+        (rows.length?rows.map(x=>'<tr style="border-top:1px solid #dfe5ec"><td>'+qEsc(x.date)+'</td><td>'+qEsc(x.customer)+'</td><td>'+qEsc(x.name)+'</td><td style="text-align:right">'+qFundMoney(x.revenue)+'</td><td style="text-align:right">'+(x.cost==null?'待補':qFundMoney(x.cost))+'</td><td style="text-align:right"><b>'+(x.profit==null?'—':qFundMoney(x.profit))+'</b></td><td style="text-align:right">'+(x.profit==null||!x.revenue?'—':(x.profit/x.revenue*100).toFixed(1)+'%')+'</td></tr>').join(''):'<tr><td colspan="7">目前沒有符合條件的代購資料</td></tr>')+
+        '</tbody></table></div>';
+      body.querySelectorAll('[data-customer]').forEach(tr=>tr.onclick=()=>{customer=tr.dataset.customer;render()});
+      body.querySelector('#qProxyClearCustomer')?.addEventListener('click',()=>{customer='';render()});
+    }
+    work.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>{
+      const r=b.dataset.range;
+      if(r==='today')from=to=today;
+      if(r==='yesterday'){const x=new Date(d);x.setDate(x.getDate()-1);from=to=iso(x)}
+      if(r==='week'){from=iso(monday);to=today}
+      if(r==='month'){from=monthStart;to=today}
+      if(r==='all'){from='';to=''}
+      customer='';render();
+    });
+    work.querySelector('#qProxyApply').onclick=()=>{from=work.querySelector('#qProxyFrom').value||'';to=work.querySelector('#qProxyTo').value||'';customer='';render()};
+    work.querySelector('#qProxySearch').oninput=e=>{search=e.target.value.trim();render()};
+    render();
   }
   function qRenderCompanyCashflow(work){
     const cats=qFundCategories(),vehicles=qCompanyVehicles();
