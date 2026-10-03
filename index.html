@@ -7010,7 +7010,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}.double{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.double table{font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
-  // N332：應收應付摘要快取：第一層直接讀快取，帳務寫入後才失效重算；避免每次進頁掃完整歷史。\n  // N331：收款付款分類效能修正：首頁單次快照、分類延遲載入、點對象才進原穩定收付款流程；避免首頁重複掃描完整歷史。\n  // N332 cache invalidation hook：任何正式帳務寫入後，下次進收款／付款才重建一次摘要。
+  // N333：代購毛利分析：直接讀正式交易的來源＝代購與實際成本；缺成本只列待補，不誤算毛利。\n  // N332：應收應付摘要快取：第一層直接讀快取，帳務寫入後才失效重算；避免每次進頁掃完整歷史。\n  // N331：收款付款分類效能修正：首頁單次快照、分類延遲載入、點對象才進原穩定收付款流程；避免首頁重複掃描完整歷史。\n  // N332 cache invalidation hook：任何正式帳務寫入後，下次進收款／付款才重建一次摘要。
   if(typeof saveAccountingCloud==='function'&&!saveAccountingCloud.__qN332Wrapped){
     const __qN332SaveAccountingCloud=saveAccountingCloud;
     saveAccountingCloud=async function(...args){const out=await __qN332SaveAccountingCloud.apply(this,args);qN332Invalidate();return out};
@@ -9352,7 +9352,42 @@ K白.kg
       '</div></div>';
     work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
     work.querySelector('#qFundTransferHome').onclick=()=>qRenderFundTransfer(work,'company_bank');
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='🧾 收到的支票')qRenderChecks(work);else if(a==='📋 資金紀錄')qRenderFundHistory(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能將接入同一個資金異動核心；不建立第二套資金資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
+    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='🧾 收到的支票')qRenderChecks(work);else if(a==='🛒 代購毛利')qRenderProxyProfit(work);else if(a==='📋 資金紀錄')qRenderFundHistory(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能將接入同一個資金異動核心；不建立第二套資金資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
+  }
+  // N333：代購毛利只讀既有正式交易 items.source/cost，不另建第二套帳。
+  function qProxyProfitRows(){
+    const out=[];
+    (typeof acctRecords==='function'?acctRecords():[]).forEach(r=>{
+      if(!r||r.status==='void'||r.txnType==='void'||!Array.isArray(r.items))return;
+      r.items.forEach((it,i)=>{
+        if(qSourceNormalize(it.source)!=='代購')return;
+        const qty=Number(it.qty||0),kg=Number(it.kg||0),pricing=String(it.pricing||'piece');
+        let revenue=Number(it.amount);
+        if(!Number.isFinite(revenue)||revenue===0){
+          const price=Number(it.price||0);
+          revenue=(pricing==='kg'?kg*price:pricing==='jin'?(kg/0.6)*price:qty*price);
+        }
+        const rawCost=it.cost;
+        let cost=null;
+        if(rawCost!==''&&rawCost!=null&&Number.isFinite(Number(rawCost))){
+          // 現有快速做帳的代購 cost 為「實際成本單價」，依同一計價方式換算成本。
+          const cp=Number(rawCost);
+          cost=(pricing==='kg'?kg*cp:pricing==='jin'?(kg/0.6)*cp:qty*cp);
+        }
+        out.push({recordId:r.id||'',date:r.date||'',customer:r.customer||'',contactId:r.contactId||'',name:it.name||'',qty,kg,pricing,revenue:Math.round(revenue||0),cost:cost==null?null:Math.round(cost),profit:cost==null?null:Math.round((revenue||0)-cost),index:i});
+      });
+    });
+    return out.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  }
+  function qRenderProxyProfit(work){
+    qFundStageHeader('sub','代購毛利');
+    const rows=qProxyProfitRows(),done=rows.filter(x=>x.cost!=null),pending=rows.filter(x=>x.cost==null);
+    const revenue=done.reduce((s,x)=>s+x.revenue,0),cost=done.reduce((s,x)=>s+x.cost,0),profit=done.reduce((s,x)=>s+x.profit,0);
+    const customers={};done.forEach(x=>{const k=x.customer||'未填對象';if(!customers[k])customers[k]={revenue:0,cost:0,profit:0,count:0};customers[k].revenue+=x.revenue;customers[k].cost+=x.cost;customers[k].profit+=x.profit;customers[k].count++});
+    work.innerHTML='<div class="quickV2"><div class="quickV2ContactHint"><b>🛒 代購毛利</b><div class="helper" style="display:block!important;margin-top:5px">直接分析既有做帳中「來源＝代購」的品項。沒有成本的品項只列待補成本，不會把收入誤算成毛利。</div></div>'+
+      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0"><div class="miniStat"><span>已知收入</span><b>'+qFundMoney(revenue)+'</b></div><div class="miniStat"><span>已知成本</span><b>'+qFundMoney(cost)+'</b></div><div class="miniStat"><span>已知毛利</span><b>'+qFundMoney(profit)+'</b></div><div class="miniStat"><span>待補成本</span><b>'+pending.length+' 筆</b></div></div>'+
+      '<h4>依往來對象</h4><div class="acctQueueList">'+(Object.keys(customers).length?Object.entries(customers).sort((a,b)=>b[1].profit-a[1].profit).map(([n,v])=>'<div class="acctQueueRow"><div><b>'+qEsc(n)+'</b><div class="helper">'+v.count+' 筆｜收入 '+qFundMoney(v.revenue)+'｜成本 '+qFundMoney(v.cost)+'</div></div><strong>毛利 '+qFundMoney(v.profit)+'</strong></div>').join(''):'<div class="empty">目前沒有已完成成本的代購資料</div>')+'</div>'+
+      '<h4 style="margin-top:16px">代購明細</h4><div class="acctQueueList">'+(rows.length?rows.map(x=>'<div class="acctQueueRow"><div><b>'+qEsc(x.date)+'｜'+qEsc(x.customer)+'｜'+qEsc(x.name)+'</b><div class="helper">收入 '+qFundMoney(x.revenue)+'｜'+(x.cost==null?'⚠️ 待補成本':'成本 '+qFundMoney(x.cost))+'</div></div><strong>'+(x.profit==null?'待補成本':'毛利 '+qFundMoney(x.profit))+'</strong></div>').join(''):'<div class="empty">目前沒有來源＝代購的正式交易</div>')+'</div></div>';
   }
   function qRenderCompanyCashflow(work){
     const cats=qFundCategories(),vehicles=qCompanyVehicles();
