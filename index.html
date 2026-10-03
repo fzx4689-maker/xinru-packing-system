@@ -6065,12 +6065,22 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
   }
   // N292：帳期／帳單沖帳核心。一般往來的收付款必須只屬於一張帳期；儲值客戶維持儲值餘額核心。
   function qN292PeriodMeta(c,record){
-    const p=qBillingPeriodFor(c,record?.date||'');
-    if(!p?.ok){const d=String(record?.date||'');return {ok:true,key:[String(c?.id||c?.name||''),'single',d].join('|'),type:String(c?.settlement||'現結'),start:d,end:d,label:d||'未指定日期'}}
-    const type=String(p.type||c?.settlement||'現結');
-    let label='';
-    if(type==='車趟結'||type==='現結')label=p.end||p.start||record?.date||'';
-    else if(type==='月結')label=(p.start||'').slice(0,7)+' 月帳';
+    const settlement=String(c?.settlement||'現結').trim(),d=String(record?.date||''),cid=String(c?.id||c?.code||c?.name||'').trim();
+    // N293：車趟結不是固定星期區間帳。每一筆正式銷貨／進貨（每一車趟）就是獨立帳期。
+    // deliveryWeekdays 只用於車趟／收款排程，不得拿來合併實際帳款。
+    if(settlement==='車趟結'){
+      const rid=String(record?.id||record?.recordId||'').trim();
+      return {ok:true,key:[cid,'車趟結',rid||d].join('|'),type:'車趟結',start:d,end:d,label:d||'未指定日期',recordId:rid};
+    }
+    // 現結同樣以單筆正式交易為獨立帳，避免同日多筆被錯誤視為同一帳。
+    if(settlement==='現結'){
+      const rid=String(record?.id||record?.recordId||'').trim();
+      return {ok:true,key:[cid,'現結',rid||d].join('|'),type:'現結',start:d,end:d,label:d||'未指定日期',recordId:rid};
+    }
+    const p=qBillingPeriodFor(c,d);
+    if(!p?.ok)return {ok:true,key:[cid,'single',String(record?.id||d)].join('|'),type:settlement,start:d,end:d,label:d||'未指定日期'};
+    const type=String(p.type||settlement);let label='';
+    if(type==='月結')label=(p.start||'').slice(0,7)+' 月帳';
     else label=(p.start===p.end?p.start:[p.start,p.end].filter(Boolean).join(' ～ '));
     return {...p,label:label||p.key};
   }
