@@ -6769,15 +6769,30 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const snapshot=contact?.billShowTurnover!==false?qN109CurrentContainerSnapshot(contact):{contact,enabledTypes:[],balances:[],text:''};
     return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight:direction==='payment'&&/產農|廠商/.test(String(contact?.identity||contact?.type||'')),reportLayout:qN97EffectiveReportLayout(contact),contact:snapshot.contact||contact,direction,range:{from:record.date||'',to:record.date||''},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities:[record],directEvent:true}};
   }
-  // N297：唯一帳期結算摘要核心。帳本、收付款與四種輸出不得再自行重算帳期狀態。
+  // N298：唯一帳期結算摘要核心。一般帳期與儲值月帳都只由這裡產生結算資料。
+  function qN298StoredValuePeriodSummary(c,period){
+    if(String(c?.paymentDefault||'').trim()!=='儲值'||String(period?.type||'')!=='儲值月帳')return null;
+    const start=String(period?.start||''),end=String(period?.end||'');
+    const prevDate=(()=>{const d=qBillingParseDate(start);return d?qBillingDateText(qBillingAddDays(d,-1)):''})();
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&qRecordBelongsToContact(r,c));
+    const isSale=r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨');
+    const salesTo=to=>rows.filter(r=>isSale(r)&&(!to||String(r.date||'')<=to)).reduce((n,r)=>n+qAccountingEffectiveTotal(r,c),0);
+    const periodSales=rows.filter(r=>isSale(r)&&(!start||String(r.date||'')>=start)&&(!end||String(r.date||'')<=end)).reduce((n,r)=>n+qAccountingEffectiveTotal(r,c),0);
+    const opening=qMoney(qStoredValueTrueInflow(c,prevDate?{to:prevDate}:null)-salesTo(prevDate));
+    const inflow=qMoney(qStoredValueTrueInflow(c,{from:start,to:end}));
+    const consumption=qMoney(periodSales);
+    const closing=qMoney(opening+inflow-consumption);
+    return {openingBalance:opening,periodInflow:inflow,periodConsumption:consumption,closingBalance:closing};
+  }
   function qN297BillingPeriodSummary(c,direction,period,activities){
     const members=(activities||[]).filter(Boolean),ids=new Set(members.map(r=>String(r.id||''))),originalAmount=members.reduce((n,r)=>n+qMoney(qRecordTotal(r)),0);
+    const storedValue=qN298StoredValuePeriodSummary(c,period);
     const settlements=qMoneySettlements().filter(x=>qRecordBelongsToContact(x,c)&&((direction==='receipt'&&x.txnType==='receipt')||(direction==='payment'&&x.txnType==='payment'))).map(x=>{const amount=(Array.isArray(x.allocations)?x.allocations:[]).filter(a=>ids.has(String(a?.recordId||''))).reduce((n,a)=>n+qMoney(a?.amount),0);return {record:x,amount}}).filter(x=>x.amount>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
     const paid=Math.min(originalAmount,settlements.reduce((n,x)=>n+x.amount,0)),outstanding=Math.max(0,originalAmount-paid),lastPaymentDate=settlements.length?String(settlements[settlements.length-1].record.date||''):'',settled=originalAmount>0&&outstanding<=0.000001;
     const allFormal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,direction));
-    const prior=allFormal.filter(r=>{const p=qN292PeriodMeta(c,r);return p?.ok&&String(p.key)!==String(period?.key||'')&&String(p.end||r.date||'')<String(period?.start||'')});
-    const priorOutstanding=prior.reduce((n,r)=>n+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
-    return {periodKey:period?.key||'',periodType:period?.type||'',periodStart:period?.start||'',periodEnd:period?.end||'',periodLabel:period?.label||'',originalRecordCount:members.length,originalAmount,paidAmount:paid,outstanding,settled,settledDate:settled?lastPaymentDate:'',lastPaymentDate,priorOutstanding,settlements};
+    const prior=storedValue?[]:allFormal.filter(r=>{const p=qN292PeriodMeta(c,r);return p?.ok&&String(p.key)!==String(period?.key||'')&&String(p.end||r.date||'')<String(period?.start||'')});
+    const priorOutstanding=storedValue?0:prior.reduce((n,r)=>n+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
+    return {periodKey:period?.key||'',periodType:period?.type||'',periodStart:period?.start||'',periodEnd:period?.end||'',periodLabel:period?.label||'',originalRecordCount:members.length,originalAmount,paidAmount:paid,outstanding,settled,settledDate:settled?lastPaymentDate:'',lastPaymentDate,priorOutstanding,settlements,storedValue};
   }
   function qN297PeriodStatusLines(model){
     const x=model?.periodSummary;if(!x)return null;
@@ -6879,15 +6894,15 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN119SingleDate(model){const dates=[...new Set((model?.rows||[]).map(r=>String(r?.date||'').trim()).filter(Boolean))];if(dates.length===1)return dates[0];const from=String(model?.range?.from||''),to=String(model?.range?.to||'');return from&&from===to?from:(dates[0]||from||to||'')}
   function qN135Weekday(dateText){const m=String(dateText||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return '';const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));if(Number.isNaN(d.getTime()))return '';return '（'+['日','一','二','三','四','五','六'][d.getDay()]+'）'}
   function qN135FreightRateLabel(model){if(!qN119IsLarge(model))return '';const c=model?.contact||{};if(String(c.freightDefault||'')!=='公斤')return '';const rate=Number(c.freightDefaultRate);return Number.isFinite(rate)&&rate>0?('運費：'+String(rate)+'元/K'):''}
-  function qN119DateLabel(model){if(!qN119IsLarge(model))return '期間：'+qN98RangeLabel(model);const d=qN119SingleDate(model),f=qN135FreightRateLabel(model);return '日期：'+d+qN135Weekday(d)+(f?'　'+f:'')}
+  function qN119DateLabel(model){const f=qN135FreightRateLabel(model);if(model?.periodSummary?.periodType==='儲值月帳')return '期間：'+qN98RangeLabel(model)+(f?'　'+f:'');if(!qN119IsLarge(model))return '期間：'+qN98RangeLabel(model);const d=qN119SingleDate(model);return '日期：'+d+qN135Weekday(d)+(f?'　'+f:'')}
   function qN98RangeLabel(m){return [m?.range?.from,m?.range?.to].filter(Boolean).join(' ～ ')||''}
   function qN98CsvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
   function qN98DownloadExcel(model){
-    const large=qN119IsLarge(model),singleDate=large?qN119SingleDate(model):'',freightRateLabel=qN135FreightRateLabel(model),csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),(large?'日期,':'期間,')+(large?(singleDate+qN135Weekday(singleDate)):qN98RangeLabel(model))].concat(freightRateLabel?['運費,'+freightRateLabel.replace(/^運費：/,'')]:[]).concat(['',large?(model.outputPartyLabel+',類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'):(model.outputPartyLabel+',日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額')]);
+    const large=qN119IsLarge(model),storedMonth=model?.periodSummary?.periodType==='儲值月帳',singleDate=large&&!storedMonth?qN119SingleDate(model):'',freightRateLabel=qN135FreightRateLabel(model),csv=[qCompanyHeader,'輸出類型,'+(model.kind==='farmer_weekly'?'產農週表':'完整明細'),((large&&!storedMonth)?'日期,':'期間,')+((large&&!storedMonth)?(singleDate+qN135Weekday(singleDate)):qN98RangeLabel(model))].concat(freightRateLabel?['運費,'+freightRateLabel.replace(/^運費：/,'')]:[]).concat(['',large?(model.outputPartyLabel+',類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額'):(model.outputPartyLabel+',日期,類型,序,品名／摘要,公斤,數量,計價,單價,貨款,運費,金額')]);
     const pushRows=(rows,cname)=>rows.forEach(x=>{const vals=large?[x.contactName||cname||'',x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??'']:[x.contactName||cname||'',x.date,x.kind==='settlement'?x.name:(x.kind==='turnover'?(x.turnoverType||'容器'):'明細'),x.no||'',x.kind==='settlement'?x.summary:x.name,x.kg??'',x.qty??'',x.pricing||'',x.price??'',x.goods??'',x.freight??'',x.amount??''];csv.push(vals.map(qN98CsvCell).join(','))});
     if(model.kind==='farmer_weekly')model.groups.forEach(g=>pushRows(g.rows,g.contact?.name));else pushRows(model.rows,model.contact?.name);
     csv.push('','貨款小計,'+model.summary.goods,'運費小計,'+model.summary.freight);if(qN98Money(model.summary.turnoverBuyout)!==0)csv.push('籃子小計,'+model.summary.turnoverBuyout);const buyoutText=qN104BuyoutTextModel(model);if(buyoutText)csv.push('買斷,'+qN98CsvCell(buyoutText));csv.push('總計,'+model.summary.total);const containerText=qN103ContainerText(model);if(containerText)csv.push('容器明細,'+qN98CsvCell(containerText));const currentContainer=model.currentContainerText||'';if(currentContainer)csv.push('目前容器結餘,'+qN98CsvCell(currentContainer));if(model.kind==='general'){qN277OpenLines(model).forEach(x=>csv.push(x.label+','+qN98Money(x.value)));}
-    const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+(large?qN119SingleDate(model):qN98RangeLabel(model))+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+    const blob=new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((model.kind==='farmer_weekly'?'全部產農':model.contact?.name||'往來')+'_'+((large&&!storedMonth)?qN119SingleDate(model):qN98RangeLabel(model))+'_完整明細.csv').replace(/[\\/:*?"<>|]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   }
 
   // N99：修正輸出呈現；資料仍沿用 N98 同一份完整明細模型。
@@ -6904,14 +6919,16 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // H12：儲值客戶四種正式輸出統一結算摘要。
   // 儲值客戶不顯示「目前未結清」；固定顯示「儲值入金」＋「目前儲值餘額」。
   function qN101IsStoredValue(model){return model?.kind==='general'&&String(model?.contact?.paymentDefault||'').trim()==='儲值'}
-  function qN101StoredValueInflow(model){return qN101IsStoredValue(model)?qStoredValueTrueInflow(model.contact):0}
+  function qN101StoredValueInflow(model){return qN101IsStoredValue(model)?qStoredValueTrueInflow(model.contact,model?.range||null):0}
   // N277：全系統四種正式輸出的未結清摘要只走這個中央核心。
   // receipt＝應收、payment＝應付；雙向往來也依目前正在看的帳務方向，不自行把兩邊混在一起。
   function qN277OpenLines(model){
     if(!model||model.kind!=='general')return [];
-    // N297：單張帳期輸出一律優先讀帳期摘要，禁止再把整個客戶總未結清冒充本張帳餘額。
+    // N298：儲值月帳優先於一般應收摘要，固定顯示自然月的期初／入金／消費／期末。
+    if(qN101IsStoredValue(model)&&model?.periodSummary?.storedValue){const v=model.periodSummary.storedValue;return [{label:'期初儲值餘額',value:v.openingBalance},{label:'本月儲值入金',value:v.periodInflow},{label:'本月消費',value:v.periodConsumption},{label:'期末儲值餘額',value:v.closingBalance}]}
+    // 一般單張帳期輸出讀唯一帳期摘要，禁止把整個客戶總未結清冒充本張帳餘額。
     const periodLines=qN297PeriodStatusLines(model);if(periodLines)return periodLines;
-    if(qN101IsStoredValue(model))return [{label:'儲值入金',value:qN101StoredValueInflow(model)},{label:'目前儲值餘額',value:model.storedValueBalance||0}];
+    if(qN101IsStoredValue(model))return [{label:'本月儲值入金',value:qN101StoredValueInflow(model)},{label:'期末儲值餘額',value:model.storedValueBalance||0}];
     if(model.direction==='transaction_history'&&model.transactionHistoryOpen){const o=model.transactionHistoryOpen,p=[];if(o.showReceipt)p.push({label:'目前應收未結清',value:o.receivable||0});if(o.showPayment)p.push({label:'目前應付未結清',value:o.payable||0});return p}
     if(model.direction==='payment')return [{label:'目前應付未結清',value:model.summary?.outstanding||0}];
     if(model.direction==='receipt')return [{label:'目前應收未結清',value:model.summary?.outstanding||0}];
