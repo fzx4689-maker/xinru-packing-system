@@ -6769,7 +6769,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const snapshot=contact?.billShowTurnover!==false?qN109CurrentContainerSnapshot(contact):{contact,enabledTypes:[],balances:[],text:''};
     return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'客戶',noFreight:direction==='payment'&&/產農|廠商/.test(String(contact?.identity||contact?.type||'')),reportLayout:qN97EffectiveReportLayout(contact),contact:snapshot.contact||contact,direction,range:{from:record.date||'',to:record.date||''},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows),currentContainerText:snapshot.text,currentContainerBalances:snapshot.balances,currentContainerTypes:snapshot.enabledTypes,source:{activities:[record],directEvent:true}};
   }
-  // N298：唯一帳期結算摘要核心。一般帳期與儲值月帳都只由這裡產生結算資料。
+  // N299：唯一帳期結算摘要核心。一般帳期與儲值月帳都只由這裡產生結算資料。
   function qN298StoredValuePeriodSummary(c,period){
     if(String(c?.paymentDefault||'').trim()!=='儲值'||String(period?.type||'')!=='儲值月帳')return null;
     const start=String(period?.start||''),end=String(period?.end||'');
@@ -6837,7 +6837,14 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(record?.context==='transaction_history'){
       const c=qContact(record.contactId||record.customer||'');
       if(!c)return {schema:'xinru_complete_output_v1',kind:'missing_contact',rows:[],summary:qN98Summary([])};
-      const from=String(record.dateFrom||''),to=String(record.dateTo||''),wanted=String(record.transactionType||'');
+      let from=String(record.dateFrom||''),to=String(record.dateTo||'');const wanted=String(record.transactionType||'');
+      // N299：儲值型不論從帳本單筆、日期查詢或交易查詢進入正式輸出，皆固定鎖定自然月。
+      // 結帳方式可維持「現結」；是否為儲值月帳只認往來主檔 paymentDefault＝儲值。
+      let storedValuePeriod=null;
+      if(String(c?.paymentDefault||'').trim()==='儲值'){
+        const anchor=String(from||to||record.date||'');const dt=qBillingParseDate(anchor);
+        if(dt){const a=qBillingDateText(new Date(dt.getFullYear(),dt.getMonth(),1,12)),b=qBillingDateText(new Date(dt.getFullYear(),dt.getMonth()+1,0,12));from=a;to=b;storedValuePeriod={ok:true,key:[String(c?.id||c?.code||c?.name||'').trim(),'儲值月帳',a,b].join('|'),type:'儲值月帳',start:a,end:b,label:a.slice(0,7)+' 月帳'};}
+      }
       const typeOf=r=>{if(r.mode==='money_refund')return r.accountDirection==='refund_from_supplier'?'收回退款':'退款';if(r.mode==='money_settlement')return r.txnType==='payment'?'付款':'收款';if(qAccountingIsAdjustment(r))return r.mode==='goods_return'?'退貨':(r.mode==='account_allowance'?'折讓':'調整');if(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')return '進貨';if(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')return '銷貨';return r.txnTypeLabel||'交易'};
       const acts=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&qRecordBelongsToContact(r,c)).filter(r=>{const d=String(r.date||'');return (!from||d>=from)&&(!to||d<=to)&&(!wanted||typeOf(r)===wanted)}).sort((a,b)=>qN96Cmp(a,b));
       let rows=[];acts.forEach(r=>{if(r.mode==='money_settlement'||r.mode==='money_refund')rows.push(qN98SettlementRow(r,c));else rows.push(...qN222RowsFromActivity(r,c))});
@@ -6863,7 +6870,13 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
         }
       }
       const singleOutstanding=showPayment&&!showReceipt?open.payable:(showReceipt&&!showPayment?open.receivable:0);
-      return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,singleOutstanding),transactionHistoryOpen:{receivable:open.receivable,payable:open.payable,showReceipt,showPayment},storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,transactionHistory:true}};
+      // N299：儲值型交易查詢也建立同一份自然月 periodSummary，四種輸出不得退回舊的單日／累積儲值摘要。
+      let periodSummary=null;
+      if(storedValuePeriod){
+        const formalActs=acts.filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,'receipt'));
+        periodSummary=qN297BillingPeriodSummary(c,'receipt',storedValuePeriod,formalActs);
+      }
+      return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:storedValuePeriod?'receipt':'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,storedValuePeriod?0:singleOutstanding),periodSummary,transactionHistoryOpen:storedValuePeriod?null:{receivable:open.receivable,payable:open.payable,showReceipt,showPayment},storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,period:storedValuePeriod,selectedBillingPeriod:!!storedValuePeriod,transactionHistory:true}};
     }
     const periodModel=qN294PeriodOutputModel(record);if(periodModel)return periodModel;
     const direct=qN224DirectEventOutputModel(record);if(direct)return direct;
