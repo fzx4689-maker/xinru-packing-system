@@ -4487,7 +4487,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N269：僅移除每月／每週農收主列的原始車趟數顯示；週期合併核心不變。 -->
 <!-- N270：一般農收顯示本期貨款總額；可依往來資料啟用分張核對；分類名稱可改刪。分張資料獨立保存，不改原帳務。 -->
 <!-- N271：分類管理改乾淨主畫面＋單一管理入口；農收分張改逐張輸入、增刪與即時核對。未改帳務金額核心。 -->
-<!-- N275：交易查詢四種輸出未結清改接 N39 正式應收／應付核心；雙向往來分開顯示，不互抵。 -->
+<!-- N276：交易查詢未結清依往來主檔帳務方向顯示；金額仍讀 N39 正式應收／應付核心，日期區間不影響顯示方向。 -->
 <!-- N274：修正交易查詢四種輸出往來解析；qResolveContact 回傳 wrapper，輸出必須傳入其 contact 主檔。 -->
 <!-- N273：收支查詢升級為交易查詢；整合正式銷貨/進貨/收付款/調整/退貨/退款＋往來搜尋＋四種中央輸出；不修改原帳務計算核心。 -->
 <!-- N272：一般農收本期貨款總額改抓同客戶同週期全部正式 sale 帳務，包含無商品明細的正負調整；分類農收算法不變。 -->
@@ -6709,10 +6709,14 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       let rows=[];acts.forEach(r=>{if(r.mode==='money_settlement'||r.mode==='money_refund')rows.push(qN98SettlementRow(r,c));else rows.push(...qN222RowsFromActivity(r,c))});
       rows=qN107SortRows(rows);let seq=0;rows=rows.map(r=>r?.kind==='settlement'?r:{...r,no:++seq,displaySeq:seq});
       const snap=c.billShowTurnover!==false?qN109CurrentContainerSnapshot(c):{contact:c,enabledTypes:[],balances:[],text:''};
-      // N275：交易查詢四種輸出的「目前未結清」不能用明細合計，也不能預設 0。
-      // 直接沿用 N39 正式應收／應付核心；雙向往來若本次查詢同時含兩個方向，分開顯示，不互抵。
-      const sideOf=r=>{if(r?.mode==='money_settlement')return r.txnType==='payment'?'payment':'receipt';if(r?.mode==='money_refund')return r.accountDirection==='refund_from_supplier'?'payment':'receipt';const d=String(r?.accountDirection||'');if(d==='payable'||d==='reduce_payable')return 'payment';if(d==='receivable'||d==='reduce_receivable')return 'receipt';if(r?.txnType==='purchase'||r?.txnTypeLabel==='進貨')return 'payment';if(r?.txnType==='sale'||r?.txnTypeLabel==='銷貨')return 'receipt';return ''};
-      const sides=new Set(acts.map(sideOf).filter(Boolean)),open=qContactOpenTotals(c),showReceipt=sides.has('receipt'),showPayment=sides.has('payment');
+      // N276：交易查詢四種輸出的「目前未結清」依往來主檔正式帳務方向顯示，
+      // 不再依本次日期區間剛好出現哪些交易決定。金額仍只讀 N39 qContactOpenTotals() 正式核心。
+      // 單向應收＝只顯示應收；單向應付＝只顯示應付；雙向往來＝兩邊固定分開顯示、不互抵。
+      const open=qContactOpenTotals(c);
+      const relation=String(c?.accountRelationMode||'');
+      const recvEnabled=c?.receivableEnabled!==undefined?c.receivableEnabled:relation!=='單向應付';
+      const payEnabled=c?.payableEnabled!==undefined?c.payableEnabled:relation!=='單向應收';
+      const showReceipt=!!recvEnabled,showPayment=!!payEnabled;
       const singleOutstanding=showPayment&&!showReceipt?open.payable:(showReceipt&&!showPayment?open.receivable:0);
       return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,singleOutstanding),transactionHistoryOpen:{receivable:open.receivable,payable:open.payable,showReceipt,showPayment},storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,transactionHistory:true}};
     }
