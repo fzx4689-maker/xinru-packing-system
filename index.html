@@ -6807,11 +6807,20 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       if(!x.settled)lines.push({label:isPay?'本期未付清':'本期未結清',value:x.outstanding});
       return lines;
     }
-    if(x.priorOutstanding>0.000001)lines.push({label:isPay?'前期未付':'前期未結',value:x.priorOutstanding});
-    lines.push({label:isPay?'本期帳款':'本期帳款',value:x.originalAmount});
-    if(x.paidAmount>0)lines.push({label:isPay?'本期已付款':'本期已收款',value:x.paidAmount});
-    lines.push({label:isPay?'本期未付':'本期未結',value:x.outstanding});
-    lines.push({label:isPay?'目前總應付':'目前總應收',value:qMoney((x.priorOutstanding||0)+(x.outstanding||0))});
+    // N308：這組跨帳期簡表只屬於「客戶應收」。
+    // 廠商／中盤／產農應付不套用；其應付輸出維持既有模型。
+    if(isPay){
+      if(x.paidAmount>0){
+        if(x.settled)lines.push({label:'本期已付清',text:(x.settledDate?('結清日期 '+x.settledDate):'')});
+        else lines.push({label:'本期已付款',value:x.paidAmount,text:(x.lastPaymentDate?('付款日期 '+x.lastPaymentDate):'')});
+      }
+      if(!x.settled)lines.push({label:'本期未付',value:x.outstanding});
+      return lines;
+    }
+    if(x.priorOutstanding>0.000001)lines.push({label:'前期',value:x.priorOutstanding});
+    lines.push({label:'本期',value:x.originalAmount});
+    if(x.paidAmount>0)lines.push({label:'已收',value:x.paidAmount});
+    lines.push({label:'應收',value:qMoney((x.priorOutstanding||0)+(x.outstanding||0))});
     return lines;
   }
   // N294：單張帳期四種輸出核心。
@@ -6953,6 +6962,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div></body></html>';
   }
 
+  // N308：客戶帳期底部簡化為「前期｜本期｜已收｜應收」；應付／車趟結／儲值維持各自核心。
   // N307：帳期跨期前帳＋部分收付款進明細；儲值摘要單一餘額；車趟結／現結維持原核心。
   // N306：儲值每筆入金正式進明細＋泰文「菇」共用詞；沿用 N305 帳期／手續費核心。
   // N305：儲值顯示＋帳期手續費統一核心。儲值負餘額顯示欠貨款，並列每次入金日期/可用時間；帳期手續費納入未結清。
