@@ -9612,9 +9612,10 @@ K白.kg
     if(!fundRecord||!fundRecord.id)return;
     const all=(typeof acctRecords==='function'?acctRecords():[]),linked=all.find(x=>x&&x.mode==='turnover_event'&&x.sourceFundId===fundRecord.id&&x.txnTypeLabel==='公司採購容器入庫');
     const type=String(fundRecord.containerPurchaseType||''),qty=Math.abs(Number(fundRecord.containerPurchaseQty)||0),valid=fundRecord.status!=='void'&&fundRecord.status!=='deleted'&&fundRecord.fundKind==='expense'&&fundRecord.fundCategory==='營業耗材'&&['籃子','保麗龍'].includes(type)&&qty>0;
-    if(!valid){if(linked&&linked.status!=='void'&&linked.status!=='deleted')await saveAccountingCloud({...linked,status:mode==='deleted'?'deleted':'void',turnover:{...(linked.turnover||{}),stockDelta:0,assetDelta:0},updatedAt:new Date().toISOString()});return;}
-    const now=new Date().toISOString(),ev={...(linked||{}),id:linked?.id||('turn_buy_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),date:fundRecord.date||qToday(),customer:'公司庫存',contactId:'',mode:'turnover_event',txnType:'turnover',txnTypeLabel:'公司採購容器入庫',accountDirection:'',items:[],turnoverAmount:0,total:0,status:'completed',sourceFundId:fundRecord.id,turnover:{type,action:'採購入庫',qty,unitPrice:0,amount:0,note:'公司內帳採購連動｜'+type+' '+qty,balanceDelta:0,stockDelta:qty,assetDelta:qty},createdAt:linked?.createdAt||now,updatedAt:now};
+    if(!valid){if(linked&&linked.status!=='void'&&linked.status!=='deleted'){await saveAccountingCloud({...linked,status:mode==='deleted'?'deleted':'void',turnover:{...(linked.turnover||{}),stockDelta:0,assetDelta:0},updatedAt:new Date().toISOString()});try{window.qInvalidateContainerEventCache?.()}catch(_e){}}return;}
+    const now=new Date().toISOString(),ev={...(linked||{}),id:linked?.id||('turn_buy_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),date:fundRecord.date||qToday(),customer:'公司庫存',contactId:'',mode:'turnover_event',txnType:'turnover',txnTypeLabel:'公司採購容器入庫',accountDirection:'',items:[],turnoverAmount:0,total:0,status:'completed',sourceFundId:fundRecord.id,turnover:{type,action:'公司購入',qty,unitPrice:0,amount:0,note:'公司內帳採購連動｜'+type+' '+qty,balanceDelta:0,stockDelta:qty,assetDelta:qty},createdAt:linked?.createdAt||now,updatedAt:now};
     await saveAccountingCloud(ev);
+    try{window.qInvalidateContainerEventCache?.()}catch(_e){}
   }
   function qRenderCompanyCashflow(work){
     qFundStageHeader('sub','快速輸入');
@@ -9873,7 +9874,7 @@ K白.kg
     if(['use','borrow','borrowed','out','欠用','借用','使用'].includes(k))return '使用';
     if(['return','returned','back','in','歸還','返還'].includes(k))return '歸還'; if(k==='回籃')return '回籃';
     if(['buyout','buy-out','purchase','買斷'].includes(k))return '買斷';
-    if(['company-purchase','company_purchase','公司購入','購入'].includes(k))return '公司購入';
+    if(['company-purchase','company_purchase','公司購入','購入','採購入庫'].includes(k))return '公司購入';
     if(['opening-stock','opening_stock','期初庫存','期初'].includes(k))return '期初庫存';
     if(['opening-balance','opening_balance','期初數量','期初往來'].includes(k))return '期初數量';
     if(['scrap','lost','loss','報廢','遺失','報廢／遺失','報廢/遺失'].includes(k))return '報廢／遺失';
@@ -10837,5 +10838,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
 .n354ReportTitle{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.n354FundNow{min-width:230px;border:1px solid #cfe1d7;background:#f7fff9;border-radius:12px;padding:10px 14px;text-align:right}.n354FundNow span,.n354Stats span{display:block;font-size:12px;color:#667085;font-weight:800}.n354FundNow b{display:block;font-size:24px;margin-top:3px}.n354Filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}.n354Stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.n354Stats>div{border:1px solid #dfe6ee;border-radius:12px;padding:10px 12px;background:#fff}.n354Stats b{display:block;font-size:22px;margin-top:4px}.n354Groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;margin:10px 0}.n354Group{display:flex;justify-content:space-between;gap:10px;border:1px solid #e5e9ef;border-radius:10px;padding:8px 10px;background:#fafbfc}.n354Rows{margin-top:10px}@media(max-width:760px){.n354ReportTitle{display:block}.n354FundNow{margin-top:8px;text-align:left;min-width:0}.n354Filters{grid-template-columns:1fr 1fr}.n354Stats{grid-template-columns:1fr 1fr}}@media(max-width:480px){.n354Filters,.n354Stats{grid-template-columns:1fr}}
 </style>
 
+<!-- N360：公司內帳籃子／保麗龍採購正式改用容器核心 action=公司購入；舊「採購入庫」相容正規化為公司購入；寫入／作廢後清除容器事件快取。 -->
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
