@@ -9980,7 +9980,11 @@ K白.kg
       data.purchaseAmount=data.purchaseAmount===''?'':Math.max(0,Math.round(Number(data.purchaseAmount)||0));
       data.loanMonthly=data.loanMonthly===''?'':Math.max(0,Math.round(Number(data.loanMonthly)||0));
       data.currentMileage=data.currentMileage===''?'':Math.max(0,Number(data.currentMileage)||0);
-      data.deliveryCustomerIds=data.enableDeliveryOps?Array.from(selectedCustomers||[]).map(String).filter(Boolean):[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
+      data.deliveryCustomerIds=data.enableDeliveryOps?Array.from(selectedCustomers||[]).map(raw=>{
+        const key=String(raw||'').trim();
+        const c=qVehCustomerPool().find(x=>[x?.id,x?.code,x?.name,x?.formalName,x?.customerId,x?.customerCode].some(v=>String(v??'').trim()===key));
+        return String(c?.id||c?.customerId||c?.code||c?.customerCode||c?.name||key).trim();
+      }).filter(Boolean):[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
       try{await qVehSaveMaster(data);qRenderVehicleMaster(work)}catch(e){alert('車輛資料儲存失敗：'+(e?.message||e))}
     };
     const openEditor=(v,isNew=false)=>{
@@ -9989,9 +9993,12 @@ K白.kg
       const selected=new Set((Array.isArray(v.deliveryCustomerIds)?v.deliveryCustomerIds:[]).map(String));
       const customers=qProfiles().filter(c=>{const r=String(c.role||c.type||c.identity||c.category||'');return !/產農|廠商/.test(r)}).sort((a,b)=>String(a.code||a.name||'').localeCompare(String(b.code||b.name||''),'zh-Hant'));
       const cid=c=>String(c.id||c.code||c.name||'');
+    const customerAliases=c=>[c?.id,c?.code,c?.name,c?.formalName,c?.customerId,c?.customerCode]
+      .map(x=>String(x??'').trim()).filter(Boolean);
+    const selectedHasCustomer=c=>customerAliases(c).some(x=>selected.has(x));
       const cname=c=>[c.code,c.name||c.formalName].filter(Boolean).join('｜');
-      const renderSelected=()=>{const el=work.querySelector('#qVehSelectedCustomers');if(!el)return;const rows=customers.filter(c=>selected.has(cid(c)));el.innerHTML=rows.length?rows.map(c=>'<button type="button" class="qVehCustomerChip" data-vremove="'+qEsc(cid(c))+'">'+qEsc(cname(c))+' <b>×</b></button><input type="checkbox" data-vcustomer="'+qEsc(cid(c))+'" checked hidden>').join(''):'<span class="helper">尚未選擇配送客戶</span>';el.querySelectorAll('[data-vremove]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.vremove));renderSelected();renderResults()})};
-      const renderResults=()=>{const inp=work.querySelector('#qVehCustomerSearch'),el=work.querySelector('#qVehCustomerResults');if(!inp||!el)return;const q=inp.value.trim().toLowerCase();if(!q){el.innerHTML='';return}const hits=customers.filter(c=>!selected.has(cid(c))&&cname(c).toLowerCase().includes(q)).slice(0,12);el.innerHTML=hits.length?hits.map(c=>'<button type="button" data-vadd="'+qEsc(cid(c))+'">'+qEsc(cname(c))+'</button>').join(''):'<div class="helper">找不到符合的客戶</div>';el.querySelectorAll('[data-vadd]').forEach(b=>b.onclick=()=>{selected.add(String(b.dataset.vadd));inp.value='';renderSelected();renderResults()})};
+      const renderSelected=()=>{const el=work.querySelector('#qVehSelectedCustomers');if(!el)return;const rows=customers.filter(c=>selectedHasCustomer(c));el.innerHTML=rows.length?rows.map(c=>'<button type="button" class="qVehCustomerChip" data-vremove="'+qEsc(cid(c))+'">'+qEsc(cname(c))+' <b>×</b></button><input type="checkbox" data-vcustomer="'+qEsc(cid(c))+'" checked hidden>').join(''):'<span class="helper">尚未選擇配送客戶</span>';el.querySelectorAll('[data-vremove]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.vremove));renderSelected();renderResults()})};
+      const renderResults=()=>{const inp=work.querySelector('#qVehCustomerSearch'),el=work.querySelector('#qVehCustomerResults');if(!inp||!el)return;const q=inp.value.trim().toLowerCase();if(!q){el.innerHTML='';return}const hits=customers.filter(c=>!selectedHasCustomer(c)&&cname(c).toLowerCase().includes(q)).slice(0,12);el.innerHTML=hits.length?hits.map(c=>'<button type="button" data-vadd="'+qEsc(cid(c))+'">'+qEsc(cname(c))+'</button>').join(''):'<div class="helper">找不到符合的客戶</div>';el.querySelectorAll('[data-vadd]').forEach(b=>b.onclick=()=>{selected.add(String(b.dataset.vadd));inp.value='';renderSelected();renderResults()})};
       const toggle=work.querySelector('#qVehOpsToggle'),box=work.querySelector('#qVehDeliveryBox');if(toggle&&box)toggle.onchange=()=>{box.style.display=toggle.checked?'':'none'};
       const search=work.querySelector('#qVehCustomerSearch');if(search)search.oninput=renderResults;
       renderSelected();
