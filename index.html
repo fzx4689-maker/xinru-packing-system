@@ -6138,7 +6138,17 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     if(key==='payment')qN332Bind();
     if(key==='ledger'&&!opts.deferLedgerRender){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
   }
-  document.querySelectorAll('.acctManagementBtn').forEach(btn=>btn.addEventListener('click',()=>open(btn.dataset.acctManage)));
+  window.xrAcctOpenSection=open;
+  // N364：帳務首頁使用固定父層事件委派。首頁重繪後九個入口仍可點，不依賴初始化時逐顆綁定。
+  if(grid&&!grid.dataset.n364Delegated){
+    grid.dataset.n364Delegated='1';
+    grid.addEventListener('click',e=>{
+      const btn=e.target.closest('[data-acct-manage]');
+      if(!btn||!grid.contains(btn))return;
+      e.preventDefault();e.stopPropagation();
+      open(btn.dataset.acctManage);
+    });
+  }
   // 第172D階段：主動按上方帳務中心＝回九入口第一層；重新整理不受影響。
   document.querySelector('.tab[data-tab="accounting"]')?.addEventListener('click',()=>home());
   function qEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -7481,6 +7491,8 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
 
     counts.receipt_pending = qN218ReceiptPending;
     counts.payment_pending = qN218PaymentPending;
+    // N364：公司固定支出／貸款到期也屬真正待付款，併入既有「待付款」徽章，不另造提醒中心。
+    try{counts.payment_pending += Number(window.xrCompanyDuePaymentCount?.()||0)}catch(_e){}
     // N218_ACCOUNTING_BADGES_SINGLE_PASS_END
     }catch(err){
       console.warn('待收／待付款徽章計數失敗',err);
@@ -8074,7 +8086,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
       badgeBox.addEventListener('click',e=>{
         const b=e.target.closest('.acctWorkBadge');if(!b)return;
         const f=b.dataset.work;
-        if(f==='receipt_pending'||f==='payment_pending'){open('payment');const w=document.getElementById('acctStageWork');if(w)qRenderMoneyCenter(w,'',f==='payment_pending'?'payment':'receipt');acctNavWrite({layer:'action',section:'payment',action:f==='payment_pending'?'💸 付款':'💰 收款',recordId:'',detailId:'',backMode:'home',searchTerm:''});return}
+        if(f==='receipt_pending'||f==='payment_pending'){open('payment');const w=document.getElementById('acctStageWork');if(w){qRenderMoneyCenter(w,'',f==='payment_pending'?'payment':'receipt');if(f==='payment_pending')try{window.xrPaintCompanyDuePayments?.(w)}catch(_e){}}acctNavWrite({layer:'action',section:'payment',action:f==='payment_pending'?'💸 付款':'💰 收款',recordId:'',detailId:'',backMode:'home',searchTerm:''});return}
         open('entry',true);
         const w=document.getElementById('acctStageWork');if(!w)return;
         if(f==='pending_price')renderPendingPrices(w,'all');else qRenderQueue(w,f);
@@ -9426,6 +9438,8 @@ K白.kg
     work.querySelector('#qLoanRepay').onclick=()=>qRenderLoanMovement(work,l,'repay');
     work.querySelector('#qLoanEdit').onclick=()=>qRenderLoanEditor(work,l.id);
   }
+  window.xrOpenLoanDetail=function(id){const work=document.getElementById('acctStageWork');if(work)qRenderLoanDetail(work,id)};
+  window.xrOpenLoanHome=function(){const work=document.getElementById('acctStageWork');if(work)qRenderLoanHome(work)};
   function qRenderLoanMovement(work,l,action){
     const isBorrow=action==='borrow';qFundStageHeader('sub',isBorrow?'借款入帳':'登記還款');
     const suggested=!isBorrow?Math.max(0,Math.round(Number(l.installmentAmount)||0)):0;
@@ -10951,5 +10965,48 @@ window.qNormalizeTurnAction=qN93TurnAction;
 @media(max-width:760px){.qFlowTable{border:0;background:transparent;overflow:visible}.qFlowRow{display:grid;grid-template-columns:1fr auto;gap:5px 10px;margin-bottom:10px;padding:12px;border:1px solid #dfe6ee;border-radius:12px;background:#fff}.qFlowDate{grid-column:1}.qFlowType{grid-column:1}.qFlowAmount{grid-column:2;grid-row:1 / span 2;align-self:center;font-size:20px}.qFlowSource{grid-column:1 / -1;padding-top:4px}.qFlowSource span{white-space:normal;overflow:visible}.qFlowActions{grid-column:1 / -1;justify-content:flex-start;margin-top:5px;flex-wrap:wrap}.qFlowSourceOnly{grid-column:1 / -1;text-align:left;margin-top:4px}}
 </style>
 <!-- N363：資金流水依來源管理；桌機一行、手機卡片；雙報表入口直接接新版唯一 render。 -->
+
+<script>
+/* N364：既有待付款列加入公司固定支出／貸款到期。右下角提醒聲仍只控制聲音，不當提醒中心。 */
+(function(){
+  const today=()=>{const d=new Date(Date.now()+8*3600000);return d.toISOString().slice(0,10)};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const money=n=>'$'+Math.round(Math.abs(Number(n)||0)).toLocaleString('zh-TW');
+  const rows=()=>{try{return typeof acctRecords==='function'?(acctRecords()||[]):[]}catch(_e){return []}};
+  function monthDueDate(day,base){const d=new Date((base||today())+'T12:00:00');const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(Math.min(Math.max(1,Number(day)||1),last)).padStart(2,'0')}
+  function addMonths(dateText,n){const d=new Date(String(dateText||'')+'T12:00:00');if(Number.isNaN(d.getTime()))return '';const targetDay=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+Number(n||0));const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(targetDay,last));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function dueRows(){
+    const all=rows(),t=today(),out=[];
+    const loans=all.filter(r=>r&&r.mode==='loan_master'&&r.status!=='void'&&r.status!=='deleted');
+    for(const l of loans){
+      const moves=all.filter(r=>r&&r.mode==='loan_movement'&&r.status!=='void'&&r.status!=='draft'&&String(r.loanId||'')===String(l.id||'')&&r.loanAction==='repay');
+      const opening=Math.max(0,Math.round(Number(l.openingPaidPeriods)||0)),paid=opening+moves.length,total=Math.max(0,Math.round(Number(l.totalPeriods)||0)),amount=Math.max(0,Math.round(Number(l.installmentAmount)||0));
+      if(!amount||(total&&paid>=total))continue;
+      let due='';
+      if(l.firstDueDate)due=addMonths(l.firstDueDate,paid-opening);
+      else if(l.dueDay)due=monthDueDate(l.dueDay,t);
+      if(!due||due>t)continue;
+      out.push({kind:'loan',id:l.id,title:l.loanName||l.loanType||'貸款',due,amount,detail:'第 '+(paid+1)+(total?'/'+total:'')+' 期'});
+    }
+    const templates=all.filter(r=>r&&r.mode==='fund_recurring_template'&&r.status!=='inactive'&&r.status!=='void'&&r.status!=='deleted');
+    for(const x of templates){
+      const due=monthDueDate(x.recurringDay,t);if(due>t)continue;
+      const key=t.slice(0,7),paid=all.some(r=>r&&r.mode==='company_cashflow'&&r.status!=='void'&&r.status!=='deleted'&&String(r.recurringTemplateId||'')===String(x.id||'')&&String(r.date||'').slice(0,7)===key);
+      if(paid)continue;
+      out.push({kind:'fixed',id:x.id,title:[x.fundCategory,x.fundSubcategory].filter(Boolean).join('／')||'每月固定支出',due,amount:Math.abs(Number(x.fundAmount||x.fundDelta)||0),detail:'每月固定支出'});
+    }
+    return out.sort((a,b)=>String(a.due).localeCompare(String(b.due)));
+  }
+  window.xrCompanyDuePaymentCount=()=>dueRows().length;
+  window.xrPaintCompanyDuePayments=function(work){
+    if(!work)return;const due=dueRows();if(!due.length)return;
+    const box=document.createElement('div');box.className='quickV2';box.style.marginBottom='12px';
+    box.innerHTML='<b>⏰ 公司到期待付款</b><div class="helper" style="display:block!important;margin:5px 0 10px">到期只提醒，不會自動扣款；提前登記還款／付款後，本期不再提醒。</div><div class="acctQueueList">'+due.map(x=>'<div class="acctQueueRow"><div><b>'+esc(x.due)+'｜'+esc(x.title)+'</b><div class="helper">'+esc(x.detail)+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>'+money(x.amount)+'</strong>'+(x.kind==='loan'?'<button type="button" class="btn primary" data-n364-loan="'+esc(x.id)+'">登記還款</button>':'<button type="button" class="btn primary" data-n364-fixed="'+esc(x.id)+'">前往公司內帳</button>')+'</div></div>').join('')+'</div>';
+    work.prepend(box);
+    box.querySelectorAll('[data-n364-loan]').forEach(b=>b.onclick=()=>{try{window.xrOpenLoanDetail?.(b.dataset.n364Loan)}catch(_e){}});
+    box.querySelectorAll('[data-n364-fixed]').forEach(b=>b.onclick=()=>{try{window.qRenderCompanyCashflow?.(work)}catch(_e){alert('請進入公司內帳確認固定支出')}});
+  };
+})();
+</script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
