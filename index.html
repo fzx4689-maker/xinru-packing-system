@@ -2288,11 +2288,11 @@ body.auth-booting #mainApp{visibility:hidden!important}
         </div>
         <div id="acctGlobalSearchResults" class="acctGlobalSearchResults"></div>
         <div id="acctWorkBadges" class="acctWorkBadges" aria-label="帳務待辦">
-          <button type="button" class="acctWorkBadge" data-work="dispatch_pending">🔴 待作帳 <strong data-work-count="dispatch_pending">…</strong></button>
           <button type="button" class="acctWorkBadge" data-work="pending_price">🟠 待補價格 <strong data-work-count="pending_price">…</strong></button>
           <button type="button" class="acctWorkBadge" data-work="draft">📝 草稿 <strong data-work-count="draft">…</strong></button>
           <button type="button" class="acctWorkBadge" data-work="receipt_pending">💰 待收款 <strong data-work-count="receipt_pending">…</strong></button>
           <button type="button" class="acctWorkBadge" data-work="payment_pending">💸 待付款 <strong data-work-count="payment_pending">…</strong></button>
+          <button type="button" class="acctWorkBadge" data-work="company_payment_pending">🏢 公司待付款 <strong data-work-count="company_payment_pending">…</strong></button>
         </div>
         <div class="acctManagementGrid" id="acctManagementGrid">
           <button type="button" class="acctManagementBtn" data-acct-manage="entry"><b>✍️ 快速做帳</b><span>日常帳務快速輸入；不與貨運派工自動連動</span></button>
@@ -4667,7 +4667,7 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 .acctDateResult{display:block;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:9px 11px;margin:6px 0;cursor:pointer}
 .acctDateResult small{display:block;color:#64748b;margin-top:3px}
 .acctGlobalSearch.hidden{display:none}.acctSearchSummary{border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;margin:6px 0;background:#fff}.acctSearchSummaryHead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.acctSearchSummaryHead small{color:#52657a}.acctSearchActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.acctSearchActions button,.acctSearchMore{border:1px solid #d7e0ea;background:#f7f9fb;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}.acctSearchRecent{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}.acctSearchRecent>b{width:100%;font-size:13px;color:#52657a}.acctSearchMore{background:#fff}@media(max-width:760px){.acctSearchActions{display:grid;grid-template-columns:1fr 1fr}.acctSearchActions button{width:100%}.acctSearchRecent .acctSearchResult{width:100%;text-align:left}}
-.acctWorkBadges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acctWorkBadge{border:1px solid #d7e0ea;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.acctWorkBadge:hover{background:#f7fbff}.acctWorkBadge strong{font-size:17px;margin-left:4px}.acctWorkBadge[data-work="dispatch_pending"]{border-color:#f0b4b4}.acctWorkBadge[data-work="pending_price"]{border-color:#f3cc83}.acctWorkBadge[data-work="draft"]{border-color:#a9c6e8}.acctWorkBadge[data-work="receipt_pending"]{border-color:#acd7bb}.acctWorkBadge[data-work="payment_pending"]{border-color:#b9c7e8}@media(max-width:760px){.acctWorkBadges{display:grid;grid-template-columns:1fr 1fr}.acctWorkBadge{width:100%;text-align:left}}
+.acctWorkBadges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acctWorkBadge{border:1px solid #d7e0ea;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.acctWorkBadge:hover{background:#f7fbff}.acctWorkBadge strong{font-size:17px;margin-left:4px}.acctWorkBadge[data-work="company_payment_pending"]{border-color:#d7b6e8}.acctWorkBadge[data-work="pending_price"]{border-color:#f3cc83}.acctWorkBadge[data-work="draft"]{border-color:#a9c6e8}.acctWorkBadge[data-work="receipt_pending"]{border-color:#acd7bb}.acctWorkBadge[data-work="payment_pending"]{border-color:#b9c7e8}@media(max-width:760px){.acctWorkBadges{display:grid;grid-template-columns:1fr 1fr}.acctWorkBadge{width:100%;text-align:left}}
 .acctGlobalSearchResults{display:none;border:1px solid #d7e0ea;border-radius:13px;background:#fff;margin:-4px 0 12px;overflow:hidden}.acctSearchResult{width:100%;display:grid;grid-template-columns:auto minmax(120px,.7fr) minmax(0,1.6fr);gap:8px;align-items:center;text-align:left;border:0;border-bottom:1px solid #edf1f5;background:#fff;padding:10px 12px;cursor:pointer}.acctSearchResult:last-child{border-bottom:0}.acctSearchResult:hover{background:#f7fbff}.acctSearchKind{font-size:11px;font-weight:900;background:#eef4ff;color:#245b8f;border-radius:999px;padding:3px 7px}.acctSearchResult small{color:#667085;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quickV2OutputPanel{border:1px solid #b8dfc8;background:#f2fff7;border-radius:14px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:center}.quickV2OutputBtns{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}@media(max-width:760px){.acctGlobalSearch{grid-template-columns:minmax(0,1fr) auto}.acctSearchResult{grid-template-columns:auto 1fr}.acctSearchResult small{grid-column:1/-1;white-space:normal}.quickV2OutputPanel{display:block}.quickV2OutputBtns{margin-top:9px;display:grid;grid-template-columns:1fr 1fr}.quickV2OutputBtns .btn{width:100%}}
 </style>
 
@@ -7420,11 +7420,11 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   try {
 
     const counts={
-      dispatch_pending:qQueueRows('dispatch_pending').length,
       pending_price:qQueueRows('pending_price').length,
       draft:qQueueRows('draft').length,
       receipt_pending:0,
-      payment_pending:0
+      payment_pending:0,
+      company_payment_pending:0
     };
     try{
       // N157：待收款／待付款直接共用正式未結清核心，各自計算，不建立第二套資料。
@@ -7442,7 +7442,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     counts.receipt_pending = qN218ReceiptPending;
     counts.payment_pending = qN218PaymentPending;
     // 公司固定支出／貸款只做少量到期判斷，不掃歷史交易。
-    try{counts.payment_pending += Number(window.xrCompanyDuePaymentCount?.()||0)}catch(_e){}
+    try{counts.company_payment_pending = Number(window.xrCompanyDuePaymentCount?.()||0)}catch(_e){counts.company_payment_pending=0}
     // N218_ACCOUNTING_BADGES_SINGLE_PASS_END
     }catch(err){
       console.warn('待收／待付款徽章計數失敗',err);
@@ -8022,7 +8022,8 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
       badgeBox.addEventListener('click',e=>{
         const b=e.target.closest('.acctWorkBadge');if(!b)return;
         const f=b.dataset.work;
-        if(f==='receipt_pending'||f==='payment_pending'){open('payment');const w=document.getElementById('acctStageWork');if(w){qRenderMoneyCenter(w,'',f==='payment_pending'?'payment':'receipt');if(f==='payment_pending')try{window.xrPaintCompanyDuePayments?.(w)}catch(_e){}}acctNavWrite({layer:'action',section:'payment',action:f==='payment_pending'?'💸 付款':'💰 收款',recordId:'',detailId:'',backMode:'home',searchTerm:''});return}
+        if(f==='receipt_pending'||f==='payment_pending'){open('payment');const w=document.getElementById('acctStageWork');if(w)qRenderMoneyCenter(w,'',f==='payment_pending'?'payment':'receipt');acctNavWrite({layer:'action',section:'payment',action:f==='payment_pending'?'💸 付款':'💰 收款',recordId:'',detailId:'',backMode:'home',searchTerm:''});return}
+        if(f==='company_payment_pending'){open('entry',true);const w=document.getElementById('acctStageWork');if(w)window.xrRenderCompanyPendingPayments?.(w);acctNavWrite({layer:'action',section:'entry',action:'work:company_payment_pending',recordId:'',detailId:'',backMode:'home',searchTerm:''});return}
         open('entry',true);
         const w=document.getElementById('acctStageWork');if(!w)return;
         if(f==='pending_price')renderPendingPrices(w,'all');else qRenderQueue(w,f);
@@ -10946,6 +10947,50 @@ window.qNormalizeTurnAction=qN93TurnAction;
 </script>
 
 
+
+<!-- N369：移除舊派工待做帳；公司待付款獨立於往來待付款，貸款顯示目前未繳當期。 -->
+<script>
+(function(){
+  'use strict';
+  const today=()=>{const d=new Date(Date.now()+8*3600000);return d.toISOString().slice(0,10)};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const money=n=>'$'+Math.round(Math.abs(Number(n)||0)).toLocaleString('zh-TW');
+  const rows=()=>{try{return typeof acctRecords==='function'?(acctRecords()||[]):[]}catch(_e){return []}};
+  function addMonths(dateText,n){const d=new Date(String(dateText||'')+'T12:00:00');if(Number.isNaN(d.getTime()))return '';const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+Number(n||0));const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function monthDueDate(day,base){const d=new Date((base||today())+'T12:00:00');const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(Math.min(Math.max(1,Number(day)||1),last)).padStart(2,'0')}
+  function companyRows(){
+    const all=rows(),t=today(),out=[];
+    for(const l of all.filter(r=>r&&r.mode==='loan_master'&&r.status!=='void'&&r.status!=='deleted')){
+      const moves=all.filter(r=>r&&r.mode==='loan_movement'&&r.status!=='void'&&r.status!=='draft'&&String(r.loanId||'')===String(l.id||'')&&r.loanAction==='repay');
+      const opening=Math.max(0,Math.round(Number(l.openingPaidPeriods)||0));
+      const paid=opening+moves.length,total=Math.max(0,Math.round(Number(l.totalPeriods)||0)),amount=Math.max(0,Math.round(Number(l.installmentAmount)||0));
+      if(!amount||(total&&paid>=total))continue;
+      // firstDueDate 是整筆貸款的第一期日期；已繳幾期，就往後推幾個月，得到目前未繳當期。
+      const due=l.firstDueDate?addMonths(l.firstDueDate,paid):monthDueDate(l.dueDay,t);
+      if(!due)continue;
+      out.push({kind:'loan',id:l.id,title:l.loanName||l.loanType||'貸款',due,amount,detail:'第 '+(paid+1)+(total?'/'+total:'')+' 期',overdue:due<t});
+    }
+    for(const x of all.filter(r=>r&&r.mode==='fund_recurring_template'&&r.status!=='inactive'&&r.status!=='void'&&r.status!=='deleted')){
+      const due=monthDueDate(x.recurringDay,t),key=t.slice(0,7);
+      const paid=all.some(r=>r&&r.mode==='company_cashflow'&&r.status!=='void'&&r.status!=='deleted'&&String(r.recurringTemplateId||'')===String(x.id||'')&&String(r.date||'').slice(0,7)===key);
+      if(paid)continue;
+      out.push({kind:'fixed',id:x.id,title:[x.fundCategory,x.fundSubcategory].filter(Boolean).join('／')||'每月固定支出',due,amount:Math.abs(Number(x.fundAmount||x.fundDelta)||0),detail:'本月固定支出',overdue:due<t});
+    }
+    return out.sort((a,b)=>String(a.due).localeCompare(String(b.due))||String(a.title).localeCompare(String(b.title),'zh-Hant'));
+  }
+  window.xrCompanyDuePaymentCount=()=>companyRows().length;
+  window.xrRenderCompanyPendingPayments=function(work){
+    if(!work)return;
+    const due=companyRows();
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🏢 公司待付款｜'+due.length+' 筆</b><div class="helper" style="display:block!important;margin-top:4px">只顯示公司內帳：車貸、租金與每月固定支出；不併入產農／廠商／中盤的待付款。</div></div><button id="qN369Back" class="btn gray" type="button">← 返回帳務中心</button></div><div class="acctQueueList" style="margin-top:12px">'+(due.length?due.map(x=>'<div class="acctQueueRow"><div><b>'+esc(x.due)+'｜'+esc(x.title)+'</b><div class="helper">'+esc(x.detail)+(x.overdue?'｜已到期':'｜本期待付款')+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>'+money(x.amount)+'</strong>'+(x.kind==='loan'?'<button type="button" class="btn primary" data-n369-loan="'+esc(x.id)+'">登記還款</button>':'<button type="button" class="btn primary" data-n369-fixed="'+esc(x.id)+'">前往公司內帳</button>')+'</div></div>').join(''):'<div class="empty">目前沒有公司待付款</div>')+'</div></div>';
+    work.querySelector('#qN369Back')?.addEventListener('click',()=>{try{window.xrAcctOpenSection?.('home')}catch(_e){document.querySelector('.acctManagementHome')?.scrollIntoView({block:'start'})}});
+    work.querySelectorAll('[data-n369-loan]').forEach(b=>b.onclick=()=>{try{window.xrOpenLoanDetail?.(b.dataset.n369Loan)}catch(_e){}});
+    work.querySelectorAll('[data-n369-fixed]').forEach(b=>b.onclick=()=>{try{window.qRenderCompanyCashflow?.(work)}catch(_e){alert('請進入公司內帳確認固定支出')}});
+  };
+  // 舊 N364 嵌入付款頁的函式停用，避免公司內帳再次混入往來待付款。
+  window.xrPaintCompanyDuePayments=function(){};
+})();
+</script>
 
 <!-- N367：效能核心 V2 首頁非阻塞摘要；保留 N364 原始唯一入口。 -->
 <script>
