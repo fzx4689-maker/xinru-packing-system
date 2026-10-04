@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- N375：公司內帳永久刪除改為真正刪除 accounting_records；資金流水核心排除 deleted 舊資料。 -->
 <!-- N303 UNIQUE BILLING PERIOD CORE: qN292PeriodMeta is the only billing-period authority; layout cannot redefine period. -->
 <html lang="zh-Hant">
 <head>
@@ -11,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N354｜公司內帳分類與雙報表正式版</title>
+<title>欣儒系統｜N375｜公司內帳永久刪除核心修正版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -4440,6 +4441,22 @@ async function saveAccountingCloud(record){
   try{window.qInvalidateContainerEventCache?.()}catch(_e){}
 }
 // N365：一般寫入後只失效摘要與刷新目前 UI；完整雲端下載保留給登入／手動同步。
+async function deleteAccountingCloudPermanently(recordId){
+  const id=String(recordId||'').trim();
+  if(!id)throw new Error('找不到要刪除的帳務資料');
+  const {error}=await sb.from('accounting_records').delete().eq('local_id',id);
+  if(error)throw error;
+  try{
+    const rows=Array.isArray(acctCloudRecords)?acctCloudRecords.slice():acctLoad('xinru_acct_test_records',[]).slice();
+    const next=rows.filter(x=>String(x?.id||'')!==id);
+    acctCloudRecords=next;acctCloudReady=true;
+    localStorage.setItem('xinru_acct_test_records',JSON.stringify(next));
+  }catch(_e){}
+  try{window.xrInvalidateAccountingSummary?.()}catch(_e){}
+  try{window.qInvalidateContainerEventCache?.()}catch(_e){}
+}
+window.deleteAccountingCloudPermanently=deleteAccountingCloudPermanently;
+
 async function xrAccountingRefreshAfterWrite(){
   try{window.xrInvalidateAccountingSummary?.()}catch(_e){}
   try{window.qInvalidateContainerEventCache?.()}catch(_e){}
@@ -9114,7 +9131,7 @@ K白.kg
   }
   function qFundAccountLabel(a){return a==='company_bank'?'公司帳戶':a==='company_cash'?'公司現金':a==='checks_received'?'收到的支票':'待確認資金帳戶'}
   function qFundRows(){
-    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft');
+    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.status!=='deleted');
     const out=[];
     all.forEach(r=>{
       if(r.mode==='company_cashflow'||r.mode==='fund_transfer'||r.mode==='loan_movement'||r.mode==='fund_special'){
@@ -9274,7 +9291,7 @@ K白.kg
       return a.join('｜')||'—';
     };
     const directVoid=async r=>{if(!confirm('【作廢確認】\n確定要作廢這筆「'+(r.txnTypeLabel||'資金紀錄')+'」嗎？\n作廢後會同步取消資金餘額與相關報表影響；原紀錄仍保留。'))return;r.status='void';r.updatedAt=new Date().toISOString();await saveAccountingCloud(r);if(r.mode==='company_cashflow'&&typeof qSyncCompanyContainerPurchase==='function')await qSyncCompanyContainerPurchase(r,'void');if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundAccount(document.getElementById('acctStageWork'),account);alert('已作廢');};
-    const directDelete=async r=>{if(typeof isAdmin==='function'&&!isAdmin()){alert('只有管理員可以永久刪除');return}if(!confirm('【永久刪除確認】\n這筆「'+(r.txnTypeLabel||'資金紀錄')+'」刪除後無法復原。\n資金與相關報表影響會同步移除。\n確定永久刪除嗎？'))return;r.status='deleted';r.txnType='deleted';r.fundDelta=0;r.updatedAt=new Date().toISOString();r.note=[r.note,'永久刪除'].filter(Boolean).join('｜');await saveAccountingCloud(r);if(r.mode==='company_cashflow'&&typeof qSyncCompanyContainerPurchase==='function')await qSyncCompanyContainerPurchase(r,'deleted');if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundAccount(document.getElementById('acctStageWork'),account);alert('已永久刪除');};
+    const directDelete=async r=>{if(typeof isAdmin==='function'&&!isAdmin()){alert('只有管理員可以永久刪除');return}if(!confirm('【永久刪除確認】\n這筆「'+(r.txnTypeLabel||'資金紀錄')+'」刪除後無法復原。\n資金與相關報表影響會同步移除。\n確定永久刪除嗎？'))return;if(r.mode==='company_cashflow'&&typeof qSyncCompanyContainerPurchase==='function')await qSyncCompanyContainerPurchase({...r,status:'deleted',fundDelta:0},'deleted');await deleteAccountingCloudPermanently(r.id);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundAccount(document.getElementById('acctStageWork'),account);alert('已永久刪除');};
     const editPetty=async r=>{const date=prompt('修改日期（YYYY-MM-DD）',r.date||qToday());if(date===null)return;const employee=prompt('修改員工',r.employeeName||r.customer||'');if(employee===null)return;const amountText=prompt('修改金額',String(Math.abs(Number(r.fundAmount||r.fundDelta)||0)));if(amountText===null)return;const amount=Math.round(Number(amountText));if(!employee.trim()||!Number.isFinite(amount)||amount<=0){alert('員工與金額不可空白');return}const note=prompt('修改備註',r.note||'');if(note===null)return;if(!confirm('確定儲存這筆零用金修改？'))return;r.date=date||r.date;r.employeeName=employee.trim();r.customer=employee.trim();r.fundSubcategory=employee.trim();r.fundAmount=amount;r.fundDelta=(r.pettyAction==='return'?1:-1)*amount;r.note=note;r.updatedAt=new Date().toISOString();await saveAccountingCloud(r);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundAccount(document.getElementById('acctStageWork'),account);alert('修改完成');};
     const paint=()=>{let rows=getRows();const f=from.value,t=to.value;if(f)rows=rows.filter(r=>String(r.date||'')>=f);if(t)rows=rows.filter(r=>String(r.date||'')<=t);count.textContent=(f||t?((f||'最早')+' ～ '+(t||'最新')+'｜'):'全部期間｜')+'共 '+rows.length+' 筆';
       list.innerHTML=rows.length?rows.map(r=>{const src=sourceInfo(r),money=(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0);let actions='';if(src.direct){actions='<div class="qFlowActions"><button class="btn gray" type="button" data-flow-edit="'+qEsc(r.id)+'">✏️ 修改</button><button class="btn gray" type="button" data-flow-void="'+qEsc(r.id)+'">⊘ 作廢</button>'+((typeof isAdmin==='function'&&isAdmin())?'<button class="btn danger" type="button" data-flow-delete="'+qEsc(r.id)+'">🗑 刪除</button>':'')+'</div>';}else if(src.kind==='settlement'){actions='<div class="qFlowSourceOnly">回原收款／付款管理</div>';}else if(src.kind==='loan'){actions='<div class="qFlowSourceOnly">回貸款管理</div>';}else if(src.kind==='transfer'){actions='<div class="qFlowSourceOnly">帳戶互轉紀錄</div>';}
@@ -9749,7 +9766,7 @@ K白.kg
         '</div></div></div>';
       work.querySelectorAll('[data-fund-edit]').forEach(b=>b.onclick=()=>{const r=allRows.find(x=>String(x.id)===String(b.dataset.fundEdit));if(!r)return;work.querySelector('#qFundDate').value=r.date||qToday();kind.value=r.fundKind||'expense';owner.value=r.fundOwner||'xinru';rebuildCats();syncRelation();if([...cat.options].some(o=>o.value===r.fundCategory))cat.value=r.fundCategory;syncSub();sub.value=r.fundSubcategory||sub.value;work.querySelector('#qFundAmount').value=amt(r)||'';work.querySelector('#qFundAccount').value=r.fundAccount||work.querySelector('#qFundAccount').value;work.querySelector('#qFundNote').value=r.note||'';if(r.vehicleId)work.querySelector('#qFundVehicle').value=r.vehicleId;syncSub();relation.value=r.fundRelation||relation.value;work.dataset.editFundId=r.id;work.querySelector('#qFundSave').textContent='儲存修改';window.scrollTo({top:0,behavior:'smooth'})});
       work.querySelectorAll('[data-fund-void]').forEach(b=>b.onclick=async()=>{const r=allRows.find(x=>String(x.id)===String(b.dataset.fundVoid));if(!r||!confirm('【作廢確認】\n確定要作廢這筆公司收支嗎？\n作廢後會同步取消資金餘額、容器庫存與報表影響；原紀錄仍保留。'))return;r.status='void';r.updatedAt=new Date().toISOString();await saveAccountingCloud(r);await qSyncCompanyContainerPurchase(r,'void');if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'))});
-      work.querySelectorAll('[data-fund-delete]').forEach(b=>b.onclick=async()=>{const r=allRows.find(x=>String(x.id)===String(b.dataset.fundDelete));if(!r)return;if(typeof isAdmin==='function'&&!isAdmin()){alert('只有管理員可以永久刪除');return}if(!confirm('【永久刪除確認】\n這筆資料刪除後無法復原。\n資金、容器庫存與報表會同步移除影響。\n確定永久刪除嗎？'))return;const now=new Date().toISOString();r.status='deleted';r.txnType='deleted';r.fundDelta=0;r.updatedAt=now;r.note=[r.note,'永久刪除'].filter(Boolean).join('｜');await saveAccountingCloud(r);await qSyncCompanyContainerPurchase(r,'deleted');if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'))});
+      work.querySelectorAll('[data-fund-delete]').forEach(b=>b.onclick=async()=>{const r=allRows.find(x=>String(x.id)===String(b.dataset.fundDelete));if(!r)return;if(typeof isAdmin==='function'&&!isAdmin()){alert('只有管理員可以永久刪除');return}if(!confirm('【永久刪除確認】\n這筆資料刪除後無法復原。\n資金、容器庫存與報表會同步移除影響。\n確定永久刪除嗎？'))return;await qSyncCompanyContainerPurchase({...r,status:'deleted',fundDelta:0},'deleted');await deleteAccountingCloudPermanently(r.id);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'))});
     };
     work.querySelector('#qFundSave').onclick=async()=>{try{
       const amount=Number(work.querySelector('#qFundAmount').value||0),isExpense=kind.value==='expense',category=cat.value,vehicleId=(isExpense&&category==='車輛費用')?work.querySelector('#qFundVehicle').value:'',containerPurchaseType=(isExpense&&category==='營業耗材'&&['籃子','保麗龍'].includes(sub.value))?sub.value:'';
