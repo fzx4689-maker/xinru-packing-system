@@ -9867,12 +9867,41 @@ K白.kg
   function qVehDateInRange(d,a,b){return d&&(!a||d>=a)&&(!b||d<=b)}
   function qVehTrips(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='vehicle_trip'&&r.status!=='void'&&r.status!=='deleted')}
   function qVehMaint(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='vehicle_maintenance'&&r.status!=='void'&&r.status!=='deleted')}
-  async function qVehRefresh(){if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud()}
+  async function qVehRefresh(forceCloud=false){
+    if(forceCloud&&typeof loadAccountingCloud==='function')await loadAccountingCloud();
+    else if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();
+    else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
+  }
+  async function qVehSaveMaster(record){
+    if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');
+    await saveAccountingCloud(record);
+    // N381：車籍建立後以 Supabase 正式資料回讀確認，不只相信畫面快取。
+    try{
+      if(typeof sb!=='undefined'&&sb){
+        const {data,error}=await sb.from('accounting_records').select('local_id,payload').eq('local_id',String(record.id)).maybeSingle();
+        if(error)throw error;
+        if(!data||!data.payload||data.payload.mode!=='vehicle_master')throw new Error('雲端沒有讀回剛建立的公司車籍');
+        const saved=data.payload;
+        const rows=Array.isArray(acctCloudRecords)?acctCloudRecords.slice():(typeof acctLoad==='function'?acctLoad('xinru_acct_test_records',[]):[]);
+        const i=rows.findIndex(x=>String(x?.id||'')===String(saved.id));
+        if(i>=0)rows[i]=saved;else rows.unshift(saved);
+        acctCloudRecords=rows;acctCloudReady=true;
+        try{localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows))}catch(_e){}
+      }
+    }catch(e){
+      // 再做一次正式全量同步；若仍找不到，明確報錯，不讓使用者誤以為已建立。
+      if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
+      const ok=(typeof acctRecords==='function'?acctRecords():[]).some(x=>String(x?.id||'')===String(record.id)&&x?.mode==='vehicle_master'&&x?.status!=='deleted');
+      if(!ok)throw new Error('車輛已送出但無法從雲端讀回：'+(e?.message||e));
+    }
+    if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();
+    return record;
+  }
   function qVehBack(work){work.innerHTML='<div class="actions" style="margin-bottom:10px"><button class="btn gray" id="qVehBack">← 返回車輛管理</button></div>';work.querySelector('#qVehBack').onclick=()=>open('vehicle')}
   function qRenderVehicleMaster(work){
     const vs=qCompanyVehicles();
     work.innerHTML='<div class="quickV2"><div class="actions" style="margin-bottom:10px"><button class="btn primary" id="qVehNew">＋ 新增車輛</button></div><div class="helper">車輛類型：機車／轎車／貨車；貨車再分規格（2.7 噸／3.5 噸／18 噸）與車體用途（一般／冷藏／冷凍）。</div><div id="qVehList">'+(vs.length?vs.map(v=>'<div class="acctQueueRow"><div><b>'+qEsc(v.vehiclePlate)+'</b><div class="helper">'+qEsc([v.vehicleName,v.vehicleType,v.vehicleDriver].filter(Boolean).join('｜')||'尚未補齊車輛資料')+'</div></div><div class="actions"><button class="btn blue" data-vdetail="'+qEsc(v.id)+'">查看完整資料</button><button class="btn gray" data-vedit="'+qEsc(v.id)+'">修改</button></div></div>').join(''):'<div class="empty">目前尚未建立公司車輛</div>')+'</div></div>';
-    const edit=async(v)=>{const plate=prompt('車牌',v?.vehiclePlate||'');if(plate===null||!plate.trim())return;const name=prompt('品牌／型號',v?.vehicleName||'')??'';const _oldType=String(v?.vehicleType||'');const _defaultClass=v?.vehicleClass||((_oldType.includes('貨')||['2.7 噸','3.5 噸','18 噸'].some(x=>_oldType.includes(x)))?'貨車':(_oldType||'貨車'));let vehicleClass=prompt('車輛類型：機車／轎車／貨車',_defaultClass);if(vehicleClass===null)return;vehicleClass=vehicleClass.trim();if(!['機車','轎車','貨車'].includes(vehicleClass)){alert('車輛類型請輸入：機車、轎車或貨車');return}let truckSpec='',bodyType='';if(vehicleClass==='貨車'){truckSpec=prompt('貨車規格：2.7 噸／3.5 噸／18 噸／其他',v?.truckSpec||'3.5 噸')??'';bodyType=prompt('車體／用途：一般／冷藏／冷凍／其他',v?.bodyType||'一般')??''}const driver=prompt('固定司機',v?.vehicleDriver||'')??'';const year=prompt('年份',v?.vehicleYear||'')??'';const note=prompt('備註',v?.note||'')??'';const now=new Date().toISOString();const typeLabel=[vehicleClass,truckSpec,bodyType&&bodyType!=='一般'?bodyType:''].filter(Boolean).join('｜');const r={...(v||{}),id:v?.id||('vehicle_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),date:v?.date||qToday(),mode:'vehicle_master',txnType:'vehicle_master',txnTypeLabel:'公司車籍',status:'active',vehiclePlate:plate.trim().toUpperCase(),vehicleName:name.trim(),vehicleClass,truckSpec:vehicleClass==='貨車'?truckSpec.trim():'',bodyType:vehicleClass==='貨車'?bodyType.trim():'',vehicleType:typeLabel,vehicleDriver:driver.trim(),vehicleYear:year.trim(),note:note.trim(),createdAt:v?.createdAt||now,updatedAt:now};await saveAccountingCloud(r);await qVehRefresh();qRenderVehicleMaster(work)};
+    const edit=async(v)=>{const plate=prompt('車牌',v?.vehiclePlate||'');if(plate===null||!plate.trim())return;const name=prompt('品牌／型號',v?.vehicleName||'')??'';const _oldType=String(v?.vehicleType||'');const _defaultClass=v?.vehicleClass||((_oldType.includes('貨')||['2.7 噸','3.5 噸','18 噸'].some(x=>_oldType.includes(x)))?'貨車':(_oldType||'貨車'));let vehicleClass=prompt('車輛類型：機車／轎車／貨車',_defaultClass);if(vehicleClass===null)return;vehicleClass=vehicleClass.trim();if(!['機車','轎車','貨車'].includes(vehicleClass)){alert('車輛類型請輸入：機車、轎車或貨車');return}let truckSpec='',bodyType='';if(vehicleClass==='貨車'){truckSpec=prompt('貨車規格：2.7 噸／3.5 噸／18 噸／其他',v?.truckSpec||'3.5 噸')??'';bodyType=prompt('車體／用途：一般／冷藏／冷凍／其他',v?.bodyType||'一般')??''}const driver=prompt('固定司機',v?.vehicleDriver||'')??'';const year=prompt('年份',v?.vehicleYear||'')??'';const note=prompt('備註',v?.note||'')??'';const now=new Date().toISOString();const typeLabel=[vehicleClass,truckSpec,bodyType&&bodyType!=='一般'?bodyType:''].filter(Boolean).join('｜');const r={...(v||{}),id:v?.id||('vehicle_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),date:v?.date||qToday(),mode:'vehicle_master',txnType:'vehicle_master',txnTypeLabel:'公司車籍',status:'active',vehiclePlate:plate.trim().toUpperCase(),vehicleName:name.trim(),vehicleClass,truckSpec:vehicleClass==='貨車'?truckSpec.trim():'',bodyType:vehicleClass==='貨車'?bodyType.trim():'',vehicleType:typeLabel,vehicleDriver:driver.trim(),vehicleYear:year.trim(),note:note.trim(),createdAt:v?.createdAt||now,updatedAt:now};try{await qVehSaveMaster(r);qRenderVehicleMaster(work)}catch(e){alert('車輛儲存失敗：'+(e?.message||e));return}};
     work.querySelector('#qVehNew').onclick=()=>edit(null);work.querySelectorAll('[data-vedit]').forEach(b=>b.onclick=()=>edit(qVehicleById(b.dataset.vedit)));work.querySelectorAll('[data-vdetail]').forEach(b=>b.onclick=()=>qRenderVehicleDetail(work,b.dataset.vdetail));
   }
   function qRenderVehicleTrips(work,vehicleId=''){
