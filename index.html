@@ -5953,6 +5953,42 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     }
     if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,60);
   },false);
+  function renderHistory(){
+    const list=document.getElementById('homeDoneList');
+    if(!list)return;
+    const d=String(document.getElementById('homeDoneDateFilter')?.value||'').trim();
+    const q=String(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
+    const rows=homeDone.filter(x=>{
+      if(d&&String(x.due_date||'')!==d)return false;
+      if(q){
+        const hay=[x.title,x.note,x.due_date,x.created_by_name].map(v=>String(v||'')).join(' ').toLowerCase();
+        if(!hay.includes(q))return false;
+      }
+      return true;
+    });
+    list.innerHTML=rows.length?rows.map(x=>card(x,true)).join(''):'<div class="empty">目前沒有歷史公告</div>';
+  }
+  function openHistory(){
+    const active=document.getElementById('homeNoticeList');
+    const hist=document.getElementById('homeDoneWrap');
+    const top=document.querySelector('.homeNoticeTopActions');
+    if(active)active.style.display='none';
+    if(hist)hist.style.display='block';
+    if(top)top.style.display='none';
+    renderHistory();
+  }
+  function closeHistory(){
+    const active=document.getElementById('homeNoticeList');
+    const hist=document.getElementById('homeDoneWrap');
+    const top=document.querySelector('.homeNoticeTopActions');
+    if(hist)hist.style.display='none';
+    if(active)active.style.display='';
+    if(top)top.style.display='';
+  }
+  document.getElementById('homeDoneToggleBtn')?.addEventListener('click',openHistory);
+  document.getElementById('homeDoneBackBtn')?.addEventListener('click',closeHistory);
+  document.getElementById('homeDoneDateFilter')?.addEventListener('change',renderHistory);
+  document.getElementById('homeDoneTextFilter')?.addEventListener('input',renderHistory);
   window.loadHomeNotices=load;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(load,150),{once:true});
   else setTimeout(load,150);
