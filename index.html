@@ -9390,6 +9390,7 @@ K白.kg
   }
   window.xrOpenLoanDetail=function(id){const work=document.getElementById('acctStageWork');if(work)qRenderLoanDetail(work,id)};
   window.xrOpenLoanHome=function(){const work=document.getElementById('acctStageWork');if(work)qRenderLoanHome(work)};
+  window.xrOpenLoanRepay=function(id){const work=document.getElementById('acctStageWork'),l=qLoanById(id);if(work&&l)qRenderLoanMovement(work,l,'repay')};
   function qRenderLoanMovement(work,l,action){
     const isBorrow=action==='borrow';qFundStageHeader('sub',isBorrow?'借款入帳':'登記還款');
     const suggested=!isBorrow?Math.max(0,Math.round(Number(l.installmentAmount)||0)):0;
@@ -9588,6 +9589,7 @@ K白.kg
     work.querySelector('#qFundHomeTransfer').onclick=()=>qRenderFundTransfer(work,'company_bank');
     work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;if(a==='✚ 快速輸入')qRenderCompanyCashflow(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='🏢 公司待付款'&&typeof window.xrRenderCompanyPendingPayments==='function')window.xrRenderCompanyPendingPayments(work);else if(a==='🏦 帳戶管理')qRenderFundAccounts(work);else if(a==='📊 公司內帳報表'&&typeof window.qN350InternalReport==='function')window.qN350InternalReport(work);});
   }
+  window.xrOpenFundHome=function(){const work=document.getElementById('acctStageWork');if(work)qRenderFundHome(work)};
   // N333：代購毛利只讀既有正式交易 items.source/cost，不另建第二套帳。
   function qProxyProfitRows(){
     const out=[];
@@ -10995,9 +10997,9 @@ window.qNormalizeTurnAction=qN93TurnAction;
   window.xrRenderCompanyPendingPayments=function(work){
     if(!work)return;
     const due=companyRows();
-    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🏢 公司待付款｜'+due.length+' 筆</b><div class="helper" style="display:block!important;margin-top:4px">只顯示公司內帳：車貸、租金與每月固定支出；不併入產農／廠商／中盤的待付款。</div></div><button id="qN369Back" class="btn gray" type="button">← 返回帳務中心</button></div><div class="acctQueueList" style="margin-top:12px">'+(due.length?due.map(x=>'<div class="acctQueueRow"><div><b>'+esc(x.due)+'｜'+esc(x.title)+'</b><div class="helper">'+esc(x.detail)+(x.overdue?'｜已到期':'｜本期待付款')+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>'+money(x.amount)+'</strong>'+(x.kind==='loan'?'<button type="button" class="btn primary" data-n369-loan="'+esc(x.id)+'">登記還款</button>':'<button type="button" class="btn primary" data-n369-fixed="'+esc(x.id)+'">前往公司內帳</button>')+'</div></div>').join(''):'<div class="empty">目前沒有公司待付款</div>')+'</div></div>';
-    work.querySelector('#qN369Back')?.addEventListener('click',()=>{try{window.xrAcctOpenSection?.('home')}catch(_e){document.querySelector('.acctManagementHome')?.scrollIntoView({block:'start'})}});
-    work.querySelectorAll('[data-n369-loan]').forEach(b=>b.onclick=()=>{try{const l=qLoanById(b.dataset.n369Loan);if(l)qRenderLoanMovement(work,l,'repay')}catch(_e){}});
+    work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🏢 公司待付款｜'+due.length+' 筆</b><div class="helper" style="display:block!important;margin-top:4px">只顯示公司內帳：車貸、租金與每月固定支出；不併入產農／廠商／中盤的待付款。</div></div><button id="qN369Back" class="btn gray" type="button">← 返回公司內帳</button></div><div class="acctQueueList" style="margin-top:12px">'+(due.length?due.map(x=>'<div class="acctQueueRow"><div><b>'+esc(x.due)+'｜'+esc(x.title)+'</b><div class="helper">'+esc(x.detail)+(x.overdue?'｜已到期':'｜本期待付款')+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>'+money(x.amount)+'</strong>'+(x.kind==='loan'?'<button type="button" class="btn primary" data-n369-loan="'+esc(x.id)+'">登記還款</button>':'<button type="button" class="btn primary" data-n369-fixed="'+esc(x.id)+'">前往公司內帳</button>')+'</div></div>').join(''):'<div class="empty">目前沒有公司待付款</div>')+'</div></div>';
+    work.querySelector('#qN369Back')?.addEventListener('click',()=>{try{if(typeof window.xrOpenFundHome==='function')window.xrOpenFundHome();else window.xrAcctOpenSection?.('payment')}catch(_e){window.xrAcctOpenSection?.('payment')}});
+    work.querySelectorAll('[data-n369-loan]').forEach(b=>b.onclick=()=>{try{if(typeof window.xrOpenLoanRepay==='function')window.xrOpenLoanRepay(b.dataset.n369Loan);else alert('貸款還款功能尚未載入，請重新整理後再試')}catch(e){console.error(e);alert('無法開啟登記還款：'+(e?.message||e))}});
     work.querySelectorAll('[data-n369-fixed]').forEach(b=>b.onclick=()=>{try{window.qRenderCompanyCashflow?.(work)}catch(_e){alert('請進入公司內帳確認固定支出')}});
   };
   // 舊 N364 嵌入付款頁的函式停用，避免公司內帳再次混入往來待付款。
@@ -11066,6 +11068,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
   },false);
 })();
 </script>
+<!-- N371：修正公司待付款「登記還款」跨作用域失效；返回鍵改回公司內帳。 -->
 <!-- N370：貸款新增時整合撥款入帳（公司帳戶／公司現金）；貸款明細移除重複借款入帳與還款；公司內帳新增公司待付款入口。 -->
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
