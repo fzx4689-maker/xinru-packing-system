@@ -5895,7 +5895,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     if(done)done.innerHTML=homeDone.length?homeDone.map(x=>card(x,true)).join(''):'<div class="empty">目前沒有歷史公告</div>';
     const add=document.getElementById('homeNoticeAddBtn');
     if(add){add.style.display=canManage()?'':'none';add.onclick=canManage()?createTask:null}
-    setTimeout(()=>window.xrPaintSupermarketCollectionNotices?.(),0);
+    window.xrPaintSupermarketCollectionNotices?.();
   }
   async function load(){
     if(!currentUser)return;
@@ -6277,55 +6277,28 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
   // N146：四種提醒規則。一般客戶看「帳期結束待做帳／待傳帳單」；超市才看收款日。
   // 只由 N144 正式帳務推導，不建立第二套交易／應收資料。
   window.xrAccountingReminderEvents=function(){
-    // N149：先沿用既有帳期／收款核心產生明細，再依「到期日＋提醒類型」彙整。
-    // 不建立第二套帳務資料；source_data.items 保留每一位往來對象的原始明細。
-    // N150：行程式提醒。今天起可預先看到未來 14 天內已能由正式帳期／收款排程確定的工作。
-    // 過去尚未處理的提醒仍保留；只限制未來上限，避免一次建立過遠的行程。
-    const raw=[],today=qToday(),horizon=qBillingDateText(qBillingAddDays(qBillingParseDate(today),14)),ps=qProfiles(),all=(typeof acctRecords==='function'?acctRecords():[]).filter(Boolean);
-    for(const c of ps){
-      const ident=String(c.identity||c.type||'').trim(),cid=String(c.id||c.code||c.name||'');
-      if(!cid)continue;
-
-      if(ident==='超市'){
-        // N151：超市收款提醒是「收款行程」，由正式收款排程決定；不能用未結清金額決定有沒有提醒。
-        // 未結清只負責顯示當下待收金額。即使目前 $0，只要今天／未來 14 天是正式收款日，仍要提醒。
-        const recv=qOpenMoneyRows(c,'receipt'),openAmount=recv.reduce((n,x)=>n+qMoney(x.due),0),dueDates=new Set(),mode=String(c?.collectionScheduleMode||'不指定');
-        const start=qBillingParseDate(today),end=qBillingParseDate(horizon);
-        if(start&&end){
-          if(mode==='指定收款日'){
-            const collectDays=[...new Set((Array.isArray(c?.collectionRules)?c.collectionRules:[]).map(r=>Number(r?.collectWeekday)).filter(v=>Number.isInteger(v)&&v>=0&&v<=6))];
-            for(let d=new Date(start);d<=end;d=qBillingAddDays(d,1))if(collectDays.includes(d.getDay()))dueDates.add(qBillingDateText(d));
-          }else if(mode==='下趟收上趟'){
-            const deliveryDays=[...new Set((Array.isArray(c?.deliveryWeekdays)?c.deliveryWeekdays:[]).map(Number).filter(v=>Number.isInteger(v)&&v>=0&&v<=6))];
-            for(let d=new Date(start);d<=end;d=qBillingAddDays(d,1))if(deliveryDays.includes(d.getDay()))dueDates.add(qBillingDateText(d));
-          }
-        }
-        // 相容：若既有未結清交易能推導出收款日，也納入同一行程集合，不建立第二套應收。
-        for(const x of recv){
-          const p=qN292PeriodMeta(c,x.record);if(!p.ok)continue;
-          const d=qCollectionDueDateFor(c,p);if(d.ok&&d.date&&d.date<=horizon)dueDates.add(d.date);
-        }
-        for(const due of dueDates)raw.push({
-          reminder_type:'supermarket_collection_due',due_date:due,
-          contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:openAmount,
-          has_outstanding:openAmount>0
-        });
-        continue;
-      }
-
-      if(/產農|廠商|內部單位/.test(ident))continue;
-      const sales=all.filter(r=>r&&r.mode!=='money_settlement'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'));
-      const byPeriod=new Map();
-      for(const r of sales){
-        const p=qN292PeriodMeta(c,r);if(!p.ok||!p.end)continue;
-        const cur=byPeriod.get(p.key)||{amount:0,count:0,period:p};
-        cur.amount+=qMoney(qRecordTotal(r));cur.count+=1;byPeriod.set(p.key,cur);
-      }
-      // 帳期工作日就是帳期結束日（例如週結＝星期六），不是隔天才第一次提醒。
-      /* N413：一般帳期待做帳／待傳帳單提醒已取消；不再產生任何事件。 */
-    }
-
-    const weekday=d=>{const a=String(d||'').split('-').map(Number);if(a.length!==3||!a[0])return '';return '星期'+['日','一','二','三','四','五','六'][new Date(a[0],a[1]-1,a[2]).getDay()]};
+ const raw=[],ps=qProfiles();
+ for(const c of ps){
+   const ident=String(c?.identity||c?.type||'').trim(),cid=String(c?.id||c?.code||c?.name||'');
+   if(!cid||ident!=='超市')continue;
+   const recv=qOpenMoneyRows(c,'receipt'),byDue=new Map();
+   for(const x of recv){
+     const rec=x?.record;if(!rec)continue;
+     if(rec.status==='draft'||rec.status==='void'||rec.status==='deleted'||rec.pricingStatus==='pending_price')continue;
+     const p=qN292PeriodMeta(c,rec);if(!p?.ok)continue;
+     const due=qCollectionDueDateFor(c,p);if(!due?.ok||!due.date)continue;
+     const amt=Math.max(0,qMoney(x.due));if(!(amt>0))continue;
+     const key=String(due.date),cur=byDue.get(key)||{
+       reminder_type:'supermarket_collection_due',due_date:key,
+       contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),
+       amount:0,has_outstanding:true,record_count:0
+     };
+     cur.amount+=amt;cur.record_count+=1;byDue.set(key,cur);
+   }
+   for(const row of byDue.values())if(row.amount>0)raw.push(row);
+ }
+ // N416：只有已正式做帳且尚未收完的超市應收，才會產生收款公告。
+ const weekday=d=>{const a=String(d||'').split('-').map(Number);if(a.length!==3||!a[0])return '';return '星期'+['日','一','二','三','四','五','六'][new Date(a[0],a[1]-1,a[2]).getDay()]};
     const groups=new Map();
     for(const x of raw){
       const key=x.reminder_type+'|'+x.due_date,cur=groups.get(key)||{reminder_type:x.reminder_type,due_date:x.due_date,items:[]};
@@ -11020,11 +10993,9 @@ window.qNormalizeTurnAction=qN93TurnAction;
    list.prepend(frag);
  }
  window.xrPaintSupermarketCollectionNotices=paint;
- const later=()=>setTimeout(paint,120);
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',later,{once:true});else later();
- document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="home"]'))later()});
- document.addEventListener('xinru:accounting-cloud-loaded',later);
- document.addEventListener('xinru:accounting-changed',later);
+ window.xrRefreshHomeAccountingNotices=paint;
+ document.addEventListener('xinru:accounting-cloud-loaded',()=>setTimeout(()=>window.loadHomeNotices?.(),0));
+ document.addEventListener('xinru:accounting-changed',()=>setTimeout(()=>window.loadHomeNotices?.(),0));
 })();
 </script>
 <!-- N176：容器歷史查詢作用域核心修正；查詢使用同一 IIFE 內的身份正規化，不再引用不可見的 N172 私有函式。 -->
