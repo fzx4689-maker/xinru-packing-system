@@ -2034,7 +2034,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
   <div class="top">
     <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7 managementMainTabs">
-      <button class="tab active" data-tab="home">📢 公告<span id="homeAudienceBadge" class="navNoticeBadge" style="display:none"></span><div class="th">กงเก้า</div></button>
+      <button class="tab active" data-tab="home">📢 公告<div class="th">กงเก้า</div></button>
       <button class="tab" data-tab="accounting">💰 帳務中心</button>
       <button class="tab" data-tab="stall">📋 派工<span id="stallNoticeBadge" class="navNoticeBadge"></span></button>
       <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">เปาจวงปู้</div></button>
@@ -4625,42 +4625,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N296: 帳期原始明細固定；部分收付款不改變原始筆數、品項數、原金額。 -->
 <!-- N352：公司內帳層級一次修正：第一層移除帳戶互轉；公司內帳標題與返回路由統一；快速輸入移除收支紀錄與互轉舊入口。 -->
 
-<!-- N365 效能核心 V2 第一階段：首頁摘要、寫後局部刷新、首屏延遲重算 -->
-<script>
-/* N408：舊提醒設定／待處理入口永久停用，避免第二套規則復活。 */
-(function(){
-  function clean(){
-    document.getElementById('homeReminderPendingBtn')?.remove();
-    document.getElementById('homeReminderRulesBtn')?.remove();
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',clean,{once:true});else clean();
-  document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="home"]'))setTimeout(clean,0)});
-  window.n145OpenPending=undefined;
-  window.n145OpenRules=undefined;
-})();
-</script>
-
-
-<style id="n410-announcement-unread-off">
-/* N410：只取消公告頁未讀紅點／未讀標籤；其他部門 badge 不動。 */
-#homeNoticeList .homeUnreadBadge,
-#homeNoticeList [data-home-unread-badge],
-#homeNoticeList .unreadBadge { display:none !important; }
-</style>
-<script>
-(function(){
-  'use strict';
-  function cleanAnnouncementUnread(){
-    const root=document.getElementById('homeNoticeList');
-    if(!root)return;
-    root.querySelectorAll('.homeUnreadBadge,[data-home-unread-badge],.unreadBadge').forEach(x=>x.remove());
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',cleanAnnouncementUnread,{once:true});else cleanAnnouncementUnread();
-  document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="home"]'))setTimeout(cleanAnnouncementUnread,30)});
-})();
-</script>
-
-</body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
+<!-- N365 效能核心 V2 第一階段：首頁摘要、寫後局部刷新、首屏延遲重算 --></body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
 .quickOrderDonePanel{margin-top:12px;padding:12px;border:1px solid #b9d8c5;background:#f3fbf6;border-radius:12px}.quickOrderDonePanel b{font-size:18px}.quickOrderF2Busy{opacity:.65;pointer-events:none}
@@ -5947,7 +5912,7 @@ function render(){
  };
  const rows=[...homeTasksV79].sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||((Date.parse(a.created_at)||0)-(Date.parse(b.created_at)||0)));
  const groups={};rows.forEach(x=>{const k=dueKey(x);(groups[k]||(groups[k]=[])).push(x);});
- box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<details class="homeManageMenu"><summary class="btn homeManageBtn">⚙️ 管理</summary><div class="homeManagePanel"><button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button></div></details>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span>${rd?'':`<span class="homeUnreadBadge">未讀</span>`}${readStatHtml(x)}${acts}</div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
+ box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<details class="homeManageMenu"><summary class="btn homeManageBtn">⚙️ 管理</summary><div class="homeManagePanel"><button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button></div></details>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span></div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
  const df=document.getElementById('homeDoneDateFilter')?.value||'',text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
  const filtered=homeDoneV79.filter(x=>{return(!df||dueKey(x)===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>dueKey(b).localeCompare(dueKey(a))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
  const visibleDone=filtered.slice(0,homeDoneVisibleCount);
@@ -6379,12 +6344,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
         cur.amount+=qMoney(qRecordTotal(r));cur.count+=1;byPeriod.set(p.key,cur);
       }
       // 帳期工作日就是帳期結束日（例如週結＝星期六），不是隔天才第一次提醒。
-      for(const z of byPeriod.values())if(z.count>0&&z.period.end<=horizon)raw.push({
-        reminder_type:'billing_period_statement_due',
-        due_date:z.period.end,
-        contact_id:String(c.id||''),contact_name:String(c.name||c.code||''),amount:z.amount,
-        period_start:z.period.start,period_end:z.period.end,record_count:z.count
-      });
+      for(const z of byPeriod.values())if(z.count>0&&z.period.end<=horizon)/* N412：一般帳期待做帳／待傳帳單提醒已正式取消，不再產生事件。 */
     }
 
     const weekday=d=>{const a=String(d||'').split('-').map(Number);if(a.length!==3||!a[0])return '';return '星期'+['日','一','二','三','四','五','六'][new Date(a[0],a[1]-1,a[2]).getDay()]};
@@ -11053,45 +11013,40 @@ window.qNormalizeTurnAction=qN93TurnAction;
 <!-- N126：寄車多規格取最後公斤值；產農週帳固定最多雙欄並統一可讀字級；新增嫩薑泰文。 -->
 <!-- N127: 寄車回報工作區改為未完成跨日保留；包裝/貨運與派工辦公室共用，不改 Supabase 原始資料。 -->
 <script>
-/* N408：公告頁單一自動提醒核心。
-   只顯示「超市收款提醒」；不另建提醒規則、不指定收件人、不手動發布。
-   提醒資料唯一來源＝既有正式帳務 xrAccountingReminderEvents() 的 supermarket_collection_due。
-   帳務未完成不產生；收款頁完成後正式事件消失，公告同步消失且不進歷史公告。
-   手動公告沿用原 home_tasks / 原有效日期與歷史公告規則。 */
+/* N412 公告正式核心：
+   手動公告沿用既有 home_tasks 與日期/歷史規則。
+   唯一自動提醒＝超市收款；直接讀正式帳務事件，不建立 system_reminders、
+   reminder_rules、收件人、待處理、發布、已處理等第二套流程。 */
 (function(){
-  'use strict';
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  function supermarketEvents(){
-    try{
-      if(typeof window.xrAccountingReminderEvents!=='function')return [];
-      return (window.xrAccountingReminderEvents()||[]).filter(x=>x&&x.reminder_type==='supermarket_collection_due');
-    }catch(e){console.warn('N408 supermarket reminder read failed',e);return []}
-  }
-  function paint(){
-    const list=document.getElementById('homeNoticeList');
-    if(!list)return;
-    list.querySelectorAll('[data-n408-supermarket-reminder]').forEach(x=>x.remove());
-    const rows=supermarketEvents();
-    if(!rows.length)return;
-    const frag=document.createDocumentFragment();
-    rows.forEach(r=>{
-      const card=document.createElement('div');
-      card.className='homeTodoCard';
-      card.dataset.n408SupermarketReminder='1';
-      card.innerHTML='<div class="homeTodoMain"><div class="homeTodoTitle">🔔 '+esc(r.title||'超市收款提醒')+'</div>'
-        +(r.message?'<div class="homeTodoNote">'+esc(r.message)+'</div>':'')
-        +(r.due_date?'<div class="helper" style="display:block!important">收款日：'+esc(r.due_date)+'</div>':'')
-        +'</div>';
-      frag.appendChild(card);
-    });
-    list.prepend(frag);
-  }
-  window.xrPaintSupermarketCollectionNotices=paint;
-  function later(){setTimeout(paint,120)}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',later,{once:true});else later();
-  document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="home"]'))later()});
-  document.addEventListener('xinru:accounting-cloud-loaded',later);
-  document.addEventListener('xinru:accounting-changed',later);
+ 'use strict';
+ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+ function rows(){
+   try{
+     if(typeof window.xrAccountingReminderEvents!=='function')return [];
+     return (window.xrAccountingReminderEvents()||[]).filter(x=>x&&x.reminder_type==='supermarket_collection_due');
+   }catch(e){console.warn('N412 supermarket notice',e);return []}
+ }
+ function paint(){
+   const list=document.getElementById('homeNoticeList'); if(!list)return;
+   list.querySelectorAll('[data-n412-supermarket]').forEach(x=>x.remove());
+   const data=rows(); if(!data.length)return;
+   const frag=document.createDocumentFragment();
+   data.forEach(r=>{
+     const card=document.createElement('div');
+     card.className='homeTodoCard'; card.dataset.n412Supermarket='1';
+     card.innerHTML='<div class="homeTodoMain"><div class="homeTodoTitle">🔔 '+esc(r.title||'超市收款提醒')+'</div>'+
+       (r.message?'<div class="homeTodoNote">'+esc(r.message)+'</div>':'')+
+       (r.due_date?'<div class="helper" style="display:block!important">收款日：'+esc(r.due_date)+'</div>':'')+'</div>';
+     frag.appendChild(card);
+   });
+   list.prepend(frag);
+ }
+ window.xrPaintSupermarketCollectionNotices=paint;
+ const later=()=>setTimeout(paint,120);
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',later,{once:true});else later();
+ document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="home"]'))later()});
+ document.addEventListener('xinru:accounting-cloud-loaded',later);
+ document.addEventListener('xinru:accounting-changed',later);
 })();
 </script>
 <!-- N176：容器歷史查詢作用域核心修正；查詢使用同一 IIFE 內的身份正規化，不再引用不可見的 N172 私有函式。 -->
@@ -11526,5 +11481,22 @@ window.qNormalizeTurnAction=qN93TurnAction;
 <!-- N376：公司內帳修改以交易ID直接回填；公司帳戶/公司現金期初各200,000，可於帳戶管理修改；期初不列損益。 -->
 <!-- N385：修復 N384 誤把版本註解插入列印 HTML 字串造成 JavaScript 中斷；保留單車完整資料與車貸連結功能。 -->
 <!-- N386：貸款管理卡片化；車輛總覽改為一車一卡，保留單車完整資料與既有帳務核心。 -->
+
+<style id="n412-announcement-clean">
+#homeNoticeList .homeUnreadBadge,#homeNoticeList .homeReadStat,#homeNoticeList .homeReadBtn{display:none!important}
+</style>
+<script>
+(function(){
+ function clean(){
+   document.getElementById('homeReminderPendingBtn')?.remove();
+   document.getElementById('homeReminderRulesBtn')?.remove();
+   document.getElementById('homeAudienceBadge')?.remove();
+   const r=document.getElementById('homeNoticeList');
+   r?.querySelectorAll('.homeUnreadBadge,.homeReadStat,.homeReadBtn').forEach(x=>x.remove());
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',clean,{once:true});else clean();
+ document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="home"]'))setTimeout(clean,30)});
+})();
+</script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
