@@ -9970,7 +9970,7 @@ K白.kg
       ['loanMonthly','車貸月繳','number'],['note','備註','text']
     ];
     const formHtml=(v,isNew)=>'<div class="qVehInlineEditor"><div class="qVehEditorTitle">'+(isNew?'＋ 新增車輛':'✏️ 修改 '+qEsc(v.vehiclePlate||'車輛'))+'</div><div class="qVehEditGrid">'+fields.map(f=>{const val=v[f[0]]??'';if(f[2]==='select')return '<label><span>'+f[1]+'</span><select class="input" data-vfield="'+f[0]+'">'+f[3].map(x=>'<option '+(String(val)===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label>';return '<label><span>'+f[1]+'</span><input class="input" data-vfield="'+f[0]+'" type="'+f[2]+'" value="'+qEsc(String(val))+'"></label>'}).join('')+'</div><label class="qVehOpsCheck"><input type="checkbox" data-vfield="enableDeliveryOps" id="qVehOpsToggle" '+(v.enableDeliveryOps?'checked':'')+'> 配送客戶／營運統計</label><div class="qVehDeliveryCustomers" id="qVehDeliveryBox" style="'+(v.enableDeliveryOps?'':'display:none')+'"><span>配送客戶</span><div class="helper">輸入名稱或編號搜尋後加入；已選客戶會保留在下方。系統依固定 ID 自動抓正式帳務中的運費。</div><div class="qVehCustomerSearchRow"><input class="input" id="qVehCustomerSearch" placeholder="🔎 搜尋客戶：名稱／編號"><div id="qVehCustomerResults" class="qVehCustomerResults"></div></div><div class="qVehSelectedTitle">已選配送客戶</div><div id="qVehSelectedCustomers" class="qVehSelectedCustomers"></div><div class="qVehOpsRuleBox"><div class="qVehOpsRuleTitle">📊 營運統計規則</div><div class="qVehOpsRuleGrid"><div><span>配送收入</span><b>配送客戶正式帳務的運費自動加總</b></div><div><span>車輛成本</span><b>本車公司內帳消費自動加總</b></div><div><span>車趟毛利</span><b>配送收入 − 車輛成本</b></div></div><div class="helper">同一天可有多個客戶屬於同一車趟；客戶筆數不直接當作趟數。</div></div></div><div class="qVehEditActions"><button class="btn primary" id="qVehInlineSave">儲存</button><button class="btn gray" id="qVehInlineCancel">取消</button></div></div>';
-    const saveInline=async(v,isNew)=>{
+    const saveInline=async(v,isNew,selectedCustomers)=>{
       const box=work.querySelector('.qVehInlineEditor');if(!box)return;
       const data={...v};
       box.querySelectorAll('[data-vfield]').forEach(el=>{const k=el.dataset.vfield;if(el.type==='checkbox')data[k]=el.checked;else data[k]=el.value.trim()});
@@ -9980,7 +9980,7 @@ K白.kg
       data.purchaseAmount=data.purchaseAmount===''?'':Math.max(0,Math.round(Number(data.purchaseAmount)||0));
       data.loanMonthly=data.loanMonthly===''?'':Math.max(0,Math.round(Number(data.loanMonthly)||0));
       data.currentMileage=data.currentMileage===''?'':Math.max(0,Number(data.currentMileage)||0);
-      data.deliveryCustomerIds=data.enableDeliveryOps?(()=>{try{return JSON.parse((box.querySelector('.qVehInlineEditor')?.dataset.deliveryCustomerIds)||box.dataset.deliveryCustomerIds||'[]').map(String).filter(Boolean)}catch(_e){return []}})():[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
+      data.deliveryCustomerIds=data.enableDeliveryOps?Array.from(selectedCustomers||[]).map(String).filter(Boolean):[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
       try{await qVehSaveMaster(data);qRenderVehicleMaster(work)}catch(e){alert('車輛資料儲存失敗：'+(e?.message||e))}
     };
     const openEditor=(v,isNew=false)=>{
@@ -9990,12 +9990,12 @@ K白.kg
       const customers=qProfiles().filter(c=>{const r=String(c.role||c.type||c.identity||c.category||'');return !/產農|廠商/.test(r)}).sort((a,b)=>String(a.code||a.name||'').localeCompare(String(b.code||b.name||''),'zh-Hant'));
       const cid=c=>String(c.id||c.code||c.name||'');
       const cname=c=>[c.code,c.name||c.formalName].filter(Boolean).join('｜');
-      const renderSelected=()=>{const el=work.querySelector('#qVehSelectedCustomers');if(!el)return;const editor=work.querySelector('.qVehInlineEditor');if(editor){editor.dataset.deliveryCustomerIds=JSON.stringify(Array.from(selected));editor.closest('[data-vehicle-editor]')?.setAttribute('data-delivery-customer-ids',JSON.stringify(Array.from(selected)));}const rows=customers.filter(c=>selected.has(cid(c)));el.innerHTML=rows.length?rows.map(c=>'<button type="button" class="qVehCustomerChip" data-vremove="'+qEsc(cid(c))+'">'+qEsc(cname(c))+' <b>×</b></button><input type="checkbox" data-vcustomer="'+qEsc(cid(c))+'" checked hidden>').join(''):'<span class="helper">尚未選擇配送客戶</span>';el.querySelectorAll('[data-vremove]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.vremove));renderSelected();renderResults()})};
+      const renderSelected=()=>{const el=work.querySelector('#qVehSelectedCustomers');if(!el)return;const rows=customers.filter(c=>selected.has(cid(c)));el.innerHTML=rows.length?rows.map(c=>'<button type="button" class="qVehCustomerChip" data-vremove="'+qEsc(cid(c))+'">'+qEsc(cname(c))+' <b>×</b></button><input type="checkbox" data-vcustomer="'+qEsc(cid(c))+'" checked hidden>').join(''):'<span class="helper">尚未選擇配送客戶</span>';el.querySelectorAll('[data-vremove]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.vremove));renderSelected();renderResults()})};
       const renderResults=()=>{const inp=work.querySelector('#qVehCustomerSearch'),el=work.querySelector('#qVehCustomerResults');if(!inp||!el)return;const q=inp.value.trim().toLowerCase();if(!q){el.innerHTML='';return}const hits=customers.filter(c=>!selected.has(cid(c))&&cname(c).toLowerCase().includes(q)).slice(0,12);el.innerHTML=hits.length?hits.map(c=>'<button type="button" data-vadd="'+qEsc(cid(c))+'">'+qEsc(cname(c))+'</button>').join(''):'<div class="helper">找不到符合的客戶</div>';el.querySelectorAll('[data-vadd]').forEach(b=>b.onclick=()=>{selected.add(String(b.dataset.vadd));inp.value='';renderSelected();renderResults()})};
       const toggle=work.querySelector('#qVehOpsToggle'),box=work.querySelector('#qVehDeliveryBox');if(toggle&&box)toggle.onchange=()=>{box.style.display=toggle.checked?'':'none'};
       const search=work.querySelector('#qVehCustomerSearch');if(search)search.oninput=renderResults;
       renderSelected();
-      work.querySelector('#qVehInlineSave').onclick=()=>saveInline(v,isNew);
+      work.querySelector('#qVehInlineSave').onclick=()=>saveInline(v,isNew,selected);
       work.querySelector('#qVehInlineCancel').onclick=()=>{host.innerHTML=''};
     };
     const renderList=(filter='全部')=>{
