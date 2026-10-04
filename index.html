@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N351｜收付款與公司內帳層級定版</title>
+<title>欣儒系統｜N352｜公司內帳層級一次修正</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -4547,7 +4547,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N288：待補價格新增雲端多人共用暫存；暫存不影響正式帳務，正式儲存才回寫價格；保留暫存人／時間與覆蓋衝突確認。 -->
 <!-- N289：待補價格改為同一資料核心的響應式列；電腦每商品同排顯示日期／暫存／正式儲存，手機改卡片堆疊不橫向溢位；每列按鈕只處理該品項，避免誤存同交易其他未完成價格。 -->
 <!-- N296: 帳期原始明細固定；部分收付款不改變原始筆數、品項數、原金額。 -->
-<!-- N351：收款／付款第一層定版；支票／代購毛利共用入口；公司內帳恢復帳戶互轉並改名帳戶管理。 -->
+<!-- N352：公司內帳層級一次修正：第一層移除帳戶互轉；公司內帳標題與返回路由統一；快速輸入移除收支紀錄與互轉舊入口。 -->
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -5919,7 +5919,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     entry:{title:'✍️ 快速做帳',desc:'銷貨／進貨、運費、草稿、待補價格與周轉物統一在這裡完成。',items:['開始快速做帳','做帳紀錄']},
     farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'入貨可先不填價格；週帳與實際付款分開。',items:['入貨紀錄','待補價格','本週週帳','待領款']},
     vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','待補價格','異常處理','廠商對帳']},
-    payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 交易查詢','🧾 收到的支票／代購毛利','⇄ 帳戶互轉','📊 全公司報表','💵 公司內帳']},
+    payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 交易查詢','🧾 收到的支票／代購毛利','📊 全公司報表','💵 公司內帳']},
     ledger:{title:'📒 帳本',desc:'搜尋往來對象，查看完整應收／應付、收付款與帳務流水。',items:[]},
     turnover:{title:'🧺 籃子／鐵架／棧板／容器管理',desc:'日常容器一律由快速做帳建立；這裡只負責查詢、盤點修正與容器設定。',items:['🔍 籃子／鐵架／棧板／容器查詢','📋 盤點／差異','⚙️ 籃子／鐵架／棧板／容器設定']},
     contacts:{title:'👥 往來資料',desc:'同一個往來對象只建立一份主資料，內部以固定ID關聯。',items:['🔍 搜尋往來資料','＋ 新增往來對象']},
@@ -9154,14 +9154,22 @@ K白.kg
     const back=oldBack.cloneNode(true);oldBack.replaceWith(back);
     const h3=head.querySelector('h3'),desc=head.querySelector('.helper');
     if(mode==='home'){
-      if(h3)h3.textContent='🏦 資金帳戶';
-      if(desc)desc.textContent='公司帳戶與公司現金的資金管理；收支、零用金、支票、代購毛利與資金紀錄都從這裡進入。';
+      if(h3)h3.textContent='💵 公司內帳';
+      if(desc)desc.textContent='公司內部資金、快速輸入、零用金、貸款、帳戶管理與公司內帳報表。';
       back.textContent='← 返回收款／付款';
       back.addEventListener('click',()=>open('payment',false),{once:true});
+    }else if(title==='🧾 收到的支票／代購毛利'){
+      if(h3)h3.textContent=title;if(desc)desc.textContent='';
+      back.textContent='← 返回收款／付款';
+      back.addEventListener('click',()=>open('payment',false),{once:true});
+    }else if(title==='收到的支票'||title==='代購毛利'){
+      if(h3)h3.textContent=title;if(desc)desc.textContent='';
+      back.textContent='← 返回收到的支票／代購毛利';
+      back.addEventListener('click',()=>qRenderChequeProfitHome(document.getElementById('acctStageWork')),{once:true});
     }else{
-      if(h3)h3.textContent=title||'🏦 資金帳戶';
+      if(h3)h3.textContent=title||'💵 公司內帳';
       if(desc)desc.textContent='';
-      back.textContent='← 返回資金帳戶';
+      back.textContent='← 返回公司內帳';
       back.addEventListener('click',()=>qRenderFundHome(document.getElementById('acctStageWork')),{once:true});
     }
   }
@@ -9410,7 +9418,7 @@ K白.kg
     return qFundAccountMasters().filter(a=>a.status!=='inactive').map(a=>'<option value="'+qEsc(qFundAccountKey(a))+'"'+(String(selected||'')===qFundAccountKey(a)?' selected':'')+'>'+qEsc(a.accountName||qFundAccountKey(a))+'</option>').join('');
   }
   function qRenderFundAccounts(work){
-    qFundStageHeader('sub','資金帳戶管理');
+    qFundStageHeader('sub','帳戶管理');
     const accounts=qFundAccountMasters();
     work.innerHTML='<div class="quickV2"><div class="actions" style="margin-bottom:12px"><button class="btn primary" id="qFundAccountNew" type="button">＋ 新增資金帳戶</button></div>'+
       '<div class="helper" style="display:block!important;margin-bottom:10px">公司收支、貸款、支票、零用金、帳戶互轉全部共用這份帳戶主檔。</div>'+
@@ -9553,6 +9561,7 @@ K白.kg
     const last=new Date(y,m,0).getDate();return monthKey+'-'+String(Math.min(d,last)).padStart(2,'0');
   }
   function qRenderCompanyCashflow(work){
+    qFundStageHeader('sub','快速輸入');
     try{const host=work.closest('.acctStage,.quickV2,.card')||work.parentElement;if(host)host.querySelectorAll('.qArApSummary,.acctArApSummary,[data-q-arap-summary]').forEach(el=>el.style.display='none')}catch(_e){}
     const allCats=qFundCategories(),vehicles=qCompanyVehicles();
     const expenseCats=Object.fromEntries(Object.entries(allCats).filter(([k])=>k!=='其他收入'&&k!=='營業收入'));
@@ -9565,7 +9574,7 @@ K白.kg
         '<button type="button" class="quickV2ContactHint" data-company-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(qFundBalance('company_bank'))+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
         '<button type="button" class="quickV2ContactHint" data-company-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(qFundBalance('company_cash'))+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
       '</div>'+
-      '<div class="actions" style="margin:12px 0 14px"><button type="button" class="btn primary" disabled>＋ 新增收支</button><button type="button" class="btn gray" id="qCompanyCashHistory">🔍 收支紀錄</button><button type="button" class="btn gray" id="qCompanyTransfer">⇄ 帳戶互轉</button></div>'+
+      '<div class="actions" style="margin:12px 0 14px"><button type="button" class="btn primary" disabled>＋ 新增收支</button></div>'+
       '<div class="quickV2Head"><div class="field"><label class="label">日期 *</label><input id="qFundDate" class="input" type="date" value="'+qToday()+'"></div>'+
       '<div class="field"><label class="label">收入／支出 *</label><select id="qFundKind" class="input"><option value="expense">支出</option><option value="income">收入</option></select></div>'+
       '<div class="field"><label class="label">分類 *</label><select id="qFundCat" class="input">'+catOpts+'</select></div>'+
@@ -9704,7 +9713,6 @@ K白.kg
     if(section==='payment'&&(a==='💰 收款'||a==='💸 付款')){qRenderMoneyCenter(work,'',a==='💸 付款'?'payment':'receipt');return;}
     if(section==='payment'&&(a==='🔍 交易查詢'||a==='🔍 收支查詢')){qRenderMoneyHistory(work);return;}
     if(section==='payment'&&a==='🧾 收到的支票／代購毛利'){qRenderChequeProfitHome(work);return;}
-    if(section==='payment'&&a==='⇄ 帳戶互轉'){qRenderFundTransfer(work,'company_bank');return;}
     if(section==='payment'&&a==='📊 全公司報表'){qRenderCompanyReport(work);return;}
     if(section==='payment'&&a==='💵 公司內帳'){qRenderFundHome(work);return;}
     if(section==='vehicle'&&a==='車輛資料'){qRenderVehicleMaster(work);return;}
