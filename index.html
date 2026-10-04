@@ -10310,7 +10310,19 @@ K白.kg
 }
 /* N169：鐵架正式分名帳。鐵架名稱是往來對象下的第三層識別；其他容器不使用。 */
  function qN169RackNamesForContact(c){
-   const raw=Array.isArray(c?.turnover?.rackNames)?c.turnover.rackNames:[];
+ let master=c;
+ try{
+   const rows=JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]');
+   if(Array.isArray(rows)&&c){
+     const id=String(c.id||'').trim(),name=String(c.name||'').trim(),code=String(c.code||'').trim();
+     master=rows.find(x=>id&&String(x?.id||'').trim()===id)
+       ||rows.find(x=>name&&String(x?.name||'').trim()===name)
+       ||rows.find(x=>code&&String(x?.code||'').trim()===code)
+       ||c;
+   }
+ }catch(_e){master=c}
+ const raw=Array.isArray(master?.turnover?.rackNames)?master.turnover.rackNames:
+           (Array.isArray(c?.turnover?.rackNames)?c.turnover.rackNames:[]);
    const out=[],seen=new Set();
    const partsOf=v=>String(v??'').replace(/\r/g,'\n').split(/[、,，;；\n]+/).map(x=>x.trim()).filter(Boolean);
    const stableId=name=>'rack_'+encodeURIComponent(String(name).trim().toLowerCase());
@@ -10324,8 +10336,7 @@ K白.kg
    };
    raw.forEach((v,i)=>{if(typeof v==='string')add(v,'legacy_'+i+'_'+String(v).trim(),true);else add(v?.name,v?.id||('legacy_'+i),v?.active!==false)});
    return out;
- }
- function qN169RackBalance(events){
+ } window.qRackNamesForContact=qN169RackNamesForContact; function qN169RackBalance(events){
   const by={};
   (events||[]).filter(e=>canonical(e.type)==='鐵架').forEach(e=>{const key=String(e.rackNameId||e.rackName||'__unspecified__'),x=by[key]||(by[key]={rackNameId:e.rackNameId||'',rackName:e.rackName||'未指定鐵架名稱',owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);const d=Number(e.balanceDelta)||0;if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}if(e.action==='買斷')x.buyout+=Number(e.qty)||0});
   return Object.values(by);
