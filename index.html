@@ -5869,116 +5869,86 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
 
 </script>
 <script>
-/* 第79階段：首頁公告＝事件日期排序＋每人已讀＋主管修改／提前結束。登入/Auth 不修改。 */
+/* N414 首頁公告核心：所有人可見；不指定收件人、不做已讀/未讀、不做紅點。
+   手動公告依 due_date 顯示；日期過後由原完成/歷史規則查看。
+   自動公告只由 N412 超市收款事件另外繪製。 */
 (function(){
-let homeTasksV79=[],homeDoneV79=[],homeReadsV79=[],homeEmployeesV79=[],homeRecipientsN145=[];
-const deptLabels={hq:'🏢 總部',packing:'📦 包裝部',delivery:'🚚 貨運部',accounting:'💰 帳務中心',liuhe:'🥬 六禾'};
-function canManage(){
- const p=currentProfile;
- if(!p)return false;
- return p.role==='admin'||v17Has('announcement.manage');
-}
-function msg(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(!el)return;el.textContent=t||'';el.style.color=bad?'#b42318':'#667085';}
-function fmt(v){if(!v)return '';try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));}catch{return v;}}
-function today(){return typeof taipeiDate==='function'?taipeiDate():new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date());}
-function eventDateLabel(v){if(!v)return '';const p=String(v).split('-').map(Number);if(p.length!==3||!p[0]||!p[1]||!p[2])return esc(v);const d=new Date(Date.UTC(p[0],p[1]-1,p[2],12));const wk=['日','一','二','三','四','五','六'][d.getUTCDay()];return `${String(p[0]).padStart(4,'0')}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}（${wk}）`; }
-function readRows(id){return homeReadsV79.filter(r=>String(r.task_id)===String(id));}
-function myRead(id){return readRows(id).some(r=>String(r.user_id)===String(currentUser?.id));}
-function taskRecipientsN145(id){return homeRecipientsN145.filter(r=>String(r.task_id)===String(id));}
-function readStatHtml(x){if(!canManage())return '';const target=x.n145_audience?taskRecipientsN145(x.id):homeEmployeesV79;const ids=new Set(target.map(r=>String(r.user_id)));const n=readRows(x.id).filter(r=>ids.has(String(r.user_id))).length,total=ids.size;return `<span class="homeReadStat" data-read-stat="${esc(String(x.id))}">已讀 ${n}/${total}</span>`;}
-function paintHomeAudienceBadge(){const el=document.getElementById('homeAudienceBadge');if(!el||!currentUser)return;const uid=String(currentUser.id),mine=new Set(homeRecipientsN145.filter(r=>String(r.user_id)===uid).map(r=>String(r.task_id)));const n=homeTasksV79.filter(x=>x.n145_audience&&mine.has(String(x.id))&&!myRead(x.id)).length;el.textContent=n?String(n):'';el.style.display=n?'inline-flex':'none';}
-let homeDoneVisibleCount=20;
-function render(){
- const addBtn=document.getElementById('homeNoticeAddBtn');
- if(addBtn){
-   const ok=canManage();
-   addBtn.dataset.noAnnouncementPermission=ok?'0':'1';
-   addBtn.onclick=ok?createTask:null;
- }
-
- const box=document.getElementById('homeNoticeList'),done=document.getElementById('homeDoneList');if(!box||!done)return;
- const dueKey=x=>{
-  const raw=String(x?.due_date||'').trim(), m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  let d=m?`${m[1]}-${m[2]}-${m[3]}`:(raw||'未設定');
-  // 舊公告相容：早期版本把公告日期誤存成建立日；只有這種舊資料才從標題開頭 M/D 修正顯示分組。
-  const created=x?.created_at?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei'}).format(new Date(x.created_at)):'';
-  const tm=String(x?.title||'').trim().match(/^(\d{1,2})\/(\d{1,2})(?:\s|\(|（)/);
-  if(tm && d===created){
-    const y=created?created.slice(0,4):String(new Date().getFullYear());
-    const mm=String(Number(tm[1])).padStart(2,'0'),dd=String(Number(tm[2])).padStart(2,'0');
-    d=`${y}-${mm}-${dd}`;
+  'use strict';
+  let homeTasks=[],homeDone=[];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  function canManage(){const p=currentProfile;return !!p&&(p.role==='admin'||v17Has('announcement.manage'))}
+  function msg(t,bad=false){const el=document.getElementById('homeNoticeMsg');if(el){el.textContent=t||'';el.style.color=bad?'#b42318':'#667085'}}
+  function card(x,done=false){
+    return '<div class="homeTodoCard" data-home-task="'+esc(x.id)+'"><div class="homeTodoMain">'+
+      '<div class="homeTodoTitle">'+esc(x.title||'公告')+'</div>'+
+      (x.due_date?'<div class="helper">日期：'+esc(x.due_date)+'</div>':'')+
+      (x.note?'<div class="homeTodoNote">'+esc(x.note)+'</div>':'')+
+      '</div>'+(canManage()?'<div class="homeTodoActions">'+
+      (!done?'<button type="button" class="btn gray" data-home-edit="'+esc(x.id)+'">✏️ 修改</button><button type="button" class="btn gray" data-home-end="'+esc(x.id)+'">提前結束</button>':'')+
+      '</div>':'')+'</div>';
   }
-  return d;
- };
- const rows=[...homeTasksV79].sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||((Date.parse(a.created_at)||0)-(Date.parse(b.created_at)||0)));
- const groups={};rows.forEach(x=>{const k=dueKey(x);(groups[k]||(groups[k]=[])).push(x);});
- box.innerHTML=rows.length?Object.keys(groups).sort().map(date=>`<div class="homeDateGroup"><div class="homeDateHeader">${eventDateLabel(date)}</div><div class="homeDateItems">${groups[date].map(x=>{const rd=myRead(x.id);const acts=`<span class="homeTodoActions"><button type="button" class="btn homeReadBtn ${rd?'read':''}" data-read="${esc(String(x.id))}">${rd?'✓ 已讀':'☐ 已讀'}</button>${canManage()?`<details class="homeManageMenu"><summary class="btn homeManageBtn">⚙️ 管理</summary><div class="homeManagePanel"><button type="button" class="btn homeTodoEdit" data-edit="${esc(String(x.id))}">✏️ 修改</button><button type="button" class="btn homeTodoEnd" data-end="${esc(String(x.id))}">結束</button><button type="button" class="btn homeTodoDelete" data-delete="${esc(String(x.id))}">🗑️ 刪除</button></div></details>`:''}</span>`;return `<div class="homeTodoCard"><div class="homeTodoContent"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span></div>${x.note?`<div class="helper" style="margin-top:4px">${esc(x.note)}</div>`:''}<div class="homeTodoMeta">建立：${esc(x.created_by_name||'')} ${fmt(x.created_at)}</div></div>`}).join('')}</div></div>`).join(''):'<div class="empty">目前沒有公告</div>';
- const df=document.getElementById('homeDoneDateFilter')?.value||'',text=(document.getElementById('homeDoneTextFilter')?.value||'').trim().toLowerCase();
- const filtered=homeDoneV79.filter(x=>{return(!df||dueKey(x)===df)&&(!text||([x.title,x.note,deptLabels[x.department],x.created_by_name,x.completed_by_name].join(' ').toLowerCase().includes(text)));}).sort((a,b)=>dueKey(b).localeCompare(dueKey(a))||((Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)));
- const visibleDone=filtered.slice(0,homeDoneVisibleCount);
- done.innerHTML=visibleDone.length?visibleDone.map(x=>`<div class="homeDoneResultCard"><div class="homeDoneResultTitle"><span class="homeTodoDept">${deptLabels[x.department]||esc(x.department||'')}</span><span>${esc(x.title||'')}</span></div><div class="homeDoneResultMeta">公告日期：${esc(dueKey(x))}${x.completed_at?`｜結束：${esc(x.completed_by_name||'')} ${fmt(x.completed_at)}`:''}</div>${x.note?`<div class="homeDoneResultNote">${esc(x.note)}</div>`:''}</div>`).join(''):'<div class="empty">沒有符合條件的公告</div>';
- const moreBtn=document.getElementById('homeDoneLoadMore');
- if(moreBtn){moreBtn.style.display=filtered.length>homeDoneVisibleCount?'inline-flex':'none';moreBtn.textContent=`載入更多（尚有 ${Math.max(0,filtered.length-homeDoneVisibleCount)} 筆）`;}
- box.querySelectorAll('[data-read]').forEach(b=>b.onclick=()=>markRead(b.dataset.read,b));
- box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit));
- box.querySelectorAll('[data-end]').forEach(b=>b.onclick=()=>endTask(b.dataset.end,b));
- box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteTask(b.dataset.delete,b));
- box.querySelectorAll('[data-read-stat]').forEach(b=>b.onclick=()=>showReaders(b.dataset.readStat));
- paintHomeAudienceBadge();
-}
-async function load(){
- if(!currentUser)return;const box=document.getElementById('homeNoticeList');if(box)box.innerHTML='<div class="empty">讀取中…</div>';
- try{
-  const t=today();
-  const calls=[sb.from('home_tasks').select('*').eq('is_completed',false).gte('due_date',t).order('due_date',{ascending:true}).order('created_at',{ascending:true}),sb.from('home_tasks').select('*').or(`is_completed.eq.true,and(is_completed.eq.false,due_date.lt.${t})`).order('due_date',{ascending:false}).order('created_at',{ascending:false}),sb.from('home_task_reads').select('*'),sb.from('home_task_recipients').select('task_id,user_id')];
-  if(canManage())calls.push(sb.from('employee_profiles').select('user_id,display_name,is_active').eq('is_active',true));
-  const res=await Promise.all(calls);if(res[0].error)throw res[0].error;if(res[1].error)throw res[1].error;if(res[2].error)throw new Error('已讀資料表尚未建立：'+res[2].error.message);if(res[3].error)throw new Error('公告收件人資料表尚未建立：'+res[3].error.message);
-  homeRecipientsN145=res[3].data||[];const mine=new Set(homeRecipientsN145.filter(r=>String(r.user_id)===String(currentUser.id)).map(r=>String(r.task_id)));const visible=x=>canManage()||!x.n145_audience||mine.has(String(x.id));homeTasksV79=(res[0].data||[]).filter(visible);homeDoneV79=(res[1].data||[]).filter(visible);homeReadsV79=res[2].data||[];homeEmployeesV79=(res[4]?.data||[]);msg('');render();
- }catch(e){console.warn('首頁公告讀取失敗：',e?.message||e);if(box)box.innerHTML='<div class="empty">首頁公告讀取失敗</div>';msg(e?.message||String(e),true);}
-}
-async function createTask(){
- if(!canManage())return alert('此帳號沒有公告管理權限');
- const due=prompt('📅 執行日期（YYYY-MM-DD）',today());if(due===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
- const title=prompt('📝 公告內容');if(title===null||!title.trim())return;
- const note=prompt('備註（可留空）','');if(note===null)return;
- if(typeof window.n145ChooseAnnouncementPeople!=='function')return alert('N145 收件人功能尚未載入，請重新整理後再試');
- const ids=await window.n145ChooseAnnouncementPeople([]);if(!ids)return;
- const {data,error}=await sb.from('home_tasks').insert({title:title.trim(),department:'hq',due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||'',n145_audience:true}).select('id').single();if(error)return alert('建立公告失敗：'+error.message);
- try{await window.n145SaveRecipients(data.id,ids)}catch(e){await sb.from('home_tasks').delete().eq('id',data.id);return alert('收件人設定失敗：'+(e?.message||e))}await load();
-}
-async function markRead(id,btn){if(!currentUser)return;btn.disabled=true;const {error}=await sb.from('home_task_reads').upsert({task_id:id,user_id:currentUser.id,user_name:currentProfile?.display_name||'',read_at:new Date().toISOString()},{onConflict:'task_id,user_id'});if(error){alert('已讀失敗：'+error.message);btn.disabled=false;return;}await load();}
-async function editTask(id){if(!canManage())return;const x=homeTasksV79.find(v=>String(v.id)===String(id));if(!x)return;const title=prompt('修改公告內容',x.title||'');if(title===null||!title.trim())return;const due=prompt('顯示日期（YYYY-MM-DD）',x.due_date||today());if(due===null||!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');const note=prompt('備註（可留空）',x.note||'');if(note===null)return;let ids=null;if(typeof window.n145ChooseAnnouncementPeople==='function'){const old=x.n145_audience?taskRecipientsN145(id).map(r=>String(r.user_id)):[];ids=await window.n145ChooseAnnouncementPeople(old);if(ids===null)return}const patch={title:title.trim(),due_date:due.trim(),note:note.trim()||null};if(ids){patch.n145_audience=true;patch.department='hq'}const {error}=await sb.from('home_tasks').update(patch).eq('id',id);if(error)return alert('修改失敗：'+error.message);if(ids)try{await window.n145SaveRecipients(id,ids)}catch(e){return alert('收件人修改失敗：'+(e?.message||e))}await load();}
-async function endTask(id,btn){if(!canManage())return;if(!confirm('確定提前結束這則公告？'))return;btn.disabled=true;const {error}=await sb.from('home_tasks').update({is_completed:true,completed_at:new Date().toISOString(),completed_by:currentUser.id,completed_by_name:currentProfile?.display_name||''}).eq('id',id).eq('is_completed',false);if(error){alert('結束公告失敗：'+error.message);btn.disabled=false;return;}await load();}
-async function deleteTask(id,btn){
- if(!canManage())return;
- const x=homeTasksV79.find(v=>String(v.id)===String(id));
- if(!x)return;
- if(!confirm('確定要永久刪除這則公告嗎？\n\n'+(x.title||'')+'\n\n刪除後無法復原。'))return;
- btn.disabled=true;
- const rr=await sb.from('home_task_recipients').delete().eq('task_id',String(id));
- if(rr.error){alert('刪除公告收件人失敗：'+rr.error.message);btn.disabled=false;return;}
- const r1=await sb.from('home_task_reads').delete().eq('task_id',id);
- if(r1.error){alert('刪除已讀紀錄失敗：'+r1.error.message);btn.disabled=false;return;}
- const r2=await sb.from('home_tasks').delete().eq('id',id);
- if(r2.error){alert('刪除公告失敗：'+r2.error.message);btn.disabled=false;return;}
- await load();
-}
-function showReaders(id){if(!canManage())return;const x=[...homeTasksV79,...homeDoneV79].find(v=>String(v.id)===String(id));const target=x?.n145_audience?homeEmployeesV79.filter(e=>taskRecipientsN145(id).some(r=>String(r.user_id)===String(e.user_id))):homeEmployeesV79;const ids=new Set(target.map(e=>String(e.user_id))),reads=readRows(id).filter(r=>ids.has(String(r.user_id))),readIds=new Set(reads.map(r=>String(r.user_id)));const yes=reads.map(r=>r.user_name||r.user_id).join('、')||'無';const no=target.filter(e=>!readIds.has(String(e.user_id))).map(e=>e.display_name||e.user_id).join('、')||'無';alert('已讀：\n'+yes+'\n\n未讀：\n'+no);}
-function setHomeQueryMode(on){
- const w=document.getElementById('homeDoneWrap'),list=document.getElementById('homeNoticeList'),msgEl=document.getElementById('homeNoticeMsg');
- const top=document.querySelector('#home .homeNoticeTopActions'),title=document.querySelector('#home h3');
- if(w)w.style.display=on?'block':'none';if(list)list.style.display=on?'none':'block';if(msgEl)msgEl.style.display=on?'none':'block';if(top)top.style.setProperty('display',on?'none':'flex','important');if(title)title.style.display=on?'none':'block';
- try{localStorage.setItem('xinru_home_notice_view',on?'history':'main');}catch(e){}
-}
-function init(){const add=document.getElementById('homeNoticeAddBtn'),tog=document.getElementById('homeDoneToggleBtn'),back=document.getElementById('homeDoneBackBtn');if(add){const ok=canManage();add.dataset.noAnnouncementPermission=ok?'0':'1';add.onclick=ok?createTask:null;}if(tog)tog.onclick=()=>{const d=document.getElementById('homeDoneDateFilter');if(d&&!d.value)d.value=taipeiDate();homeDoneVisibleCount=20;setHomeQueryMode(true);render();};if(back)back.onclick=()=>setHomeQueryMode(false);try{if(localStorage.getItem('xinru_home_notice_view')==='history')setHomeQueryMode(true);}catch(e){}['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el){const rerender=()=>{homeDoneVisibleCount=20;render();};el.addEventListener('input',rerender);el.addEventListener('change',rerender);}});const clr=document.getElementById('homeDoneClearFilter');if(clr)clr.onclick=()=>{['homeDoneDateFilter','homeDoneTextFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});homeDoneVisibleCount=20;render();};const more=document.getElementById('homeDoneLoadMore');if(more)more.onclick=()=>{homeDoneVisibleCount+=20;render();};load();}
-document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.addEventListener('click',e=>{if(e.target.closest('.tab[data-tab="home"]')){
-  // 第172D階段：主動按上方公告＝回公告第一層；重新整理仍保留原公告層級。
-  setHomeQueryMode(false);
-  setTimeout(load,0);
-}});window.homeLoadV58=load;window.homeLoadV79=load;
+  function render(){
+    const box=document.getElementById('homeNoticeList');
+    if(box)box.innerHTML=homeTasks.length?homeTasks.map(x=>card(x,false)).join(''):'<div class="empty">目前沒有公告</div>';
+    const done=document.getElementById('homeNoticeDoneList');
+    if(done)done.innerHTML=homeDone.length?homeDone.map(x=>card(x,true)).join(''):'<div class="empty">目前沒有歷史公告</div>';
+    const add=document.getElementById('homeNoticeAddBtn');
+    if(add){add.style.display=canManage()?'':'none';add.onclick=canManage()?createTask:null}
+    setTimeout(()=>window.xrPaintSupermarketCollectionNotices?.(),0);
+  }
+  async function load(){
+    if(!currentUser)return;
+    try{
+      const [a,b]=await Promise.all([
+        sb.from('home_tasks').select('*').eq('is_completed',false).order('due_date',{ascending:true}),
+        sb.from('home_tasks').select('*').eq('is_completed',true).order('due_date',{ascending:false}).limit(100)
+      ]);
+      if(a.error)throw a.error;if(b.error)throw b.error;
+      const td=today();
+      homeTasks=[];homeDone=b.data||[];
+      for(const x of (a.data||[])){
+        if(x.due_date&&x.due_date<td){
+          const u=await sb.from('home_tasks').update({is_completed:true}).eq('id',x.id);
+          if(!u.error)homeDone.unshift({...x,is_completed:true}); else homeTasks.push(x);
+        }else homeTasks.push(x);
+      }
+      msg('');render();
+    }catch(e){console.warn('首頁公告讀取失敗',e);msg(e?.message||String(e),true)}
+  }
+  async function createTask(){
+    if(!canManage())return;
+    const due=prompt('📅 公告日期（YYYY-MM-DD）',today());if(due===null)return;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(due.trim()))return alert('日期格式要 YYYY-MM-DD');
+    const title=prompt('📝 公告內容');if(title===null||!title.trim())return;
+    const note=prompt('備註（可留空）','');if(note===null)return;
+    const row={title:title.trim(),department:'hq',due_date:due.trim(),note:note.trim()||null,is_completed:false,created_by:currentUser.id,created_by_name:currentProfile?.display_name||''};
+    const r=await sb.from('home_tasks').insert(row);
+    if(r.error)return alert('建立公告失敗：'+r.error.message);
+    await load();
+  }
+  document.addEventListener('click',async e=>{
+    const edit=e.target.closest('[data-home-edit]');
+    if(edit&&canManage()){
+      const id=edit.dataset.homeEdit,x=homeTasks.find(v=>String(v.id)===String(id));if(!x)return;
+      const title=prompt('📝 公告內容',x.title||'');if(title===null||!title.trim())return;
+      const due=prompt('📅 公告日期（YYYY-MM-DD）',x.due_date||today());if(due===null)return;
+      const note=prompt('備註（可留空）',x.note||'');if(note===null)return;
+      const r=await sb.from('home_tasks').update({title:title.trim(),due_date:due.trim(),note:note.trim()||null}).eq('id',id);
+      if(r.error)return alert('修改失敗：'+r.error.message);await load();return;
+    }
+    const end=e.target.closest('[data-home-end]');
+    if(end&&canManage()){
+      if(!confirm('確定提前結束這則公告？'))return;
+      const r=await sb.from('home_tasks').update({is_completed:true}).eq('id',end.dataset.homeEnd);
+      if(r.error)return alert('提前結束失敗：'+r.error.message);await load();return;
+    }
+    if(e.target.closest('.tab[data-tab="home"]'))setTimeout(load,60);
+  },false);
+  window.loadHomeNotices=load;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(load,150),{once:true});
+  else setTimeout(load,150);
 })();
-
-// 第166階段：貨運中心僅保留現場配送，不再切換北／南線。
 </script>
 <!-- 第48階段：開單／收銀＋現場回報版面壓縮；只顯示當日現場訊息；未修改登入/Auth核心 -->
 <!-- 第40階段：桌機主選單 8 個功能固定單排；未修改登入/Auth核心 -->
