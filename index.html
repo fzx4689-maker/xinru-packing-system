@@ -9351,16 +9351,31 @@ K白.kg
       '<div class="field"><label class="label">每月繳款日</label><input id="qLoanDueDay" class="input" inputmode="numeric" value="'+qEsc(editing?(l.dueDay||''):'')+'" placeholder="例如 15"></div><div class="field"><label class="label">第一期繳款日</label><input id="qLoanFirstDue" class="input" type="date" value="'+qEsc(editing?(l.firstDueDate||''):'')+'"><div class="helper">這是繳款排程起始日，不代表已付款。</div></div>'+
       '<div class="field"><label class="label">系統建立前已繳期數</label><input id="qLoanOpeningPaid" class="input" inputmode="numeric" value="'+qEsc(editing?(l.openingPaidPeriods||''):'')+'" placeholder="例如已繳 1 期就填 1"><div class="helper">只用於既有貸款帶入；之後每次「登記還款」會再自動增加。</div></div>'+
       '<div class="field"><label class="label">備註</label><input id="qLoanNote" class="input" value="'+qEsc(editing?(l.note||''):'')+'" placeholder="可不填"></div></div>'+
+      (!editing?'<div class="quickV2" style="margin-top:12px"><b>💰 貸款撥款／入帳</b><div class="helper" style="display:block!important;margin:5px 0 10px">新貸款若已實際撥款，可在建立貸款時一次入公司資金；不列營業收入。既有貸款只建檔可選「尚未／不建立入帳」。</div><div class="quickV2Head"><div class="field"><label class="label">撥款狀態</label><select id="qLoanDisburseEnabled" class="input"><option value="no">尚未／不建立入帳</option><option value="yes">已實際撥款</option></select></div><div class="field"><label class="label">貸款總額</label><input id="qLoanPrincipal" class="input" inputmode="decimal" placeholder="例如 1000000"></div></div><div id="qLoanDisburseBox" style="display:none"><div class="quickV2Head" style="margin-top:8px"><div class="field"><label class="label">實際撥款日 *</label><input id="qLoanDisburseDate" class="input" type="date" value="'+qToday()+'"></div><div class="field"><label class="label">實際入帳金額 *</label><input id="qLoanDisburseAmount" class="input" inputmode="decimal" placeholder="實際收到金額"></div><div class="field"><label class="label">入帳方式 *</label><select id="qLoanDisburseMethod" class="input"><option value="bank">🏦 入公司帳戶</option><option value="cash">💵 入公司現金</option></select></div><div class="field"><label class="label">實際入帳帳戶 *</label><select id="qLoanDisburseAccount" class="input"></select></div><div class="field"><label class="label">撥款備註</label><input id="qLoanDisburseNote" class="input" placeholder="可不填"></div></div></div></div>':'')+
       '<div class="actions" style="margin-top:10px"><button id="qLoanSave" class="btn primary" type="button">'+(editing?'儲存修改':'建立貸款')+'</button>'+(editing?'<button id="qLoanCancelEdit" class="btn gray" type="button">取消</button>':'')+'</div>'+
       (editing?'<div class="helper" style="display:block!important;margin-top:8px">修改貸款基本資料不會更動既有借款／還款流水。</div>':'')+'</div>';
     const type=work.querySelector('#qLoanType'),vb=work.querySelector('#qLoanVehicleBox');const sync=()=>vb.style.display=type.value==='車貸'?'block':'none';type.onchange=sync;sync();
+    if(!editing){
+      const en=work.querySelector('#qLoanDisburseEnabled'),box=work.querySelector('#qLoanDisburseBox'),method=work.querySelector('#qLoanDisburseMethod'),account=work.querySelector('#qLoanDisburseAccount'),principal=work.querySelector('#qLoanPrincipal'),amt=work.querySelector('#qLoanDisburseAmount');
+      const fillAccounts=()=>{const want=method.value==='cash'?'cash':'bank',rows=qFundAccountMasters().filter(a=>a.status!=='inactive'&&(want==='cash'?a.accountType==='cash':a.accountType!=='cash'));account.innerHTML=rows.map(a=>'<option value="'+qEsc(qFundAccountKey(a))+'">'+qEsc(a.accountName||qFundAccountKey(a))+'</option>').join('');};
+      const syncDis=()=>{box.style.display=en.value==='yes'?'block':'none';if(en.value==='yes')fillAccounts();};
+      en.onchange=syncDis;method.onchange=fillAccounts;principal.oninput=()=>{if(!amt.value)amt.value=principal.value};syncDis();
+    }
     if(editing)work.querySelector('#qLoanCancelEdit').onclick=()=>qRenderLoanDetail(work,l.id);
     work.querySelector('#qLoanSave').onclick=async()=>{try{
       const name=work.querySelector('#qLoanName').value.trim();if(!name)throw new Error('請輸入貸款名稱');
       const periods=Math.max(0,Math.round(Number(work.querySelector('#qLoanPeriods').value||0))),dueDay=Math.max(0,Math.min(31,Math.round(Number(work.querySelector('#qLoanDueDay').value||0))));
       const now=new Date().toISOString(),r=editing?{...l}:{id:'loan_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:qToday(),customer:'公司內帳',contactId:'',mode:'loan_master',txnType:'loan_master',txnTypeLabel:'貸款資料',status:'active',createdAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
       Object.assign(r,{loanType:type.value,loanName:name,lender:work.querySelector('#qLoanLender').value.trim(),vehicleId:type.value==='車貸'?work.querySelector('#qLoanVehicle').value:'',installmentAmount:Math.max(0,Math.round(Number(work.querySelector('#qLoanInstallment').value||0))),totalPeriods:periods,dueDay,firstDueDate:work.querySelector('#qLoanFirstDue').value||'',openingPaidPeriods:Math.max(0,Math.round(Number(work.querySelector('#qLoanOpeningPaid').value||0))),note:work.querySelector('#qLoanNote').value.trim(),updatedAt:now});
-      await saveAccountingCloud(r);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderLoanDetail(document.getElementById('acctStageWork'),r.id);
+      if(!editing){r.principalAmount=Math.max(0,Math.round(Number(work.querySelector('#qLoanPrincipal')?.value||0)));}
+      await saveAccountingCloud(r);
+      if(!editing&&work.querySelector('#qLoanDisburseEnabled')?.value==='yes'){
+        const amount=Math.round(Number(work.querySelector('#qLoanDisburseAmount')?.value||0));if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確的實際入帳金額');
+        const account=work.querySelector('#qLoanDisburseAccount')?.value;if(!account)throw new Error('請選擇實際入帳帳戶');
+        const now2=new Date().toISOString(),mv={id:'loanmove_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qLoanDisburseDate')?.value||qToday(),customer:r.loanName||'貸款',contactId:'',mode:'loan_movement',txnType:'fund_movement',txnTypeLabel:'貸款撥款',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',loanId:r.id,loanAction:'borrow',loanType:r.loanType,fundKind:'loan_in',fundCategory:'貸款管理',fundSubcategory:r.loanName||r.loanType,fundAccount:account,fundAmount:amount,fundDelta:amount,note:work.querySelector('#qLoanDisburseNote')?.value.trim()||'',createdAt:now2,updatedAt:now2,createdBy:(typeof qActor==='function'?qActor():'')};
+        await saveAccountingCloud(mv);
+      }
+      if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderLoanDetail(document.getElementById('acctStageWork'),r.id);
     }catch(e){alert(e.message||String(e))}};
   }
   function qRenderLoanDetail(work,id){
@@ -9368,11 +9383,9 @@ K白.kg
     const s=qLoanStats(l),v=qVehicleById(l.vehicleId),ms=qLoanMovements(id).slice().reverse();
     work.innerHTML='<div class="quickV2"><div class="quickV2ContactHint"><b>'+qEsc(l.loanName||'貸款')+'</b><div class="helper">'+qEsc([l.loanType,l.lender,v?[v.vehiclePlate,v.vehicleName].filter(Boolean).join('｜'):''].filter(Boolean).join('｜'))+'</div>'+
       '<div style="margin-top:8px"><b>每期 '+(s.installment?qFundMoney(s.installment):'未設定')+'</b>｜已繳 '+s.paidCount+' 期'+(s.remainingPeriods!=null?'｜剩餘 '+s.remainingPeriods+' 期':'')+(s.estimatedRemaining!=null?'｜預估剩餘應繳 '+qFundMoney(s.estimatedRemaining):'')+'</div><div class="helper">'+(l.firstDueDate?'第一期繳款日 '+qEsc(l.firstDueDate)+'｜':'')+'預估剩餘應繳不是本金餘額；未提供本金／利息資料時系統不自行推算。</div></div>'+
-      '<div class="actions" style="margin:12px 0"><button class="btn gray" id="qLoanBackList" type="button">← 返回貸款管理</button><button class="btn primary" id="qLoanBorrow" type="button">＋ 借款入帳</button><button class="btn" id="qLoanRepay" type="button">－ 登記還款</button><button class="btn gray" id="qLoanEdit" type="button">✏️ 修改貸款</button></div>'+
-      '<b>貸款流水</b><div class="acctQueueList" style="margin-top:8px">'+(ms.length?ms.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper">'+qEsc(qFundAccountName(r.fundAccount))+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有借款／還款紀錄</div>')+'</div></div>';
+      '<div class="actions" style="margin:12px 0"><button class="btn gray" id="qLoanBackList" type="button">← 返回貸款管理</button><button class="btn gray" id="qLoanEdit" type="button">✏️ 修改貸款</button></div>'+
+      '<div class="helper" style="display:block!important;margin-bottom:10px">每期實際還款統一由「公司待付款」登記，避免重複記帳。</div><b>貸款流水</b><div class="acctQueueList" style="margin-top:8px">'+(ms.length?ms.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.txnTypeLabel||'')+'</b><div class="helper">'+qEsc(qFundAccountName(r.fundAccount))+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0)+'</strong></div>').join(''):'<div class="empty">目前沒有借款／還款紀錄</div>')+'</div></div>';
     work.querySelector('#qLoanBackList').onclick=()=>qRenderLoanHome(work);
-    work.querySelector('#qLoanBorrow').onclick=()=>qRenderLoanMovement(work,l,'borrow');
-    work.querySelector('#qLoanRepay').onclick=()=>qRenderLoanMovement(work,l,'repay');
     work.querySelector('#qLoanEdit').onclick=()=>qRenderLoanEditor(work,l.id);
   }
   window.xrOpenLoanDetail=function(id){const work=document.getElementById('acctStageWork');if(work)qRenderLoanDetail(work,id)};
@@ -9570,10 +9583,10 @@ K白.kg
       '<button type="button" class="quickV2ContactHint" data-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
       '<button type="button" class="quickV2ContactHint" data-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">正式餘額｜點入查看流水</div></button></div>'+
       '<div class="actions" style="margin:12px 0 2px"><button class="btn gray" type="button" id="qFundHomeTransfer">⇄ 帳戶互轉</button></div>'+
-      '<div class="acctStageGrid" style="margin-top:12px">'+['✚ 快速輸入','👤 員工零用金','💳 貸款管理','🏦 帳戶管理','📊 公司內帳報表'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+'</div></div>';
+      '<div class="acctStageGrid" style="margin-top:12px">'+['✚ 快速輸入','👤 員工零用金','💳 貸款管理','🏢 公司待付款','🏦 帳戶管理','📊 公司內帳報表'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+'</div></div>';
     work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
     work.querySelector('#qFundHomeTransfer').onclick=()=>qRenderFundTransfer(work,'company_bank');
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;if(a==='✚ 快速輸入')qRenderCompanyCashflow(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='🏦 帳戶管理')qRenderFundAccounts(work);else if(a==='📊 公司內帳報表'&&typeof window.qN350InternalReport==='function')window.qN350InternalReport(work);});
+    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;if(a==='✚ 快速輸入')qRenderCompanyCashflow(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='🏢 公司待付款'&&typeof window.xrRenderCompanyPendingPayments==='function')window.xrRenderCompanyPendingPayments(work);else if(a==='🏦 帳戶管理')qRenderFundAccounts(work);else if(a==='📊 公司內帳報表'&&typeof window.qN350InternalReport==='function')window.qN350InternalReport(work);});
   }
   // N333：代購毛利只讀既有正式交易 items.source/cost，不另建第二套帳。
   function qProxyProfitRows(){
@@ -10984,7 +10997,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     const due=companyRows();
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🏢 公司待付款｜'+due.length+' 筆</b><div class="helper" style="display:block!important;margin-top:4px">只顯示公司內帳：車貸、租金與每月固定支出；不併入產農／廠商／中盤的待付款。</div></div><button id="qN369Back" class="btn gray" type="button">← 返回帳務中心</button></div><div class="acctQueueList" style="margin-top:12px">'+(due.length?due.map(x=>'<div class="acctQueueRow"><div><b>'+esc(x.due)+'｜'+esc(x.title)+'</b><div class="helper">'+esc(x.detail)+(x.overdue?'｜已到期':'｜本期待付款')+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>'+money(x.amount)+'</strong>'+(x.kind==='loan'?'<button type="button" class="btn primary" data-n369-loan="'+esc(x.id)+'">登記還款</button>':'<button type="button" class="btn primary" data-n369-fixed="'+esc(x.id)+'">前往公司內帳</button>')+'</div></div>').join(''):'<div class="empty">目前沒有公司待付款</div>')+'</div></div>';
     work.querySelector('#qN369Back')?.addEventListener('click',()=>{try{window.xrAcctOpenSection?.('home')}catch(_e){document.querySelector('.acctManagementHome')?.scrollIntoView({block:'start'})}});
-    work.querySelectorAll('[data-n369-loan]').forEach(b=>b.onclick=()=>{try{window.xrOpenLoanDetail?.(b.dataset.n369Loan)}catch(_e){}});
+    work.querySelectorAll('[data-n369-loan]').forEach(b=>b.onclick=()=>{try{const l=qLoanById(b.dataset.n369Loan);if(l)qRenderLoanMovement(work,l,'repay')}catch(_e){}});
     work.querySelectorAll('[data-n369-fixed]').forEach(b=>b.onclick=()=>{try{window.qRenderCompanyCashflow?.(work)}catch(_e){alert('請進入公司內帳確認固定支出')}});
   };
   // 舊 N364 嵌入付款頁的函式停用，避免公司內帳再次混入往來待付款。
@@ -11053,5 +11066,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
   },false);
 })();
 </script>
+<!-- N370：貸款新增時整合撥款入帳（公司帳戶／公司現金）；貸款明細移除重複借款入帳與還款；公司內帳新增公司待付款入口。 -->
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
