@@ -9872,7 +9872,7 @@ K白.kg
   function qRenderVehicleMaster(work){
     const vs=qCompanyVehicles();
     work.innerHTML='<div class="quickV2"><div class="actions" style="margin-bottom:10px"><button class="btn primary" id="qVehNew">＋ 新增車輛</button></div><div class="helper">車輛類型：機車／轎車／貨車；貨車再分規格（2.7 噸／3.5 噸／18 噸）與車體用途（一般／冷藏／冷凍）。</div><div id="qVehList">'+(vs.length?vs.map(v=>'<div class="acctQueueRow"><div><b>'+qEsc(v.vehiclePlate)+'</b><div class="helper">'+qEsc([v.vehicleName,v.vehicleType,v.vehicleDriver].filter(Boolean).join('｜')||'尚未補齊車輛資料')+'</div></div><div class="actions"><button class="btn blue" data-vdetail="'+qEsc(v.id)+'">查看完整資料</button><button class="btn gray" data-vedit="'+qEsc(v.id)+'">修改</button></div></div>').join(''):'<div class="empty">目前尚未建立公司車輛</div>')+'</div></div>';
-    const edit=async(v)=>{const plate=prompt('車牌',v?.vehiclePlate||'');if(plate===null||!plate.trim())return;const name=prompt('品牌／型號',v?.vehicleName||'')??'';let vehicleClass=prompt('車輛類型：機車／轎車／貨車',v?.vehicleClass||((v?.vehicleType||'').includes('貨')||['2.7 噸','3.5 噸','18 噸'].some(x=>(v?.vehicleType||'').includes(x)))?'貨車':(v?.vehicleType||''))||'貨車');if(vehicleClass===null)return;vehicleClass=vehicleClass.trim();if(!['機車','轎車','貨車'].includes(vehicleClass)){alert('車輛類型請輸入：機車、轎車或貨車');return}let truckSpec='',bodyType='';if(vehicleClass==='貨車'){truckSpec=prompt('貨車規格：2.7 噸／3.5 噸／18 噸／其他',v?.truckSpec||'3.5 噸')??'';bodyType=prompt('車體／用途：一般／冷藏／冷凍／其他',v?.bodyType||'一般')??''}const driver=prompt('固定司機',v?.vehicleDriver||'')??'';const year=prompt('年份',v?.vehicleYear||'')??'';const note=prompt('備註',v?.note||'')??'';const now=new Date().toISOString();const typeLabel=[vehicleClass,truckSpec,bodyType&&bodyType!=='一般'?bodyType:''].filter(Boolean).join('｜');const r={...(v||{}),id:v?.id||('vehicle_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),date:v?.date||qToday(),mode:'vehicle_master',txnType:'vehicle_master',txnTypeLabel:'公司車籍',status:'active',vehiclePlate:plate.trim().toUpperCase(),vehicleName:name.trim(),vehicleClass,truckSpec:vehicleClass==='貨車'?truckSpec.trim():'',bodyType:vehicleClass==='貨車'?bodyType.trim():'',vehicleType:typeLabel,vehicleDriver:driver.trim(),vehicleYear:year.trim(),note:note.trim(),createdAt:v?.createdAt||now,updatedAt:now};await saveAccountingCloud(r);await qVehRefresh();qRenderVehicleMaster(work)};
+    const edit=async(v)=>{const plate=prompt('車牌',v?.vehiclePlate||'');if(plate===null||!plate.trim())return;const name=prompt('品牌／型號',v?.vehicleName||'')??'';const _oldType=String(v?.vehicleType||'');const _defaultClass=v?.vehicleClass||((_oldType.includes('貨')||['2.7 噸','3.5 噸','18 噸'].some(x=>_oldType.includes(x)))?'貨車':(_oldType||'貨車'));let vehicleClass=prompt('車輛類型：機車／轎車／貨車',_defaultClass);if(vehicleClass===null)return;vehicleClass=vehicleClass.trim();if(!['機車','轎車','貨車'].includes(vehicleClass)){alert('車輛類型請輸入：機車、轎車或貨車');return}let truckSpec='',bodyType='';if(vehicleClass==='貨車'){truckSpec=prompt('貨車規格：2.7 噸／3.5 噸／18 噸／其他',v?.truckSpec||'3.5 噸')??'';bodyType=prompt('車體／用途：一般／冷藏／冷凍／其他',v?.bodyType||'一般')??''}const driver=prompt('固定司機',v?.vehicleDriver||'')??'';const year=prompt('年份',v?.vehicleYear||'')??'';const note=prompt('備註',v?.note||'')??'';const now=new Date().toISOString();const typeLabel=[vehicleClass,truckSpec,bodyType&&bodyType!=='一般'?bodyType:''].filter(Boolean).join('｜');const r={...(v||{}),id:v?.id||('vehicle_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),date:v?.date||qToday(),mode:'vehicle_master',txnType:'vehicle_master',txnTypeLabel:'公司車籍',status:'active',vehiclePlate:plate.trim().toUpperCase(),vehicleName:name.trim(),vehicleClass,truckSpec:vehicleClass==='貨車'?truckSpec.trim():'',bodyType:vehicleClass==='貨車'?bodyType.trim():'',vehicleType:typeLabel,vehicleDriver:driver.trim(),vehicleYear:year.trim(),note:note.trim(),createdAt:v?.createdAt||now,updatedAt:now};await saveAccountingCloud(r);await qVehRefresh();qRenderVehicleMaster(work)};
     work.querySelector('#qVehNew').onclick=()=>edit(null);work.querySelectorAll('[data-vedit]').forEach(b=>b.onclick=()=>edit(qVehicleById(b.dataset.vedit)));work.querySelectorAll('[data-vdetail]').forEach(b=>b.onclick=()=>qRenderVehicleDetail(work,b.dataset.vdetail));
   }
   function qRenderVehicleTrips(work,vehicleId=''){
@@ -11142,7 +11142,48 @@ window.qNormalizeTurnAction=qN93TurnAction;
 </script>
 <!-- N371：修正公司待付款「登記還款」跨作用域失效；返回鍵改回公司內帳。 -->
 <!-- N370：貸款新增時整合撥款入帳（公司帳戶／公司現金）；貸款明細移除重複借款入帳與還款；公司內帳新增公司待付款入口。 -->
-\n<!-- N373：公司待付款事件使用文件層 capture 唯一路由，避免畫面重繪後按鈕失效。 -->\n<script>\n(function(){\n  'use strict';\n  if(window.__XR_N373_COMPANY_DUE_ROUTE__) return;\n  window.__XR_N373_COMPANY_DUE_ROUTE__=true;\n\n  function getWork(){ return document.getElementById('acctStageWork'); }\n\n  document.addEventListener('click',function(e){\n    const repay=e.target && e.target.closest ? e.target.closest('[data-n369-loan]') : null;\n    if(repay){\n      e.preventDefault();\n      e.stopPropagation();\n      if(e.stopImmediatePropagation) e.stopImmediatePropagation();\n      const id=String(repay.getAttribute('data-n369-loan')||'').trim();\n      try{\n        if(!id) throw new Error('找不到貸款編號');\n        if(typeof window.xrOpenLoanRepay!=='function') throw new Error('貸款還款功能尚未載入');\n        window.xrOpenLoanRepay(id);\n      }catch(err){\n        console.error('N373 open loan repay failed',err);\n        alert('無法開啟登記還款：'+(err && err.message ? err.message : err));\n      }\n      return;\n    }\n\n    const back=e.target && e.target.closest ? e.target.closest('#qN369Back') : null;\n    if(back){\n      e.preventDefault();\n      e.stopPropagation();\n      if(e.stopImmediatePropagation) e.stopImmediatePropagation();\n      try{\n        if(typeof window.xrOpenFundHome==='function') window.xrOpenFundHome();\n        else throw new Error('公司內帳功能尚未載入');\n      }catch(err){\n        console.error('N373 back fund home failed',err);\n        alert('無法返回公司內帳，請重新整理後再試');\n      }\n    }\n  },true);\n})();\n</script>\n
+\n<!-- N373：公司待付款事件使用文件層 capture 唯一路由，避免畫面重繪後按鈕失效。 -->\n<script>
+(function(){
+  'use strict';
+  if(window.__XR_N373_COMPANY_DUE_ROUTE__) return;
+  window.__XR_N373_COMPANY_DUE_ROUTE__=true;
+
+  function getWork(){ return document.getElementById('acctStageWork'); }
+
+  document.addEventListener('click',function(e){
+    const repay=e.target && e.target.closest ? e.target.closest('[data-n369-loan]') : null;
+    if(repay){
+      e.preventDefault();
+      e.stopPropagation();
+      if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+      const id=String(repay.getAttribute('data-n369-loan')||'').trim();
+      try{
+        if(!id) throw new Error('找不到貸款編號');
+        if(typeof window.xrOpenLoanRepay!=='function') throw new Error('貸款還款功能尚未載入');
+        window.xrOpenLoanRepay(id);
+      }catch(err){
+        console.error('N373 open loan repay failed',err);
+        alert('無法開啟登記還款：'+(err && err.message ? err.message : err));
+      }
+      return;
+    }
+
+    const back=e.target && e.target.closest ? e.target.closest('#qN369Back') : null;
+    if(back){
+      e.preventDefault();
+      e.stopPropagation();
+      if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+      try{
+        if(typeof window.xrOpenFundHome==='function') window.xrOpenFundHome();
+        else throw new Error('公司內帳功能尚未載入');
+      }catch(err){
+        console.error('N373 back fund home failed',err);
+        alert('無法返回公司內帳，請重新整理後再試');
+      }
+    }
+  },true);
+})();
+</script>\n
 <!-- N374：雙報表正式唯讀版。公司內帳報表／全公司報表共用正式資料，不建立任何交易。 -->
 <script>
 (function(){
