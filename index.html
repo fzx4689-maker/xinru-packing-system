@@ -9673,7 +9673,7 @@ K白.kg
       work.querySelectorAll('[data-fund-edit]').forEach(b=>b.onclick=()=>{const r=allRows.find(x=>String(x.id)===String(b.dataset.fundEdit));if(!r)return;work.querySelector('#qFundDate').value=r.date||qToday();kind.value=r.fundKind||'expense';owner.value=r.fundOwner||'xinru';rebuildCats();syncRelation();if([...cat.options].some(o=>o.value===r.fundCategory))cat.value=r.fundCategory;syncSub();sub.value=r.fundSubcategory||sub.value;work.querySelector('#qFundAmount').value=amt(r)||'';work.querySelector('#qFundAccount').value=r.fundAccount||work.querySelector('#qFundAccount').value;work.querySelector('#qFundNote').value=r.note||'';if(r.vehicleId)work.querySelector('#qFundVehicle').value=r.vehicleId;syncSub();relation.value=r.fundRelation||relation.value;work.dataset.editFundId=r.id;work.querySelector('#qFundSave').textContent='儲存修改';window.scrollTo({top:0,behavior:'smooth'})});
       work.querySelectorAll('[data-fund-void]').forEach(b=>b.onclick=async()=>{const r=allRows.find(x=>String(x.id)===String(b.dataset.fundVoid));if(!r||!confirm('確定作廢這筆公司收支？資金餘額與相關統計會同步取消。'))return;r.status='void';r.updatedAt=new Date().toISOString();await saveAccountingCloud(r);await qSyncCompanyContainerPurchase(r,'void');if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'))});
       work.querySelectorAll('[data-fund-delete]').forEach(b=>b.onclick=async()=>{const r=allRows.find(x=>String(x.id)===String(b.dataset.fundDelete));if(!r)return;if(typeof isAdmin==='function'&&!isAdmin()){alert('只有管理員可以永久刪除');return}if(!confirm('永久刪除後無法復原，確定刪除？'))return;const now=new Date().toISOString();r.status='deleted';r.txnType='deleted';r.fundDelta=0;r.updatedAt=now;r.note=[r.note,'永久刪除'].filter(Boolean).join('｜');await saveAccountingCloud(r);await qSyncCompanyContainerPurchase(r,'deleted');if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'))});
-    };paint();
+    };
     work.querySelector('#qFundSave').onclick=async()=>{try{
       const amount=Number(work.querySelector('#qFundAmount').value||0),isExpense=kind.value==='expense',category=cat.value,vehicleId=(isExpense&&category==='車輛費用')?work.querySelector('#qFundVehicle').value:'',containerPurchaseType=(isExpense&&category==='營業耗材'&&['籃子','保麗龍'].includes(sub.value))?sub.value:'';
       const fundNote=work.querySelector('#qFundNote').value.trim();
@@ -9690,6 +9690,8 @@ K白.kg
       if(!existing&&isExpense&&recurring.checked){const day=Math.max(1,Math.min(31,Number(work.querySelector('#qFundRecurringDay').value)||0));if(!day)throw new Error('請輸入每月付款日');const tpl={...r,id:'fundrec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),mode:'fund_recurring_template',txnType:'fund_recurring_template',txnTypeLabel:'每月固定支出',fundDelta:0,recurringDay:day,createdAt:now,updatedAt:now};await saveAccountingCloud(tpl);r.recurringTemplateId=tpl.id;await saveAccountingCloud(r)}
       if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'));alert(existing?'公司收支已修改':(recurring.checked?'公司收支已建立，並設定每月固定支出':'公司收支已建立'))
     }catch(e){alert(e.message||String(e))}};
+    // N359：先綁定完成登記，再繪製附屬區塊；附屬統計若出錯不得讓主表單按鈕失效。
+    try{paint()}catch(e){console.error('company cashflow paint failed',e)}
   }
   // N329：舊帳「待確認資金帳戶」正式認領。只補資金帳戶，不改原交易金額／收付款內容。
   function qFundPendingRows(){return qFundRows().filter(r=>r&&r.fundPending)}
@@ -10755,6 +10757,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
 
 
 <script>
+/* N359：修正公司內帳「完成登記」事件被附屬 paint 例外中斷：主表單儲存先綁定，附屬統計失敗不影響登記。 */
 /* N358：修正細項選擇被重設為第一項；籃子／保麗龍採購數量改由備註（例：1000個）解析並連動容器管理。 */
 /* N357：修正公司內帳收入／支出分類完全分流；營業耗材加入籃子；籃子／保麗龍採購數量同步公司容器庫存；修改／作廢／刪除同步。 */
 /* N355：報表內公司收支可修改／作廢／刪除；貸款明細可返回貸款管理；代購毛利手機統計卡改為 2×2 並縮字。 */
