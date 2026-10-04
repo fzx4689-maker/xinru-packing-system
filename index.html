@@ -7497,7 +7497,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     // N365：首頁徽章直接讀 N332 應收應付摘要，不再為 2 個數字逐往來重掃完整歷史。
     let qN218ReceiptPending = 0;
     let qN218PaymentPending = 0;
-    const qN365Snapshot = qN332LoadCache() || qN332BuildMoneySnapshot(true);
+    const qN365Snapshot = qN332LoadCache();
     if(qN365Snapshot?.groups){
       qN218ReceiptPending = Object.values(qN365Snapshot.groups.receipt||{}).reduce((n,rows)=>n+(Array.isArray(rows)?rows.length:0),0);
       qN218PaymentPending = Object.values(qN365Snapshot.groups.payment||{}).reduce((n,rows)=>n+(Array.isArray(rows)?rows.length:0),0);
@@ -11022,75 +11022,67 @@ window.qNormalizeTurnAction=qN93TurnAction;
 })();
 </script>
 
-<!-- N366：效能核心 V2 穩定性修正；首頁操作事件與待辦刷新彼此隔離。 -->
+
+
+<!-- N367：效能核心 V2 首頁非阻塞摘要；保留 N364 原始唯一入口。 -->
 <script>
 (function(){
   'use strict';
-  if(window.__XR_N366_STABILITY__) return;
-  window.__XR_N366_STABILITY__=true;
+  if(window.__XR_N367_NONBLOCKING__) return;
+  window.__XR_N367_NONBLOCKING__=true;
 
-  // A 層：固定在 document 的捕獲階段接住帳務九入口。
-  // 不依賴首頁 grid 是否被重繪，也不等待 accounting_records 完成載入。
-  document.addEventListener('click',function(e){
-    const btn=e.target && e.target.closest ? e.target.closest('#acctManagementGrid [data-acct-manage]') : null;
-    if(!btn) return;
-    const key=btn.getAttribute('data-acct-manage');
-    if(!key) return;
-    if(typeof window.xrAcctOpenSection==='function'){
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      try{ window.xrAcctOpenSection(key); }
-      catch(err){ console.error('N366 帳務入口失敗',key,err); }
+  let building=false, rerun=false;
+  const yieldUI=()=>new Promise(resolve=>setTimeout(resolve,0));
+
+  async function buildSnapshotAsync(){
+    if(building){ rerun=true; return; }
+    if(typeof qN332LoadCache==='function' && qN332LoadCache()){
+      try{ window.xrAccountingNav?.paintWorkBadges?.(); }catch(_e){}
+      return;
     }
-  },true);
+    if(typeof qAccountingMoneyContactCandidates!=='function' || typeof qContactOpenTotals!=='function') return;
+    building=true;
+    try{
+      const groups={receipt:{'一般客戶':[],超市:[],中盤:[],'其他應收':[]},payment:{產農:[],廠商:[],中盤:[],'其他應付':[]}};
+      let receiptTotal=0,paymentTotal=0;
+      const candidates=qAccountingMoneyContactCandidates();
+      for(let i=0;i<candidates.length;i++){
+        const c=candidates[i];
+        let tot={receivable:0,payable:0};
+        try{ tot=qN219WithCalc(()=>qContactOpenTotals(c))||tot; }catch(_e){}
+        const r=Number(tot?.receivable||0),p=Number(tot?.payable||0),id=String(c?.identity||'').trim();
+        if(r>0.000001){
+          const g=id==='超市'?'超市':id==='中盤'?'中盤':(id==='一般客戶'||id==='客戶')?'一般客戶':'其他應收';
+          groups.receipt[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:r}); receiptTotal+=r;
+        }
+        if(p>0.000001){
+          const g=id==='產農'?'產農':id==='廠商'?'廠商':id==='中盤'?'中盤':'其他應付';
+          groups.payment[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:p}); paymentTotal+=p;
+        }
+        // 每一位往來後把主執行緒還給瀏覽器，避免首頁卡死、按鈕不能按。
+        await yieldUI();
+      }
+      if(typeof qN332SaveCache==='function') qN332SaveCache({groups,receiptTotal,paymentTotal,builtAt:Date.now()});
+      try{ window.xrAccountingNav?.paintWorkBadges?.(); }catch(_e){}
+    } finally {
+      building=false;
+      if(rerun){ rerun=false; setTimeout(buildSnapshotAsync,50); }
+    }
+  }
+  window.xrBuildAccountingSnapshotAsync=buildSnapshotAsync;
 
-  // C 層：待辦刷新永遠在首屏可操作之後執行；失敗可重試，但不阻塞首頁。
-  let badgeTimer=0,badgeBusy=false,badgeAttempts=0;
-  function badgesVisible(){
+  function startWhenVisible(){
     const box=document.getElementById('acctWorkBadges');
-    return !!(box && box.offsetParent!==null);
+    if(!box || box.offsetParent===null) return;
+    // 先讓原始首頁與 N364 唯一事件路由完成，再背景分批建立摘要。
+    if(typeof qN332LoadCache==='function' && !qN332LoadCache()) setTimeout(buildSnapshotAsync,120);
+    else { try{ window.xrAccountingNav?.paintWorkBadges?.(); }catch(_e){} }
   }
-  function paintBadges(){
-    clearTimeout(badgeTimer);
-    if(badgeBusy) return;
-    badgeTimer=setTimeout(function(){
-      if(!badgesVisible()) return;
-      const fn=window.xrAccountingNav && window.xrAccountingNav.paintWorkBadges;
-      if(typeof fn!=='function'){
-        if(badgeAttempts++<12) badgeTimer=setTimeout(paintBadges,250);
-        return;
-      }
-      badgeBusy=true;
-      try{
-        fn();
-        badgeAttempts=0;
-      }catch(err){
-        console.warn('N366 待辦刷新失敗，不影響帳務入口',err);
-        if(badgeAttempts++<4) badgeTimer=setTimeout(paintBadges,500);
-      }finally{
-        badgeBusy=false;
-      }
-    },30);
-  }
-  window.xrN366PaintBadges=paintBadges;
-
-  function boot(){
-    // 先保證入口可點，再處理待辦；不在這裡觸發全量雲端重抓。
-    setTimeout(paintBadges,80);
-    setTimeout(paintBadges,700);
-    setTimeout(paintBadges,1800);
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true});
-  else boot();
-
-  // 使用者回到帳務首頁時再輕量刷新一次待辦。
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',startWhenVisible,{once:true});
+  else startWhenVisible();
   document.addEventListener('click',function(e){
-    if(e.target && e.target.closest && e.target.closest('.tab[data-tab="accounting"]')) setTimeout(paintBadges,60);
+    if(e.target?.closest?.('.tab[data-tab="accounting"]')) setTimeout(startWhenVisible,60);
   },false);
-
-  // 資料同步完成時，舊核心通常會更新 acctRecords；以既有自訂事件/焦點返回做補刷新，
-  // 不建立輪詢，不增加常駐負擔。
-  window.addEventListener('focus',function(){ if(badgesVisible()) setTimeout(paintBadges,80); },{passive:true});
 })();
 </script>
 </body></html>
