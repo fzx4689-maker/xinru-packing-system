@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N352｜公司內帳層級一次修正</title>
+<title>欣儒系統｜N353｜公司內帳快速輸入排版修正</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -1969,6 +1969,14 @@ body.wall-focus #wall .wallOrderNote{
 @media(max-width:430px){
   .qCrossEntityStats{grid-template-columns:1fr!important}
 }
+</style>
+
+<style id="n353-company-cashflow-layout">
+/* N353：公司內帳快速輸入。移除可見「款項性質」，欄位重新對齊；不改資金核心。 */
+#acctStageWork .qFundMainRow{grid-template-columns:minmax(170px,.85fr) minmax(170px,.85fr) minmax(260px,1.35fr) minmax(220px,1fr);}
+#acctStageWork #qFundVehicleBox{grid-column:1 / -1;max-width:520px;}
+@media(max-width:900px){#acctStageWork .quickV2Head,#acctStageWork .qFundMainRow{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:560px){#acctStageWork .quickV2Head,#acctStageWork .qFundMainRow{grid-template-columns:1fr;}#acctStageWork #qFundVehicleBox{grid-column:auto;max-width:none;}}
 </style>
 </head>
 <body class="auth-booting">
@@ -9579,8 +9587,7 @@ K白.kg
       '<div class="field"><label class="label">收入／支出 *</label><select id="qFundKind" class="input"><option value="expense">支出</option><option value="income">收入</option></select></div>'+
       '<div class="field"><label class="label">分類 *</label><select id="qFundCat" class="input">'+catOpts+'</select></div>'+
       '<div class="field"><label class="label">細項 *</label><select id="qFundSub" class="input"></select></div></div>'+
-      '<div class="quickV2Head" style="margin-top:8px"><div class="field"><label class="label">收支歸屬 *</label><select id="qFundOwner" class="input"><option value="xinru">欣儒農產行</option>'+((typeof isAdmin==="function"&&isAdmin())?'<option value="xuansheng">玄聖宮（管理員）</option>':'')+'</select></div><div class="field" id="qFundRelationBox"><label class="label">款項性質 *</label><select id="qFundRelation" class="input"></select><div class="helper" id="qFundRelationHelp"></div></div></div>'+
-      '<div class="quickV2Head" style="margin-top:8px"><div class="field"><label class="label">金額 *</label><input id="qFundAmount" class="input" inputmode="decimal" placeholder="例如 3000"></div>'+
+      '<div class="quickV2Head qFundMainRow" style="margin-top:8px"><div class="field"><label class="label">收支歸屬 *</label><select id="qFundOwner" class="input"><option value="xinru">欣儒農產行</option>'+((typeof isAdmin==="function"&&isAdmin())?'<option value="xuansheng">玄聖宮（管理員）</option>':'')+'</select><select id="qFundRelation" style="display:none"><option value="own">欣儒本身</option></select><div id="qFundRelationHelp" style="display:none"></div></div><div class="field"><label class="label">金額 *</label><input id="qFundAmount" class="input" inputmode="decimal" placeholder="例如 3000"></div>'+
       '<div class="field"><label class="label">資金帳戶 *</label><select id="qFundAccount" class="input">'+qFundAccountOptions('company_bank')+'</select></div>'+
       '<div class="field" id="qFundVehicleBox" style="display:none"><label class="label">車輛 *</label><select id="qFundVehicle" class="input"><option value="">請選擇車籍資料</option>'+vehicleOpts+'</select><div class="helper">'+(vehicles.length?'直接連結車籍資料 ID':'目前沒有車籍資料，請先到「車輛管理 → 車輛資料」建立')+'</div></div>'+
       '<div class="field"><label class="label">備註</label><input id="qFundNote" class="input" placeholder="可不填"></div></div>'+
@@ -9589,9 +9596,9 @@ K白.kg
     const cat=work.querySelector('#qFundCat'),sub=work.querySelector('#qFundSub'),kind=work.querySelector('#qFundKind'),vb=work.querySelector('#qFundVehicleBox'),owner=work.querySelector('#qFundOwner'),relation=work.querySelector('#qFundRelation'),relationHelp=work.querySelector('#qFundRelationHelp');
     const recurring=work.querySelector('#qFundRecurring'),recurringFields=work.querySelector('#qRecurringFields');
     recurring.onchange=()=>{recurringFields.style.display=recurring.checked?'block':'none'};
-    work.querySelector('#qCompanyCashHistory').onclick=()=>qRenderCompanyCashflowHistory(work);
+    const cashHistoryBtn=work.querySelector('#qCompanyCashHistory');if(cashHistoryBtn)cashHistoryBtn.onclick=()=>qRenderCompanyCashflowHistory(work);
     work.querySelectorAll('[data-company-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.companyFundAccount));
-    work.querySelector('#qCompanyTransfer').onclick=()=>qRenderFundTransfer(work,'company_bank');
+    const companyTransferBtn=work.querySelector('#qCompanyTransfer');if(companyTransferBtn)companyTransferBtn.onclick=()=>qRenderFundTransfer(work,'company_bank');
     const syncRelation=()=>{const o=owner.value,k=kind.value;if(o==='xuansheng'){if(k==='income'){relation.innerHTML='<option value="">玄聖宮收入請至玄聖宮帳務登記</option>';relationHelp.textContent='玄聖宮財務只供管理員處理；玄聖宮自己的收入留在玄聖宮帳務。'}else{relation.innerHTML='<option value="advance">代墊（玄聖宮欠欣儒）</option><option value="sponsor">贊助</option>';relationHelp.textContent='玄聖宮跨帳資料只供管理員查看。'}}else{relation.innerHTML='<option value="own">欣儒本身</option>';relationHelp.textContent='欣儒自己的收入／支出。'}};
     const rebuildCats=()=>{const set=cats(),prev=cat.value;cat.innerHTML=Object.keys(set).map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');if(set[prev])cat.value=prev;syncSub()};
     const syncSub=()=>{const set=cats();sub.innerHTML=(set[cat.value]||['其他']).map(x=>'<option>'+qEsc(x)+'</option>').join('');vb.style.display=(kind.value==='expense'&&cat.value==='車輛費用')?'block':'none'};
