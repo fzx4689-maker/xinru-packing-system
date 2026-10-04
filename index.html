@@ -4548,57 +4548,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N289：待補價格改為同一資料核心的響應式列；電腦每商品同排顯示日期／暫存／正式儲存，手機改卡片堆疊不橫向溢位；每列按鈕只處理該品項，避免誤存同交易其他未完成價格。 -->
 <!-- N296: 帳期原始明細固定；部分收付款不改變原始筆數、品項數、原金額。 -->
 
-<script>
-/* N350：公司內帳＋雙報表正式架構。報表只讀，不產生資金流水。 */
-(function(){
-  window.qFundCategories=function(){return {
-    '車輛費用':['油資','保養','維修','輪胎','驗車','保險','稅金','停車費','eTag','市場停車費','其他'],
-    '租金':['店舖／攤位租金','冰庫－大庫','冰庫－小庫','其他租金'],
-    '水電／能源':['水費','電費','瓦斯','其他'],
-    '伙食／飲料':['早餐','午餐','晚餐','點心','飲料','炊事食材','其他伙食'],
-    '營業耗材':['包裝袋','紙箱','包裝耗材','打包耗材','標籤耗材','工作／包裝防護用品','保麗龍','碎冰／冰塊','其他營業耗材'],
-    '用品／文具':['餐盤／筷子／免洗碗','清潔用品','文具用品','充電線／3C小用品','衛生紙／日用品','其他用品'],
-    '設備／維修':['生產／包裝設備','印表／標籤設備','電子秤','電腦／手機','家具設備','炊事設備','設備維修','其他設備'],
-    '電話／網路／系統':['電話費','網路費','軟體／系統服務費','網站／雲端服務','其他'],
-    '宣傳／廣告':['名片','DM／傳單','布條／看板','海報／印刷','網路廣告','宣傳活動','其他宣傳費'],
-    '交際／送禮':['中秋送禮','過年送禮','一般送禮','禮金／紅包','禮盒','老闆交際','婚喪喜慶','其他交際支出'],
-    '祭祀／拜拜':['金紙','香／香品','供品','鮮花','神明用品','香油錢／添油香','節慶祭祀','其他祭祀用品'],
-    '員工醫療／職安':['員工就醫','公司負擔醫療費','健康檢查','職災醫療','急救／醫療用品','其他醫療費'],
-    '工作服／制服':['工作服','制服訂製','外套','圍裙','工作鞋／雨鞋','帽子','其他工作服用品'],
-    '公益／捐款':['公益捐款','贊助','其他捐款'],
-    '稅費':['稅金','規費','其他'],
-    '其他支出':['其他'],'其他收入':['補助收入','其他營業收入','其他']
-  }};
-  window.qFundStageHeader=function(mode='home',title=''){
-    const stage=document.getElementById('acctStage'),head=stage?.querySelector('.acctStageHead'),oldBack=stage?.querySelector('#acctStageBack'),arap=stage?.querySelector('#qN332Overview');
-    if(arap)arap.style.display=(mode==='home'?'grid':'none'); if(!head||!oldBack)return;
-    const back=oldBack.cloneNode(true);oldBack.replaceWith(back); const h3=head.querySelector('h3'),desc=head.querySelector('.helper');
-    if(mode==='home'){if(h3)h3.textContent='💵 公司內帳';if(desc)desc.textContent='公司內部資金、快速輸入、零用金、貸款與營運成本分析。';back.textContent='← 返回收款／付款';back.addEventListener('click',()=>open('payment',false),{once:true});}
-    else{if(h3)h3.textContent=title||'💵 公司內帳';if(desc)desc.textContent='';back.textContent='← 返回公司內帳';back.addEventListener('click',()=>qRenderFundHome(document.getElementById('acctStageWork')),{once:true});}
-  };
-  window.qRenderFundHome=function(work){
-    qFundStageHeader('home'); const bank=qFundBalance('company_bank'),cash=qFundBalance('company_cash');
-    work.innerHTML='<div class="quickV2"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+
-      '<button type="button" class="quickV2ContactHint" data-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
-      '<button type="button" class="quickV2ContactHint" data-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">正式餘額｜點入查看流水</div></button></div>'+
-      '<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="qFundTransferHome">⇄ 帳戶互轉</button></div>'+
-      '<div class="acctStageGrid" style="margin-top:12px">'+['✚ 快速輸入','👤 員工零用金','💳 貸款管理','🏦 資金帳戶管理','📊 公司內帳報表'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+'</div></div>';
-    work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
-    work.querySelector('#qFundTransferHome').onclick=()=>qRenderFundTransfer(work,'company_bank');
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;if(a==='✚ 快速輸入')qRenderCompanyCashflow(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='📊 公司內帳報表')qN350InternalReport(work);});
-  };
-  function rangeFor(mode,anchor){const d=new Date((anchor||qToday())+'T12:00:00'),iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');let a=new Date(d),b=new Date(d);if(mode==='week'){a.setDate(d.getDate()-((d.getDay()+6)%7));b=new Date(a);b.setDate(a.getDate()+6)}else if(mode==='month'){a=new Date(d.getFullYear(),d.getMonth(),1,12);b=new Date(d.getFullYear(),d.getMonth()+1,0,12)}else if(mode==='quarter'){const m=Math.floor(d.getMonth()/3)*3;a=new Date(d.getFullYear(),m,1,12);b=new Date(d.getFullYear(),m+3,0,12)}else if(mode==='year'){a=new Date(d.getFullYear(),0,1,12);b=new Date(d.getFullYear(),11,31,12)}return [iso(a),iso(b)]}
-  function reportShell(work,title,allRows){let mode='month',anchor=qToday(),kind='',cat='',sub='';const amt=r=>Math.abs(Number(r.reportAmount??r.fundAmount??r.fundDelta??0));
-    work.innerHTML='<div class="quickV2"><b style="font-size:22px">'+title+'</b><div class="helper" style="display:block!important;margin:5px 0 10px">只讀正式交易；切換報表不會新增、扣除或重複計帳。</div><div class="actions" id="qN350Modes">'+[['day','日'],['week','週'],['month','月'],['quarter','季'],['year','年']].map(x=>'<button class="btn gray" data-m="'+x[0]+'">'+x[1]+'</button>').join('')+'</div><div class="quickV2Head" style="margin-top:10px"><div class="field"><label class="label">基準日期</label><input id="qN350Anchor" class="input" type="date" value="'+anchor+'"></div><div class="field"><label class="label">收入／支出</label><select id="qN350Kind" class="input"><option value="">全部</option><option value="income">收入</option><option value="expense">支出／成本</option></select></div><div class="field"><label class="label">分類</label><select id="qN350Cat" class="input"></select></div><div class="field"><label class="label">細項</label><select id="qN350Sub" class="input"></select></div></div><div id="qN350Body" style="margin-top:14px"></div></div>';
-    const paint=()=>{const [f,t]=rangeFor(mode,anchor);let rows=allRows().filter(r=>r.status!=='void'&&(!f||r.date>=f)&&(!t||r.date<=t));if(kind)rows=rows.filter(r=>r.reportKind===kind||r.fundKind===kind);if(cat)rows=rows.filter(r=>(r.reportCategory||r.fundCategory)===cat);if(sub)rows=rows.filter(r=>(r.reportSubcategory||r.fundSubcategory)===sub);const inc=rows.filter(r=>(r.reportKind||r.fundKind)==='income').reduce((a,r)=>a+amt(r),0),exp=rows.filter(r=>(r.reportKind||r.fundKind)==='expense').reduce((a,r)=>a+amt(r),0);const groups={};rows.forEach(r=>{const k=r.reportCategory||r.fundCategory||'未分類';groups[k]=(groups[k]||0)+amt(r)});const body=work.querySelector('#qN350Body');body.innerHTML='<div class="helper" style="margin-bottom:8px"><b>'+f+' ～ '+t+'</b></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px"><div class="quickV2ContactHint"><div class="helper">收入</div><b style="font-size:25px">'+qFundMoney(inc)+'</b></div><div class="quickV2ContactHint"><div class="helper">支出／成本</div><b style="font-size:25px">'+qFundMoney(exp)+'</b></div><div class="quickV2ContactHint"><div class="helper">差額</div><b style="font-size:25px">'+qFundMoney(inc-exp)+'</b></div></div><div class="acctQueueList" style="margin-top:12px">'+(rows.length?rows.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.reportCategory||r.fundCategory||'未分類')+(r.reportSubcategory||r.fundSubcategory?'／'+qEsc(r.reportSubcategory||r.fundSubcategory):'')+'</b><div class="helper">'+qEsc(r.reportParty||r.customer||qFundAccountName(r.fundAccount)||'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+((r.reportKind||r.fundKind)==='income'?'+':'-')+qFundMoney(amt(r))+'</strong></div>').join(''):'<div class="empty">這個期間沒有資料</div>')+'</div>';};
-    const refreshFilters=()=>{let rows=allRows();const cats=[...new Set(rows.filter(r=>!kind||(r.reportKind||r.fundKind)===kind).map(r=>r.reportCategory||r.fundCategory).filter(Boolean))].sort();const ce=work.querySelector('#qN350Cat');ce.innerHTML='<option value="">全部分類</option>'+cats.map(x=>'<option>'+qEsc(x)+'</option>').join('');if(!cats.includes(cat))cat='';ce.value=cat;const subs=[...new Set(rows.filter(r=>(!kind||(r.reportKind||r.fundKind)===kind)&&(!cat||(r.reportCategory||r.fundCategory)===cat)).map(r=>r.reportSubcategory||r.fundSubcategory).filter(Boolean))].sort();const se=work.querySelector('#qN350Sub');se.innerHTML='<option value="">全部細項</option>'+subs.map(x=>'<option>'+qEsc(x)+'</option>').join('');if(!subs.includes(sub))sub='';se.value=sub;paint()};
-    work.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;paint()});work.querySelector('#qN350Anchor').onchange=e=>{anchor=e.target.value||qToday();paint()};work.querySelector('#qN350Kind').onchange=e=>{kind=e.target.value;cat='';sub='';refreshFilters()};work.querySelector('#qN350Cat').onchange=e=>{cat=e.target.value;sub='';refreshFilters()};work.querySelector('#qN350Sub').onchange=e=>{sub=e.target.value;paint()};refreshFilters();
-  }
-  window.qN350InternalReport=function(work){qFundStageHeader('sub','📊 公司內帳報表');reportShell(work,'📊 公司內帳報表',()=>qCompanyVisibleCashflowRows().filter(r=>r&&r.status!=='void'&&r.fundOwner==='xinru').map(r=>({...r,reportKind:r.fundKind,reportCategory:r.fundCategory,reportSubcategory:r.fundSubcategory,reportAmount:Math.abs(Number(r.fundAmount||r.fundDelta||0))})));};
-  function fullRows(){const out=[];const src=(typeof acctRecords==='function'?acctRecords():[]);src.forEach(r=>{if(!r||r.status==='void'||r.status==='draft'||r.pricingStatus==='pending_price')return;const val=Math.abs(Number(r.amount??r.total??(typeof qRecordTotal==='function'?qRecordTotal(r):0))||0);if(r.mode==='company_cashflow')return;if(r.mode==='money_settlement'||r.mode==='money_refund'||r.mode==='fund_transfer'||r.mode==='loan_movement'||r.mode==='fund_special')return;if(r.txnType==='sale'||r.accountDirection==='receivable'){out.push({...r,reportKind:'income',reportCategory:'銷貨收入',reportSubcategory:r.txnTypeLabel||'銷貨',reportAmount:val,reportParty:r.customer||''})}else if(r.txnType==='purchase'||r.accountDirection==='payable'){out.push({...r,reportKind:'expense',reportCategory:'進貨成本',reportSubcategory:r.txnTypeLabel||'進貨',reportAmount:val,reportParty:r.customer||''})}});qCompanyVisibleCashflowRows().filter(r=>r&&r.status!=='void'&&r.fundOwner==='xinru').forEach(r=>out.push({...r,reportKind:r.fundKind,reportCategory:r.fundKind==='expense'?'營業成本｜'+(r.fundCategory||'未分類'):(r.fundCategory||'其他收入'),reportSubcategory:r.fundSubcategory||'',reportAmount:Math.abs(Number(r.fundAmount||r.fundDelta||0)),reportParty:''}));return out}
-  window.qRenderCompanyReport=function(work){reportShell(work,'📊 全公司報表',fullRows);};
-})();
-</script>
+
 
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
@@ -10697,5 +10647,57 @@ window.qNormalizeTurnAction=qN93TurnAction;
 <!-- N284：資金帳戶層級整理：資金帳戶獨立標題；第二層進入後只顯示該功能，返回資金帳戶，不與收款／付款標題或其他功能卡混層。 -->
 <!-- N285：修正資金返回鍵舊 listener 衝突；帳務首頁電腦／手機依指定順序顯示，同一組功能與權限不複製。 -->
 
+
+<script>
+/* N350：公司內帳＋雙報表正式架構。報表只讀，不產生資金流水。 */
+(function(){
+  window.qFundCategories=function(){return {
+    '車輛費用':['油資','保養','維修','輪胎','驗車','保險','稅金','停車費','eTag','市場停車費','其他'],
+    '租金':['店舖／攤位租金','冰庫－大庫','冰庫－小庫','其他租金'],
+    '水電／能源':['水費','電費','瓦斯','其他'],
+    '伙食／飲料':['早餐','午餐','晚餐','點心','飲料','炊事食材','其他伙食'],
+    '營業耗材':['包裝袋','紙箱','包裝耗材','打包耗材','標籤耗材','工作／包裝防護用品','保麗龍','碎冰／冰塊','其他營業耗材'],
+    '用品／文具':['餐盤／筷子／免洗碗','清潔用品','文具用品','充電線／3C小用品','衛生紙／日用品','其他用品'],
+    '設備／維修':['生產／包裝設備','印表／標籤設備','電子秤','電腦／手機','家具設備','炊事設備','設備維修','其他設備'],
+    '電話／網路／系統':['電話費','網路費','軟體／系統服務費','網站／雲端服務','其他'],
+    '宣傳／廣告':['名片','DM／傳單','布條／看板','海報／印刷','網路廣告','宣傳活動','其他宣傳費'],
+    '交際／送禮':['中秋送禮','過年送禮','一般送禮','禮金／紅包','禮盒','老闆交際','婚喪喜慶','其他交際支出'],
+    '祭祀／拜拜':['金紙','香／香品','供品','鮮花','神明用品','香油錢／添油香','節慶祭祀','其他祭祀用品'],
+    '員工醫療／職安':['員工就醫','公司負擔醫療費','健康檢查','職災醫療','急救／醫療用品','其他醫療費'],
+    '工作服／制服':['工作服','制服訂製','外套','圍裙','工作鞋／雨鞋','帽子','其他工作服用品'],
+    '公益／捐款':['公益捐款','贊助','其他捐款'],
+    '稅費':['稅金','規費','其他'],
+    '其他支出':['其他'],'其他收入':['補助收入','其他營業收入','其他']
+  }};
+  window.qFundStageHeader=function(mode='home',title=''){
+    const stage=document.getElementById('acctStage'),head=stage?.querySelector('.acctStageHead'),oldBack=stage?.querySelector('#acctStageBack'),arap=stage?.querySelector('#qN332Overview');
+    if(arap)arap.style.display=(mode==='home'?'grid':'none'); if(!head||!oldBack)return;
+    const back=oldBack.cloneNode(true);oldBack.replaceWith(back); const h3=head.querySelector('h3'),desc=head.querySelector('.helper');
+    if(mode==='home'){if(h3)h3.textContent='💵 公司內帳';if(desc)desc.textContent='公司內部資金、快速輸入、零用金、貸款與營運成本分析。';back.textContent='← 返回收款／付款';back.addEventListener('click',()=>open('payment',false),{once:true});}
+    else{if(h3)h3.textContent=title||'💵 公司內帳';if(desc)desc.textContent='';back.textContent='← 返回公司內帳';back.addEventListener('click',()=>qRenderFundHome(document.getElementById('acctStageWork')),{once:true});}
+  };
+  window.qRenderFundHome=function(work){
+    qFundStageHeader('home'); const bank=qFundBalance('company_bank'),cash=qFundBalance('company_cash');
+    work.innerHTML='<div class="quickV2"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+
+      '<button type="button" class="quickV2ContactHint" data-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
+      '<button type="button" class="quickV2ContactHint" data-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">正式餘額｜點入查看流水</div></button></div>'+
+      '<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="qFundTransferHome">⇄ 帳戶互轉</button></div>'+
+      '<div class="acctStageGrid" style="margin-top:12px">'+['✚ 快速輸入','👤 員工零用金','💳 貸款管理','🏦 資金帳戶管理','📊 公司內帳報表'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+'</div></div>';
+    work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
+    work.querySelector('#qFundTransferHome').onclick=()=>qRenderFundTransfer(work,'company_bank');
+    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;if(a==='✚ 快速輸入')qRenderCompanyCashflow(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='📊 公司內帳報表')qN350InternalReport(work);});
+  };
+  function rangeFor(mode,anchor){const d=new Date((anchor||qToday())+'T12:00:00'),iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');let a=new Date(d),b=new Date(d);if(mode==='week'){a.setDate(d.getDate()-((d.getDay()+6)%7));b=new Date(a);b.setDate(a.getDate()+6)}else if(mode==='month'){a=new Date(d.getFullYear(),d.getMonth(),1,12);b=new Date(d.getFullYear(),d.getMonth()+1,0,12)}else if(mode==='quarter'){const m=Math.floor(d.getMonth()/3)*3;a=new Date(d.getFullYear(),m,1,12);b=new Date(d.getFullYear(),m+3,0,12)}else if(mode==='year'){a=new Date(d.getFullYear(),0,1,12);b=new Date(d.getFullYear(),11,31,12)}return [iso(a),iso(b)]}
+  function reportShell(work,title,allRows){let mode='month',anchor=qToday(),kind='',cat='',sub='';const amt=r=>Math.abs(Number(r.reportAmount??r.fundAmount??r.fundDelta??0));
+    work.innerHTML='<div class="quickV2"><b style="font-size:22px">'+title+'</b><div class="helper" style="display:block!important;margin:5px 0 10px">只讀正式交易；切換報表不會新增、扣除或重複計帳。</div><div class="actions" id="qN350Modes">'+[['day','日'],['week','週'],['month','月'],['quarter','季'],['year','年']].map(x=>'<button class="btn gray" data-m="'+x[0]+'">'+x[1]+'</button>').join('')+'</div><div class="quickV2Head" style="margin-top:10px"><div class="field"><label class="label">基準日期</label><input id="qN350Anchor" class="input" type="date" value="'+anchor+'"></div><div class="field"><label class="label">收入／支出</label><select id="qN350Kind" class="input"><option value="">全部</option><option value="income">收入</option><option value="expense">支出／成本</option></select></div><div class="field"><label class="label">分類</label><select id="qN350Cat" class="input"></select></div><div class="field"><label class="label">細項</label><select id="qN350Sub" class="input"></select></div></div><div id="qN350Body" style="margin-top:14px"></div></div>';
+    const paint=()=>{const [f,t]=rangeFor(mode,anchor);let rows=allRows().filter(r=>r.status!=='void'&&(!f||r.date>=f)&&(!t||r.date<=t));if(kind)rows=rows.filter(r=>r.reportKind===kind||r.fundKind===kind);if(cat)rows=rows.filter(r=>(r.reportCategory||r.fundCategory)===cat);if(sub)rows=rows.filter(r=>(r.reportSubcategory||r.fundSubcategory)===sub);const inc=rows.filter(r=>(r.reportKind||r.fundKind)==='income').reduce((a,r)=>a+amt(r),0),exp=rows.filter(r=>(r.reportKind||r.fundKind)==='expense').reduce((a,r)=>a+amt(r),0);const groups={};rows.forEach(r=>{const k=r.reportCategory||r.fundCategory||'未分類';groups[k]=(groups[k]||0)+amt(r)});const body=work.querySelector('#qN350Body');body.innerHTML='<div class="helper" style="margin-bottom:8px"><b>'+f+' ～ '+t+'</b></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px"><div class="quickV2ContactHint"><div class="helper">收入</div><b style="font-size:25px">'+qFundMoney(inc)+'</b></div><div class="quickV2ContactHint"><div class="helper">支出／成本</div><b style="font-size:25px">'+qFundMoney(exp)+'</b></div><div class="quickV2ContactHint"><div class="helper">差額</div><b style="font-size:25px">'+qFundMoney(inc-exp)+'</b></div></div><div class="acctQueueList" style="margin-top:12px">'+(rows.length?rows.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.reportCategory||r.fundCategory||'未分類')+(r.reportSubcategory||r.fundSubcategory?'／'+qEsc(r.reportSubcategory||r.fundSubcategory):'')+'</b><div class="helper">'+qEsc(r.reportParty||r.customer||qFundAccountName(r.fundAccount)||'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+((r.reportKind||r.fundKind)==='income'?'+':'-')+qFundMoney(amt(r))+'</strong></div>').join(''):'<div class="empty">這個期間沒有資料</div>')+'</div>';};
+    const refreshFilters=()=>{let rows=allRows();const cats=[...new Set(rows.filter(r=>!kind||(r.reportKind||r.fundKind)===kind).map(r=>r.reportCategory||r.fundCategory).filter(Boolean))].sort();const ce=work.querySelector('#qN350Cat');ce.innerHTML='<option value="">全部分類</option>'+cats.map(x=>'<option>'+qEsc(x)+'</option>').join('');if(!cats.includes(cat))cat='';ce.value=cat;const subs=[...new Set(rows.filter(r=>(!kind||(r.reportKind||r.fundKind)===kind)&&(!cat||(r.reportCategory||r.fundCategory)===cat)).map(r=>r.reportSubcategory||r.fundSubcategory).filter(Boolean))].sort();const se=work.querySelector('#qN350Sub');se.innerHTML='<option value="">全部細項</option>'+subs.map(x=>'<option>'+qEsc(x)+'</option>').join('');if(!subs.includes(sub))sub='';se.value=sub;paint()};
+    work.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;paint()});work.querySelector('#qN350Anchor').onchange=e=>{anchor=e.target.value||qToday();paint()};work.querySelector('#qN350Kind').onchange=e=>{kind=e.target.value;cat='';sub='';refreshFilters()};work.querySelector('#qN350Cat').onchange=e=>{cat=e.target.value;sub='';refreshFilters()};work.querySelector('#qN350Sub').onchange=e=>{sub=e.target.value;paint()};refreshFilters();
+  }
+  window.qN350InternalReport=function(work){qFundStageHeader('sub','📊 公司內帳報表');reportShell(work,'📊 公司內帳報表',()=>qCompanyVisibleCashflowRows().filter(r=>r&&r.status!=='void'&&r.fundOwner==='xinru').map(r=>({...r,reportKind:r.fundKind,reportCategory:r.fundCategory,reportSubcategory:r.fundSubcategory,reportAmount:Math.abs(Number(r.fundAmount||r.fundDelta||0))})));};
+  function fullRows(){const out=[];const src=(typeof acctRecords==='function'?acctRecords():[]);src.forEach(r=>{if(!r||r.status==='void'||r.status==='draft'||r.pricingStatus==='pending_price')return;const val=Math.abs(Number(r.amount??r.total??(typeof qRecordTotal==='function'?qRecordTotal(r):0))||0);if(r.mode==='company_cashflow')return;if(r.mode==='money_settlement'||r.mode==='money_refund'||r.mode==='fund_transfer'||r.mode==='loan_movement'||r.mode==='fund_special')return;if(r.txnType==='sale'||r.accountDirection==='receivable'){out.push({...r,reportKind:'income',reportCategory:'銷貨收入',reportSubcategory:r.txnTypeLabel||'銷貨',reportAmount:val,reportParty:r.customer||''})}else if(r.txnType==='purchase'||r.accountDirection==='payable'){out.push({...r,reportKind:'expense',reportCategory:'進貨成本',reportSubcategory:r.txnTypeLabel||'進貨',reportAmount:val,reportParty:r.customer||''})}});qCompanyVisibleCashflowRows().filter(r=>r&&r.status!=='void'&&r.fundOwner==='xinru').forEach(r=>out.push({...r,reportKind:r.fundKind,reportCategory:r.fundKind==='expense'?'營業成本｜'+(r.fundCategory||'未分類'):(r.fundCategory||'其他收入'),reportSubcategory:r.fundSubcategory||'',reportAmount:Math.abs(Number(r.fundAmount||r.fundDelta||0)),reportParty:''}));return out}
+  window.qRenderCompanyReport=function(work){reportShell(work,'📊 全公司報表',fullRows);};
+})();
+</script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
