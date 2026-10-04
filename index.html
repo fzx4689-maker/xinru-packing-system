@@ -2515,6 +2515,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
 <input id="deliveryProofInput" type="file" accept="image/*" capture="environment" style="display:none">
 <input id="deliveryProofGalleryInput" type="file" accept="image/*" style="display:none">
 <script>
+/* N390：修正車輛管理層級：點「車輛管理」直接進公司車輛卡片總表，不顯示「車輛資料」中間層。 */
 /* N389：車輛管理整合：首頁車種篩選、單車車籍整併強制險/驗車/車貸、配送營運開關、本車消費月份/分類/總額、單車新增不重選車牌、內帳補改裝/美容洗車/罰單。 */
 /* N388：車輛管理卡片右上角改顯示 vehicleStatus（預設「使用中」）；
    公司內帳「車輛費用」各分類來源補入「美容洗車」，保留既有分類相容舊資料。 */
@@ -6174,6 +6175,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     document.getElementById('acctStageBack')?.addEventListener('click',()=>home());
     if(key==='payment')qN332Bind();
     if(key==='ledger'&&!opts.deferLedgerRender){const work=document.getElementById('acctStageWork');if(work)qRenderLedgerSearch(work)}
+    // N390：車輛管理本身就是公司車輛總表，不再多一層「車輛資料」入口。
+    if(key==='vehicle'){
+      const actionGrid=stage.querySelector('.acctStageGrid');if(actionGrid)actionGrid.style.display='none';
+      const work=document.getElementById('acctStageWork');if(work)qRenderVehicleMaster(work);
+    }
   }
   window.xrAcctOpenSection=open;
   // N364：帳務首頁使用固定父層事件委派。首頁重繪後九個入口仍可點，不依賴初始化時逐顆綁定。
