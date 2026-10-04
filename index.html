@@ -5918,7 +5918,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
     entry:{title:'✍️ 快速做帳',desc:'銷貨／進貨、運費、草稿、待補價格與周轉物統一在這裡完成。',items:['開始快速做帳','做帳紀錄']},
     farmer:{title:'🧑‍🌾 產農入貨／週帳',desc:'入貨可先不填價格；週帳與實際付款分開。',items:['入貨紀錄','待補價格','本週週帳','待領款']},
     vendor:{title:'🏭 廠商進貨／對帳',desc:'從叫貨到簽收、異常與對帳保留同一筆來源。',items:['叫貨／待到貨','到貨／簽收','待補價格','異常處理','廠商對帳']},
-    payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 交易查詢','🏦 資金帳戶','📊 報表']},
+    payment:{title:'💰 收款／付款',desc:'只要真的有錢進來或出去，就在這裡登記一次。',items:['💰 收款','💸 付款','🔍 交易查詢','🧾 收到的支票／代購毛利','⇄ 帳戶互轉','📊 全公司報表','💵 公司內帳']},
     ledger:{title:'📒 帳本',desc:'搜尋往來對象，查看完整應收／應付、收付款與帳務流水。',items:[]},
     turnover:{title:'🧺 籃子／鐵架／棧板／容器管理',desc:'日常容器一律由快速做帳建立；這裡只負責查詢、盤點修正與容器設定。',items:['🔍 籃子／鐵架／棧板／容器查詢','📋 盤點／差異','⚙️ 籃子／鐵架／棧板／容器設定']},
     contacts:{title:'👥 往來資料',desc:'同一個往來對象只建立一份主資料，內部以固定ID關聯。',items:['🔍 搜尋往來資料','＋ 新增往來對象']},
@@ -9443,19 +9443,14 @@ K白.kg
       '<div class="qCrossEntityCard" style="border:1px solid #d8e1ec;border-radius:14px;padding:14px"><div style="display:flex;align-items:center;gap:9px"><span aria-label="玄聖宮牌樓" style="width:42px;height:38px;display:inline-flex;align-items:center;justify-content:center;font-size:32px;line-height:1">⛩️</span><b style="font-size:18px">玄聖宮與欣儒往來</b></div><div class="qCrossEntityStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin-top:10px">'+stat('欣儒代付支出',xuanExpense)+stat('其中代墊',xuanAdv)+stat('其中贊助',xuanSponsor)+stat('目前欠欣儒',adv('xuansheng'))+'</div></div></div>';
   }
   function qRenderFundHome(work){
-    const acctCards=qFundAccountMasters().filter(a=>a.status!=='inactive').map(a=>{const k=qFundAccountKey(a),b=qFundRows().filter(r=>String(r.fundAccount||'')===k).reduce((s,r)=>s+Number(r.fundDelta||0),0)+qFundResolvedBalanceDelta(k);return '<span class="chip"><b>'+qEsc(a.accountName||k)+'</b> '+qFundMoney(b)+'</span>'}).join(' ');
     qFundStageHeader('home');
     const bank=qFundBalance('company_bank'),cash=qFundBalance('company_cash');
     work.innerHTML='<div class="quickV2"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+
       '<button type="button" class="quickV2ContactHint" data-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
       '<button type="button" class="quickV2ContactHint" data-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">正式餘額｜點入查看流水</div></button></div>'+
-      '<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="qFundTransferHome">⇄ 帳戶互轉</button></div>'+
-      '<div class="acctStageGrid" style="margin-top:12px">'+
-      ['🏦 資金帳戶管理','💵 公司收支','💳 貸款管理','👤 員工零用金','🧾 收到的支票','🛒 代購毛利'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+
-      '</div></div>';
+      '<div class="acctStageGrid" style="margin-top:12px">'+['✚ 快速輸入','👤 員工零用金','💳 貸款管理','🏦 資金帳戶管理','📊 公司內帳報表'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+'</div></div>';
     work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
-    work.querySelector('#qFundTransferHome').onclick=()=>qRenderFundTransfer(work,'company_bank');
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;qFundStageHeader('sub',a);if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='💵 公司收支')qRenderCompanyCashflow(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='🧾 收到的支票')qRenderChecks(work);else if(a==='🛒 代購毛利')qRenderProxyProfit(work);else work.innerHTML='<div class="quickV2"><div class="acctWorkPlaceholder"><b>'+qEsc(a)+'</b><div class="helper">此功能將接入同一個資金異動核心；不建立第二套資金資料。</div></div></div>';work.scrollIntoView({behavior:'smooth',block:'start'})});
+    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;if(a==='✚ 快速輸入')qRenderCompanyCashflow(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='📊 公司內帳報表')qN350InternalReport(work);});
   }
   // N333：代購毛利只讀既有正式交易 items.source/cost，不另建第二套帳。
   function qProxyProfitRows(){
@@ -9699,8 +9694,10 @@ K白.kg
     if(section==='farmer'&&a==='待領款'){renderFarmerPayables(work);return;}
     if(section==='payment'&&(a==='💰 收款'||a==='💸 付款')){qRenderMoneyCenter(work,'',a==='💸 付款'?'payment':'receipt');return;}
     if(section==='payment'&&(a==='🔍 交易查詢'||a==='🔍 收支查詢')){qRenderMoneyHistory(work);return;}
-    if(section==='payment'&&a==='🏦 資金帳戶'){qRenderFundHome(work);return;}
-    if(section==='payment'&&a==='📊 報表'){qRenderCompanyReport(work);return;}
+    if(section==='payment'&&a==='🧾 收到的支票／代購毛利'){qRenderChequeProfitHome(work);return;}
+    if(section==='payment'&&a==='⇄ 帳戶互轉'){qRenderFundTransfer(work,'company_bank');return;}
+    if(section==='payment'&&a==='📊 全公司報表'){qRenderCompanyReport(work);return;}
+    if(section==='payment'&&a==='💵 公司內帳'){qRenderFundHome(work);return;}
     if(section==='vehicle'&&a==='車輛資料'){qRenderVehicleMaster(work);return;}
     if(a==='🔍 搜尋帳本'){qRenderLedgerSearch(work);return;}
     // N76：往來資料搜尋是正式 route。F5 恢復時直接重建名單，不可掉到 placeholder。
@@ -10661,17 +10658,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     if(mode==='home'){if(h3)h3.textContent='💵 公司內帳';if(desc)desc.textContent='公司內部資金、快速輸入、零用金、貸款與營運成本分析。';back.textContent='← 返回收款／付款';back.addEventListener('click',()=>open('payment',false),{once:true});}
     else{if(h3)h3.textContent=title||'💵 公司內帳';if(desc)desc.textContent='';back.textContent='← 返回公司內帳';back.addEventListener('click',()=>qRenderFundHome(document.getElementById('acctStageWork')),{once:true});}
   };
-  window.qRenderFundHome=function(work){
-    qFundStageHeader('home'); const bank=qFundBalance('company_bank'),cash=qFundBalance('company_cash');
-    work.innerHTML='<div class="quickV2"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+
-      '<button type="button" class="quickV2ContactHint" data-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(bank)+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
-      '<button type="button" class="quickV2ContactHint" data-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(cash)+'</div><div class="helper">正式餘額｜點入查看流水</div></button></div>'+
-      '<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="qFundTransferHome">⇄ 帳戶互轉</button></div>'+
-      '<div class="acctStageGrid" style="margin-top:12px">'+['✚ 快速輸入','👤 員工零用金','💳 貸款管理','🏦 資金帳戶管理','📊 公司內帳報表'].map(x=>'<button type="button" class="acctStageBtn" data-fund-action="'+x+'"><b>'+x+'</b></button>').join('')+'</div></div>';
-    work.querySelectorAll('[data-fund-account]').forEach(b=>b.onclick=()=>qRenderFundAccount(work,b.dataset.fundAccount));
-    work.querySelector('#qFundTransferHome').onclick=()=>qRenderFundTransfer(work,'company_bank');
-    work.querySelectorAll('[data-fund-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fundAction;if(a==='✚ 快速輸入')qRenderCompanyCashflow(work);else if(a==='👤 員工零用金')qRenderPettyCash(work);else if(a==='💳 貸款管理')qRenderLoanHome(work);else if(a==='🏦 資金帳戶管理')qRenderFundAccounts(work);else if(a==='📊 公司內帳報表')qN350InternalReport(work);});
-  };
+  
   function rangeFor(mode,anchor){const d=new Date((anchor||qToday())+'T12:00:00'),iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');let a=new Date(d),b=new Date(d);if(mode==='week'){a.setDate(d.getDate()-((d.getDay()+6)%7));b=new Date(a);b.setDate(a.getDate()+6)}else if(mode==='month'){a=new Date(d.getFullYear(),d.getMonth(),1,12);b=new Date(d.getFullYear(),d.getMonth()+1,0,12)}else if(mode==='quarter'){const m=Math.floor(d.getMonth()/3)*3;a=new Date(d.getFullYear(),m,1,12);b=new Date(d.getFullYear(),m+3,0,12)}else if(mode==='year'){a=new Date(d.getFullYear(),0,1,12);b=new Date(d.getFullYear(),11,31,12)}return [iso(a),iso(b)]}
   function reportShell(work,title,allRows){let mode='month',anchor=qToday(),kind='',cat='',sub='';const amt=r=>Math.abs(Number(r.reportAmount??r.fundAmount??r.fundDelta??0));
     work.innerHTML='<div class="quickV2"><b style="font-size:22px">'+title+'</b><div class="helper" style="display:block!important;margin:5px 0 10px">只讀正式交易；切換報表不會新增、扣除或重複計帳。</div><div class="actions" id="qN350Modes">'+[['day','日'],['week','週'],['month','月'],['quarter','季'],['year','年']].map(x=>'<button class="btn gray" data-m="'+x[0]+'">'+x[1]+'</button>').join('')+'</div><div class="quickV2Head" style="margin-top:10px"><div class="field"><label class="label">基準日期</label><input id="qN350Anchor" class="input" type="date" value="'+anchor+'"></div><div class="field"><label class="label">收入／支出</label><select id="qN350Kind" class="input"><option value="">全部</option><option value="income">收入</option><option value="expense">支出／成本</option></select></div><div class="field"><label class="label">分類</label><select id="qN350Cat" class="input"></select></div><div class="field"><label class="label">細項</label><select id="qN350Sub" class="input"></select></div></div><div id="qN350Body" style="margin-top:14px"></div></div>';
@@ -10682,97 +10669,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
   window.qN350InternalReport=function(work){qFundStageHeader('sub','📊 公司內帳報表');reportShell(work,'📊 公司內帳報表',()=>qCompanyVisibleCashflowRows().filter(r=>r&&r.status!=='void'&&r.fundOwner==='xinru').map(r=>({...r,reportKind:r.fundKind,reportCategory:r.fundCategory,reportSubcategory:r.fundSubcategory,reportAmount:Math.abs(Number(r.fundAmount||r.fundDelta||0))})));};
   function fullRows(){const out=[];const src=(typeof acctRecords==='function'?acctRecords():[]);src.forEach(r=>{if(!r||r.status==='void'||r.status==='draft'||r.pricingStatus==='pending_price')return;const val=Math.abs(Number(r.amount??r.total??(typeof qRecordTotal==='function'?qRecordTotal(r):0))||0);if(r.mode==='company_cashflow')return;if(r.mode==='money_settlement'||r.mode==='money_refund'||r.mode==='fund_transfer'||r.mode==='loan_movement'||r.mode==='fund_special')return;if(r.txnType==='sale'||r.accountDirection==='receivable'){out.push({...r,reportKind:'income',reportCategory:'銷貨收入',reportSubcategory:r.txnTypeLabel||'銷貨',reportAmount:val,reportParty:r.customer||''})}else if(r.txnType==='purchase'||r.accountDirection==='payable'){out.push({...r,reportKind:'expense',reportCategory:'進貨成本',reportSubcategory:r.txnTypeLabel||'進貨',reportAmount:val,reportParty:r.customer||''})}});qCompanyVisibleCashflowRows().filter(r=>r&&r.status!=='void'&&r.fundOwner==='xinru').forEach(r=>out.push({...r,reportKind:r.fundKind,reportCategory:r.fundKind==='expense'?'營業成本｜'+(r.fundCategory||'未分類'):(r.fundCategory||'其他收入'),reportSubcategory:r.fundSubcategory||'',reportAmount:Math.abs(Number(r.fundAmount||r.fundDelta||0)),reportParty:''}));return out}
   window.qRenderCompanyReport=function(work){reportShell(work,'📊 全公司報表',fullRows);};
-})();
-</script>
-
-
-
-<script>
-/* N356：帳務第一層＋公司內帳正式導覽架構 */
-(function(){
-  function txt(el,v){ if(el) el.textContent=v; }
-
-  // 第一層：把既有「資金帳戶」改成「公司內帳」；「報表」改成「全公司報表」。
-  // 不複製資料、不新增資金流水，只改導覽入口與顯示名稱。
-  window.qN356ApplyPaymentHome=function(){
-    const stage=document.getElementById('acctStage');
-    if(!stage) return;
-
-    const all=[...stage.querySelectorAll('button,.acctCard,[role="button"],a')];
-    const fund=all.find(x=>x.textContent.trim()==='資金帳戶');
-    if(fund){
-      txt(fund,'💵 公司內帳');
-      fund.onclick=function(e){
-        e.preventDefault();
-        const work=document.getElementById('acctStageWork');
-        if(typeof window.qRenderFundHome==='function') window.qRenderFundHome(work);
-      };
-    }
-
-    const report=all.find(x=>x.textContent.trim()==='報表');
-    if(report){
-      txt(report,'📊 全公司報表');
-      report.onclick=function(e){
-        e.preventDefault();
-        if(typeof window.qRenderCompanyReport==='function') window.qRenderCompanyReport('company');
-      };
-    }
-  };
-
-  // 公司內帳首頁正式順序：
-  // 餘額 → 快速輸入 → 員工零用金 → 貸款管理 → 資金帳戶管理 → 公司內帳報表
-  const oldFundHome=window.qRenderFundHome;
-  if(typeof oldFundHome==='function'){
-    window.qRenderFundHome=function(work){
-      oldFundHome(work);
-      const root=work || document.getElementById('acctStageWork');
-      if(!root) return;
-
-      // 公司內帳不再重複放「帳戶互轉」；第一層既有互轉維持原功能。
-      [...root.querySelectorAll('button,.acctCard,[role="button"],a')].forEach(el=>{
-        const t=el.textContent.trim();
-        if(t==='帳戶互轉' || t==='⇄ 帳戶互轉' || t==='↔ 帳戶互轉'){
-          const box=el.closest('.acctCard') || el;
-          box.style.display='none';
-        }
-      });
-
-      // 舊「公司收支」入口正式改名為「快速輸入」。
-      [...root.querySelectorAll('button,.acctCard,[role="button"],a')].forEach(el=>{
-        const t=el.textContent.trim();
-        if(t==='公司收支' || t==='💵 公司收支') txt(el,'➕ 快速輸入');
-      });
-
-      // 報表名稱固定為公司內帳報表。
-      [...root.querySelectorAll('button,.acctCard,[role="button"],a')].forEach(el=>{
-        if(el.textContent.trim()==='報表') txt(el,'📊 公司內帳報表');
-      });
-
-      // 依名稱重新排列可見功能卡；不改原按鈕事件。
-      const wanted=['快速輸入','員工零用金','貸款管理','資金帳戶管理','公司內帳報表'];
-      const cards=[...root.querySelectorAll('.acctCard,button')].filter(el=>{
-        const t=el.textContent.replace(/[💵➕📊🏢💳👤]/g,'').trim();
-        return wanted.includes(t);
-      });
-      if(cards.length){
-        const parent=cards[0].parentElement;
-        if(parent && cards.every(x=>x.parentElement===parent)){
-          wanted.forEach(name=>{
-            const c=cards.find(el=>el.textContent.replace(/[💵➕📊🏢💳👤]/g,'').trim()===name);
-            if(c) parent.appendChild(c);
-          });
-        }
-      }
-    };
-  }
-
-  // 每次回到收款付款首頁時重新套用名稱；不碰應收應付計算。
-  const obs=new MutationObserver(()=>qN356ApplyPaymentHome());
-  document.addEventListener('DOMContentLoaded',()=>{
-    qN356ApplyPaymentHome();
-    const st=document.getElementById('acctStage');
-    if(st) obs.observe(st,{childList:true,subtree:true});
-  });
 })();
 </script>
 
