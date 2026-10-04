@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N353｜公司內帳快速輸入排版修正</title>
+<title>欣儒系統｜N354｜公司內帳分類與雙報表正式版</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -10697,6 +10697,81 @@ window.qNormalizeTurnAction=qN93TurnAction;
   window.qRenderCompanyReport=function(work){reportShell(work,'📊 全公司報表',fullRows);};
 })();
 </script>
+
+
+<script>
+/* N354：公司內帳正式分類＋公司內帳報表＋全公司報表。
+   核心：公司內帳只登非客戶／廠商帳款之收支；客戶/超市/產農/中盤/廠商之銷貨進貨仍讀正式快速做帳。
+   報表唯讀，不建立資金流水；公司實際資金只讀正式資金帳戶餘額。 */
+(function(){
+  const EXPENSE_CATS={
+    '車輛費用':['油資','保養','維修','輪胎','驗車','保險','牌照稅／燃料稅','停車費','eTag','市場停車費','洗車／美容','拖吊／道路救援','其他車輛費用'],
+    '租金':['店舖／攤位租金','冰庫－大庫','冰庫－小庫','倉庫租金','停車位租金','其他租金'],
+    '水電／能源':['水費','電費','瓦斯','燃料／能源','其他水電能源'],
+    '伙食／飲料':['早餐','午餐','晚餐','點心','飲料','炊事食材','其他伙食'],
+    '營業耗材':['包裝袋','紙箱','包裝耗材','打包耗材','標籤耗材','工作／包裝防護用品','保麗龍','碎冰／冰塊','其他營業耗材'],
+    '用品／文具':['餐盤／筷子／免洗碗','清潔用品','文具用品','充電線／3C小用品','衛生紙／日用品','其他用品'],
+    '設備／維修':['生產／包裝設備','印表／標籤設備','電子秤','電腦／手機','家具設備','炊事設備','設備維修','冷藏／冷凍設備','其他設備'],
+    '電話／網路／系統':['電話費','網路費','軟體／系統服務費','網站／雲端服務','簡訊／通訊服務','其他'],
+    '宣傳／廣告':['名片','DM／傳單','布條／看板','海報／印刷','網路廣告','宣傳活動','其他宣傳費'],
+    '交際／送禮':['中秋送禮','過年送禮','一般送禮','禮金／紅包','禮盒','老闆交際','婚喪喜慶','其他交際支出'],
+    '祭祀／拜拜':['金紙','香／香品','供品','鮮花','神明用品','香油錢／添油香','節慶祭祀','其他祭祀用品'],
+    '員工醫療／職安':['員工就醫','公司負擔醫療費','健康檢查','職災醫療','急救／醫療用品','其他醫療費'],
+    '工作服／制服':['工作服','制服訂製','外套','圍裙','工作鞋／雨鞋','帽子','其他工作服用品'],
+    '薪資／人事':['薪資','獎金','加班費','勞健保／勞退公司負擔','員工福利','其他人事費'],
+    '稅費／規費':['營業稅','所得稅','印花稅','規費','罰鍰／滯納金','其他稅費'],
+    '公益／捐款':['公益捐款','贊助','其他捐款'],
+    '銀行／金流費用':['匯款手續費','刷卡／金流手續費','銀行手續費','其他金融費用'],
+    '其他支出':['其他支出']
+  };
+  const INCOME_CATS={
+    '其他營業收入':['代辦／服務收入','運費／配送收入','場地／設備使用收入','回收收入','其他營業收入'],
+    '補助／獎勵收入':['政府補助','獎勵金','其他補助／獎勵'],
+    '利息收入':['銀行利息','其他利息'],
+    '退款／理賠收入':['費用退款','保險理賠','押金／保證金退回','其他退款／理賠'],
+    '資產處分收入':['設備出售','車輛出售','其他資產出售'],
+    '其他收入':['其他收入']
+  };
+  window.qFundCategorySets=function(){return {expense:EXPENSE_CATS,income:INCOME_CATS};};
+  window.qFundCategories=function(kind){
+    if(kind==='income') return INCOME_CATS;
+    if(kind==='expense') return EXPENSE_CATS;
+    return Object.assign({},EXPENSE_CATS,INCOME_CATS);
+  };
+
+  function qN354Money(v){return typeof qFundMoney==='function'?qFundMoney(Number(v||0)):'$'+Math.round(Number(v||0)).toLocaleString('zh-TW');}
+  function qN354Range(mode,anchor){const d=new Date((anchor||qToday())+'T12:00:00'),iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');let a=new Date(d),b=new Date(d);if(mode==='week'){a.setDate(d.getDate()-((d.getDay()+6)%7));b=new Date(a);b.setDate(a.getDate()+6)}else if(mode==='month'){a=new Date(d.getFullYear(),d.getMonth(),1,12);b=new Date(d.getFullYear(),d.getMonth()+1,0,12)}else if(mode==='quarter'){const m=Math.floor(d.getMonth()/3)*3;a=new Date(d.getFullYear(),m,1,12);b=new Date(d.getFullYear(),m+3,0,12)}else if(mode==='year'){a=new Date(d.getFullYear(),0,1,12);b=new Date(d.getFullYear(),11,31,12)}return [iso(a),iso(b)];}
+  function qN354FundTotal(){try{return (typeof qFundAccounts==='function'?qFundAccounts():[]).reduce((s,a)=>s+(typeof qFundBalance==='function'?Number(qFundBalance(a.id)||0):0),0)}catch(e){return 0}}
+  function qN354InternalRows(){return (typeof qCompanyVisibleCashflowRows==='function'?qCompanyVisibleCashflowRows():[]).filter(r=>r&&r.status!=='void'&&r.status!=='deleted'&&r.fundOwner==='xinru').map(r=>({...r,reportKind:r.fundKind,reportCategory:r.fundCategory||'未分類',reportSubcategory:r.fundSubcategory||'',reportAmount:Math.abs(Number(r.fundAmount||r.fundDelta||0)),reportParty:qFundAccountName?.(r.fundAccount)||''}));}
+  function qN354FullRows(){
+    const out=[]; const src=(typeof acctRecords==='function'?acctRecords():[]);
+    src.forEach(r=>{if(!r||r.status==='void'||r.status==='deleted'||r.status==='draft'||r.pricingStatus==='pending_price')return;if(r.mode==='company_cashflow'||r.mode==='money_settlement'||r.mode==='money_refund'||r.mode==='fund_transfer'||r.mode==='loan_movement'||r.mode==='fund_special')return;const val=Math.abs(Number(r.amount??r.total??(typeof qRecordTotal==='function'?qRecordTotal(r):0))||0);if(!val)return;if(r.txnType==='sale'||r.accountDirection==='receivable')out.push({...r,reportKind:'income',reportCategory:'銷貨收入',reportSubcategory:r.txnTypeLabel||'銷貨',reportAmount:val,reportParty:r.customer||''});else if(r.txnType==='purchase'||r.accountDirection==='payable')out.push({...r,reportKind:'expense',reportCategory:'進貨成本',reportSubcategory:r.txnTypeLabel||'進貨',reportAmount:val,reportParty:r.customer||''});});
+    qN354InternalRows().forEach(r=>out.push({...r,reportCategory:r.reportKind==='expense'?'營業費用｜'+r.reportCategory:r.reportCategory})); return out;
+  }
+  function qN354Report(work,title,rowFn,isFull){
+    let mode='month',anchor=qToday(),kind='',cat='',sub='';
+    work.innerHTML='<div class="quickV2 n354Report"><div class="n354ReportTitle"><div><b style="font-size:22px">'+title+'</b><div class="helper" style="display:block!important;margin-top:4px">只讀正式資料，不新增、不扣款、不重複計帳。</div></div><div class="n354FundNow"><span>公司目前實際資金</span><b>'+qN354Money(qN354FundTotal())+'</b></div></div><div class="actions" id="qN354Modes">'+[['day','日'],['week','週'],['month','月'],['quarter','季'],['year','年']].map(x=>'<button class="btn gray" data-m="'+x[0]+'">'+x[1]+'</button>').join('')+'</div><div class="n354Filters"><div class="field"><label class="label">基準日期</label><input id="qN354Anchor" class="input" type="date" value="'+anchor+'"></div><div class="field"><label class="label">收入／支出</label><select id="qN354Kind" class="input"><option value="">全部</option><option value="income">收入</option><option value="expense">支出／成本</option></select></div><div class="field"><label class="label">分類</label><select id="qN354Cat" class="input"></select></div><div class="field"><label class="label">細項</label><select id="qN354Sub" class="input"></select></div></div><div id="qN354Body"></div></div>';
+    const amount=r=>Math.abs(Number(r.reportAmount??r.fundAmount??r.fundDelta??0));
+    const filtered=()=>{const [f,t]=qN354Range(mode,anchor);return rowFn().filter(r=>r.status!=='void'&&r.status!=='deleted'&&(!f||r.date>=f)&&(!t||r.date<=t)&&(!kind||(r.reportKind||r.fundKind)===kind)&&(!cat||(r.reportCategory||r.fundCategory)===cat)&&(!sub||(r.reportSubcategory||r.fundSubcategory)===sub)};
+    const paint=()=>{const [f,t]=qN354Range(mode,anchor),rows=filtered(),inc=rows.filter(r=>(r.reportKind||r.fundKind)==='income').reduce((s,r)=>s+amount(r),0),exp=rows.filter(r=>(r.reportKind||r.fundKind)==='expense').reduce((s,r)=>s+amount(r),0);let cards='';if(isFull){const sales=rows.filter(r=>r.reportCategory==='銷貨收入').reduce((s,r)=>s+amount(r),0),purchase=rows.filter(r=>r.reportCategory==='進貨成本').reduce((s,r)=>s+amount(r),0),opex=rows.filter(r=>String(r.reportCategory||'').startsWith('營業費用｜')).reduce((s,r)=>s+amount(r),0),otherInc=inc-sales;cards='<div class="n354Stats"><div><span>銷貨收入</span><b>'+qN354Money(sales)+'</b></div><div><span>進貨成本</span><b>'+qN354Money(purchase)+'</b></div><div><span>其他公司收入</span><b>'+qN354Money(otherInc)+'</b></div><div><span>營業費用</span><b>'+qN354Money(opex)+'</b></div><div><span>期間收支差額</span><b>'+qN354Money(inc-exp)+'</b></div></div>';}else{cards='<div class="n354Stats"><div><span>公司內帳收入</span><b>'+qN354Money(inc)+'</b></div><div><span>公司內帳支出</span><b>'+qN354Money(exp)+'</b></div><div><span>期間差額</span><b>'+qN354Money(inc-exp)+'</b></div></div>';}
+      const groups={};rows.forEach(r=>{const k=r.reportCategory||r.fundCategory||'未分類';groups[k]=(groups[k]||0)+amount(r)});const groupHtml=Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="n354Group"><span>'+qEsc(k)+'</span><b>'+qN354Money(v)+'</b></div>').join('');
+      work.querySelector('#qN354Body').innerHTML='<div class="helper" style="margin:10px 0"><b>'+f+' ～ '+t+'</b></div>'+cards+(groupHtml?'<div class="n354Groups">'+groupHtml+'</div>':'')+'<div class="acctQueueList n354Rows">'+(rows.length?rows.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.reportCategory||r.fundCategory||'未分類')+((r.reportSubcategory||r.fundSubcategory)?'／'+qEsc(r.reportSubcategory||r.fundSubcategory):'')+'</b><div class="helper">'+qEsc(r.reportParty||r.customer||'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+((r.reportKind||r.fundKind)==='income'?'+':'-')+qN354Money(amount(r))+'</strong></div>').join(''):'<div class="empty">這個期間沒有資料</div>')+'</div>';
+    };
+    const refresh=()=>{const all=rowFn(),ce=work.querySelector('#qN354Cat'),se=work.querySelector('#qN354Sub'),cats=[...new Set(all.filter(r=>!kind||(r.reportKind||r.fundKind)===kind).map(r=>r.reportCategory||r.fundCategory).filter(Boolean))].sort();ce.innerHTML='<option value="">全部分類</option>'+cats.map(x=>'<option>'+qEsc(x)+'</option>').join('');if(!cats.includes(cat))cat='';ce.value=cat;const subs=[...new Set(all.filter(r=>(!kind||(r.reportKind||r.fundKind)===kind)&&(!cat||(r.reportCategory||r.fundCategory)===cat)).map(r=>r.reportSubcategory||r.fundSubcategory).filter(Boolean))].sort();se.innerHTML='<option value="">全部細項</option>'+subs.map(x=>'<option>'+qEsc(x)+'</option>').join('');if(!subs.includes(sub))sub='';se.value=sub;paint();};
+    work.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;work.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('primary',x===b));paint()});work.querySelector('#qN354Anchor').onchange=e=>{anchor=e.target.value||qToday();paint()};work.querySelector('#qN354Kind').onchange=e=>{kind=e.target.value;cat='';sub='';refresh()};work.querySelector('#qN354Cat').onchange=e=>{cat=e.target.value;sub='';refresh()};work.querySelector('#qN354Sub').onchange=e=>{sub=e.target.value;paint()};refresh();
+  }
+  window.qN350InternalReport=function(work){qFundStageHeader('sub','📊 公司內帳報表');qN354Report(work,'📊 公司內帳報表',qN354InternalRows,false);};
+  window.qRenderCompanyReport=function(work){qN354Report(work,'📊 全公司報表',qN354FullRows,true);};
+
+  // 快速輸入：依收入／支出只顯示該類正式分類。覆寫後，既有 qRenderCompanyCashflow 於執行時會讀此核心。
+  const oldRender=window.qRenderCompanyCashflow;
+  if(typeof oldRender==='function') window.qRenderCompanyCashflow=function(work){oldRender(work);const kind=work.querySelector('#qFundKind'),cat=work.querySelector('#qFundCat'),sub=work.querySelector('#qFundSub');if(!kind||!cat||!sub)return;const rebuild=()=>{const set=qFundCategories(kind.value),prev=cat.value;cat.innerHTML=Object.keys(set).map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');if(Object.prototype.hasOwnProperty.call(set,prev))cat.value=prev;const sync=()=>{const arr=set[cat.value]||[];sub.innerHTML=arr.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');};sync();cat.onchange=()=>{const now=qFundCategories(kind.value),arr=now[cat.value]||[];sub.innerHTML=arr.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');const vb=work.querySelector('#qFundVehicleBox');if(vb)vb.style.display=(kind.value==='expense'&&cat.value==='車輛費用')?'':'none';};};const originalKind=kind.onchange;kind.onchange=e=>{if(originalKind)originalKind.call(kind,e);rebuild();const vb=work.querySelector('#qFundVehicleBox');if(vb)vb.style.display=(kind.value==='expense'&&cat.value==='車輛費用')?'':'none';};rebuild();};
+})();
+</script>
+<style>
+/* N354 report layout */
+.n354ReportTitle{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.n354FundNow{min-width:230px;border:1px solid #cfe1d7;background:#f7fff9;border-radius:12px;padding:10px 14px;text-align:right}.n354FundNow span,.n354Stats span{display:block;font-size:12px;color:#667085;font-weight:800}.n354FundNow b{display:block;font-size:24px;margin-top:3px}.n354Filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}.n354Stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.n354Stats>div{border:1px solid #dfe6ee;border-radius:12px;padding:10px 12px;background:#fff}.n354Stats b{display:block;font-size:22px;margin-top:4px}.n354Groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;margin:10px 0}.n354Group{display:flex;justify-content:space-between;gap:10px;border:1px solid #e5e9ef;border-radius:10px;padding:8px 10px;background:#fafbfc}.n354Rows{margin-top:10px}@media(max-width:760px){.n354ReportTitle{display:block}.n354FundNow{margin-top:8px;text-align:left;min-width:0}.n354Filters{grid-template-columns:1fr 1fr}.n354Stats{grid-template-columns:1fr 1fr}}@media(max-width:480px){.n354Filters,.n354Stats{grid-template-columns:1fr}}
+</style>
 
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
