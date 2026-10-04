@@ -9908,29 +9908,44 @@ K白.kg
     }
   }
   async function qVehSaveMaster(record){
-    if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');
-    // N398：車籍沿用 accounting_records 儲存，但 customer 欄位不可為 NULL。
-    // saveAccountingCloud 成功後本身已同步目前瀏覽器正式快取；
-    // 不再做第二次 maybeSingle 強制回讀，避免 RLS/同步時差造成「已寫入卻判定失敗」。
-    const cloudRecord={...record};
-    cloudRecord.customer=String(cloudRecord.customer||'公司車輛');
-    cloudRecord.type=String(cloudRecord.type||'公司內帳');
-    cloudRecord.date=String(cloudRecord.date||cloudRecord.record_date||new Date().toISOString().slice(0,10));
-    cloudRecord.record_date=String(cloudRecord.record_date||cloudRecord.date);
-    await saveAccountingCloud(cloudRecord);
+    if(typeof sb==='undefined'||!sb)throw new Error('Supabase 尚未連線');
+    const payload={...record};
+    payload.customer=String(payload.customer||'公司車輛');
+    payload.type=String(payload.type||'公司內帳');
+    payload.date=String(payload.date||payload.record_date||new Date().toISOString().slice(0,10));
+    payload.record_date=payload.date;
+    payload.mode='vehicle_master';
+    payload.updatedAt=new Date().toISOString();
 
-    // 立即確認本機正式帳務快取已有這筆車籍；沒有才補入，避免畫面看不到剛存資料。
-    try{
-      const rows=Array.isArray(acctCloudRecords)?acctCloudRecords.slice():(typeof acctLoad==='function'?acctLoad('xinru_acct_test_records',[]):[]);
-      const i=rows.findIndex(x=>String(x?.id||'')===String(cloudRecord.id));
-      if(i>=0)rows[i]=cloudRecord;else rows.unshift(cloudRecord);
-      acctCloudRecords=rows;acctCloudReady=true;
-      localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));
-    }catch(_e){}
+    // N399：車籍使用 accounting_records 正式主表直接 upsert。
+    // 不能只依一般帳務 saveAccountingCloud 的本機快取判定成功。
+    const row={
+      local_id:String(payload.id),
+      customer:payload.customer,
+      record_date:payload.date,
+      customer_type:payload.type||null,
+      payload,
+      created_by:(typeof currentUser!=='undefined'&&currentUser?.id)||null,
+      updated_at:new Date().toISOString()
+    };
+    const {data,error}=await sb.from('accounting_records')
+      .upsert(row,{onConflict:'local_id'})
+      .select('local_id,customer,record_date,customer_type,payload')
+      .single();
+    if(error)throw error;
+    if(!data||String(data.local_id)!==String(payload.id)||data.payload?.mode!=='vehicle_master')
+      throw new Error('Supabase 未確認車籍寫入成功');
 
+    // 以 Supabase 回傳的正式 payload 更新目前瀏覽器資料。
+    const saved=data.payload;
+    const rows=Array.isArray(acctCloudRecords)?acctCloudRecords.slice():(typeof acctLoad==='function'?acctLoad('xinru_acct_test_records',[]):[]);
+    const i=rows.findIndex(x=>String(x?.id||'')===String(saved.id));
+    if(i>=0)rows[i]=saved;else rows.unshift(saved);
+    acctCloudRecords=rows;acctCloudReady=true;
+    try{localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows))}catch(_e){}
     try{window.xrInvalidateAccountingSummary?.()}catch(_e){}
     try{window.qInvalidateContainerEventCache?.()}catch(_e){}
-    return cloudRecord;
+    return saved;
   }
   function qVehBack(work){work.innerHTML='<div class="actions" style="margin-bottom:10px"><button class="btn gray" id="qVehBack">← 返回車輛管理</button></div>';work.querySelector('#qVehBack').onclick=()=>open('vehicle')}
   function qRenderVehicleMaster(work){
@@ -9960,7 +9975,7 @@ K白.kg
       data.loanMonthly=data.loanMonthly===''?'':Math.max(0,Math.round(Number(data.loanMonthly)||0));
       data.currentMileage=data.currentMileage===''?'':Math.max(0,Number(data.currentMileage)||0);
       data.deliveryCustomerIds=data.enableDeliveryOps?Array.from(box.querySelectorAll('[data-vcustomer]:checked')).map(x=>String(x.dataset.vcustomer||'')).filter(Boolean):[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
-      try{await qVehSaveMaster(data);await qVehRefresh();qRenderVehicleMaster(work)}catch(e){alert('車輛資料儲存失敗：'+(e?.message||e))}
+      try{await qVehSaveMaster(data);qRenderVehicleMaster(work)}catch(e){alert('車輛資料儲存失敗：'+(e?.message||e))}
     };
     const openEditor=(v,isNew=false)=>{
       let host=work.querySelector('#qVehInlineHost');if(!host)return;
