@@ -5895,7 +5895,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     if(done)done.innerHTML=homeDone.length?homeDone.map(x=>card(x,true)).join(''):'<div class="empty">目前沒有歷史公告</div>';
     const add=document.getElementById('homeNoticeAddBtn');
     if(add){add.style.display=canManage()?'':'none';add.onclick=canManage()?createTask:null}
-    window.xrPaintSupermarketCollectionNotices?.();
+    if(typeof acctCloudReady==='undefined'||acctCloudReady)window.xrPaintSupermarketCollectionNotices?.();
   }
   async function load(){
     if(!currentUser)return;
@@ -10994,8 +10994,9 @@ window.qNormalizeTurnAction=qN93TurnAction;
  }
  window.xrPaintSupermarketCollectionNotices=paint;
  window.xrRefreshHomeAccountingNotices=paint;
- document.addEventListener('xinru:accounting-cloud-loaded',()=>setTimeout(()=>window.loadHomeNotices?.(),0));
- document.addEventListener('xinru:accounting-changed',()=>setTimeout(()=>window.loadHomeNotices?.(),0));
+ window.addEventListener('xinru:accounting-cloud-loaded',()=>setTimeout(()=>window.loadHomeNotices?.(),0));
+ window.addEventListener('xinru:accounting-changed',()=>setTimeout(()=>window.loadHomeNotices?.(),0));
+ window.addEventListener('xinru:accounting-local-write',()=>setTimeout(()=>window.loadHomeNotices?.(),0));
 })();
 </script>
 <!-- N176：容器歷史查詢作用域核心修正；查詢使用同一 IIFE 內的身份正規化，不再引用不可見的 N172 私有函式。 -->
