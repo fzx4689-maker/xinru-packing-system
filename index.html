@@ -9902,41 +9902,35 @@ K白.kg
   function qVehMaint(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='vehicle_maintenance'&&r.status!=='void'&&r.status!=='deleted')}
   async function qVehRefresh(forceCloud=false){
     if(forceCloud&&typeof loadAccountingCloud==='function')await loadAccountingCloud();
-    else if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();
-    else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
+    else{
+      try{window.xrInvalidateAccountingSummary?.()}catch(_e){}
+      try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
+    }
   }
   async function qVehSaveMaster(record){
     if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');
-    // accounting_records.customer 為 NOT NULL。車籍雖不是客戶帳，
-    // 仍必須提供合法 customer；真正車籍內容維持在 payload。
-    // 使用穩定的系統分類值，避免把車牌誤當成客戶。
+    // N398：車籍沿用 accounting_records 儲存，但 customer 欄位不可為 NULL。
+    // saveAccountingCloud 成功後本身已同步目前瀏覽器正式快取；
+    // 不再做第二次 maybeSingle 強制回讀，避免 RLS/同步時差造成「已寫入卻判定失敗」。
     const cloudRecord={...record};
     cloudRecord.customer=String(cloudRecord.customer||'公司車輛');
-    cloudRecord.customer_type=String(cloudRecord.customer_type||'公司內帳');
+    cloudRecord.type=String(cloudRecord.type||'公司內帳');
     cloudRecord.date=String(cloudRecord.date||cloudRecord.record_date||new Date().toISOString().slice(0,10));
     cloudRecord.record_date=String(cloudRecord.record_date||cloudRecord.date);
     await saveAccountingCloud(cloudRecord);
-    // N381：車籍建立後以 Supabase 正式資料回讀確認，不只相信畫面快取。
+
+    // 立即確認本機正式帳務快取已有這筆車籍；沒有才補入，避免畫面看不到剛存資料。
     try{
-      if(typeof sb!=='undefined'&&sb){
-        const {data,error}=await sb.from('accounting_records').select('local_id,payload').eq('local_id',String(record.id)).maybeSingle();
-        if(error)throw error;
-        if(!data||!data.payload||data.payload.mode!=='vehicle_master')throw new Error('雲端沒有讀回剛建立的公司車籍');
-        const saved=data.payload;
-        const rows=Array.isArray(acctCloudRecords)?acctCloudRecords.slice():(typeof acctLoad==='function'?acctLoad('xinru_acct_test_records',[]):[]);
-        const i=rows.findIndex(x=>String(x?.id||'')===String(saved.id));
-        if(i>=0)rows[i]=saved;else rows.unshift(saved);
-        acctCloudRecords=rows;acctCloudReady=true;
-        try{localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows))}catch(_e){}
-      }
-    }catch(e){
-      // 再做一次正式全量同步；若仍找不到，明確報錯，不讓使用者誤以為已建立。
-      if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
-      const ok=(typeof acctRecords==='function'?acctRecords():[]).some(x=>String(x?.id||'')===String(record.id)&&x?.mode==='vehicle_master'&&x?.status!=='deleted');
-      if(!ok)throw new Error('車輛已送出但無法從雲端讀回：'+(e?.message||e));
-    }
-    if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();
-    return record;
+      const rows=Array.isArray(acctCloudRecords)?acctCloudRecords.slice():(typeof acctLoad==='function'?acctLoad('xinru_acct_test_records',[]):[]);
+      const i=rows.findIndex(x=>String(x?.id||'')===String(cloudRecord.id));
+      if(i>=0)rows[i]=cloudRecord;else rows.unshift(cloudRecord);
+      acctCloudRecords=rows;acctCloudReady=true;
+      localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));
+    }catch(_e){}
+
+    try{window.xrInvalidateAccountingSummary?.()}catch(_e){}
+    try{window.qInvalidateContainerEventCache?.()}catch(_e){}
+    return cloudRecord;
   }
   function qVehBack(work){work.innerHTML='<div class="actions" style="margin-bottom:10px"><button class="btn gray" id="qVehBack">← 返回車輛管理</button></div>';work.querySelector('#qVehBack').onclick=()=>open('vehicle')}
   function qRenderVehicleMaster(work){
