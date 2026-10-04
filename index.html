@@ -11073,5 +11073,96 @@ window.qNormalizeTurnAction=qN93TurnAction;
 </script>
 <!-- N371：修正公司待付款「登記還款」跨作用域失效；返回鍵改回公司內帳。 -->
 <!-- N370：貸款新增時整合撥款入帳（公司帳戶／公司現金）；貸款明細移除重複借款入帳與還款；公司內帳新增公司待付款入口。 -->
-\n<!-- N373：公司待付款事件使用文件層 capture 唯一路由，避免畫面重繪後按鈕失效。 -->\n<script>\n(function(){\n  'use strict';\n  if(window.__XR_N373_COMPANY_DUE_ROUTE__) return;\n  window.__XR_N373_COMPANY_DUE_ROUTE__=true;\n\n  function getWork(){ return document.getElementById('acctStageWork'); }\n\n  document.addEventListener('click',function(e){\n    const repay=e.target && e.target.closest ? e.target.closest('[data-n369-loan]') : null;\n    if(repay){\n      e.preventDefault();\n      e.stopPropagation();\n      if(e.stopImmediatePropagation) e.stopImmediatePropagation();\n      const id=String(repay.getAttribute('data-n369-loan')||'').trim();\n      try{\n        if(!id) throw new Error('找不到貸款編號');\n        if(typeof window.xrOpenLoanRepay!=='function') throw new Error('貸款還款功能尚未載入');\n        window.xrOpenLoanRepay(id);\n      }catch(err){\n        console.error('N373 open loan repay failed',err);\n        alert('無法開啟登記還款：'+(err && err.message ? err.message : err));\n      }\n      return;\n    }\n\n    const back=e.target && e.target.closest ? e.target.closest('#qN369Back') : null;\n    if(back){\n      e.preventDefault();\n      e.stopPropagation();\n      if(e.stopImmediatePropagation) e.stopImmediatePropagation();\n      try{\n        if(typeof window.xrOpenFundHome==='function') window.xrOpenFundHome();\n        else throw new Error('公司內帳功能尚未載入');\n      }catch(err){\n        console.error('N373 back fund home failed',err);\n        alert('無法返回公司內帳，請重新整理後再試');\n      }\n    }\n  },true);\n})();\n</script>\n</body></html>
+\n<!-- N373：公司待付款事件使用文件層 capture 唯一路由，避免畫面重繪後按鈕失效。 -->\n<script>\n(function(){\n  'use strict';\n  if(window.__XR_N373_COMPANY_DUE_ROUTE__) return;\n  window.__XR_N373_COMPANY_DUE_ROUTE__=true;\n\n  function getWork(){ return document.getElementById('acctStageWork'); }\n\n  document.addEventListener('click',function(e){\n    const repay=e.target && e.target.closest ? e.target.closest('[data-n369-loan]') : null;\n    if(repay){\n      e.preventDefault();\n      e.stopPropagation();\n      if(e.stopImmediatePropagation) e.stopImmediatePropagation();\n      const id=String(repay.getAttribute('data-n369-loan')||'').trim();\n      try{\n        if(!id) throw new Error('找不到貸款編號');\n        if(typeof window.xrOpenLoanRepay!=='function') throw new Error('貸款還款功能尚未載入');\n        window.xrOpenLoanRepay(id);\n      }catch(err){\n        console.error('N373 open loan repay failed',err);\n        alert('無法開啟登記還款：'+(err && err.message ? err.message : err));\n      }\n      return;\n    }\n\n    const back=e.target && e.target.closest ? e.target.closest('#qN369Back') : null;\n    if(back){\n      e.preventDefault();\n      e.stopPropagation();\n      if(e.stopImmediatePropagation) e.stopImmediatePropagation();\n      try{\n        if(typeof window.xrOpenFundHome==='function') window.xrOpenFundHome();\n        else throw new Error('公司內帳功能尚未載入');\n      }catch(err){\n        console.error('N373 back fund home failed',err);\n        alert('無法返回公司內帳，請重新整理後再試');\n      }\n    }\n  },true);\n})();\n</script>\n
+<!-- N374：雙報表正式唯讀版。公司內帳報表／全公司報表共用正式資料，不建立任何交易。 -->
+<script>
+(function(){
+  'use strict';
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const money=n=>'$'+Math.round(Number(n)||0).toLocaleString('zh-TW');
+  const abs=n=>Math.abs(Number(n)||0);
+  const today=()=>{try{return qToday()}catch(_e){const d=new Date(Date.now()+8*3600000);return d.toISOString().slice(0,10)}};
+  function range(mode,anchor){
+    const d=new Date((anchor||today())+'T12:00:00'), iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+    let a=new Date(d),b=new Date(d);
+    if(mode==='week'){a.setDate(d.getDate()-((d.getDay()+6)%7));b=new Date(a);b.setDate(a.getDate()+6)}
+    else if(mode==='month'){a=new Date(d.getFullYear(),d.getMonth(),1,12);b=new Date(d.getFullYear(),d.getMonth()+1,0,12)}
+    else if(mode==='quarter'){const m=Math.floor(d.getMonth()/3)*3;a=new Date(d.getFullYear(),m,1,12);b=new Date(d.getFullYear(),m+3,0,12)}
+    else if(mode==='year'){a=new Date(d.getFullYear(),0,1,12);b=new Date(d.getFullYear(),11,31,12)}
+    return [iso(a),iso(b)];
+  }
+  function cashRows(){try{return (typeof qCompanyVisibleCashflowRows==='function'?qCompanyVisibleCashflowRows():[])||[]}catch(_e){return []}}
+  function internalRows(){
+    return cashRows().filter(r=>r&&r.status!=='void'&&r.status!=='deleted'&&r.fundOwner==='xinru').map(r=>({
+      ...r,date:String(r.date||r.fundDate||'').slice(0,10),reportKind:r.fundKind,
+      reportCategory:r.fundCategory||'未分類',reportSubcategory:r.fundSubcategory||'',
+      reportAmount:abs(r.fundAmount??r.fundDelta),reportParty:r.reportParty||r.customer||'',
+      reportAccount:(typeof qFundAccountName==='function'?qFundAccountName(r.fundAccount):(r.fundAccount||'')),reportSource:'公司內帳'
+    }));
+  }
+  function fullRows(){
+    const out=[]; let src=[];try{src=typeof acctRecords==='function'?(acctRecords()||[]):[]}catch(_e){}
+    src.forEach(r=>{
+      if(!r||['void','deleted','draft'].includes(r.status)||r.pricingStatus==='pending_price')return;
+      if(['company_cashflow','money_settlement','money_refund','fund_transfer','loan_movement','fund_special'].includes(r.mode))return;
+      const val=abs(r.amount??r.total??(typeof qRecordTotal==='function'?qRecordTotal(r):0)); if(!val)return;
+      const base={...r,date:String(r.date||r.txnDate||'').slice(0,10),reportAmount:val,reportParty:r.customer||r.contactName||'',reportAccount:'',reportSource:'正式帳務'};
+      if(r.txnType==='sale'||r.accountDirection==='receivable')out.push({...base,reportKind:'income',reportCategory:'銷貨收入',reportSubcategory:r.txnTypeLabel||'銷貨'});
+      else if(r.txnType==='purchase'||r.accountDirection==='payable')out.push({...base,reportKind:'expense',reportCategory:'進貨成本',reportSubcategory:r.txnTypeLabel||'進貨'});
+    });
+    internalRows().forEach(r=>out.push({...r,reportCategory:r.reportKind==='expense'?'營業費用｜'+r.reportCategory:r.reportCategory}));
+    return out;
+  }
+  function fundTotal(){
+    try{
+      if(typeof qFundAccounts==='function')return (qFundAccounts()||[]).reduce((s,a)=>s+Number(a.balance||a.currentBalance||0),0);
+      if(typeof qFundAccountBalance==='function')return Number(qFundAccountBalance('company_bank')||0)+Number(qFundAccountBalance('company_cash')||0);
+    }catch(_e){}
+    return 0;
+  }
+  function render(work,title,rowFn,isFull){
+    if(!work)return;
+    let mode='month',anchor=today(),kind='',cat='',sub='',account='';
+    work.innerHTML='<div class="quickV2 n374Report"><div class="n374Title"><div><b style="font-size:22px">'+title+'</b><div class="helper" style="display:block!important;margin-top:4px">唯讀正式資料；修改／作廢／刪除請回原交易來源處理。</div></div><div class="n374Fund"><span>公司目前實際資金</span><b>'+money(fundTotal())+'</b></div></div>'+
+      '<div class="actions n374Modes">'+[['day','日'],['week','週'],['month','月'],['quarter','季'],['year','年']].map(x=>'<button type="button" class="btn gray" data-rmode="'+x[0]+'">'+x[1]+'</button>').join('')+'</div>'+
+      '<div class="n374Filters"><div class="field"><label class="label">基準日期</label><input class="input" data-ranchor type="date" value="'+anchor+'"></div><div class="field"><label class="label">收入／支出</label><select class="input" data-rkind><option value="">全部</option><option value="income">收入</option><option value="expense">支出／成本</option></select></div><div class="field"><label class="label">分類</label><select class="input" data-rcat></select></div><div class="field"><label class="label">細項</label><select class="input" data-rsub></select></div></div><div data-rbody></div></div>';
+    const all=()=>rowFn().filter(r=>r&&r.date);
+    const refreshFilters=()=>{
+      const rows=all(),ce=work.querySelector('[data-rcat]'),se=work.querySelector('[data-rsub]');
+      const cats=[...new Set(rows.filter(r=>!kind||r.reportKind===kind).map(r=>r.reportCategory).filter(Boolean))].sort();
+      ce.innerHTML='<option value="">全部分類</option>'+cats.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');if(!cats.includes(cat))cat='';ce.value=cat;
+      const subs=[...new Set(rows.filter(r=>(!kind||r.reportKind===kind)&&(!cat||r.reportCategory===cat)).map(r=>r.reportSubcategory).filter(Boolean))].sort();
+      se.innerHTML='<option value="">全部細項</option>'+subs.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');if(!subs.includes(sub))sub='';se.value=sub;paint();
+    };
+    const paint=()=>{
+      const [f,t]=range(mode,anchor);let rows=all().filter(r=>r.date>=f&&r.date<=t);
+      if(kind)rows=rows.filter(r=>r.reportKind===kind);if(cat)rows=rows.filter(r=>r.reportCategory===cat);if(sub)rows=rows.filter(r=>r.reportSubcategory===sub);
+      rows.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+      const inc=rows.filter(r=>r.reportKind==='income').reduce((s,r)=>s+abs(r.reportAmount),0),exp=rows.filter(r=>r.reportKind==='expense').reduce((s,r)=>s+abs(r.reportAmount),0);
+      let stats='';
+      if(isFull){const sales=rows.filter(r=>r.reportCategory==='銷貨收入').reduce((s,r)=>s+abs(r.reportAmount),0),purchase=rows.filter(r=>r.reportCategory==='進貨成本').reduce((s,r)=>s+abs(r.reportAmount),0),opex=rows.filter(r=>String(r.reportCategory).startsWith('營業費用｜')).reduce((s,r)=>s+abs(r.reportAmount),0),other=inc-sales;stats=[['銷貨收入',sales],['進貨成本',purchase],['公司其他收入',other],['營業費用',opex],['期間差額',inc-exp]].map(x=>'<div><span>'+x[0]+'</span><b>'+money(x[1])+'</b></div>').join('');}
+      else stats=[['公司內帳收入',inc],['公司內帳支出',exp],['期間差額',inc-exp]].map(x=>'<div><span>'+x[0]+'</span><b>'+money(x[1])+'</b></div>').join('');
+      const groups={};rows.forEach(r=>{const k=r.reportCategory||'未分類';groups[k]=(groups[k]||0)+abs(r.reportAmount)});
+      const groupHtml=Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<div class="n374Group"><span>'+esc(k)+'</span><b>'+money(v)+'</b></div>').join('');
+      const list=rows.length?rows.map(r=>'<div class="n374Row"><div class="n374Date">'+esc(r.date)+'</div><div class="n374Desc"><b>'+esc(r.reportCategory||'未分類')+(r.reportSubcategory?'／'+esc(r.reportSubcategory):'')+'</b><span>'+esc(r.reportParty||'')+(r.reportAccount?'｜'+esc(r.reportAccount):'')+(r.note?'｜'+esc(r.note):'')+'</span></div><div class="n374Amt '+(r.reportKind==='income'?'inc':'exp')+'">'+(r.reportKind==='income'?'+':'-')+money(abs(r.reportAmount))+'</div></div>').join(''):'<div class="empty">這個期間沒有資料</div>';
+      work.querySelector('[data-rbody]').innerHTML='<div class="helper n374Range"><b>'+f+' ～ '+t+'</b>｜共 '+rows.length+' 筆</div><div class="n374Stats">'+stats+'</div>'+(groupHtml?'<div class="n374Groups">'+groupHtml+'</div>':'')+'<div class="n374Rows">'+list+'</div>';
+    };
+    work.querySelectorAll('[data-rmode]').forEach(b=>b.onclick=()=>{mode=b.dataset.rmode;work.querySelectorAll('[data-rmode]').forEach(x=>x.classList.toggle('primary',x===b));paint()});
+    work.querySelector('[data-ranchor]').onchange=e=>{anchor=e.target.value||today();paint()};
+    work.querySelector('[data-rkind]').onchange=e=>{kind=e.target.value;cat='';sub='';refreshFilters()};
+    work.querySelector('[data-rcat]').onchange=e=>{cat=e.target.value;sub='';refreshFilters()};
+    work.querySelector('[data-rsub]').onchange=e=>{sub=e.target.value;paint()};
+    const monthBtn=work.querySelector('[data-rmode="month"]');if(monthBtn)monthBtn.classList.add('primary');refreshFilters();
+  }
+  window.qN350InternalReport=function(work){try{if(typeof qFundStageHeader==='function')qFundStageHeader('sub','📊 公司內帳報表')}catch(_e){}render(work,'📊 公司內帳報表',internalRows,false)};
+  window.qRenderCompanyReportN354=function(work){render(work,'📊 全公司報表',fullRows,true)};
+  window.qRenderCompanyReport=window.qRenderCompanyReportN354;
+})();
+</script>
+<style>
+.n374Title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.n374Fund{min-width:230px;border:1px solid #d9e5dc;border-radius:12px;padding:10px 14px;background:#f8fff9;text-align:right}.n374Fund span,.n374Stats span{display:block;font-size:12px;color:#667085;font-weight:800}.n374Fund b{display:block;font-size:24px;margin-top:3px}.n374Modes{margin-top:10px}.n374Filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}.n374Range{margin:10px 0}.n374Stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.n374Stats>div{border:1px solid #dfe6ee;border-radius:12px;padding:10px 12px;background:#fff}.n374Stats b{display:block;font-size:22px;margin-top:4px}.n374Groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;margin:10px 0}.n374Group{display:flex;justify-content:space-between;gap:10px;border:1px solid #e5e9ef;border-radius:10px;padding:8px 10px;background:#fafbfc}.n374Rows{border:1px solid #dfe6ee;border-radius:12px;overflow:hidden;background:#fff;margin-top:10px}.n374Row{display:grid;grid-template-columns:115px minmax(260px,1fr) 140px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid #edf1f5}.n374Row:last-child{border-bottom:0}.n374Date{font-weight:800}.n374Desc{min-width:0}.n374Desc b,.n374Desc span{display:block}.n374Desc span{font-size:12px;color:#667085;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.n374Amt{text-align:right;font-weight:900;font-size:17px}.n374Amt.inc{color:#16794b}.n374Amt.exp{color:#b42318}
+@media(max-width:760px){.n374Title{display:block}.n374Fund{min-width:0;text-align:left;margin-top:8px}.n374Filters{grid-template-columns:1fr 1fr}.n374Stats{grid-template-columns:1fr 1fr}.n374Row{grid-template-columns:1fr auto}.n374Date{grid-column:1}.n374Desc{grid-column:1 / -1}.n374Desc span{white-space:normal}.n374Amt{grid-column:2;grid-row:1;font-size:19px}}
+@media(max-width:480px){.n374Filters,.n374Stats{grid-template-columns:1fr}}
+</style>
+</body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
