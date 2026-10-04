@@ -9320,6 +9320,11 @@ K白.kg
       else if(r.customer)a.push(r.customer);
       if(r.fundCategory&&r.fundCategory!=='員工零用金')a.push(r.fundCategory);
       if(r.fundSubcategory&&r.fundSubcategory!==r.employeeName)a.push(r.fundSubcategory);
+      if(r.fundCategory==='車輛費用'){
+        const _vv=r.vehicleId?qVehicleById(r.vehicleId):null;
+        const _plate=String(_vv?.vehiclePlate||r.vehiclePlate||'').trim();
+        if(_plate)a.push(_plate);
+      }
       if(r.note)a.push('備註：'+r.note);
       return a.join('｜')||'—';
     };
@@ -9975,7 +9980,7 @@ K白.kg
       data.purchaseAmount=data.purchaseAmount===''?'':Math.max(0,Math.round(Number(data.purchaseAmount)||0));
       data.loanMonthly=data.loanMonthly===''?'':Math.max(0,Math.round(Number(data.loanMonthly)||0));
       data.currentMileage=data.currentMileage===''?'':Math.max(0,Number(data.currentMileage)||0);
-      data.deliveryCustomerIds=data.enableDeliveryOps?(()=>{try{return JSON.parse(box.dataset.deliveryCustomerIds||'[]').map(String).filter(Boolean)}catch(_e){return []}})():[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
+      data.deliveryCustomerIds=data.enableDeliveryOps?(()=>{try{return JSON.parse((box.querySelector('.qVehInlineEditor')?.dataset.deliveryCustomerIds)||box.dataset.deliveryCustomerIds||'[]').map(String).filter(Boolean)}catch(_e){return []}})():[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
       try{await qVehSaveMaster(data);qRenderVehicleMaster(work)}catch(e){alert('車輛資料儲存失敗：'+(e?.message||e))}
     };
     const openEditor=(v,isNew=false)=>{
@@ -9985,7 +9990,7 @@ K白.kg
       const customers=qProfiles().filter(c=>{const r=String(c.role||c.type||c.identity||c.category||'');return !/產農|廠商/.test(r)}).sort((a,b)=>String(a.code||a.name||'').localeCompare(String(b.code||b.name||''),'zh-Hant'));
       const cid=c=>String(c.id||c.code||c.name||'');
       const cname=c=>[c.code,c.name||c.formalName].filter(Boolean).join('｜');
-      const renderSelected=()=>{const el=work.querySelector('#qVehSelectedCustomers');if(!el)return;const editor=work.querySelector('.qVehInlineEditor');if(editor)editor.dataset.deliveryCustomerIds=JSON.stringify(Array.from(selected));const rows=customers.filter(c=>selected.has(cid(c)));el.innerHTML=rows.length?rows.map(c=>'<button type="button" class="qVehCustomerChip" data-vremove="'+qEsc(cid(c))+'">'+qEsc(cname(c))+' <b>×</b></button><input type="checkbox" data-vcustomer="'+qEsc(cid(c))+'" checked hidden>').join(''):'<span class="helper">尚未選擇配送客戶</span>';el.querySelectorAll('[data-vremove]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.vremove));renderSelected();renderResults()})};
+      const renderSelected=()=>{const el=work.querySelector('#qVehSelectedCustomers');if(!el)return;const editor=work.querySelector('.qVehInlineEditor');if(editor){editor.dataset.deliveryCustomerIds=JSON.stringify(Array.from(selected));editor.closest('[data-vehicle-editor]')?.setAttribute('data-delivery-customer-ids',JSON.stringify(Array.from(selected)));}const rows=customers.filter(c=>selected.has(cid(c)));el.innerHTML=rows.length?rows.map(c=>'<button type="button" class="qVehCustomerChip" data-vremove="'+qEsc(cid(c))+'">'+qEsc(cname(c))+' <b>×</b></button><input type="checkbox" data-vcustomer="'+qEsc(cid(c))+'" checked hidden>').join(''):'<span class="helper">尚未選擇配送客戶</span>';el.querySelectorAll('[data-vremove]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.vremove));renderSelected();renderResults()})};
       const renderResults=()=>{const inp=work.querySelector('#qVehCustomerSearch'),el=work.querySelector('#qVehCustomerResults');if(!inp||!el)return;const q=inp.value.trim().toLowerCase();if(!q){el.innerHTML='';return}const hits=customers.filter(c=>!selected.has(cid(c))&&cname(c).toLowerCase().includes(q)).slice(0,12);el.innerHTML=hits.length?hits.map(c=>'<button type="button" data-vadd="'+qEsc(cid(c))+'">'+qEsc(cname(c))+'</button>').join(''):'<div class="helper">找不到符合的客戶</div>';el.querySelectorAll('[data-vadd]').forEach(b=>b.onclick=()=>{selected.add(String(b.dataset.vadd));inp.value='';renderSelected();renderResults()})};
       const toggle=work.querySelector('#qVehOpsToggle'),box=work.querySelector('#qVehDeliveryBox');if(toggle&&box)toggle.onchange=()=>{box.style.display=toggle.checked?'':'none'};
       const search=work.querySelector('#qVehCustomerSearch');if(search)search.oninput=renderResults;
@@ -10035,6 +10040,24 @@ K白.kg
     });
   }
   function qVehInfoCell(label,value,wide=false){return '<div class="qVehInfoCell'+(wide?' wide':'')+'"><span>'+qEsc(label)+'</span><b>'+qEsc(value===undefined||value===null||value===''?'—':String(value))+'</b></div>'}
+
+  function qVehOfficialExpenseRows(v){
+    if(!v)return [];
+    const vid=String(v.id||'').trim();
+    return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>{
+      if(!r||r.status==='void'||r.status==='deleted')return false;
+      if(r.mode!=='company_cashflow')return false;
+      if(r.fundCategory!=='車輛費用')return false;
+      return String(r.vehicleId||'').trim()===vid;
+    });
+  }
+  function qVehExpenseAmount(r){
+    const n=Number(r?.fundAmount);
+    if(Number.isFinite(n)&&n!==0)return Math.abs(n);
+    const d=Number(r?.fundDelta);
+    return Number.isFinite(d)?Math.abs(d):0;
+  }
+
   function qVehExpenseBelongsTo(r,v){
     if(!r||!v)return false;
     const rid=String(r.vehicleId||'').trim(),vid=String(v.id||'').trim();
