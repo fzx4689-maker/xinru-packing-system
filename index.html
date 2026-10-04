@@ -9980,11 +9980,7 @@ K白.kg
       data.purchaseAmount=data.purchaseAmount===''?'':Math.max(0,Math.round(Number(data.purchaseAmount)||0));
       data.loanMonthly=data.loanMonthly===''?'':Math.max(0,Math.round(Number(data.loanMonthly)||0));
       data.currentMileage=data.currentMileage===''?'':Math.max(0,Number(data.currentMileage)||0);
-      data.deliveryCustomerIds=data.enableDeliveryOps?Array.from(selectedCustomers||[]).map(raw=>{
-        const key=String(raw||'').trim();
-        const c=qVehCustomerPool().find(x=>[x?.id,x?.code,x?.name,x?.formalName,x?.customerId,x?.customerCode].some(v=>String(v??'').trim()===key));
-        return String(c?.id||c?.customerId||c?.code||c?.customerCode||c?.name||key).trim();
-      }).filter(Boolean):[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
+      data.deliveryCustomerIds=data.enableDeliveryOps?Array.from(selectedCustomers||[]).map(String).filter(Boolean):[];data.updatedAt=new Date().toISOString();if(isNew)data.createdAt=data.createdAt||data.updatedAt;
       try{await qVehSaveMaster(data);qRenderVehicleMaster(work)}catch(e){alert('車輛資料儲存失敗：'+(e?.message||e))}
     };
     const openEditor=(v,isNew=false)=>{
