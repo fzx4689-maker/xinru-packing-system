@@ -5885,7 +5885,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
       (x.due_date?'<div class="helper">日期：'+esc(x.due_date)+'</div>':'')+
       (x.note?'<div class="homeTodoNote">'+esc(x.note)+'</div>':'')+
       '</div>'+(canManage()?'<div class="homeTodoActions">'+
-      (!done?'<button type="button" class="btn gray" data-home-edit="'+esc(x.id)+'">✏️ 修改</button><button type="button" class="btn gray" data-home-end="'+esc(x.id)+'">提前結束</button>':'')+
+      (!done?'<button type="button" class="btn gray" data-home-edit="'+esc(x.id)+'">✏️ 修改</button><button type="button" class="btn gray" data-home-delete="'+esc(x.id)+'">🗑️ 刪除</button><button type="button" class="btn gray" data-home-end="'+esc(x.id)+'">提前結束</button>':'')+
       '</div>':'')+'</div>';
   }
   function render(){
@@ -5936,6 +5936,14 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
       const note=prompt('備註（可留空）',x.note||'');if(note===null)return;
       const r=await sb.from('home_tasks').update({title:title.trim(),due_date:due.trim(),note:note.trim()||null}).eq('id',id);
       if(r.error)return alert('修改失敗：'+r.error.message);await load();return;
+    }
+    const del=e.target.closest('[data-home-delete]');
+    if(del){
+      if(currentProfile?.role!=='admin')return alert('永久刪除僅限管理員');
+      if(!confirm('確定永久刪除這則手動公告？刪除後無法復原。'))return;
+      const r=await sb.from('home_tasks').delete().eq('id',del.dataset.homeDelete);
+      if(r.error)return alert('刪除失敗：'+r.error.message);
+      await load();return;
     }
     const end=e.target.closest('[data-home-end]');
     if(end&&canManage()){
