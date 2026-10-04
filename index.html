@@ -9185,7 +9185,8 @@ K白.kg
     });
     return out;
   }
-  function qFundBalance(account){return Math.round(qFundRows().filter(r=>!r.fundPending&&String(r.fundAccount||'')===String(account)).reduce((a,r)=>a+Number(r.fundDelta||0),0))}
+  function qFundOpeningBalance(account){const a=qFundAccountMasters().find(x=>qFundAccountKey(x)===String(account||''));return Math.round(Number(a?.openingBalance)||0)}
+  function qFundBalance(account){return Math.round(qFundOpeningBalance(account)+qFundRows().filter(r=>!r.fundPending&&String(r.fundAccount||'')===String(account)).reduce((a,r)=>a+Number(r.fundDelta||0),0)+qFundResolvedBalanceDelta(account))}
   function qFundMoney(n){return '$'+Math.round(Number(n)||0).toLocaleString('zh-TW')}
   function qCompanyVehicles(){
     const out=[],seen=new Set();
@@ -9296,7 +9297,7 @@ K白.kg
     const paint=()=>{let rows=getRows();const f=from.value,t=to.value;if(f)rows=rows.filter(r=>String(r.date||'')>=f);if(t)rows=rows.filter(r=>String(r.date||'')<=t);count.textContent=(f||t?((f||'最早')+' ～ '+(t||'最新')+'｜'):'全部期間｜')+'共 '+rows.length+' 筆';
       list.innerHTML=rows.length?rows.map(r=>{const src=sourceInfo(r),money=(Number(r.fundDelta||0)>=0?'+':'')+qFundMoney(r.fundDelta||0);let actions='';if(src.direct){actions='<div class="qFlowActions"><button class="btn gray" type="button" data-flow-edit="'+qEsc(r.id)+'">✏️ 修改</button><button class="btn gray" type="button" data-flow-void="'+qEsc(r.id)+'">⊘ 作廢</button>'+((typeof isAdmin==='function'&&isAdmin())?'<button class="btn danger" type="button" data-flow-delete="'+qEsc(r.id)+'">🗑 刪除</button>':'')+'</div>';}else if(src.kind==='settlement'){actions='<div class="qFlowSourceOnly">回原收款／付款管理</div>';}else if(src.kind==='loan'){actions='<div class="qFlowSourceOnly">回貸款管理</div>';}else if(src.kind==='transfer'){actions='<div class="qFlowSourceOnly">帳戶互轉紀錄</div>';}
         return '<div class="qFlowRow"><div class="qFlowDate">'+qEsc(r.date||'')+'</div><div class="qFlowType">'+qEsc(r.txnTypeLabel||'資金異動')+'</div><div class="qFlowSource"><b>'+qEsc(src.label)+'</b><span>'+qEsc(detailText(r))+'</span></div><div class="qFlowAmount '+(Number(r.fundDelta||0)>=0?'isPlus':'isMinus')+'">'+money+'</div>'+actions+'</div>'}).join(''):'<div class="empty">這個期間沒有資金流水</div>';
-      work.querySelectorAll('[data-flow-edit]').forEach(b=>b.onclick=()=>{const r=getRows().find(x=>String(x.id)===String(b.dataset.flowEdit));if(!r)return;const src=sourceInfo(r);if(src.kind==='petty'){editPetty(r);return}qRenderCompanyCashflow(work);setTimeout(()=>{const x=work.querySelector('[data-fund-edit="'+CSS.escape(String(r.id))+'"]');if(x)x.click()},0)});
+      work.querySelectorAll('[data-flow-edit]').forEach(b=>b.onclick=()=>{const r=getRows().find(x=>String(x.id)===String(b.dataset.flowEdit));if(!r)return;const src=sourceInfo(r);if(src.kind==='petty'){editPetty(r);return}qRenderCompanyCashflow(work,String(r.id))});
       work.querySelectorAll('[data-flow-void]').forEach(b=>b.onclick=()=>{const r=getRows().find(x=>String(x.id)===String(b.dataset.flowVoid));if(r)directVoid(r)});
       work.querySelectorAll('[data-flow-delete]').forEach(b=>b.onclick=()=>{const r=getRows().find(x=>String(x.id)===String(b.dataset.flowDelete));if(r)directDelete(r)});
     };
@@ -9542,12 +9543,14 @@ K白.kg
   }
     // N327：正式資金帳戶主檔。所有資金功能共用，不再各自寫死「公司帳戶／公司現金」。
   function qFundAccountMasters(){
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='fund_account_master'&&r.status!=='void');
-    if(rows.length)return rows.sort((a,b)=>(Number(a.sortOrder)||0)-(Number(b.sortOrder)||0)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
-    return [
-      {id:'company_bank',accountCode:'company_bank',accountName:'公司帳戶',accountType:'bank',builtin:true,status:'active'},
-      {id:'company_cash',accountCode:'company_cash',accountName:'公司現金',accountType:'cash',builtin:true,status:'active'}
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='fund_account_master'&&r.status!=='void'&&r.status!=='deleted');
+    const defaults=[
+      {id:'company_bank',accountCode:'company_bank',accountName:'公司帳戶',accountType:'bank',builtin:true,status:'active',openingBalance:200000,sortOrder:1},
+      {id:'company_cash',accountCode:'company_cash',accountName:'公司現金',accountType:'cash',builtin:true,status:'active',openingBalance:200000,sortOrder:2}
     ];
+    const byKey=new Map(defaults.map(x=>[String(x.accountCode),x]));
+    rows.forEach(r=>{const k=String(r.accountCode||r.id||'');if(k)byKey.set(k,{...(byKey.get(k)||{}),...r});});
+    return [...byKey.values()].sort((a,b)=>(Number(a.sortOrder)||0)-(Number(b.sortOrder)||0)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
   }
   function qFundAccountKey(a){return String(a?.accountCode||a?.id||'')}
   function qFundAccountName(key){
@@ -9562,20 +9565,24 @@ K白.kg
     const accounts=qFundAccountMasters();
     work.innerHTML='<div class="quickV2"><div class="actions" style="margin-bottom:12px"><button class="btn primary" id="qFundAccountNew" type="button">＋ 新增資金帳戶</button></div>'+
       '<div class="helper" style="display:block!important;margin-bottom:10px">公司收支、貸款、支票、零用金、帳戶互轉全部共用這份帳戶主檔。</div>'+
-      '<div class="acctQueueList">'+accounts.map(a=>{const key=qFundAccountKey(a),bal=qFundRows().filter(r=>String(r.fundAccount||'')===key).reduce((s,r)=>s+Number(r.fundDelta||0),0)+qFundResolvedBalanceDelta(key);return '<div class="acctQueueRow"><div><b>'+qEsc(a.accountName||key)+'</b><div class="helper">'+qEsc(a.accountType==='cash'?'現金':'銀行／資金帳戶')+(a.note?'｜'+qEsc(a.note):'')+'</div></div><strong>'+qFundMoney(bal)+'</strong></div>'}).join('')+'</div></div>';
+      '<div class="acctQueueList">'+accounts.map(a=>{const key=qFundAccountKey(a),bal=qFundBalance(key);return '<div class="acctQueueRow"><div><b>'+qEsc(a.accountName||key)+'</b><div class="helper">'+qEsc(a.accountType==='cash'?'現金':'銀行／資金帳戶')+'｜期初 '+qFundMoney(qFundOpeningBalance(key))+(a.note?'｜'+qEsc(a.note):'')+'</div></div><div style="display:flex;gap:8px;align-items:center"><strong>'+qFundMoney(bal)+'</strong><button class="btn gray" type="button" data-fa-edit="'+qEsc(key)+'">✏️ 修改</button></div></div>'}).join('')+'</div></div>';
     work.querySelector('#qFundAccountNew').onclick=()=>qRenderFundAccountEditor(work);
+    work.querySelectorAll('[data-fa-edit]').forEach(b=>b.onclick=()=>qRenderFundAccountEditor(work,b.dataset.faEdit));
   }
-  function qRenderFundAccountEditor(work){
-    qFundStageHeader('sub','新增資金帳戶');
-    work.innerHTML='<div class="quickV2"><b>＋ 新增資金帳戶</b><div class="quickV2Head" style="margin-top:10px">'+
-      '<div class="field"><label class="label">帳戶類型 *</label><select id="qFAType" class="input"><option value="bank">銀行／其他資金帳戶</option><option value="cash">現金</option></select></div>'+
-      '<div class="field"><label class="label">帳戶名稱 *</label><input id="qFAName" class="input" placeholder="例如：台新銀行／一銀西螺／公司現金"></div>'+
-      '<div class="field"><label class="label">備註</label><input id="qFANote" class="input" placeholder="可不填"></div></div>'+
-      '<div class="actions" style="margin-top:10px"><button id="qFASave" class="btn primary" type="button">建立帳戶</button></div></div>';
+  function qRenderFundAccountEditor(work,editKey=''){
+    const editing=editKey?qFundAccountMasters().find(a=>qFundAccountKey(a)===String(editKey)):null;
+    qFundStageHeader('sub',editing?'修改資金帳戶':'新增資金帳戶');
+    work.innerHTML='<div class="quickV2"><b>'+(editing?'✏️ 修改資金帳戶':'＋ 新增資金帳戶')+'</b><div class="quickV2Head" style="margin-top:10px">'+
+      '<div class="field"><label class="label">帳戶類型 *</label><select id="qFAType" class="input"><option value="bank"'+(editing?.accountType==='bank'?' selected':'')+'>銀行／其他資金帳戶</option><option value="cash"'+(editing?.accountType==='cash'?' selected':'')+'>現金</option></select></div>'+
+      '<div class="field"><label class="label">帳戶名稱 *</label><input id="qFAName" class="input" value="'+qEsc(editing?.accountName||'')+'" placeholder="例如：台新銀行／一銀西螺／公司現金"></div>'+
+      '<div class="field"><label class="label">期初餘額 *</label><input id="qFAOpening" class="input" inputmode="decimal" value="'+qEsc(editing?String(qFundOpeningBalance(editKey)):'0')+'" placeholder="例如 200000"><div class="helper">只作資金期初，不列收入、其他收入或損益。</div></div>'+
+      '<div class="field"><label class="label">備註</label><input id="qFANote" class="input" value="'+qEsc(editing?.note||'')+'" placeholder="可不填"></div></div>'+
+      '<div class="actions" style="margin-top:10px"><button id="qFASave" class="btn primary" type="button">'+(editing?'儲存修改':'建立帳戶')+'</button></div></div>';
     work.querySelector('#qFASave').onclick=async()=>{try{
       const name=work.querySelector('#qFAName').value.trim();if(!name)throw new Error('請輸入帳戶名稱');
-      if(qFundAccountMasters().some(a=>String(a.accountName||'').trim()===name))throw new Error('已有相同名稱的資金帳戶');
-      const now=new Date().toISOString(),id='fundacct_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),r={id,schemaVersion:1,date:qToday(),customer:'公司內帳',contactId:'',mode:'fund_account_master',txnType:'fund_account_master',txnTypeLabel:'資金帳戶',status:'active',accountCode:id,accountName:name,accountType:work.querySelector('#qFAType').value,note:work.querySelector('#qFANote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
+      if(qFundAccountMasters().some(a=>qFundAccountKey(a)!==String(editKey||'')&&String(a.accountName||'').trim()===name))throw new Error('已有相同名稱的資金帳戶');
+      const opening=Number(work.querySelector('#qFAOpening').value||0);if(!Number.isFinite(opening))throw new Error('請輸入正確期初餘額');
+      const now=new Date().toISOString(),id=editing?(editing.id||editKey):('fundacct_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),code=editing?qFundAccountKey(editing):id,r={...(editing||{}),id,schemaVersion:1,date:qToday(),customer:'公司內帳',contactId:'',mode:'fund_account_master',txnType:'fund_account_master',txnTypeLabel:'資金帳戶',status:'active',accountCode:code,accountName:name,accountType:work.querySelector('#qFAType').value,openingBalance:Math.round(opening),builtin:!!editing?.builtin,note:work.querySelector('#qFANote').value.trim(),createdAt:editing?.createdAt||now,updatedAt:now,createdBy:editing?.createdBy||(typeof qActor==='function'?qActor():'')};
       await saveAccountingCloud(r);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderFundAccounts(document.getElementById('acctStageWork'));
     }catch(e){alert(e.message||String(e))}};
   }
@@ -9710,7 +9717,7 @@ K白.kg
     await saveAccountingCloud(ev);
     try{window.qInvalidateContainerEventCache?.()}catch(_e){}
   }
-  function qRenderCompanyCashflow(work){
+  function qRenderCompanyCashflow(work,editFundId=''){
     qFundStageHeader('sub','快速輸入');
     try{const host=work.closest('.acctStage,.quickV2,.card')||work.parentElement;if(host)host.querySelectorAll('.qArApSummary,.acctArApSummary,[data-q-arap-summary]').forEach(el=>el.style.display='none')}catch(_e){}
     const vehicles=qCompanyVehicles();
@@ -9784,8 +9791,11 @@ K白.kg
       if(!existing&&isExpense&&recurring.checked){const day=Math.max(1,Math.min(31,Number(work.querySelector('#qFundRecurringDay').value)||0));if(!day)throw new Error('請輸入每月付款日');const tpl={...r,id:'fundrec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),mode:'fund_recurring_template',txnType:'fund_recurring_template',txnTypeLabel:'每月固定支出',fundDelta:0,recurringDay:day,createdAt:now,updatedAt:now};await saveAccountingCloud(tpl);r.recurringTemplateId=tpl.id;await saveAccountingCloud(r)}
       if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'));alert(existing?'公司收支已修改':(recurring.checked?'公司收支已建立，並設定每月固定支出':'公司收支已建立'))
     }catch(e){alert(e.message||String(e))}};
+    // N376：從帳戶流水按修改時，直接用正式交易 ID 回填，不再靠隱藏清單按鈕二次 click。
+    const loadEditRecord=(id)=>{if(!id)return;const r=qFundRows().find(x=>String(x.id)===String(id)&&x.mode==='company_cashflow');if(!r)return;work.querySelector('#qFundDate').value=r.date||qToday();kind.value=r.fundKind||'expense';owner.value=r.fundOwner||'xinru';rebuildCats();syncRelation();if([...cat.options].some(o=>o.value===r.fundCategory))cat.value=r.fundCategory;syncSub();if([...sub.options].some(o=>o.value===r.fundSubcategory))sub.value=r.fundSubcategory;syncSpecialFields();work.querySelector('#qFundAmount').value=Math.abs(Number(r.fundAmount||r.fundDelta||0))||'';const acct=work.querySelector('#qFundAccount');if([...acct.options].some(o=>o.value===String(r.fundAccount||'')))acct.value=r.fundAccount;work.querySelector('#qFundNote').value=r.note||'';const veh=work.querySelector('#qFundVehicle');if(veh&&r.vehicleId&&[...veh.options].some(o=>o.value===String(r.vehicleId)))veh.value=r.vehicleId;relation.value=r.fundRelation||relation.value;work.dataset.editFundId=r.id;work.querySelector('#qFundSave').textContent='儲存修改';};
     // N359：先綁定完成登記，再繪製附屬區塊；附屬統計若出錯不得讓主表單按鈕失效。
     try{paint()}catch(e){console.error('company cashflow paint failed',e)}
+    if(editFundId){loadEditRecord(editFundId);setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),0)}
   }
   // N329：舊帳「待確認資金帳戶」正式認領。只補資金帳戶，不改原交易金額／收付款內容。
   function qFundPendingRows(){return qFundRows().filter(r=>r&&r.fundPending)}
@@ -11185,5 +11195,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
 .n374Modes [data-rmode].primary{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;font-weight:900!important;opacity:1!important}
 .n374Modes [data-rmode]:not(.primary){color:#111827!important;opacity:1!important}
 </style>
+<!-- N376：公司內帳修改以交易ID直接回填；公司帳戶/公司現金期初各200,000，可於帳戶管理修改；期初不列損益。 -->
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
