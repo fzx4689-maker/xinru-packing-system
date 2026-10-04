@@ -6344,7 +6344,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(init,500));document.
         cur.amount+=qMoney(qRecordTotal(r));cur.count+=1;byPeriod.set(p.key,cur);
       }
       // 帳期工作日就是帳期結束日（例如週結＝星期六），不是隔天才第一次提醒。
-      for(const z of byPeriod.values())if(z.count>0&&z.period.end<=horizon)/* N412：一般帳期待做帳／待傳帳單提醒已正式取消，不再產生事件。 */
+      /* N413：一般帳期待做帳／待傳帳單提醒已取消；不再產生任何事件。 */
     }
 
     const weekday=d=>{const a=String(d||'').split('-').map(Number);if(a.length!==3||!a[0])return '';return '星期'+['日','一','二','三','四','五','六'][new Date(a[0],a[1]-1,a[2]).getDay()]};
