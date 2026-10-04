@@ -10685,5 +10685,96 @@ window.qNormalizeTurnAction=qN93TurnAction;
 })();
 </script>
 
+
+
+<script>
+/* N356：帳務第一層＋公司內帳正式導覽架構 */
+(function(){
+  function txt(el,v){ if(el) el.textContent=v; }
+
+  // 第一層：把既有「資金帳戶」改成「公司內帳」；「報表」改成「全公司報表」。
+  // 不複製資料、不新增資金流水，只改導覽入口與顯示名稱。
+  window.qN356ApplyPaymentHome=function(){
+    const stage=document.getElementById('acctStage');
+    if(!stage) return;
+
+    const all=[...stage.querySelectorAll('button,.acctCard,[role="button"],a')];
+    const fund=all.find(x=>x.textContent.trim()==='資金帳戶');
+    if(fund){
+      txt(fund,'💵 公司內帳');
+      fund.onclick=function(e){
+        e.preventDefault();
+        const work=document.getElementById('acctStageWork');
+        if(typeof window.qRenderFundHome==='function') window.qRenderFundHome(work);
+      };
+    }
+
+    const report=all.find(x=>x.textContent.trim()==='報表');
+    if(report){
+      txt(report,'📊 全公司報表');
+      report.onclick=function(e){
+        e.preventDefault();
+        if(typeof window.qRenderCompanyReport==='function') window.qRenderCompanyReport('company');
+      };
+    }
+  };
+
+  // 公司內帳首頁正式順序：
+  // 餘額 → 快速輸入 → 員工零用金 → 貸款管理 → 資金帳戶管理 → 公司內帳報表
+  const oldFundHome=window.qRenderFundHome;
+  if(typeof oldFundHome==='function'){
+    window.qRenderFundHome=function(work){
+      oldFundHome(work);
+      const root=work || document.getElementById('acctStageWork');
+      if(!root) return;
+
+      // 公司內帳不再重複放「帳戶互轉」；第一層既有互轉維持原功能。
+      [...root.querySelectorAll('button,.acctCard,[role="button"],a')].forEach(el=>{
+        const t=el.textContent.trim();
+        if(t==='帳戶互轉' || t==='⇄ 帳戶互轉' || t==='↔ 帳戶互轉'){
+          const box=el.closest('.acctCard') || el;
+          box.style.display='none';
+        }
+      });
+
+      // 舊「公司收支」入口正式改名為「快速輸入」。
+      [...root.querySelectorAll('button,.acctCard,[role="button"],a')].forEach(el=>{
+        const t=el.textContent.trim();
+        if(t==='公司收支' || t==='💵 公司收支') txt(el,'➕ 快速輸入');
+      });
+
+      // 報表名稱固定為公司內帳報表。
+      [...root.querySelectorAll('button,.acctCard,[role="button"],a')].forEach(el=>{
+        if(el.textContent.trim()==='報表') txt(el,'📊 公司內帳報表');
+      });
+
+      // 依名稱重新排列可見功能卡；不改原按鈕事件。
+      const wanted=['快速輸入','員工零用金','貸款管理','資金帳戶管理','公司內帳報表'];
+      const cards=[...root.querySelectorAll('.acctCard,button')].filter(el=>{
+        const t=el.textContent.replace(/[💵➕📊🏢💳👤]/g,'').trim();
+        return wanted.includes(t);
+      });
+      if(cards.length){
+        const parent=cards[0].parentElement;
+        if(parent && cards.every(x=>x.parentElement===parent)){
+          wanted.forEach(name=>{
+            const c=cards.find(el=>el.textContent.replace(/[💵➕📊🏢💳👤]/g,'').trim()===name);
+            if(c) parent.appendChild(c);
+          });
+        }
+      }
+    };
+  }
+
+  // 每次回到收款付款首頁時重新套用名稱；不碰應收應付計算。
+  const obs=new MutationObserver(()=>qN356ApplyPaymentHome());
+  document.addEventListener('DOMContentLoaded',()=>{
+    qN356ApplyPaymentHome();
+    const st=document.getElementById('acctStage');
+    if(st) obs.observe(st,{childList:true,subtree:true});
+  });
+})();
+</script>
+
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
