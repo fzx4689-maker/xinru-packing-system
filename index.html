@@ -7610,7 +7610,39 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     }).filter(m=>m.method&&m.amount>0);
   }
   function qValidateMoneyDate(date){const d=String(date||'').trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(d))throw new Error('請選擇實際收／付款日期');return d}
-  async function qSaveMoneySettlement(c,direction,date,allocations,methods,note,vehicleReturn={}){date=qValidateMoneyDate(date);methods=qNormalizeMoneyMethods(methods,direction);const billingPeriod=qN292AssertSinglePeriod(c,allocations);const allocatedAmount=allocations.reduce((a,x)=>a+qMoney(x.amount),0),methodTotal=methods.reduce((a,x)=>a+qMoney(x.amount),0),hasStored=methods.some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);if(methodTotal<=0)throw new Error(direction==='receipt'?'請輸入本次收款金額':'請輸入本次付款金額');if(allocatedAmount-methodTotal>0.001)throw new Error('沖帳金額不可超過本次實際收／付款金額');if(methodTotal-allocatedAmount>0.001&&!(direction==='receipt'&&hasStored))throw new Error('本次收款多於沖帳金額；多收金額只有選「儲值」時才可保留為儲值餘額');const opens=new Map(qOpenMoneyRows(c,direction).map(x=>[String(x.record.id),x.due]));for(const a of allocations){const due=opens.get(String(a.recordId))||0;if(qMoney(a.amount)>due+0.001)throw new Error('本次沖帳金額不可超過該筆未結清餘額')}const now=new Date().toISOString(),isVehicle=String(c.settlement||'')==='車趟結',returnDate=qToday(),creditAmount=direction==='receipt'&&hasStored?Math.max(0,methodTotal-allocatedAmount):0,record={id:qMoneyId(),schemaVersion:7,date,customer:c.name||'',contactId:c.id||null,type:c.identity||c.type||'',mode:'money_settlement',txnType:direction==='receipt'?'receipt':'payment',txnTypeLabel:direction==='receipt'?'收款':'付款',accountDirection:direction==='receipt'?'settle_receivable':'settle_payable',amount:methodTotal,total:methodTotal,paid:methodTotal,due:0,methods,allocations,allocatedAmount,creditAmount,billingPeriodKey:billingPeriod?.key||'',billingPeriodType:billingPeriod?.type||'',billingPeriodStart:billingPeriod?.start||'',billingPeriodEnd:billingPeriod?.end||'',billingPeriodLabel:billingPeriod?.label||'',note:String(note||'').trim(),vehicleSettlement:isVehicle,moneyReturned:isVehicle&&!!vehicleReturn.moneyReturned,moneyReturnedAt:(isVehicle&&vehicleReturn.moneyReturned)?returnDate:null,receiptReturned:isVehicle&&!!vehicleReturn.receiptReturned,receiptReturnedAt:(isVehicle&&vehicleReturn.receiptReturned)?returnDate:null,status:'active',pricingStatus:'priced',settlementStatus:'settled',createdAt:now,updatedAt:now,createdBy:(currentProfile?.display_name||currentUser?.email||''),audit:[{action:direction==='receipt'?'receipt':'payment',at:now,by:(currentProfile?.display_name||currentUser?.email||'')} ]};await qPersist(record);return record}
+  async function qSaveMoneySettlement(c,direction,date,allocations,methods,note,vehicleReturn={}){
+    date=qValidateMoneyDate(date);
+    methods=qNormalizeMoneyMethods(methods,direction);
+
+    // N423：儲值型（例如 0299）允許實收超過未結清。
+    // 正式交易只沖到欠款上限，多出的金額直接成為正的儲值金，不得阻擋存檔。
+    const storedAccount=direction==='receipt'&&qStoredValueEnabled(c);
+    const opens=new Map(qOpenMoneyRows(c,direction).map(x=>[String(x.record.id),x.due]));
+    let overflowFromAlloc=0;
+    allocations=(Array.isArray(allocations)?allocations:[]).map(a=>{
+      const amount=qMoney(a?.amount),due=opens.get(String(a?.recordId))||0;
+      if(amount<=due+0.001)return {...a,amount};
+      if(!storedAccount)throw new Error('本次沖帳金額不可超過該筆未結清餘額');
+      overflowFromAlloc+=Math.max(0,amount-due);
+      return {...a,amount:Math.max(0,due)};
+    }).filter(a=>qMoney(a.amount)>0);
+
+    const billingPeriod=qN292AssertSinglePeriod(c,allocations);
+    const allocatedAmount=allocations.reduce((a,x)=>a+qMoney(x.amount),0);
+    const methodTotal=methods.reduce((a,x)=>a+qMoney(x.amount),0);
+    const hasStored=storedAccount||methods.some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
+
+    if(methodTotal<=0)throw new Error(direction==='receipt'?'請輸入本次收款金額':'請輸入本次付款金額');
+    if(allocatedAmount-methodTotal>0.001)throw new Error('沖帳金額不可超過本次實際收／付款金額');
+    if(methodTotal-allocatedAmount>0.001&&!(direction==='receipt'&&hasStored))
+      throw new Error('本次收款多於沖帳金額；多收金額只有儲值型往來才可保留為儲值餘額');
+
+    const now=new Date().toISOString(),isVehicle=String(c.settlement||'')==='車趟結',returnDate=qToday();
+    const creditAmount=direction==='receipt'&&hasStored?Math.max(0,methodTotal-allocatedAmount):0;
+    const record={id:qMoneyId(),schemaVersion:7,date,customer:c.name||'',contactId:c.id||null,type:c.identity||c.type||'',mode:'money_settlement',txnType:direction==='receipt'?'receipt':'payment',txnTypeLabel:direction==='receipt'?'收款':'付款',accountDirection:direction==='receipt'?'settle_receivable':'settle_payable',amount:methodTotal,total:methodTotal,paid:methodTotal,due:0,methods,allocations,allocatedAmount,creditAmount,billingPeriodKey:billingPeriod?.key||'',billingPeriodType:billingPeriod?.type||'',billingPeriodStart:billingPeriod?.start||'',billingPeriodEnd:billingPeriod?.end||'',billingPeriodLabel:billingPeriod?.label||'',note:String(note||'').trim(),vehicleSettlement:isVehicle,moneyReturned:isVehicle&&!!vehicleReturn.moneyReturned,moneyReturnedAt:(isVehicle&&vehicleReturn.moneyReturned)?returnDate:null,receiptReturned:isVehicle&&!!vehicleReturn.receiptReturned,receiptReturnedAt:(isVehicle&&vehicleReturn.receiptReturned)?returnDate:null,status:'active',pricingStatus:'priced',settlementStatus:'settled',createdAt:now,updatedAt:now,createdBy:(currentProfile?.display_name||currentUser?.email||''),audit:[{action:direction==='receipt'?'receipt':'payment',at:now,by:(currentProfile?.display_name||currentUser?.email||'')} ]};
+    await qPersist(record);
+    return record
+  }
   // N41：收／付款輸入永遠由 0 開始；歷史收付款可產生含允許周轉物資訊的對帳圖片。
   function qSettlementDirection(s){return s?.txnType==='payment'?'payment':'receipt'}
   function qSettlementSnapshot(c,s){
