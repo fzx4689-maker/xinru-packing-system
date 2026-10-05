@@ -2219,7 +2219,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
           </div>
           <div class="quickToolPanels">
             <div class="quickToolPanel" data-panel="question"><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="packingQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="packingQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('packing')">送出詢問</button></div><div id="packingQuestionReplies" class="shortageList"></div></div></div>
-            <div class="quickToolPanel" data-panel="freight"><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button><div id="packingFreightReports" class="freightOwnList"></div></div></div>
+            <div class="quickToolPanel" data-panel="freight"><div class="packingToolBody"><div class="field"><label class="label">客戶</label><input id="packingFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="packingFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3&#10;籃4" oninput="previewFreightBulk('packing')"></textarea></div><div id="packingFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('packing')">📦 一次回報總部</button><div id="packingFreightReports" class="freightOwnList"></div></div></div>
             <div class="quickToolPanel" data-panel="shortage"><div class="packingToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="packingShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="packingShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="packingShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('packing')">送出回報</button></div><div id="packingShortageReplies" class="shortageList"></div></div></div>
           </div>
         </div>
@@ -2251,7 +2251,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
           </div>
           <div class="quickToolPanels">
             <div class="quickToolPanel" data-panel="question"><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶／主題</label><input id="deliveryQuestionSubject" class="input" placeholder="例如：彩椒"></div><div class="field shortageItem"><label class="label">要問總部</label><input id="deliveryQuestionText" class="input" placeholder="例如：現在進來的彩椒要檢查嗎？"></div><button class="btn primary" type="button" onclick="submitFieldQuestion('delivery')">送出詢問</button></div><div id="deliveryQuestionReplies" class="shortageList"></div></div></div>
-            <div class="quickToolPanel" data-panel="freight"><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button><div id="deliveryFreightReports" class="freightOwnList"></div></div></div>
+            <div class="quickToolPanel" data-panel="freight"><div class="deliveryToolBody"><div class="field"><label class="label">客戶</label><input id="deliveryFreightCustomer" class="input" placeholder="客戶名稱"></div><div class="field"><label class="label">回報公斤數（每行一項）</label><textarea id="deliveryFreightText" class="input freightBulkText" placeholder="麵腸10K&#10;老薑1.2K&#10;30K高麗菜*3&#10;籃4" oninput="previewFreightBulk('delivery')"></textarea></div><div id="deliveryFreightSummary" class="meta" style="margin:9px 0;font-weight:900"></div><button class="btn primary" type="button" onclick="submitFreightWeight('delivery')">📦 一次回報總部</button><div id="deliveryFreightReports" class="freightOwnList"></div></div></div>
             <div class="quickToolPanel" data-panel="shortage"><div class="deliveryToolBody"><div class="shortageGrid"><div class="field"><label class="label">客戶</label><input id="deliveryShortCustomer" class="input" placeholder="例如：六禾"></div><div class="field shortageItem"><label class="label">缺的品項</label><input id="deliveryShortItem" class="input" placeholder="例如：袖珍菇10、中華豆腐10"></div><div class="field"><label class="label">件數/備註</label><input id="deliveryShortQty" class="input" placeholder="可不填"></div><button class="btn primary" type="button" onclick="submitShortageReport('delivery')">送出回報</button></div><div id="deliveryShortageReplies" class="shortageList"></div></div></div>
           </div>
         </div>
@@ -5420,28 +5420,37 @@ function parseFreightBulk(source){
   const rows=[],bad=[];
   text.split(/\r?\n/).forEach((raw,index)=>{
     const line=raw.trim(); if(!line)return;
+    /* N427：寄車回報可直接輸入「籃4／籃子4」；只記現場寄車籃數，不連動帳務/容器核心。 */
+    const basketMatch=line.match(/^籃(?:子)?\s*[：:]?\s*(\d+(?:\.\d+)?)\s*(?:個)?$/);
+    if(basketMatch){
+      const qty=Number(basketMatch[1]);
+      if(qty<=0){bad.push({line:index+1,text:line});return;}
+      rows.push({item:'籃子',qty,kg:0,total_kg:0,kind:'basket',raw:line});
+      return;
+    }
     /* 自由格式：公斤可在品名前或後；件數 *3 / x3 / ×3 可省略。 */
     const qtyMatch=line.match(/(?:\*|[xX×])\s*(\d+(?:\.\d+)?)\s*$/);
     const qty=qtyMatch?Number(qtyMatch[1]):1;
     const body=qtyMatch?line.slice(0,qtyMatch.index).trim():line;
     // N126：品名／規格原文完整保留；若同一行有多個 K/KG/公斤數值，最後一個才是實際每件公斤。
-    // 例：花瓜12K/14K → 顯示仍為「花瓜12K/14K」，1件按 14KG 計算。
     const kgMatches=[...body.matchAll(/(\d+(?:\.\d+)?)\s*(?:KG|K|公斤)/gi)];
     const kgMatch=kgMatches.length?kgMatches[kgMatches.length-1]:null;
     if(!kgMatch){bad.push({line:index+1,text:line});return;}
     const kg=Number(kgMatch[1]);
     const item=body;
     if(!item||kg<=0||qty<=0){bad.push({line:index+1,text:line});return;}
-    rows.push({item,qty,kg,total_kg:Math.round(kg*qty*100)/100,raw:line});
+    rows.push({item,qty,kg,total_kg:Math.round(kg*qty*100)/100,kind:'kg',raw:line});
   });
   return {rows,bad};
 }
 window.previewFreightBulk=function(source){
   const b=document.getElementById(source+'FreightSummary');if(!b)return;
   const p=parseFreightBulk(source);
-  const pieces=p.rows.reduce((a,r)=>a+r.qty,0);
-  const kg=p.rows.reduce((a,r)=>a+r.total_kg,0);
-  b.innerHTML=(p.rows.length?'共 '+p.rows.length+' 個品項｜'+pieces+' 件｜總重量 <b>'+Math.round(kg*100)/100+' KG</b>':'請輸入回報公斤數')+
+  const kgRows=p.rows.filter(r=>r.kind!=='basket');
+  const pieces=kgRows.reduce((a,r)=>a+r.qty,0);
+  const kg=kgRows.reduce((a,r)=>a+r.total_kg,0);
+  const baskets=p.rows.filter(r=>r.kind==='basket').reduce((a,r)=>a+r.qty,0);
+  b.innerHTML=(p.rows.length?((kgRows.length?'共 '+kgRows.length+' 個品項｜'+pieces+' 件｜總重量 <b>'+Math.round(kg*100)/100+' KG</b>':'')+(baskets?(kgRows.length?'｜':'')+'籃子 <b>'+baskets+' 個</b>':'')):'請輸入回報公斤數或籃數')+
     (p.bad.length?'<div style="color:#c62828;margin-top:5px">⚠️ 第 '+p.bad.map(x=>x.line).join('、')+' 行格式無法辨識</div>':'');
 };
 window.submitFreightWeight=async function(source){
@@ -5449,7 +5458,7 @@ window.submitFreightWeight=async function(source){
   const p=parseFreightBulk(source),items=p.rows;
   if(!customer)return alert('請填客戶');
   if(p.bad.length)return alert('第 '+p.bad.map(x=>x.line).join('、')+' 行格式無法辨識，請修正後再送出');
-  if(!items.length)return alert('請輸入回報公斤數，例如：30K高麗菜*3');
+  if(!items.length)return alert('請輸入回報公斤數或籃數，例如：30K高麗菜*3、籃4');
   const batch='FR-'+Date.now()+'-'+String(currentUser.id).slice(0,8);
   const rows=items.map(r=>({customer,item_text:r.item,qty:r.qty,piece_kg:r.kg,total_kg:r.total_kg,source,source_label:stage9Role(source),reported_by:currentUser.id,reported_by_name:currentProfile?.display_name||'',status:'reported',batch_id:batch}));
   const {error}=await sb.from('freight_receipts').insert(rows);
@@ -5459,7 +5468,9 @@ window.submitFreightWeight=async function(source){
   previewFreightBulk(source);
   await loadStage9();
   const total=rows.reduce((a,r)=>a+r.total_kg,0);
-  alert('已送到派工現場回報｜'+rows.length+' 個品項｜總公斤 '+Math.round(total*100)/100+' KG');
+  const basketTotal=items.filter(r=>r.kind==='basket').reduce((a,r)=>a+r.qty,0);
+  const kgCount=items.filter(r=>r.kind!=='basket').length;
+  alert('已送到派工現場回報｜'+(kgCount?kgCount+' 個品項｜總公斤 '+Math.round(total*100)/100+' KG':'')+(basketTotal?(kgCount?'｜':'')+'籃子 '+basketTotal+' 個':''));
 };
 function freightGroups(){
   const groups={};
@@ -5476,7 +5487,9 @@ function freightGroups(){
     })
   })).sort((a,b)=>String(b.rows[0]?.created_at||'').localeCompare(String(a.rows[0]?.created_at||'')));
 }
-function freightItemHasKgText(v){return /\d+(?:\.\d+)?\s*(?:KG|K|公斤)/i.test(String(v||''))} function freightGroupText(group){return group.rows.map(x=>(freightItemHasKgText(x.item_text)?String(x.item_text||''):(String(x.item_text||'')+Number(x.piece_kg||0)+'K'))+(Number(x.qty||0)!==1?'*'+Number(x.qty||0):'')).join('\n')}
+function freightItemHasKgText(v){return /\d+(?:\.\d+)?\s*(?:KG|K|公斤)/i.test(String(v||''))}
+function freightIsBasketRow(x){return String(x?.item_text||'').trim()==='籃子'&&Number(x?.piece_kg||0)===0&&Number(x?.total_kg||0)===0}
+function freightGroupText(group){return group.rows.map(x=>freightIsBasketRow(x)?('籃'+Number(x.qty||0)):((freightItemHasKgText(x.item_text)?String(x.item_text||''):(String(x.item_text||'')+Number(x.piece_kg||0)+'K'))+(Number(x.qty||0)!==1?'*'+Number(x.qty||0):''))).join('\n')}
 function freightGroupSnapshot(group){return {customer:group.rows[0]?.customer||'',items:group.rows.map(x=>({id:x.id,item_text:x.item_text||'',qty:Number(x.qty||0),piece_kg:Number(x.piece_kg||0),total_kg:Number(x.total_kg||0)}))}}
 function freightLogsFor(batch){return freightChangeLogs.filter(x=>String(x.batch_id)===String(batch))}
 function freightPendingLog(batch){return freightLogsFor(batch).find(x=>!x.is_acknowledged)}
@@ -5503,6 +5516,8 @@ function canDeleteFreightReport(){
 function freightParseEditText(raw){
   const lines=String(raw||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[],bad=[];
   lines.forEach((line,index)=>{
+    const basketMatch=line.match(/^籃(?:子)?\s*[：:]?\s*(\d+(?:\.\d+)?)\s*(?:個)?$/);
+    if(basketMatch){const qty=Number(basketMatch[1]);if(qty<=0){bad.push(index+1);return}rows.push({item:'籃子',qty,kg:0,total_kg:0,kind:'basket'});return}
     let body=line.replace(/，/g,',').replace(/＊/g,'*').trim(),qty=1;
     const qm=body.match(/(?:\*|x|X|×)\s*(\d+(?:\.\d+)?)\s*$/);
     if(qm){qty=Number(qm[1]);body=body.slice(0,qm.index).trim()}
@@ -5615,13 +5630,13 @@ function renderFreightFor(source){
   box.innerHTML=groups.length?'<div class="meta" style="margin:10px 0 5px;font-weight:900">未完成寄車回報</div>'+groups.map(g=>freightBatchCard(g,false,true)).join(''):'';
 }
 function freightBatchCard(group,completed=false,fieldView=false){
-  const arr=group.rows,h=arr[0],pieces=arr.reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0);
+  const arr=group.rows,h=arr[0],pieces=arr.filter(x=>!freightIsBasketRow(x)).reduce((a,x)=>a+Number(x.qty||0),0),kg=arr.reduce((a,x)=>a+Number(x.total_kg||0),0),baskets=arr.filter(freightIsBasketRow).reduce((a,x)=>a+Number(x.qty||0),0);
   const doneCount=arr.filter(x=>['confirmed','completed'].includes(x.status||'reported')).length;
   const allChecked=doneCount===arr.length, fullyCompleted=arr.every(x=>(x.status||'')==='completed');
   const officeView=!fieldView;
   return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(h.customer||'')+'</b>｜'+arr.length+' 個品項</div><span class="badge '+(fullyCompleted?'gray':'green')+'">'+Math.round(kg*100)/100+' KG</span></div>'+
-    arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');return '<div class="freightConfirmItem"><div><b>'+esc(freightItemHasKgText(x.item_text)?x.item_text:((x.item_text||'')+Number(x.piece_kg||0)+'K'))+'</b>｜'+Number(x.qty||0)+' 件 ＝ <b>'+Number(x.total_kg||0)+' KG</b></div>'+(done?'<span class="badge gray">✓ 已確認</span>':(officeView?'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>':'<span class="badge gray">待派工確認</span>'))+'</div>'}).join('')+
-    '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG</div>'+
+    arr.map(x=>{const done=['confirmed','completed'].includes(x.status||'reported');const line=freightIsBasketRow(x)?('<b>籃子</b>｜<b>'+Number(x.qty||0)+' 個</b>'):('<b>'+esc(freightItemHasKgText(x.item_text)?x.item_text:((x.item_text||'')+Number(x.piece_kg||0)+'K'))+'</b>｜'+Number(x.qty||0)+' 件 ＝ <b>'+Number(x.total_kg||0)+' KG</b>');return '<div class="freightConfirmItem"><div>'+line+'</div>'+(done?'<span class="badge gray">✓ 已確認</span>':(officeView?'<button type="button" class="btn primary freight-item-confirm-btn" data-id="'+esc(String(x.id))+'">☐ 確認</button>':'<span class="badge gray">待派工確認</span>'))+'</div>'}).join('')+
+    '<div style="margin-top:7px;font-weight:900">已確認 '+doneCount+'/'+arr.length+'｜總件數 '+pieces+' 件｜總公斤 '+Math.round(kg*100)/100+' KG'+(baskets?'｜籃子 '+baskets+' 個':'')+'</div>'+
     '<div class="meta">回報：'+esc(h.source_label||'')+'－'+esc(h.reported_by_name||'')+'｜'+stage9Time(h.created_at)+'</div>'+freightChangeHtml(group.batch,officeView)+(fieldView&&String(freightEditingBatch)===String(group.batch)?freightEditHtml(group):(fieldView&&!fullyCompleted?'<div class="shortageActions"><button type="button" class="btn blue freight-edit-btn" data-batch="'+esc(group.batch)+'">✏️ 修改回報</button>'+(canDeleteFreightReport()?'<button type="button" class="btn red freight-delete-btn" data-batch="'+esc(group.batch)+'">🗑️ 刪除回報</button>':'')+'</div>':''))+
     (officeView&&!fullyCompleted&&allChecked?'<div class="shortageActions"><button type="button" class="btn primary freight-complete-btn" data-batch="'+esc(group.batch)+'">✅ 整單完成</button></div>':'')+
     (fullyCompleted?'<div class="meta" style="color:#18703c;font-weight:900">✅ 已整單完成｜'+stage9Time(h.confirmed_at||'')+'</div>':'')+'</div>';
