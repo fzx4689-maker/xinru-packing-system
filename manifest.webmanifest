@@ -1,16 +1,21 @@
 {
-  "id": "./",
-  "name": "欣儒農產行｜內部作業系統",
-  "short_name": "欣儒系統",
-  "description": "欣儒農產行內部作業系統",
+  "name": "NEXUS",
+  "short_name": "NEXUS",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#168c4e",
-  "orientation": "portrait-primary",
+  "background_color": "#241044",
+  "theme_color": "#3f1b7a",
   "icons": [
-    {"src":"./app-truck-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
-    {"src":"./app-truck-512.png","sizes":"512x512","type":"image/png","purpose":"any"}
+    {
+      "src": "./nexus-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./nexus-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }
