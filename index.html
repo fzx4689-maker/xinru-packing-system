@@ -6339,7 +6339,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
    const recv=qOpenMoneyRows(c,'receipt'),byDue=new Map();
    for(const x of recv){
      const rec=x?.record;if(!rec)continue;
-     if(rec.status==='draft'||rec.status==='void'||rec.status==='deleted'||rec.pricingStatus==='pending_price')continue;
+     if(rec.status==='draft'||rec.status==='void'||rec.status==='deleted')continue;
      const p=qN292PeriodMeta(c,rec);if(!p?.ok)continue;
      const due=qCollectionDueDateFor(c,p);if(!due?.ok||!due.date)continue;
      const amt=Math.max(0,qMoney(x.due));if(!(amt>0))continue;
@@ -6609,7 +6609,7 @@ let qN217IdentityCache = new WeakMap();
     return legacy+settled;
   }
   function qAccountingOutstanding(r,c,cutoff=''){
-    if(!r||r.status==='void'||r.status==='draft'||r.pricingStatus==='pending_price'||qAccountingIsAdjustment(r)||r.mode==='money_settlement'||r.mode==='money_refund')return 0;
+    if(!r||r.status==='void'||r.status==='draft'||qAccountingIsAdjustment(r)||r.mode==='money_settlement'||r.mode==='money_refund')return 0;
     return Math.max(0,qAccountingEffectiveTotal(r,c,cutoff)-qAccountingPaidTotal(r,cutoff));
   }
   function qAccountingRefundsFor(recordId,cutoff=''){
@@ -6625,7 +6625,7 @@ let qN217IdentityCache = new WeakMap();
     },0)
   }
   function qAccountingOverpaid(r,c,cutoff=''){
-    if(!r||r.status==='void'||r.status==='draft'||r.pricingStatus==='pending_price')return 0;
+    if(!r||r.status==='void'||r.status==='draft')return 0;
     return Math.max(0,qAccountingPaidTotal(r,cutoff)-qAccountingEffectiveTotal(r,c,cutoff)-qAccountingRefundedTotal(r.id,cutoff));
   }
   // N114：空白新增列不參與缺資料/待補計數；完成鍵保持可按，錯誤交由 qBuildRecord 逐列提示。
@@ -6926,7 +6926,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(String(c?.paymentDefault||'').trim()!=='儲值'||String(period?.type||'')!=='儲值月帳')return null;
     const start=String(period?.start||''),end=String(period?.end||'');
     const prevDate=(()=>{const d=qBillingParseDate(start);return d?qBillingDateText(qBillingAddDays(d,-1)):''})();
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&qRecordBelongsToContact(r,c));
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c));
     const isSale=r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨');
     const salesTo=to=>rows.filter(r=>isSale(r)&&(!to||String(r.date||'')<=to)).reduce((n,r)=>n+qAccountingEffectiveTotal(r,c),0);
     const periodSales=rows.filter(r=>isSale(r)&&(!start||String(r.date||'')>=start)&&(!end||String(r.date||'')<=end)).reduce((n,r)=>n+qAccountingEffectiveTotal(r,c),0);
@@ -6945,7 +6945,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     if(storedValue)storedValue.inflowDetails=qN305StoredValueInflowDetails(c,{from:period?.start||'',to:period?.end||''});
     const settlements=qMoneySettlements().filter(x=>qRecordBelongsToContact(x,c)&&((direction==='receipt'&&x.txnType==='receipt')||(direction==='payment'&&x.txnType==='payment'))).map(x=>{const amount=(Array.isArray(x.allocations)?x.allocations:[]).filter(a=>ids.has(String(a?.recordId||''))).reduce((n,a)=>n+qMoney(a?.amount),0);return {record:x,amount}}).filter(x=>x.amount>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
     const paid=Math.min(originalAmount,settlements.reduce((n,x)=>n+x.amount,0)),outstanding=Math.max(0,originalAmount-paid),lastPaymentDate=settlements.length?String(settlements[settlements.length-1].record.date||''):'',settled=originalAmount>0&&outstanding<=0.000001;
-    const allFormal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,direction));
+    const allFormal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,direction));
     const prior=storedValue?[]:allFormal.filter(r=>{const p=qN292PeriodMeta(c,r);return p?.ok&&String(p.key)!==String(period?.key||'')&&String(p.end||r.date||'')<String(period?.start||'')});
     const priorOutstanding=storedValue?0:prior.reduce((n,r)=>n+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
     return {periodKey:period?.key||'',periodType:period?.type||'',periodStart:period?.start||'',periodEnd:period?.end||'',periodLabel:period?.label||'',originalRecordCount:members.length,originalAmount,paidAmount:paid,outstanding,settled,settledDate:settled?lastPaymentDate:'',lastPaymentDate,priorOutstanding,settlements,storedValue};
@@ -6985,7 +6985,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const c=qContact(record.contactId||record.customer||'');if(!c)return null;
     const direction=qN278ResolveOutputDirection(record,c,{})||((record.txnType==='purchase'||record.accountDirection==='payable'||record.txnTypeLabel==='進貨')?'payment':'receipt');
     const selected=qN292PeriodMeta(c,record);if(!selected?.ok)return null;
-    const formal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price');
+    const formal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void');
     const activities=formal.filter(r=>{
       if(r.mode==='money_settlement'||r.mode==='money_refund'||qAccountingIsAdjustment(r))return false;
       if(!qN225ActivityDirectionMatch(r,direction))return false;
@@ -7013,7 +7013,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       const c=qContact(record.contactId||record.customer||'');
       if(c){
         const dir=String(record.direction||'')==='payable'?'payment':'receipt',anchor=String(record.date||'');
-        const formal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,dir)).sort(qN96Cmp);
+        const formal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,dir)).sort(qN96Cmp);
         const exact=formal.filter(r=>String(r.date||'')===anchor);
         const prior=formal.filter(r=>!anchor||String(r.date||'')<=anchor);
         const picked=(exact.length?exact[exact.length-1]:(prior.length?prior[prior.length-1]:(formal.length?formal[formal.length-1]:null)));
@@ -7059,7 +7059,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       // N299：儲值型交易查詢也建立同一份自然月 periodSummary，四種輸出不得退回舊的單日／累積儲值摘要。
       let periodSummary=null;
       if(storedValuePeriod){
-        const formalActs=acts.filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.pricingStatus!=='pending_price'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,'receipt'));
+        const formalActs=acts.filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,'receipt'));
         periodSummary=qN297BillingPeriodSummary(c,'receipt',storedValuePeriod,formalActs);
       }
       return {schema:'xinru_complete_output_v1',kind:'general',outputPartyLabel:'往來對象',reportLayout:'normal',contact:snap.contact||c,direction:storedValuePeriod?'receipt':'transaction_history',range:{from,to},rows,settlements:rows.filter(x=>x.kind==='settlement'),summary:qN98Summary(rows,storedValuePeriod?0:singleOutstanding),periodSummary,transactionHistoryOpen:storedValuePeriod?null:{receivable:open.receivable,payable:open.payable,showReceipt,showPayment},storedValueBalance:qStoredValueBalance(c),currentContainerText:snap.text,currentContainerBalances:snap.balances,currentContainerTypes:snap.enabledTypes,source:{activities:acts,period:storedValuePeriod,selectedBillingPeriod:!!storedValuePeriod,transactionHistory:true}};
@@ -7539,11 +7539,11 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qSettlementAllocated(recordId){const id=String(recordId||'');return qMoneySettlements().reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0)}
   function qRecordOutstanding(r){const c=qContact(r?.contactId||r?.customer||'');return qAccountingOutstanding(r,c)}
   function qOpenMoneyRows(c,direction){
-    let rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qAccountingOutstanding(r,c)})).filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
+    let rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qAccountingOutstanding(r,c)})).filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
     rows=qBillingApplyFeeToOpenRows(c,direction,rows);
     // N321：有金額的容器負項（例如回籃 -300）是正式帳款折抵，不是獨立「待收負帳」。
     // 先保留正額交易供收／付款 allocation，再把同帳期負額直接扣進該帳期 due。
-    const signedCredits=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qN124ProjectedTotal(r,c)-qAccountingAdjustmentTotal(r.id)-qAccountingPaidTotal(r)})).filter(x=>x.due<-0.000001);
+    const signedCredits=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qN124ProjectedTotal(r,c)-qAccountingAdjustmentTotal(r.id)-qAccountingPaidTotal(r)})).filter(x=>x.due<-0.000001);
     // N295：收／付款以「帳期」為單位。週結、半月結、月結、3日結同一 period key 合併成一張帳；
     // 車趟結／現結的 period key 本來就逐筆唯一，因此仍維持每張獨立。
     const groups=new Map();
@@ -7551,7 +7551,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     signedCredits.forEach(x=>{const p=qN292PeriodMeta(c,x.record),key=p.key||String(x.record?.id||'');let g=groups.get(key);if(!g){g={record:x.record,due:0,period:p,memberRows:[],originalAmount:0,itemCount:0,originalRecordCount:0};groups.set(key,g)}g.due+=qMoney(x.due)});
     // N296：帳期的「原金額／筆數／品項數」必須固定取完整原始帳期，不能因部分收付款後某筆已結清就縮水。
     // memberRows 仍只保留未結清交易供 allocation 分配；顯示與後續帳期輸出則讀完整 periodMembers。
-    const allPeriodSource=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
+    const allPeriodSource=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
     groups.forEach((g,key)=>{const members=allPeriodSource.filter(r=>{const p=qN292PeriodMeta(c,r);return String(p.key||r.id||'')===String(key)});g.periodMembers=members;g.originalRecordCount=members.length;g.originalAmount=members.reduce((sum,r)=>sum+qMoney(qRecordTotal(r)),0);g.itemCount=members.reduce((sum,r)=>sum+(r?.items||[]).filter(v=>v&&v.name).length,0)});
     return [...groups.values()].filter(g=>qMoney(g.due)>0.000001).sort((a,b)=>String(a.period?.start||a.record?.date||'').localeCompare(String(b.period?.start||b.record?.date||''))||String(a.record?.createdAt||'').localeCompare(String(b.record?.createdAt||'')));
   }
@@ -7560,7 +7560,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN295ExpandAllocation(openRow,amount){let remain=Math.min(Math.max(0,qMoney(amount)),Math.max(0,qMoney(openRow?.due))),out=[];const members=Array.isArray(openRow?.memberRows)&&openRow.memberRows.length?openRow.memberRows:[openRow];for(const m of members){if(remain<=0.000001)break;const v=Math.min(Math.max(0,qMoney(m?.due)),remain);if(v>0){out.push({recordId:String(m?.record?.id||''),amount:v});remain-=v}}return out}
   function qN321SignedDirectionBalance(c,direction){
     const base=qOpenMoneyRows(c,direction).reduce((a,x)=>a+qMoney(x.due),0);
-    const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
+    const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
     const byPeriod=new Map();
     source.forEach(r=>{const signed=qN124ProjectedTotal(r,c)-qAccountingAdjustmentTotal(r.id)-qAccountingPaidTotal(r),p=qN292PeriodMeta(c,r),key=p.key||String(r.id||'');byPeriod.set(key,(byPeriod.get(key)||0)+qMoney(signed))});
     const negativePeriods=[...byPeriod.values()].filter(v=>v<-0.000001).reduce((a,v)=>a+v,0);
@@ -7568,7 +7568,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   }
   function qContactOpenTotals(c){const recv=qN321SignedDirectionBalance(c,'receipt'),pay=qN321SignedDirectionBalance(c,'payment');return {receivable:recv,payable:pay,net:recv-pay}}
   function qContactCreditTotals(c){
-    const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund');
+    const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund');
     let receivableCredit=0,payableCredit=0;
     source.forEach(r=>{const credit=qAccountingOverpaid(r,c);if(credit<=0)return;const label=String(r.txnTypeLabel||''),dir=String(r.accountDirection||'');if(r.txnType==='sale'||dir==='receivable'||label==='銷貨')receivableCredit+=credit;else if(r.txnType==='purchase'||dir==='payable'||label==='進貨')payableCredit+=credit});
     return {receivableCredit,payableCredit,total:receivableCredit+payableCredit};
@@ -7595,7 +7595,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   }
   function qStoredValueBalance(c){
     if(!qStoredValueEnabled(c))return 0;
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&qRecordBelongsToContact(r,c));
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c));
     const inflow=qStoredValueTrueInflow(c);
     const sales=rows.filter(r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')).reduce((sum,r)=>sum+qAccountingEffectiveTotal(r,c),0);
     return qMoney(inflow-sales);
@@ -7604,7 +7604,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
 
 
   function qRefundCreditRows(c,direction){
-    return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund').map(r=>{
+    return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund').map(r=>{
       const label=String(r.txnTypeLabel||''),dir=String(r.accountDirection||''),isRecv=r.txnType==='sale'||dir==='receivable'||label==='銷貨',isPay=r.txnType==='purchase'||dir==='payable'||label==='進貨';
       if(direction==='refund_customer'&&!isRecv)return null;if(direction==='refund_from_supplier'&&!isPay)return null;
       return {record:r,credit:qAccountingOverpaid(r,c)};
@@ -7672,7 +7672,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // N41：收／付款輸入永遠由 0 開始；歷史收付款可產生含允許周轉物資訊的對帳圖片。
   function qSettlementDirection(s){return s?.txnType==='payment'?'payment':'receipt'}
   function qSettlementSnapshot(c,s){
-    const direction=qSettlementDirection(s), cutoff=String(s?.createdAt||s?.updatedAt||''), source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&r.pricingStatus!=='pending_price').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
+    const direction=qSettlementDirection(s), cutoff=String(s?.createdAt||s?.updatedAt||''), source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
     const settlements=qMoneySettlements().filter(x=>qRecordBelongsToContact(x,c)&&qSettlementDirection(x)===direction&&(!cutoff||String(x.createdAt||x.updatedAt||'')<=cutoff));
     const rows=source.map(r=>{const created=String(r.createdAt||r.updatedAt||'');if(cutoff&&created&&created>cutoff)return null;const remain=qAccountingOutstanding(r,c,cutoff);return {record:r,remain}}).filter(x=>x&&x.remain>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||'')));
     return {direction,amount:qMoney(s?.amount||s?.total),remaining:rows.reduce((a,x)=>a+x.remain,0),rows,methods:Array.isArray(s?.methods)?s.methods:[]};
@@ -7810,7 +7810,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     }
     if(r?.txnType==='sale'||r?.accountDirection==='receivable'||label==='銷貨'){kind='sale';label=label||'銷貨';receivable=total}
     else if(r?.txnType==='purchase'||r?.accountDirection==='payable'||label==='進貨'){kind='purchase';label=label||'進貨';payable=total}
-    const counts=!isVoid&&!isDraft&&!pending&&(kind==='sale'||kind==='purchase');
+    const counts=!isVoid&&!isDraft&&(kind==='sale'||kind==='purchase');
     return {record:r,kind,label,total,receivable:counts?receivable:0,payable:counts?payable:0,isVoid,isDraft,pending,counts};
   }
   function qN124LedgerDirection(entry){
@@ -10472,7 +10472,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft');
   }
   function qN96ResolveCutoff(c,direction,cutoff){
-    const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price');
+    const all=qN96FormalRecords(c);
     if(cutoff&&typeof cutoff==='object')return cutoff;
     const key=String(cutoff||'').trim();
     if(key){
@@ -10484,7 +10484,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     return eligible[eligible.length-1]||null;
   }
   function qN96OutstandingAt(c,direction,cutoff){
-    const all=qN96FormalRecords(c),tx=all.filter(r=>r.mode!=='money_settlement'&&r.pricingStatus!=='pending_price'&&qN96DirectionMatch(r,direction)&&qN96AtOrBefore(r,cutoff)).sort(qN96Cmp);
+    const all=qN96FormalRecords(c),tx=all.filter(r=>r.mode!=='money_settlement'&&qN96DirectionMatch(r,direction)&&qN96AtOrBefore(r,cutoff)).sort(qN96Cmp);
     const settlements=all.filter(r=>r.mode==='money_settlement'&&qN96SettlementDirection(r)===direction&&qN96AtOrBefore(r,cutoff));
     const raw=tx.map(r=>{
       // N226：完整明細未結清不再自算「原總額－收款」；統一回到 N147 中央有效金額／未結清核心。
@@ -10500,7 +10500,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     direction=direction==='payment'?'payment':'receipt';
     const cutoff=qN96ResolveCutoff(c,direction,cutoffInput),balances=qN96OutstandingAt(c,direction,cutoff);
     const open=balances.filter(x=>x.remain>0.000001),start=open.length?open[0].record:null;
-    const all=qN96FormalRecords(c).filter(r=>r.pricingStatus!=='pending_price');
+    const all=qN96FormalRecords(c);
     // A8H1：未結清帳單仍維持原 N96 規則；只有「已全部結清」時，改以當日正式流水＋allocation 關聯交易建立唯讀歷史明細。
     // 不改 Supabase、不重算沖帳、不改 renderer，也不影響待收／待付的 outstanding 核心。
     let activities=[];
@@ -10550,7 +10550,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     const farmers=(typeof qProfiles==='function'?qProfiles():[]).filter(c=>c&&c.active!==false&&c.identity==='產農');
     const rows=[];
     farmers.forEach(c=>{
-      qN96FormalRecords(c).filter(r=>r.mode!=='money_settlement'&&r.pricingStatus!=='pending_price'&&qN96DirectionMatch(r,'payment')&&qN96Date(r)>=range.from&&qN96Date(r)<=range.to).forEach(r=>rows.push({contact:c,record:r}));
+      qN96FormalRecords(c).filter(r=>r.mode!=='money_settlement'&&qN96DirectionMatch(r,'payment')&&qN96Date(r)>=range.from&&qN96Date(r)<=range.to).forEach(r=>rows.push({contact:c,record:r}));
     });
     rows.sort((a,b)=>qN96Cmp(a.record,b.record)||String(a.contact?.name||'').localeCompare(String(b.contact?.name||''),'zh-Hant'));
     const groups=farmerRows=>farmerRows.reduce((a,x)=>{const k=String(x.contact?.id||x.contact?.name||'');let g=a.find(v=>v.key===k);if(!g){g={key:k,contact:x.contact,records:[]};a.push(g)}g.records.push(x.record);return a},[]);
