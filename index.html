@@ -6,13 +6,15 @@
 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="#168c4e" />
+<meta name="theme-color" content="#3f1b7a" />
 <link rel="manifest" href="./manifest.webmanifest" />
-<link rel="apple-touch-icon" href="./app-truck-192.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="./nexus-icon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="./nexus-icon-192.png" />
+<link rel="apple-touch-icon" href="./nexus-icon-180.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="欣儒系統" />
-<title>欣儒系統｜N385｜單車頁按鈕修復版</title>
+<meta name="apple-mobile-web-app-title" content="NEXUS" />
+<title>NEXUS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://unpkg.com/pinyin-pro"></script>
@@ -2032,7 +2034,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
 </div>
 <div class="app" id="mainApp" style="visibility:hidden">
   <div class="top">
-    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./app-truck-192.png" alt="欣儒"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
+    <div id="userBar" class="userBar compactUserBar"><img class="brandIcon" src="./nexus-icon-192.png" alt="NEXUS"><div class="identityBox"><b id="currentUserName"></b><span id="currentUserRole"></span></div><span class="compactSync" id="syncState">正在連線…</span><div class="compactActions"><button id="employeeManageBtn" class="btn blue" style="display:none">👥 員工 <span id="employeeTotalBadge">0</span><span id="pendingEmployeeBadge" style="display:none;background:#e1192d;color:#fff;border-radius:999px;padding:1px 6px;margin-left:3px;font-weight:800">0</span></button><button id="myNicknameBtn" class="btn gray">✏️ 暱稱</button><button id="pwaPushBtn" class="btn gray">🔔</button><button id="logoutBtn" class="btn gray">登出</button></div></div><div id="readonlyNote" class="readonlyNote" style="display:none"></div>
     <div class="tabs mainTabs7 managementMainTabs">
       <button class="tab active" data-tab="home">📢 公告<div class="th">กงเก้า</div></button>
       <button class="tab" data-tab="accounting">💰 帳務中心</button>
@@ -7365,7 +7367,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const rowHtml=r=>r.kind==='settlement'?'<tr class="cash"><td>'+qEsc(r.date)+'</td><td colspan="6"><b>'+qEsc(r.name)+'</b> '+qEsc(r.summary)+'</td><td>'+qLedgerMoney(r.amount)+'</td></tr>':'<tr><td>'+qEsc(r.date)+'</td><td>'+qEsc(r.no||'')+'</td><td class="name">'+qEsc(r.name)+'</td><td>'+qEsc(r.kg??'')+'</td><td>'+qEsc(r.qty??'')+'</td><td>'+qEsc(r.price??'')+'</td><td>'+qEsc(r.goods??'')+'</td><td>'+qEsc(r.freight??'')+'</td></tr>';
     const largeRowHtml=r=>r.kind==='settlement'?'<tr class="cash"><td colspan="6"><b>'+qEsc(r.name)+'</b> '+qEsc(r.summary)+'</td><td>'+qLedgerMoney(r.amount)+'</td></tr>':'<tr><td>'+qEsc(r.no||'')+'</td><td class="name">'+qEsc(r.name)+'</td><td>'+qEsc(r.kg??'')+'</td><td>'+qEsc(r.qty??'')+'</td><td>'+qEsc(r.price??'')+'</td><td>'+qEsc(r.goods??'')+'</td><td>'+qEsc(r.freight??'')+'</td></tr>';
     const table=arr=>'<table class="'+(model.noFreight?'nofreight':'')+'"><thead><tr><th>日期</th><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead><tbody>'+arr.map(rowHtml).join('')+'</tbody></table>';
-    const largeTable=arr=>'<table class="'+(model.noFreight?'nofreight':'')+'"><colgroup><col style="width:5%"><col style="width:26%"><col style="width:12%"><col style="width:12%"><col style="width:15%"><col style="width:18%"><col style="width:12%"></colgroup><thead><tr><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead><tbody>'+arr.map(largeRowHtml).join('')+'</tbody></table>';
+    const largeTable=arr=>'<table class="'+(model.noFreight?'nofreight':'')+'"><colgroup><col style="width:2%"><col style="width:29%"><col style="width:12%"><col style="width:12%"><col style="width:15%"><col style="width:18%"><col style="width:12%"></colgroup><thead><tr><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead><tbody>'+arr.map(largeRowHtml).join('')+'</tbody></table>';
     const denseDateRowHtml=r=>{const d=String(r.date||'').replace(/^\d{4}-/,'').replace('-','/');return r.kind==='settlement'?'<tr class="cash"><td>'+qEsc(d)+'</td><td colspan="6"><b>'+qEsc(r.name)+'</b> '+qEsc(r.summary)+'</td><td>'+qLedgerMoney(r.amount)+'</td></tr>':'<tr><td>'+qEsc(d)+'</td><td>'+qEsc(r.no||'')+'</td><td class="name">'+qEsc(r.name)+'</td><td>'+qEsc(r.kg??'')+'</td><td>'+qEsc(r.qty??'')+'</td><td>'+qEsc(r.price??'')+'</td><td>'+qEsc(r.goods??'')+'</td><td>'+qEsc(r.freight??'')+'</td></tr>'};
     const denseDateTable=arr=>'<table class="'+(model.noFreight?'nofreight':'')+'"><thead><tr><th>日期</th><th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th></tr></thead><tbody>'+arr.map(denseDateRowHtml).join('')+'</tbody></table>';
     const largeDate=()=>{const dates=[...new Set((model.rows||[]).map(r=>String(r?.date||'').trim()).filter(Boolean))];return dates.length===1?dates[0]:qN98RangeLabel(model)};
