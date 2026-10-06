@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- N432：民雄帳本救援＋草稿穩定版。accounting_records 讀取時保留資料表 customer/record_date/customer_type 權威欄位；帳本名單可由正式帳務補出遺失的往來對象。草稿仍直接存 Supabase status=draft，跨裝置／跨日期保留，同 ID 繼續完成。 -->
+<!-- N432：民雄帳本救援＋草稿正式修正。帳務雲端載入改由正式欄位補齊 payload；草稿允許未完成內容並沿用原 ID。 -->
 <!-- N375：公司內帳永久刪除改為真正刪除 accounting_records；資金流水核心排除 deleted 舊資料。 -->
 <!-- N303 UNIQUE BILLING PERIOD CORE: qN292PeriodMeta is the only billing-period authority; layout cannot redefine period. -->
 <html lang="zh-Hant">
@@ -4423,18 +4423,22 @@ async function loadAccountingCloud(){
     let {data,error}=await sb.from('accounting_records').select('local_id,customer,record_date,customer_type,payload,created_at,updated_at').order('record_date',{ascending:false}).order('created_at',{ascending:false});
     if(error)throw error;
     // N18：Supabase 是帳務正式資料唯一真實來源。
-    // N432：資料表欄位是救援時的權威索引。舊 payload 若缺 customer/date/type，不可因此讓帳本消失。
     // 雲端已不存在的 local_id 視為已刪除，禁止舊瀏覽器 localStorage 自動回傳而把刪除資料「復活」。
+    // 正常新增／修改一律先經 saveAccountingCloud() 成功寫入雲端，再由這裡下載同步。
+    // N432：帳務救援核心。不可只相信 payload；舊資料即使 payload 缺欄位，仍以 accounting_records 正式欄位補齊。
+    // 這能保住像「民雄」這類已存在 Supabase、但舊快取/舊 payload 沒完整帶回的正式交易。
     const cloudRows=(data||[]).map(x=>{
       const p=(x&&x.payload&&typeof x.payload==='object')?{...x.payload}:{};
-      if(!p.id)p.id=x.local_id;
-      if(!String(p.customer||'').trim()&&String(x.customer||'').trim())p.customer=x.customer;
-      if(!String(p.date||'').trim()&&x.record_date)p.date=x.record_date;
-      if(!String(p.type||'').trim()&&String(x.customer_type||'').trim())p.type=x.customer_type;
-      if(!p.createdAt&&x.created_at)p.createdAt=x.created_at;
-      if(!p.updatedAt&&x.updated_at)p.updatedAt=x.updated_at;
+      const localId=String(x?.local_id??p.id??'').trim();
+      if(!localId)return null;
+      p.id=p.id??localId;
+      if(!String(p.customer||'').trim()&&String(x?.customer||'').trim())p.customer=String(x.customer).trim();
+      if(!String(p.date||'').trim()&&x?.record_date)p.date=String(x.record_date);
+      if(!String(p.type||'').trim()&&String(x?.customer_type||'').trim())p.type=String(x.customer_type).trim();
+      if(!p.createdAt&&x?.created_at)p.createdAt=x.created_at;
+      if(!p.updatedAt&&x?.updated_at)p.updatedAt=x.updated_at;
       return p;
-    }).filter(x=>x&&x.id);
+    }).filter(Boolean);
     acctCloudRecords=cloudRows;
     acctCloudReady=true;
     try{window.qInvalidateContainerEventCache?.()}catch(_e){}
@@ -6384,10 +6388,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
       };
     }).sort((a,b)=>String(a.due_date).localeCompare(String(b.due_date))||String(a.reminder_type).localeCompare(String(b.reminder_type)));
   };
-  function qProfiles(){try{const newer=JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]'),older=JSON.parse(localStorage.getItem('xinru_customer_profiles_v1')||'[]'),a=Array.isArray(newer)?newer:[],old=Array.isArray(older)?older:[],keys=new Set(a.flatMap(x=>[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean))),merged=a.slice();for(const x of old){const ks=[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean);if(ks.some(k=>keys.has(k)))continue;merged.push(x);ks.forEach(k=>keys.add(k))}
-    // N432：正式 accounting_records 已有交易，但往來主檔快取暫時缺失時，仍要能從帳本找到該對象（例如民雄）。
-    const rs=(typeof acctRecords==='function'?acctRecords():[]);for(const r of rs){if(!r||r.status==='draft'||r.status==='void'||!Array.isArray(r.items)||!r.items.length)continue;const name=String(r.customer||'').trim();if(!name)continue;const k=qNormKey(name);if(keys.has(k))continue;const rid=String(r.contactId||'').trim();merged.push({id:rid||('legacy:'+k),name,formalName:name,code:'',identity:r.type||'一般客戶',type:r.type||'一般客戶',active:true,_recordContactId:rid,_ledgerAliases:[name]});keys.add(k)}
-    return merged.filter(x=>x&&x.active!==false)}catch(e){return []}}
+  function qProfiles(){try{const newer=JSON.parse(localStorage.getItem('xinru_contacts_master_v2')||'[]'),older=JSON.parse(localStorage.getItem('xinru_customer_profiles_v1')||'[]'),a=Array.isArray(newer)?newer:[],old=Array.isArray(older)?older:[],keys=new Set(a.flatMap(x=>[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean))),merged=a.slice();for(const x of old){const ks=[x?.id,x?.name,x?.code].map(qNormKey).filter(Boolean);if(ks.some(k=>keys.has(k)))continue;merged.push(x);ks.forEach(k=>keys.add(k))}return merged.filter(x=>x&&x.active!==false)}catch(e){return []}}
   function qMoney(v){const n=Number(v);return Number.isFinite(n)?n:0}
   function qNormKey(v){return String(v||'').trim().toLowerCase().replace(/\s+/g,'')}
   // 175B5N5：所有往來對象共用同一套解析規則。名稱／編號／車號／舊交易輸入值都只導向同一本帳本。
@@ -6715,7 +6716,8 @@ let qN217IdentityCache = new WeakMap();
   }
   function qBuildRecord(work,status){const entity=work.querySelector('#quickV2Entity').value.trim(),date=work.querySelector('#quickV2Date').value,txn=work.querySelector('#quickV2Txn').value;if(!date)throw new Error('請選擇交易日期');if(!entity)throw new Error('請輸入往來對象／識別名稱');let hit=qResolveContact(entity);const rememberedPlate=work.querySelector('#quickV2Entity')?.dataset.vehiclePlate||'';if(rememberedPlate){const vh=qResolveContact(rememberedPlate);if(vh&&(!hit||String(vh.contact.id)===String(hit.contact.id)))hit=vh}const c=hit?.contact||null;if(hit?.matchedBy==='vehicle'&&hit.vehicleActive===false&&!confirm('車號 '+hit.vehiclePlate+' 是「'+c.name+'」的歷史／停用車號。\n\n仍要把這筆交易記到 '+c.name+' 的帳本嗎？'))throw new Error('已取消使用歷史車號做帳');const pendingBox=work.querySelector('#qAllowPendingPrice'),allowPending=!!pendingBox?.checked,items=[];let rowNo=0;work.querySelectorAll('[data-qrow]').forEach(r=>{rowNo++;const name=r.querySelector('.qName').value.trim(),kgRaw=r.querySelector('.qKg').value.trim(),qtyRaw=r.querySelector('.qQty').value.trim(),priceRaw=r.querySelector('.qPrice').value.trim(),pricing=r.querySelector('.qPricing').value,pricingUnit=r.querySelector('.qPricingCustom')?.value.trim()||'',itemStatus=qItemStatusValue(r),profile=qQuickProfile(work),of=qOrderFreight(work),fm=profile.supplier?'none':of.mode,fr=(fm==='piece'?(r.querySelector('.qFreightRate')?.value.trim()||''):(['kg','truck'].includes(fm)?String(of.rate):''));if(!qRowHasAccountingData(r))return;if(status==='active'){if(!name)throw new Error('第 '+rowNo+' 列：請輸入品名');if(!qtyRaw||qMoney(qtyRaw)<=0)throw new Error('第 '+rowNo+' 列：請輸入正確數量');if((pricing==='kg'||pricing==='jin')&&(!kgRaw||qMoney(kgRaw)<=0))throw new Error('第 '+rowNo+' 列：計價為公斤／台斤，請輸入公斤數');if(pricing==='custom'&&!pricingUnit)throw new Error('第 '+rowNo+' 列：請輸入自訂單位名稱');if(!qItemNoChargeStatus(itemStatus)&&priceRaw===''&&!allowPending)throw new Error('第 '+rowNo+' 列：請輸入單價；若真的尚未知道價格，請勾選「價格未定，先完成做帳」');if(fm==='piece'&&fr==='')throw new Error('第 '+rowNo+' 列：請輸入每件運費');}const x=qCalcItem(r),source=profile.purchase?'':qSourceNormalize(r.querySelector('.qSource').value),costv=r.querySelector('.qCost').value.trim();items.push({name,kg:kgRaw===''?'':x.kg,qty:x.qty,pricing:x.pricing,pricingUnit,itemStatus,source,price:qItemNoChargeStatus(itemStatus)?'':(x.pv===''?'':x.price),cost:profile.purchase?'':(qNeedCost(source,entity)&&costv!==''?qMoney(costv):''),freightMode:qItemNoChargeStatus(itemStatus)?'none':(profile.supplier?'none':fm),freightRate:qItemNoChargeStatus(itemStatus)?'':(profile.supplier?'':(fm==='piece'&&fr!==''?qMoney(fr):(fm==='kg'?of.rate:''))),freight:qItemNoChargeStatus(itemStatus)?0:(profile.supplier?0:Math.round(x.freight)),amount:qItemNoChargeStatus(itemStatus)?0:(x.goods===null?'':Math.round(x.goods+(profile.supplier?0:x.freight)))})});const eligibilityTurnovers=qQuickTurnoverRows(work),hasPendingPriceItems=allowPending&&items.length>0;
     // N231：快速做帳是所有日常容器唯一建立入口；純容器且 $0 也可正式完成。
-    if(!items.length&&!eligibilityTurnovers.length)throw new Error('請至少輸入一筆商品或容器資料');
+    if(status==='active'&&!items.length&&!eligibilityTurnovers.length)throw new Error('請至少輸入一筆商品或容器資料');
+    // N432：草稿就是未完成資料；允許只先輸入往來對象/日期後暫存，之後跨裝置繼續。
     // N124：廠商進貨不使用運費。輸入畫面即使殘留舊選項，正式儲存時中央歸零，不污染應付帳。
     if(qQuickProfile(work).supplier)items.forEach(x=>{if(x.amount!==''&&Number.isFinite(Number(x.amount)))x.amount=Math.max(0,(Number(x.amount)||0)-(Number(x.freight)||0));x.freightMode='none';x.freightRate='';x.freight=0});
     const rackMissing=[...work.querySelectorAll('[data-qturnrow]')].some(row=>row.querySelector('.qTurnType')?.value==='鐵架'&&qMoney(row.querySelector('.qTurnQty')?.value||0)>0&&!row.querySelector('.qTurnRack')?.value);if(status==='active'&&rackMissing)throw new Error('鐵架請先選擇對應的鐵架名稱');const goods=Math.round(items.reduce((a,x)=>a+(x.amount===''?0:Math.max(0,(Number(x.amount)||0)-(Number(x.freight)||0))),0)),orderFreight=qOrderFreight(work),hasDelivered=items.some(x=>!qItemNoChargeStatus(x.itemStatus)),freight=Math.round((orderFreight.mode==='truck'&&!qQuickProfile(work).supplier&&hasDelivered)?orderFreight.rate:items.reduce((a,x)=>a+(Number(x.freight)||0),0)),turnovers=eligibilityTurnovers,turnoverAmount=Math.round(turnovers.reduce((a,x)=>a+(Number(x.amount)||0),0)),total=Math.round(goods+freight+turnoverAmount),pending=items.some(x=>qItemPricePending(x)||x.freightMode==='pending'),id=work.dataset.editDraftId||((globalThis.crypto?.randomUUID?crypto.randomUUID():('qv3-'+Date.now())));if(status==='active'&&pending&&!allowPending)throw new Error('資料尚未完整，不能完成做帳');return {id,schemaVersion:4,date,customer:c?.name||entity,contactId:c?.id||null,vehiclePlate:hit?.matchedBy==='vehicle'?(hit.vehiclePlate||''):'',vehicleWasActive:hit?.matchedBy==='vehicle'?hit.vehicleActive:null,lookupInput:entity,type:c?.identity||c?.type||'一般客戶',mode:'quick_v3',txnType:txn==='進貨'?'purchase':'sale',txnTypeLabel:txn,accountDirection:txn==='進貨'?'payable':'receivable',items,goods,freight,freightMode:qQuickProfile(work).supplier?'none':orderFreight.mode,freightRate:qQuickProfile(work).supplier?'':orderFreight.rate,freightTotal:freight,turnoverAmount,total,paid:0,due:total,pricingStatus:pending?'pending_price':'priced',settlementStatus:status==='draft'?'draft':(pending?'pending_price':'open'),note:work.querySelector('#quickV2Note').value.trim(),turnover:(turnovers[0]||null),turnovers,status:status==='draft'?'draft':'active',testData:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),createdBy:(currentProfile?.display_name||currentUser?.email||''),audit:[{action:status==='draft'?'draft':'complete',at:new Date().toISOString(),by:(currentProfile?.display_name||currentUser?.email||'')}]}}
