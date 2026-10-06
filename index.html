@@ -4630,6 +4630,70 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N352：公司內帳層級一次修正：第一層移除帳戶互轉；公司內帳標題與返回路由統一；快速輸入移除收支紀錄與互轉舊入口。 -->
 
 <!-- N365 效能核心 V2 第一階段：首頁摘要、寫後局部刷新、首屏延遲重算 --><!-- N434：僅修正80行報表紙欄寬；序號固定可見、品名縮回，不動其他輸出與帳務核心。 -->
+
+
+<!-- N439：快速做帳未儲存離頁提醒。純前端防呆；不修改 accounting_records / Supabase / 帳務計算核心。 -->
+<style id="qUnsavedGuardStyleN439">
+#qUnsavedGuardN439{position:fixed;inset:0;z-index:300000;background:rgba(15,23,42,.38);display:none;align-items:center;justify-content:center;padding:18px}
+#qUnsavedGuardN439.show{display:flex}
+#qUnsavedGuardN439 .qUnsavedBox{width:min(420px,100%);background:#fff;border-radius:18px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);border:1px solid #e5e7eb}
+#qUnsavedGuardN439 h3{margin:0 0 8px;font-size:20px}
+#qUnsavedGuardN439 p{margin:0;color:#667085;line-height:1.55}
+#qUnsavedGuardN439 .qUnsavedActions{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}
+#qUnsavedGuardN439 .qUnsavedActions .btn{min-width:110px}
+@media(max-width:520px){#qUnsavedGuardN439{align-items:flex-end;padding:10px}#qUnsavedGuardN439 .qUnsavedBox{border-radius:18px 18px 12px 12px}#qUnsavedGuardN439 .qUnsavedActions{display:grid;grid-template-columns:1fr 1fr}#qUnsavedGuardN439 .qUnsavedActions .btn{width:100%;min-width:0}}
+</style>
+<script id="qUnsavedGuardScriptN439">
+(()=>{
+  let baseline=null, bypassClick=false, pendingTarget=null, pendingEvent=null;
+  const work=()=>document.getElementById('acctStageWork');
+  const form=()=>work()?.querySelector('.quickV2')||null;
+  const val=el=>el?(el.type==='checkbox'||el.type==='radio'?(el.checked?'1':'0'):String(el.value??'')):'';
+  function rowState(r){
+    const get=s=>r.querySelector(s);
+    const x={name:val(get('.qName')),kg:val(get('.qKg')),qty:val(get('.qQty')),pricing:val(get('.qPricing')),pricingCustom:val(get('.qPricingCustom')),status:val(get('.qItemStatus')),statusCustom:val(get('.qItemStatusCustom')),source:val(get('.qSource')),price:val(get('.qPrice')),cost:val(get('.qCost')),freightRate:val(get('.qFreightRate'))};
+    const meaningful=x.name||x.kg||x.price||x.cost||x.freightRate||x.pricingCustom||x.statusCustom||(x.qty&&x.qty!=='1');
+    return meaningful?x:null;
+  }
+  function turnState(r){
+    const get=s=>r.querySelector(s),x={type:val(get('.qTurnType')),rack:val(get('.qTurnRack')),action:val(get('.qTurnAction')),qty:val(get('.qTurnQty')),price:val(get('.qTurnUnitPrice')),note:val(get('.qTurnNote'))};
+    return Object.values(x).some(Boolean)?x:null;
+  }
+  function signature(){
+    const f=form();if(!f)return null;
+    const state={
+      date:val(f.querySelector('#quickV2Date')),entity:val(f.querySelector('#quickV2Entity')),txn:val(f.querySelector('#quickV2Txn')),note:val(f.querySelector('#quickV2Note')),
+      pricing:val(f.querySelector('#qOrderPricing')),freightMode:val(f.querySelector('#qOrderFreightMode')),freightRate:val(f.querySelector('#qOrderFreightRate')),
+      immediate:val(f.querySelector('#qImmediateSettle')),immediateMethod:val(f.querySelector('#qImmediateMethod')),
+      historical:[...f.querySelectorAll('input[name="qHistoricalState"]')].map(x=>val(x)).join(','),historicalSettlement:val(f.querySelector('#qHistoricalSettlement')),historicalMethod:val(f.querySelector('#qHistoricalMethod')),historicalPayDate:val(f.querySelector('#qHistoricalPayDate')),historicalCreateMethod:val(f.querySelector('#qHistoricalCreateMethod')),
+      rows:[...f.querySelectorAll('[data-qrow]')].map(rowState).filter(Boolean),turnovers:[...f.querySelectorAll('[data-qturnrow]')].map(turnState).filter(Boolean)
+    };
+    return JSON.stringify(state);
+  }
+  function captureBaseline(){const sig=signature();if(sig!==null)baseline=sig;else baseline=null}
+  function isDirty(){const sig=signature();return sig!==null&&baseline!==null&&sig!==baseline}
+  function ensureDialog(){
+    let d=document.getElementById('qUnsavedGuardN439');if(d)return d;
+    d=document.createElement('div');d.id='qUnsavedGuardN439';d.innerHTML='<div class="qUnsavedBox" role="dialog" aria-modal="true" aria-labelledby="qUnsavedTitleN439"><h3 id="qUnsavedTitleN439">⚠️ 這筆資料還沒存檔</h3><p>你剛剛輸入或修改的快速做帳資料尚未完成儲存。現在離開，這些變更會消失。</p><div class="qUnsavedActions"><button type="button" class="btn gray" id="qUnsavedStayN439">繼續做帳</button><button type="button" class="btn red" id="qUnsavedLeaveN439">不要存，離開</button></div></div>';
+    document.body.appendChild(d);
+    d.querySelector('#qUnsavedStayN439').onclick=()=>{d.classList.remove('show');pendingTarget=null;pendingEvent=null};
+    d.querySelector('#qUnsavedLeaveN439').onclick=()=>{const t=pendingTarget;d.classList.remove('show');pendingTarget=null;pendingEvent=null;baseline=null;if(t){bypassClick=true;t.click();setTimeout(()=>{bypassClick=false},0)}};
+    return d;
+  }
+  const observer=new MutationObserver(()=>{queueMicrotask(()=>{if(form())captureBaseline();else baseline=null})});
+  const start=()=>{observer.observe(document.body,{childList:true,subtree:true});if(form())captureBaseline()};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+  document.addEventListener('click',e=>{
+    if(bypassClick){bypassClick=false;return}
+    if(!e.isTrusted||!isDirty())return;
+    const f=form();if(!f)return;
+    const t=e.target.closest('button,a,[role="button"],.tab');if(!t||f.contains(t)||t.closest('#qUnsavedGuardN439'))return;
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();pendingTarget=t;pendingEvent=e;ensureDialog().classList.add('show');
+  },true);
+  window.addEventListener('beforeunload',e=>{if(!isDirty())return;e.preventDefault();e.returnValue=''});
+})();
+</script>
+
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
