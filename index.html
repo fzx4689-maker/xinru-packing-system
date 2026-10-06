@@ -7682,15 +7682,40 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     // N423：儲值型（例如 0299）允許實收超過未結清。
     // 正式交易只沖到欠款上限，多出的金額直接成為正的儲值金，不得阻擋存檔。
     const storedAccount=direction==='receipt'&&qStoredValueEnabled(c);
-    const opens=new Map(qOpenMoneyRows(c,direction).map(x=>[String(x.record.id),x.due]));
+
+    // N433：qOpenMoneyRows 會把週結／月結／3日結等合併成「帳期列」，
+    // 但畫面儲存的 allocations 仍是帳期內各原始交易 recordId。
+    // 舊版只用帳期代表 record.id 建 Map，導致同帳期第 2 筆以後查不到而被當成 due=0，
+    // 因此產農整期付款（例如 6 筆合計 12,430）會被誤判為超額沖帳。
+    // 這裡同時建立「原始交易未結清」與「帳期總未結清」兩層核對；不放寬真正超額付款。
+    const openGroups=qOpenMoneyRows(c,direction);
+    const memberDue=new Map(),recordPeriod=new Map(),periodDue=new Map();
+    openGroups.forEach(g=>{
+      const pkey=String(g?.period?.key||g?.record?.id||'');
+      periodDue.set(pkey,qMoney(g?.due));
+      const members=Array.isArray(g?.memberRows)&&g.memberRows.length?g.memberRows:[g];
+      members.forEach(m=>{
+        const rid=String(m?.record?.id||'');if(!rid)return;
+        memberDue.set(rid,qMoney(m?.due));recordPeriod.set(rid,pkey);
+      });
+    });
     let overflowFromAlloc=0;
+    const periodAllocated=new Map();
     allocations=(Array.isArray(allocations)?allocations:[]).map(a=>{
-      const amount=qMoney(a?.amount),due=opens.get(String(a?.recordId))||0;
-      if(amount<=due+0.001)return {...a,amount};
-      if(!storedAccount)throw new Error('本次沖帳金額不可超過該筆未結清餘額');
-      overflowFromAlloc+=Math.max(0,amount-due);
-      return {...a,amount:Math.max(0,due)};
+      const rid=String(a?.recordId||''),amount=qMoney(a?.amount),due=memberDue.get(rid)||0,pkey=recordPeriod.get(rid)||'';
+      if(amount>due+0.001){
+        if(!storedAccount)throw new Error('本次沖帳金額不可超過該筆未結清餘額');
+        overflowFromAlloc+=Math.max(0,amount-due);
+      }
+      const safeAmount=storedAccount?Math.min(amount,Math.max(0,due)):amount;
+      if(pkey)periodAllocated.set(pkey,(periodAllocated.get(pkey)||0)+safeAmount);
+      return {...a,amount:safeAmount};
     }).filter(a=>qMoney(a.amount)>0);
+    if(!storedAccount){
+      for(const [pkey,amount] of periodAllocated){
+        if(amount>(periodDue.get(pkey)||0)+0.001)throw new Error('本次沖帳金額不可超過該帳期未結清餘額');
+      }
+    }
 
     const billingPeriod=qN292AssertSinglePeriod(c,allocations);
     const allocatedAmount=allocations.reduce((a,x)=>a+qMoney(x.amount),0);
