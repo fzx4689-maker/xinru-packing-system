@@ -12321,5 +12321,69 @@ window.qNormalizeTurnAction=qN93TurnAction;
   },true);
 })();
 </script>
+
+<style id="n465-home-only">
+/* N465：只處理公告頁。卡片恢復精簡；不碰帳務頁本身。 */
+#home #homeNoticeList .homeTodoCard{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  padding:9px 12px!important;
+  min-height:0!important;
+}
+#home #homeNoticeList .homeTodoMain{flex:1 1 auto!important;min-width:0!important}
+#home #homeNoticeList .homeTodoTitle{font-size:16px!important;line-height:1.3!important}
+#home #homeNoticeList .homeTodoNote{margin-top:3px!important;line-height:1.35!important}
+#home #homeNoticeList .homeTodoActions{
+  flex:0 0 auto!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  gap:4px!important;
+  width:auto!important;
+  margin:0!important;
+}
+#home #homeNoticeList .homeTodoActions .btn{
+  width:auto!important;
+  min-width:0!important;
+  height:30px!important;
+  min-height:30px!important;
+  padding:0 8px!important;
+  font-size:12px!important;
+  line-height:1!important;
+}
+@media(max-width:600px){
+  #home #homeNoticeList .homeTodoCard{padding:8px 9px!important;gap:7px!important}
+  #home #homeNoticeList .homeTodoTitle{font-size:15px!important}
+  #home #homeNoticeList .homeTodoActions .btn{
+    height:28px!important;min-height:28px!important;padding:0 6px!important;font-size:11px!important
+  }
+}
+</style>
+<script id="n465-home-reminder-refresh-only">
+(function(){
+  /* 公告的「超市收款」來自既有正式帳務提醒函式。
+     不建立第二套資料；只在公告頁補做重繪，避免帳務雲端資料較晚完成時公告漏掉收款提醒。 */
+  function repaint(){
+    if(document.getElementById('home')?.classList.contains('active')){
+      window.loadHomeNotices?.();
+    }
+  }
+  document.addEventListener('click',function(e){
+    if(e.target.closest&&e.target.closest('.tab[data-tab="home"]')) setTimeout(repaint,80);
+  },false);
+  window.addEventListener('xinru:accounting-cloud-loaded',()=>setTimeout(repaint,80));
+  window.addEventListener('xinru:accounting-changed',()=>setTimeout(repaint,80));
+  window.addEventListener('xinru:accounting-local-write',()=>setTimeout(repaint,80));
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',()=>{
+      setTimeout(repaint,400); setTimeout(repaint,1400); setTimeout(repaint,3000);
+    },{once:true});
+  }else{
+    setTimeout(repaint,400); setTimeout(repaint,1400); setTimeout(repaint,3000);
+  }
+})();
+</script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
