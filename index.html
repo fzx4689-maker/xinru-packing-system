@@ -12258,82 +12258,57 @@ window.qNormalizeTurnAction=qN93TurnAction;
 }
 </style>
 
-<style id="n458-field-layout-match-dispatch">
-/* N458｜桌機：包裝部／貨運部現場回報版型比照派工 */
-@media(min-width:761px){
-  /* 原 quickTool 外框改成完整寬度 */
-  #packing .quickToolWrap,
-  #delivery .quickToolWrap,
-  #packing .quickTools,
-  #delivery .quickTools{
-    width:100%!important;
-    max-width:none!important;
-  }
+<style id="n459-responsive-field-report">
+/* N459：桌機與手機分流，禁止互相套版 */
 
-  /* 兩個功能平分一整行 */
+/* ===== 桌機：包裝/貨運 = 派工左右雙大區 ===== */
+@media (min-width:761px){
   #packing .quickToolTabs,
   #delivery .quickToolTabs{
     display:grid!important;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
     gap:14px!important;
     width:100%!important;
-    max-width:none!important;
-    margin:0!important;
   }
   #packing .quickToolTab,
   #delivery .quickToolTab{
-    width:100%!important;
-    max-width:none!important;
-    min-width:0!important;
     min-height:58px!important;
+    width:100%!important;
     margin:0!important;
     border:1px solid #f0aa36!important;
-    border-radius:16px!important;
-    background:#fff9ed!important;
+    border-radius:16px 16px 0 0!important;
+    background:#fff4da!important;
     font-size:18px!important;
     font-weight:900!important;
   }
-  #packing .quickToolTab.active,
-  #delivery .quickToolTab.active{
-    background:#fff3d8!important;
-    border-color:#e89b22!important;
-  }
-
-  /* 展開內容吃滿整列，與派工卡片寬度一致 */
+  /* 桌機兩個 panel 同時顯示，左右各半 */
   #packing .quickToolPanels,
-  #delivery .quickToolPanels,
+  #delivery .quickToolPanels{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:14px!important;
+    width:100%!important;
+    align-items:start!important;
+  }
   #packing .quickToolPanel,
   #delivery .quickToolPanel{
+    display:block!important;
     width:100%!important;
     max-width:none!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:12px!important;
     box-sizing:border-box!important;
-  }
-  #packing .quickToolPanel.active,
-  #delivery .quickToolPanel.active{
-    margin-top:12px!important;
     border:1px solid #f0aa36!important;
-    border-radius:16px!important;
+    border-radius:0 0 16px 16px!important;
     background:#fff!important;
-    padding:14px!important;
   }
-
-  /* 回報公斤與缺貨表單不要再縮成中間窄柱 */
-  #packing .packingToolBody,
-  #delivery .deliveryToolBody,
-  #packing .freightToolBody,
-  #delivery .freightToolBody{
-    width:100%!important;
-    max-width:none!important;
-    box-sizing:border-box!important;
-  }
-
-  /* 缺貨輸入：客戶 + 品項 + 送出，同列合理分配 */
+  /* 每半區內表單改直向，避免被擠成奇怪窄欄 */
   #packing .shortageGrid,
   #delivery .shortageGrid{
     display:grid!important;
-    grid-template-columns:minmax(180px,240px) minmax(360px,1fr) 120px!important;
-    align-items:end!important;
-    gap:12px!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
     width:100%!important;
   }
   #packingShortItem,#deliveryShortItem{
@@ -12341,25 +12316,112 @@ window.qNormalizeTurnAction=qN93TurnAction;
     height:82px!important;
     min-height:82px!important;
   }
-
-  /* 回報公斤輸入區也放寬 */
-  #packing .freightBulkForm,
-  #delivery .freightBulkForm,
-  #packing .freightBulkGrid,
-  #delivery .freightBulkGrid{
-    width:100%!important;
-    max-width:none!important;
+  #packing .packingToolBody,#delivery .deliveryToolBody,
+  #packing .freightToolBody,#delivery .freightToolBody{
+    width:100%!important;max-width:none!important;box-sizing:border-box!important;
   }
 }
 
-/* 手機保留單欄，不套桌機雙欄展開 */
-@media(max-width:760px){
-  #packing .quickToolTabs,
-  #delivery .quickToolTabs{
+/* ===== 手機：三邊都只顯示單一完整區塊 ===== */
+@media (max-width:760px){
+  #packing .quickToolTabs,#delivery .quickToolTabs{
+    display:grid!important;
     grid-template-columns:1fr 1fr!important;
     gap:8px!important;
   }
+  #packing .quickToolPanels,#delivery .quickToolPanels{
+    display:block!important;
+    width:100%!important;
+  }
+  #packing .quickToolPanel,#delivery .quickToolPanel{
+    display:none!important;
+    width:100%!important;
+  }
+  #packing .quickToolPanel.active,#delivery .quickToolPanel.active{
+    display:block!important;
+  }
+
+  /* 派工：summary 變成上方兩顆切換鈕；內容一次只留一區 */
+  #stallFieldCard .stallFieldQuickTools{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+    width:100%!important;
+  }
+  #stallFieldCard .stallFieldQuick{
+    width:100%!important;
+    min-width:0!important;
+  }
+  #stallFieldCard .stallFieldQuick>summary{
+    min-height:54px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+    padding:8px!important;
+    box-sizing:border-box!important;
+  }
+  /* open 的內容跨滿兩欄 */
+  #stallFieldCard .stallFieldQuick[open]{
+    grid-column:1 / -1!important;
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+  }
+  #stallFieldCard .stallFieldQuick[open]>summary{
+    grid-column:auto!important;
+  }
+  #stallFieldCard .stallFieldQuick[open]>.stallFieldToolBody{
+    grid-column:1 / -1!important;
+    width:100%!important;
+    margin-top:8px!important;
+  }
 }
 </style>
+
+<script id="n459-state-and-mobile-tabs">
+(function(){
+  /* 對話 open 狀態：依 batch/卡片內容記憶，render 後恢復 */
+  var chatState = window.__n459ChatState || (window.__n459ChatState = new Map());
+
+  function chatKey(d){
+    var row=d.closest('.shortageRow');
+    if(!row)return '';
+    var batchBtn=row.querySelector('[data-batch]');
+    if(batchBtn&&batchBtn.dataset.batch)return 'b:'+batchBtn.dataset.batch;
+    var title=row.querySelector('.shortageTop')?.textContent||row.textContent.slice(0,80);
+    return 't:'+title.trim();
+  }
+  document.addEventListener('toggle',function(e){
+    var d=e.target;
+    if(!(d instanceof HTMLDetailsElement)||!d.closest('.shortageRow'))return;
+    var k=chatKey(d); if(k)chatState.set(k,d.open);
+  },true);
+
+  function restoreChats(){
+    document.querySelectorAll('.shortageRow details').forEach(function(d){
+      var k=chatKey(d);
+      if(k&&chatState.has(k)) d.open=!!chatState.get(k);
+    });
+  }
+  var observer=new MutationObserver(function(){requestAnimationFrame(restoreChats);});
+  if(document.body)observer.observe(document.body,{childList:true,subtree:true});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',restoreChats);
+  else restoreChats();
+
+  /* 手機派工：回報公斤/缺貨回報一次只開一個 */
+  function mobileDispatchInit(){
+    if(!matchMedia('(max-width:760px)').matches)return;
+    var ds=[].slice.call(document.querySelectorAll('#stallFieldCard .stallFieldQuick'));
+    ds.forEach(function(d){
+      d.addEventListener('toggle',function(){
+        if(!d.open)return;
+        ds.forEach(function(other){if(other!==d&&other.open)other.open=false;});
+      });
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mobileDispatchInit);
+  else mobileDispatchInit();
+})();
+</script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
