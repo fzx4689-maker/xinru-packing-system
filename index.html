@@ -11967,5 +11967,167 @@ window.qNormalizeTurnAction=qN93TurnAction;
   window.addEventListener('load',fixAll);
 })();
 </script>
+
+<style id="n455-shortage-mobile-layout">
+/* N455｜缺貨回報卡：手機正式版面 */
+.shortageRow .shortage-item-check{
+  flex:0 0 42px!important;
+  width:42px!important;
+  min-width:42px!important;
+  max-width:42px!important;
+  height:42px!important;
+  min-height:42px!important;
+  padding:0!important;
+  margin:0!important;
+  border-radius:10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  line-height:1!important;
+  font-size:20px!important;
+}
+.shortageRow .shortage-item-check + div{
+  min-width:0!important;
+  width:auto!important;
+  flex:1 1 auto!important;
+  writing-mode:horizontal-tb!important;
+  word-break:break-word!important;
+  overflow-wrap:anywhere!important;
+  white-space:normal!important;
+  text-align:left!important;
+  line-height:1.35!important;
+}
+.shortageRow .shortage-item-check + div b{
+  display:inline!important;
+  writing-mode:horizontal-tb!important;
+  white-space:normal!important;
+}
+@media(max-width:760px){
+  .shortageRow{
+    width:100%!important;
+    box-sizing:border-box!important;
+    padding:12px!important;
+  }
+  .shortageRow .shortageTop{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:8px!important;
+    flex-wrap:wrap!important;
+  }
+  .shortageRow .shortageTop>div{
+    min-width:0!important;
+    flex:1 1 auto!important;
+  }
+  .shortageRow .shortageStatus{
+    flex:0 0 auto!important;
+    white-space:nowrap!important;
+  }
+  .shortageRow .shortage-item-check{
+    flex:0 0 40px!important;
+    width:40px!important;
+    min-width:40px!important;
+    max-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    border-radius:10px!important;
+  }
+  .shortageRow .shortage-item-check + div{
+    font-size:18px!important;
+    line-height:1.35!important;
+  }
+  .shortageRow .shortageActions{
+    display:block!important;
+  }
+  .shortageRow .shortageActions .btn{
+    width:100%!important;
+    max-width:none!important;
+  }
+  .shortageRow details{
+    width:100%!important;
+    box-sizing:border-box!important;
+  }
+}
+</style>
+
+<style id="n456-shortage-compact">
+/* N456｜缺貨回報桌機/手機緊湊版 */
+#packingShortItem,#deliveryShortItem{
+  min-height:82px!important;
+  height:82px!important;
+  max-height:140px!important;
+  padding:9px 11px!important;
+  line-height:1.35!important;
+  resize:vertical!important;
+}
+#packingShortItem.closest,#deliveryShortItem.closest{margin:0!important}
+.shortageRow{
+  padding:10px 12px!important;
+}
+.shortageRow .shortageTop{margin-bottom:2px!important}
+.shortageRow .shortage-item-check{
+  flex-basis:34px!important;
+  width:34px!important;
+  min-width:34px!important;
+  max-width:34px!important;
+  height:34px!important;
+  min-height:34px!important;
+  border-radius:9px!important;
+  font-size:17px!important;
+}
+.shortageRow .shortage-item-check + div{
+  font-size:16px!important;
+  line-height:1.25!important;
+}
+.shortageRow details{
+  margin-top:5px!important;
+}
+.shortageRow details>summary{
+  padding:4px 0!important;
+  font-size:15px!important;
+}
+.shortageRow .shortageActions{
+  margin-top:5px!important;
+}
+.shortageRow .shortageActions .btn{
+  min-height:34px!important;
+  padding:6px 10px!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{
+    min-height:88px!important;
+    height:88px!important;
+    max-height:125px!important;
+  }
+  .shortageRow{padding:9px 10px!important}
+  .shortageRow .shortage-item-check{
+    flex-basis:32px!important;
+    width:32px!important;
+    min-width:32px!important;
+    max-width:32px!important;
+    height:32px!important;
+    min-height:32px!important;
+  }
+  .shortageRow .shortage-item-check + div{font-size:16px!important}
+}
+</style>
+<script id="n456-shortage-collapse-chat">
+(function(){
+  function collapseChats(){
+    document.querySelectorAll('.shortageRow details[open]').forEach(function(d){d.removeAttribute('open');});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',collapseChats);
+  else collapseChats();
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"]'))setTimeout(collapseChats,0);
+  });
+  var mo=new MutationObserver(function(muts){
+    var need=false;
+    muts.forEach(function(m){if(m.addedNodes&&m.addedNodes.length)need=true;});
+    if(need)setTimeout(collapseChats,0);
+  });
+  if(document.body)mo.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
