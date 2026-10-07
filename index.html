@@ -4456,13 +4456,19 @@ async function loadAccountingCloud(){
     try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
   }catch(e){
     console.warn('帳務雲端同步失敗',e);
-    // N442：同步失敗時保留目前記憶體資料，不以不完整／失敗結果覆蓋正式畫面。
-    if(acctCloudRecords===null)acctCloudRecords=[];
-    acctCloudReady=true;
-    try{window.xrAccountingNav?.paintWorkBadges?.()}catch(_e){}
+    // N443：同步失敗絕不標記 ready，也不把失敗／空結果當成正式 0 筆。
+    // 已有記憶體資料就保留；首次載入失敗則 acctRecords() 只暫時顯示上次成功的本機快取。
+    acctCloudReady=false;
+    try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-error',{detail:{message:String(e?.message||e||'雲端同步失敗')}}))}catch(_e){}
   }
 }
-// N442：單一安全寫入閘門。新增用 INSERT；既有資料以 revision 做原子版本鎖，寫入後必須由 Supabase 回傳並驗證才更新本機快取。
+// N443：穩定 JSON 指紋；物件 key 排序、陣列保留順序，用於確認 Supabase 回傳內容與本次送出的正式 payload 完全一致。
+function xrAccountingStableJson(value){
+  if(value===null||typeof value!=='object')return JSON.stringify(value);
+  if(Array.isArray(value))return '['+value.map(xrAccountingStableJson).join(',')+']';
+  return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+xrAccountingStableJson(value[k])).join(',')+'}';
+}
+// N443：單一安全寫入閘門。新增用 INSERT；既有資料以 revision 做原子版本鎖，寫入後必須由 Supabase 回傳並完整驗證才更新本機快取。
 async function saveAccountingCloud(record){
   if(!record?.id)throw new Error('帳務資料缺少固定 ID，已停止儲存');
   const id=String(record.id),rows=Array.isArray(acctCloudRecords)?acctCloudRecords:acctLoad('xinru_acct_test_records',[]),cached=rows.find(x=>String(x?.id||'')===id);
@@ -4494,6 +4500,8 @@ async function saveAccountingCloud(record){
   const sentItems=Array.isArray(payload.items)?payload.items.length:0,savedItems=Array.isArray(saved.items)?saved.items.length:0;
   if(sentItems!==savedItems)throw new Error('Supabase 回傳的品項數與本次儲存不一致，已停止更新本機資料');
   if(Math.round(Number(saved.total)||0)!==Math.round(Number(payload.total)||0))throw new Error('Supabase 回傳的總金額與本次儲存不一致，已停止更新本機資料');
+  if(String(saved.customer||'')!==String(payload.customer||'')||String(saved.date||'')!==String(payload.date||'')||String(saved.status||'')!==String(payload.status||'')||String(saved.pricingStatus||'')!==String(payload.pricingStatus||''))throw new Error('Supabase 回傳的帳務關鍵欄位與本次儲存不一致，已停止更新本機資料');
+  if(xrAccountingStableJson(saved)!==xrAccountingStableJson(payload))throw new Error('Supabase 回傳的帳務內容與本次儲存不一致，已停止更新本機資料');
   const confirmed={...saved,_cloudRevision:savedRevision};
   const nextRows=(Array.isArray(acctCloudRecords)?acctCloudRecords.slice():acctLoad('xinru_acct_test_records',[]).slice()),i=nextRows.findIndex(x=>String(x?.id||'')===id);
   if(i>=0)nextRows[i]=confirmed;else nextRows.unshift(confirmed);
@@ -5039,7 +5047,7 @@ document.getElementById('quickOrderF2Btn')?.addEventListener('click',async()=>{
   quickOrderParse();if(!quickOrderItems.length){alert('請先輸入商品');return}if(quickOrderItems.some(x=>x.error)){alert('有商品格式無法辨識，請先修正紅色項目');return}
   const payment=document.getElementById('quickOrderPayment')?.value||'下次付款',total=quickOrderItems.reduce((n,x)=>n+x.amount,0),now=Date.now();
   const order={id:'SO'+now,created_at:new Date().toISOString(),customer,delivery:document.getElementById('quickOrderDelivery')?.value||'',note:document.getElementById('quickOrderNote')?.value.trim()||'',items:quickOrderItems.map(x=>({...x})),total,created_by:(currentProfile?.nickname||currentProfile?.display_name||'')};
-  const record={id:now,date:taipeiDate(),customer,type:'客戶',mode:'market',txnType:'sale',txnTypeLabel:'快速開單',payment,items:quickOrderItems.map(x=>({name:x.name,qty:x.qty,price:x.price,unit:'件',kgEach:0,basketMark:'',basketSigned:''})),externalItems:[],goods:total,advance:0,route:'none',ownKg:0,externalKg:0,kg:0,freightRate:0,freight:0,total,paid:['現金','匯款'].includes(payment)?total:0,due:['現金','匯款'].includes(payment)?0:total,deposit:0,basketOut:0,basketBack:0,basketDiff:0,twoCopy:false,note:order.note,source:'quick_order',salesOrderId:order.id};
+  const record={id:(globalThis.crypto?.randomUUID?crypto.randomUUID():('quick-'+now+'-'+Math.random().toString(36).slice(2,8))),date:taipeiDate(),customer,type:'客戶',mode:'market',txnType:'sale',txnTypeLabel:'快速開單',payment,items:quickOrderItems.map(x=>({name:x.name,qty:x.qty,price:x.price,unit:'件',kgEach:0,basketMark:'',basketSigned:''})),externalItems:[],goods:total,advance:0,route:'none',ownKg:0,externalKg:0,kg:0,freightRate:0,freight:0,total,paid:['現金','匯款'].includes(payment)?total:0,due:['現金','匯款'].includes(payment)?0:total,deposit:0,basketOut:0,basketBack:0,basketDiff:0,twoCopy:false,note:order.note,source:'quick_order',salesOrderId:order.id};
   btn.disabled=true;btn.classList.add('quickOrderF2Busy');btn.textContent='儲存中…';
   try{
     await saveAccountingCloud(record);
@@ -5047,7 +5055,7 @@ document.getElementById('quickOrderF2Btn')?.addEventListener('click',async()=>{
     if(packingCount)await quickOrderSendPacking(order);
     const deliverySent=order.delivery!=='自取';
     if(deliverySent)await quickOrderSendDelivery(order);
-    const arows=acctRecords().slice();if(!arows.some(x=>String(x.id)===String(record.id)))arows.unshift(record);localStorage.setItem('xinru_acct_test_records',JSON.stringify(arows));acctCloudRecords=arows;
+    // N443：帳務快取只接受 saveAccountingCloud() 經 Supabase 回傳驗證後的 confirmed payload，不再用原始 record 二次覆寫。
     const orders=JSON.parse(localStorage.getItem('xinru_sales_orders_v42')||'[]');orders.unshift(order);localStorage.setItem('xinru_sales_orders_v42',JSON.stringify(orders.slice(0,500)));
     const missingStockItems=deductInventoryForOrder(order);
     await loadAccountingCloud();renderAcctLists();document.getElementById('acctQueryCustomer').value=customer;
