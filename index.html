@@ -4431,21 +4431,23 @@ function acctCatalog(){return acctLoad('xinru_acct_test_products',{})}
 var acctCloudRecords=null;
 var acctCloudReady=false;
 function acctRecords(){return acctCloudRecords===null?acctLoad('xinru_acct_test_records',[]):acctCloudRecords}
+// N442：正式帳務以 Supabase 為唯一真實來源；完整分頁下載，避免資料量增加後只拿到部分紀錄。
 async function loadAccountingCloud(){
   if(!currentUser)return;
   acctCloudReady=false;
   try{
-    let {data,error}=await sb.from('accounting_records').select('local_id,payload').order('record_date',{ascending:false}).order('created_at',{ascending:false});
-    if(error)throw error;
-    // N18：Supabase 是帳務正式資料唯一真實來源。
-    // 雲端已不存在的 local_id 視為已刪除，禁止舊瀏覽器 localStorage 自動回傳而把刪除資料「復活」。
-    // 正常新增／修改一律先經 saveAccountingCloud() 成功寫入雲端，再由這裡下載同步。
-    const cloudRows=(data||[]).map(x=>x.payload).filter(Boolean);
+    const pageSize=1000,cloudDbRows=[];
+    for(let from=0;;from+=pageSize){
+      const {data,error}=await sb.from('accounting_records').select('local_id,payload,revision').order('record_date',{ascending:false}).order('created_at',{ascending:false}).range(from,from+pageSize-1);
+      if(error)throw error;
+      const batch=data||[];cloudDbRows.push(...batch);
+      if(batch.length<pageSize)break;
+    }
+    const cloudRows=cloudDbRows.map(x=>{const p=x?.payload;if(!p)return null;return {...p,_cloudRevision:Number(x.revision)||1}}).filter(Boolean);
     acctCloudRecords=cloudRows;
     acctCloudReady=true;
     try{window.qInvalidateContainerEventCache?.()}catch(_e){}
     localStorage.setItem('xinru_acct_test_records',JSON.stringify(cloudRows));
-    // N365：先完成資料同步並釋放主執行緒；舊快速做帳統計與待辦延後刷新，避免登入／進帳務中心卡住。
     setTimeout(()=>{
       try{renderAcctDraft()}catch(_e){}
       try{renderAcctRecords()}catch(_e){}
@@ -4453,25 +4455,53 @@ async function loadAccountingCloud(){
     },0);
     try{window.dispatchEvent(new CustomEvent('xinru:accounting-cloud-loaded'))}catch(_e){}
   }catch(e){
-    console.warn('帳務雲端尚未啟用',e);
-    acctCloudRecords=null;
+    console.warn('帳務雲端同步失敗',e);
+    // N442：同步失敗時保留目前記憶體資料，不以不完整／失敗結果覆蓋正式畫面。
+    if(acctCloudRecords===null)acctCloudRecords=[];
     acctCloudReady=true;
     try{window.xrAccountingNav?.paintWorkBadges?.()}catch(_e){}
   }
 }
+// N442：單一安全寫入閘門。新增用 INSERT；既有資料以 revision 做原子版本鎖，寫入後必須由 Supabase 回傳並驗證才更新本機快取。
 async function saveAccountingCloud(record){
-  const {error}=await sb.from('accounting_records').upsert({local_id:String(record.id),customer:record.customer,record_date:record.date,customer_type:record.type||null,payload:record,created_by:currentUser?.id||null,updated_at:new Date().toISOString()},{onConflict:'local_id'});
-  if(error)throw error;
-  // N365：寫入成功後直接更新目前瀏覽器的單筆快取，不再為一筆修改重新下載整張 accounting_records。
-  try{
-    const rows=Array.isArray(acctCloudRecords)?acctCloudRecords.slice():acctLoad('xinru_acct_test_records',[]).slice();
-    const i=rows.findIndex(x=>String(x?.id||'')===String(record.id));
-    if(i>=0)rows[i]=record;else rows.unshift(record);
-    acctCloudRecords=rows;acctCloudReady=true;
-    localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));
-  }catch(_e){}
+  if(!record?.id)throw new Error('帳務資料缺少固定 ID，已停止儲存');
+  const id=String(record.id),rows=Array.isArray(acctCloudRecords)?acctCloudRecords:acctLoad('xinru_acct_test_records',[]),cached=rows.find(x=>String(x?.id||'')===id);
+  let expectedRevision=Number(record._cloudRevision||cached?._cloudRevision||0),dbExisting=null;
+  if(!expectedRevision){
+    const {data,error}=await sb.from('accounting_records').select('local_id,revision,payload').eq('local_id',id).maybeSingle();
+    if(error)throw error;
+    dbExisting=data||null;
+    if(dbExisting)expectedRevision=Number(dbExisting.revision)||1;
+  }
+  const now=new Date().toISOString(),payload={...record};delete payload._cloudRevision;
+  payload.updatedAt=payload.updatedAt||now;
+  payload.updatedBy=(currentProfile?.display_name||currentUser?.email||payload.updatedBy||'');
+  let data,error;
+  if(expectedRevision){
+    const nextRevision=expectedRevision+1;
+    ({data,error}=await sb.from('accounting_records').update({customer:payload.customer,record_date:payload.date,customer_type:payload.type||null,payload,updated_at:now,revision:nextRevision}).eq('local_id',id).eq('revision',expectedRevision).select('local_id,payload,revision').maybeSingle());
+    if(error)throw error;
+    if(!data)throw new Error('這筆帳已被其他電腦／員工更新。為避免舊資料覆蓋新資料，系統已停止儲存；請重新開啟最新資料後再繼續。');
+  }else{
+    ({data,error}=await sb.from('accounting_records').insert({local_id:id,customer:payload.customer,record_date:payload.date,customer_type:payload.type||null,payload,created_by:currentUser?.id||null,updated_at:now,revision:1}).select('local_id,payload,revision').single());
+    if(error){
+      if(String(error?.code||'')==='23505')throw new Error('這個新帳 ID 已存在，系統已停止覆蓋。請重新開啟快速做帳再建立新帳。');
+      throw error;
+    }
+  }
+  const saved=data?.payload,savedRevision=Number(data?.revision)||0;
+  if(!saved||String(data.local_id)!==id||String(saved.id)!==id)throw new Error('Supabase 未確認帳務 ID 寫入成功');
+  const sentItems=Array.isArray(payload.items)?payload.items.length:0,savedItems=Array.isArray(saved.items)?saved.items.length:0;
+  if(sentItems!==savedItems)throw new Error('Supabase 回傳的品項數與本次儲存不一致，已停止更新本機資料');
+  if(Math.round(Number(saved.total)||0)!==Math.round(Number(payload.total)||0))throw new Error('Supabase 回傳的總金額與本次儲存不一致，已停止更新本機資料');
+  const confirmed={...saved,_cloudRevision:savedRevision};
+  const nextRows=(Array.isArray(acctCloudRecords)?acctCloudRecords.slice():acctLoad('xinru_acct_test_records',[]).slice()),i=nextRows.findIndex(x=>String(x?.id||'')===id);
+  if(i>=0)nextRows[i]=confirmed;else nextRows.unshift(confirmed);
+  acctCloudRecords=nextRows;acctCloudReady=true;
+  localStorage.setItem('xinru_acct_test_records',JSON.stringify(nextRows));
   try{window.xrInvalidateAccountingSummary?.()}catch(_e){}
   try{window.qInvalidateContainerEventCache?.()}catch(_e){}
+  return confirmed;
 }
 // N365：一般寫入後只失效摘要與刷新目前 UI；完整雲端下載保留給登入／手動同步。
 async function deleteAccountingCloudPermanently(recordId){
@@ -4778,9 +4808,8 @@ $('#acctSaveTest').onclick=async()=>{
   const customer=$('#acctCustomer').value.trim(),txn=$('#acctTxnType').value;if(!customer){alert('請輸入車牌、人名或超市名稱');return}if(['sale','mixed'].includes(txn)&&!acctDraftItems.length){alert('有本店商品時，請先加入商品與單價');return}
   const ownKg=Number($('#acctOwnKg').value)||0,externalKg=acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.kgEach,0),kg=ownKg+externalKg,rate=Number($('#acctFreightRate').value)||0,freight=$('#acctRoute').value==='none'?0:kg*rate,goods=acctDraftItems.reduce((s,x)=>s+x.qty*x.price,0),advance=acctExternalDraftItems.reduce((s,x)=>s+x.qty*x.advance,0),deposit=txn==='deposit'?Math.max(0,Number($('#acctPaid').value)||0):0,total=['deposit','repayment'].includes(txn)?0:goods+advance+freight,paid=txn==='deposit'?deposit:Math.max(0,Number($('#acctPaid').value)||0),out=Number($('#acctBasketOut').value)||0,back=Number($('#acctBasketBack').value)||0;
   if(['mixed','freight'].includes(txn)&&!acctExternalDraftItems.length){alert('請先加入外店商品明細');return}if(txn==='freight'&&!(freight>0)){alert('外店代運請選擇路線，系統會依商品公斤數計算運費');return}if(txn==='repayment'&&!(paid>0)){alert('請在本次實收輸入客戶還款金額');return}if(txn==='deposit'&&!(deposit>0)){alert('請輸入儲值金額');return}
-  const labels={sale:'本店商品',mixed:'本店商品＋外店商品',freight:'只有外店商品',repayment:'收回舊欠款',deposit:'儲值入金'},record={id:Date.now(),date:$('#acctDate').value,customer,type:'客戶',mode:'market',txnType:txn,txnTypeLabel:labels[txn],payment:$('#acctPayment').value,items:[...acctDraftItems],externalItems:[...acctExternalDraftItems],goods,advance,route:$('#acctRoute').value,ownKg,externalKg,kg,freightRate:rate,freight,total,paid,due:Math.max(0,total-paid),deposit,basketOut:out,basketBack:back,basketDiff:out-back,twoCopy:$('#acctTwoCopy').checked,note:$('#acctNote').value.trim()},rows=acctRecords().slice();rows.unshift(record);
-  localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));if(acctCloudRecords!==null)acctCloudRecords=rows;
-  try{await saveAccountingCloud(record)}catch(e){alert('帳務已暫存在這台裝置，但尚未同步到手機。請先在 Supabase 執行帳務資料表 SQL。\n\n'+e.message);return}
+  const labels={sale:'本店商品',mixed:'本店商品＋外店商品',freight:'只有外店商品',repayment:'收回舊欠款',deposit:'儲值入金'},record={id:(globalThis.crypto?.randomUUID?crypto.randomUUID():('acct-'+Date.now()+'-'+Math.random().toString(36).slice(2,8))),date:$('#acctDate').value,customer,type:'客戶',mode:'market',txnType:txn,txnTypeLabel:labels[txn],payment:$('#acctPayment').value,items:[...acctDraftItems],externalItems:[...acctExternalDraftItems],goods,advance,route:$('#acctRoute').value,ownKg,externalKg,kg,freightRate:rate,freight,total,paid,due:Math.max(0,total-paid),deposit,basketOut:out,basketBack:back,basketDiff:out-back,twoCopy:$('#acctTwoCopy').checked,note:$('#acctNote').value.trim()};
+  try{await saveAccountingCloud(record)}catch(e){alert('雲端儲存失敗，這筆資料尚未正式存檔。\n\n'+e.message);return}
   const savedCustomer=customer;acctDraftItems=[];acctExternalDraftItems=[];$('#acctProduct').value='';$('#acctQty').value='1';$('#acctItemKg').value='';$('#acctPrice').value='';$('#acctPaid').value='0';$('#acctOwnKg').value='0';$('#acctRoute').value='none';$('#acctBasketOut').value='0';$('#acctBasketBack').value='0';$('#acctNote').value='';$('#acctTwoCopy').checked=false;await loadAccountingCloud();renderAcctDraft();renderAcctRecords();$('#acctCustomer').value=savedCustomer;acctShowPreview(savedCustomer);
 };
 $('#acctClear').onclick=()=>{acctDraftItems=[];acctExternalDraftItems=[];$('#acctPaid').value='0';renderAcctDraft()};
@@ -6728,18 +6757,15 @@ let qN217IdentityCache = new WeakMap();
     if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');
     let lastErr=null;
     for(let attempt=1;attempt<=3;attempt++){
-      try{await saveAccountingCloud(record);lastErr=null;break}
-      catch(e){lastErr=e;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,450*attempt))}
+      try{const confirmed=await saveAccountingCloud(record);if(confirmed)Object.assign(record,confirmed);lastErr=null;break}
+      catch(e){lastErr=e;if(/其他電腦|舊資料覆蓋|ID 已存在/.test(String(e?.message||e||'')))break;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,450*attempt))}
     }
     if(lastErr){
       const msg=String(lastErr?.message||lastErr||'');
       if(/failed to fetch|network|fetch/i.test(msg))throw new Error('雲端連線失敗，這筆尚未完成做帳。請確認網路後再按一次「完成做帳」。');
       throw lastErr;
     }
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).slice(),idx=rows.findIndex(x=>String(x.id)===String(record.id));
-    if(idx>=0)rows[idx]=record;else rows.unshift(record);
-    localStorage.setItem('xinru_acct_test_records',JSON.stringify(rows));
-    if(typeof acctCloudRecords!=='undefined'&&acctCloudRecords!==null)acctCloudRecords=rows;
+    // N442：saveAccountingCloud 已以 Supabase 回傳資料更新快取；此處不得再用畫面物件覆寫已確認版本。
     if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
   }
   const qCompanyHeader='欣儒農產行 0900-767-577';
@@ -8162,7 +8188,7 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     edit:(work,id)=>qEditQuickRecord(work,id),
     delete:(work,id,after)=>qDeleteQuickRecord(work,id,after)
   };
-  function renderQuickV2(work){const ps=qProfiles(),opts=ps.flatMap(x=>['<option value="'+qEsc(x.name)+'">'+qEsc(x.name)+'</option>',x.code?'<option value="'+qEsc(x.code)+'">'+qEsc(x.name)+'</option>':'',(x.vehicles||[]).map(v=>'<option value="'+qEsc(v.plate)+'">'+qEsc(x.name)+(v.active===false?'（歷史車號）':'')+'</option>').join('')]).join('');work.innerHTML='<div class="quickV2"><div class="quickV2Head"><div class="field"><label class="label">日期</label><input id="quickV2Date" class="input" type="date" value="'+qToday()+'"></div><div class="field quickEntityField"><label class="label">往來對象＊</label><input id="quickV2Entity" class="input" list="quickV2EntityList" autocomplete="off" placeholder="例如：0299、仁和、長青"><datalist id="quickV2EntityList">'+opts+'</datalist></div><div class="field"><label class="label">交易類型</label><select id="quickV2Txn" class="input"><option>銷貨</option><option>進貨</option></select></div><div class="field"><label class="label">備註</label><input id="quickV2Note" class="input" placeholder="可不填"></div></div><div id="quickV2ContactInfo" class="quickV2ContactInfo"></div><div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:10px 0"><div class="field" style="margin:0;min-width:190px"><label class="label">本單預設單位</label><select id="qOrderPricing" class="input"><option value="piece">件</option><option value="box">盒</option><option value="each">顆</option><option value="pack">包</option><option value="bundle">束</option><option value="root">根</option><option value="basket">籃</option><option value="carton">箱</option><option value="strip">條</option><option value="custom">自訂</option></select></div><div class="helper" style="padding-bottom:10px">新增品項自動沿用；平常不用每列再選，只有例外品項才另外改單位。</div><div class="quickV2FreightTop"><div class="field" style="margin:0;min-width:180px"><label class="label">本單預設運費</label><select id="qOrderFreightMode" class="input"><option value="none">不計</option><option value="kg">公斤</option><option value="piece">件</option><option value="truck">整車固定運費</option></select></div><div class="field" style="margin:0;min-width:150px"><label class="label" id="qOrderFreightRateLabel">運費單價</label><input id="qOrderFreightRate" class="input" inputmode="decimal" placeholder="例如：1.5"></div><div class="helper" style="padding-bottom:10px">選到往來對象會讀取主檔；本單可依實際情況選不計、公斤、件或整車固定運費。</div></div></div><div class="quickV2Table"><div class="quickV2Row quickV2Labels"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>單位</span><span>狀態</span><span>來源</span><span>單價</span><span class="quickV2Cost">成本</span><span data-qcol="freight">運費</span><span>金額</span><span></span></div><div id="quickV2Rows">'+qRowHtml(0)+'</div></div><details class="quickV2Turn"><summary>🧺 周轉物（有使用再展開）</summary><div class="helper" style="display:block!important;margin:7px 0">所有日常容器都在快速做帳建立。籃子：領用／計籃／回籃；其他容器：領用／使用／歸還。單價可填、可留空或 0；金額不影響容器數量。</div><div id="qTurnRows"><div class="qTurnRow quickV2TurnGrid" data-qturnrow><select class="input qTurnType"><option value="">類型</option></select><select class="input qTurnRack" style="display:none"><option value="">鐵架名稱</option></select><select class="input qTurnAction"><option value="">動作</option></select><input class="input qTurnQty" inputmode="decimal" placeholder="數量"><input class="input qTurnUnitPrice" inputmode="decimal" placeholder="單價（不計錢可空白）"><input class="input qTurnNote" placeholder="備註"><span class="qTurnAmount">$0</span><button type="button" class="btn gray qTurnRemove" title="移除此筆">×</button></div></div><div class="actions" style="margin-top:8px"><button id="qTurnAdd" type="button" class="btn gray">＋ 新增周轉物</button></div></details><div class="quickV2ContactHint" id="qHistoricalBox" style="margin-top:10px"><div style="font-weight:900;margin-bottom:6px">🕘 補做以前漏掉的帳時，請選當時收／付款狀況</div><label style="display:flex;align-items:center;gap:8px;margin:5px 0"><input name="qHistoricalState" type="radio" value="unpaid" checked> 還沒收／付款</label><label style="display:flex;align-items:center;gap:8px;margin:5px 0"><input name="qHistoricalState" type="radio" value="create"> 當時已收／付款（系統沒有紀錄）</label><div class="helper" style="display:block!important;margin-top:5px">補做以前漏掉的帳時才使用；銷售會處理收款、進貨會處理付款。還沒收／付款會列入目前未結清；當時已收／付款則補建實際收／付款日期與方式。</div><div id="qHistoricalExistingWrap" style="display:none;margin-top:8px"><label class="label">選擇當時收／付款紀錄</label><select id="qHistoricalSettlement" class="input"></select><label class="label" style="margin-top:6px">收／付款方式</label><select id="qHistoricalMethod" class="input"></select></div><div id="qHistoricalCreateWrap" style="display:none;margin-top:8px"><label class="label">實際收／付款日期</label><input id="qHistoricalPayDate" class="input" type="date"><label class="label" style="margin-top:6px">收／付款方式</label><select id="qHistoricalCreateMethod" class="input"></select></div></div><div class="quickV2ContactHint" id="qImmediateSettleBox" style="margin-top:10px"><label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qImmediateSettle" type="checkbox"> 💵 當場結清</label><div class="helper" style="display:block!important;margin-top:5px">有實際收到／付出款項才勾；勾選後會同時建立正式收／付款紀錄，不再列入未結清。</div><div id="qImmediateMethodWrap" style="display:none;margin-top:8px"><label class="label">結清方式</label><select id="qImmediateMethod" class="input" style="max-width:240px"><option value="現金">現金</option><option value="匯款">匯款</option><option value="司機代收">司機代收</option><option value="儲值">儲值</option><option value="其他">其他</option></select></div></div><div class="quickV2Foot"><button id="quickV2Add" type="button" class="btn blue">＋ 新增一列</button><button id="quickV2Pending" type="button" class="btn" style="background:#facc15;color:#713f12;border:1px solid #eab308;font-weight:900">⚠️ 待補價格</button><button id="quickV2Preview" type="button" class="btn gray">👁️ 預覽帳單</button><button id="quickV2Clear" type="button" class="btn gray">清空</button><button id="quickV2Save" type="button" class="btn primary">✅ 完成做帳</button><div class="quickV2Total">貨款小計 <span id="quickV2GoodsSubtotal">$0</span> ＋ 運費小計 <span id="quickV2FreightSubtotal">$0</span> ＋ 籃子小計 <span id="quickV2TurnoverSubtotal">$0</span> ＝ 總計 <span id="quickV2Total">$0</span></div></div><div id="quickV2OutputHost" class="quickV2OutputHost"></div></div>';qBindRows(work);qRecalc(work);const ent=work.querySelector('#quickV2Entity');const syncEntity=()=>{const c=qPaintContactInfo(work);if(c)work.querySelector('#quickV2Txn').value=qTxnDefault(c);qRecalc(work)};const settleEntity=()=>{const hit=qResolveContact(ent.value);if(hit){ent.dataset.lookupInput=hit.input;ent.dataset.vehiclePlate=hit.matchedBy==='vehicle'?hit.vehiclePlate:'';ent.value=hit.contact.name;const d=qDefaultFreight(hit.contact),om=work.querySelector('#qOrderFreightMode'),orr=work.querySelector('#qOrderFreightRate');if(om)om.value=d.mode;if(orr)orr.value=d.mode==='none'?'':d.rate}syncEntity()};ent.addEventListener('change',settleEntity);ent.addEventListener('blur',settleEntity);ent.addEventListener('input',syncEntity);work.querySelector('#quickV2Txn')?.addEventListener('change',()=>qRecalc(work));const bindTurnRows=()=>{work.querySelectorAll('[data-qturnrow]').forEach(row=>{if(row.dataset.bound)return;row.dataset.bound='1';row.querySelectorAll('select,input').forEach(el=>{el.addEventListener('input',()=>qRecalc(work));el.addEventListener('change',()=>qRecalc(work))});row.querySelector('.qTurnRemove')?.addEventListener('click',()=>{const all=work.querySelectorAll('[data-qturnrow]');if(all.length===1){row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');qRecalc(work);return}row.remove();qRecalc(work)})})};bindTurnRows();work.querySelector('#qTurnAdd')?.addEventListener('click',()=>{const host=work.querySelector('#qTurnRows'),first=host?.querySelector('[data-qturnrow]');if(!host||!first)return;const row=first.cloneNode(true);row.dataset.bound='';row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');const a=row.querySelector('.qTurnAmount');if(a)a.textContent='$0';host.appendChild(row);bindTurnRows();qRecalc(work)});qPaintContactInfo(work);qApplyQuickProfile(work);
+  function renderQuickV2(work){delete work.dataset.editDraftId;const ps=qProfiles(),opts=ps.flatMap(x=>['<option value="'+qEsc(x.name)+'">'+qEsc(x.name)+'</option>',x.code?'<option value="'+qEsc(x.code)+'">'+qEsc(x.name)+'</option>':'',(x.vehicles||[]).map(v=>'<option value="'+qEsc(v.plate)+'">'+qEsc(x.name)+(v.active===false?'（歷史車號）':'')+'</option>').join('')]).join('');work.innerHTML='<div class="quickV2"><div class="quickV2Head"><div class="field"><label class="label">日期</label><input id="quickV2Date" class="input" type="date" value="'+qToday()+'"></div><div class="field quickEntityField"><label class="label">往來對象＊</label><input id="quickV2Entity" class="input" list="quickV2EntityList" autocomplete="off" placeholder="例如：0299、仁和、長青"><datalist id="quickV2EntityList">'+opts+'</datalist></div><div class="field"><label class="label">交易類型</label><select id="quickV2Txn" class="input"><option>銷貨</option><option>進貨</option></select></div><div class="field"><label class="label">備註</label><input id="quickV2Note" class="input" placeholder="可不填"></div></div><div id="quickV2ContactInfo" class="quickV2ContactInfo"></div><div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:10px 0"><div class="field" style="margin:0;min-width:190px"><label class="label">本單預設單位</label><select id="qOrderPricing" class="input"><option value="piece">件</option><option value="box">盒</option><option value="each">顆</option><option value="pack">包</option><option value="bundle">束</option><option value="root">根</option><option value="basket">籃</option><option value="carton">箱</option><option value="strip">條</option><option value="custom">自訂</option></select></div><div class="helper" style="padding-bottom:10px">新增品項自動沿用；平常不用每列再選，只有例外品項才另外改單位。</div><div class="quickV2FreightTop"><div class="field" style="margin:0;min-width:180px"><label class="label">本單預設運費</label><select id="qOrderFreightMode" class="input"><option value="none">不計</option><option value="kg">公斤</option><option value="piece">件</option><option value="truck">整車固定運費</option></select></div><div class="field" style="margin:0;min-width:150px"><label class="label" id="qOrderFreightRateLabel">運費單價</label><input id="qOrderFreightRate" class="input" inputmode="decimal" placeholder="例如：1.5"></div><div class="helper" style="padding-bottom:10px">選到往來對象會讀取主檔；本單可依實際情況選不計、公斤、件或整車固定運費。</div></div></div><div class="quickV2Table"><div class="quickV2Row quickV2Labels"><span>序</span><span>品名</span><span>公斤</span><span>數量</span><span>單位</span><span>狀態</span><span>來源</span><span>單價</span><span class="quickV2Cost">成本</span><span data-qcol="freight">運費</span><span>金額</span><span></span></div><div id="quickV2Rows">'+qRowHtml(0)+'</div></div><details class="quickV2Turn"><summary>🧺 周轉物（有使用再展開）</summary><div class="helper" style="display:block!important;margin:7px 0">所有日常容器都在快速做帳建立。籃子：領用／計籃／回籃；其他容器：領用／使用／歸還。單價可填、可留空或 0；金額不影響容器數量。</div><div id="qTurnRows"><div class="qTurnRow quickV2TurnGrid" data-qturnrow><select class="input qTurnType"><option value="">類型</option></select><select class="input qTurnRack" style="display:none"><option value="">鐵架名稱</option></select><select class="input qTurnAction"><option value="">動作</option></select><input class="input qTurnQty" inputmode="decimal" placeholder="數量"><input class="input qTurnUnitPrice" inputmode="decimal" placeholder="單價（不計錢可空白）"><input class="input qTurnNote" placeholder="備註"><span class="qTurnAmount">$0</span><button type="button" class="btn gray qTurnRemove" title="移除此筆">×</button></div></div><div class="actions" style="margin-top:8px"><button id="qTurnAdd" type="button" class="btn gray">＋ 新增周轉物</button></div></details><div class="quickV2ContactHint" id="qHistoricalBox" style="margin-top:10px"><div style="font-weight:900;margin-bottom:6px">🕘 補做以前漏掉的帳時，請選當時收／付款狀況</div><label style="display:flex;align-items:center;gap:8px;margin:5px 0"><input name="qHistoricalState" type="radio" value="unpaid" checked> 還沒收／付款</label><label style="display:flex;align-items:center;gap:8px;margin:5px 0"><input name="qHistoricalState" type="radio" value="create"> 當時已收／付款（系統沒有紀錄）</label><div class="helper" style="display:block!important;margin-top:5px">補做以前漏掉的帳時才使用；銷售會處理收款、進貨會處理付款。還沒收／付款會列入目前未結清；當時已收／付款則補建實際收／付款日期與方式。</div><div id="qHistoricalExistingWrap" style="display:none;margin-top:8px"><label class="label">選擇當時收／付款紀錄</label><select id="qHistoricalSettlement" class="input"></select><label class="label" style="margin-top:6px">收／付款方式</label><select id="qHistoricalMethod" class="input"></select></div><div id="qHistoricalCreateWrap" style="display:none;margin-top:8px"><label class="label">實際收／付款日期</label><input id="qHistoricalPayDate" class="input" type="date"><label class="label" style="margin-top:6px">收／付款方式</label><select id="qHistoricalCreateMethod" class="input"></select></div></div><div class="quickV2ContactHint" id="qImmediateSettleBox" style="margin-top:10px"><label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qImmediateSettle" type="checkbox"> 💵 當場結清</label><div class="helper" style="display:block!important;margin-top:5px">有實際收到／付出款項才勾；勾選後會同時建立正式收／付款紀錄，不再列入未結清。</div><div id="qImmediateMethodWrap" style="display:none;margin-top:8px"><label class="label">結清方式</label><select id="qImmediateMethod" class="input" style="max-width:240px"><option value="現金">現金</option><option value="匯款">匯款</option><option value="司機代收">司機代收</option><option value="儲值">儲值</option><option value="其他">其他</option></select></div></div><div class="quickV2Foot"><button id="quickV2Add" type="button" class="btn blue">＋ 新增一列</button><button id="quickV2Pending" type="button" class="btn" style="background:#facc15;color:#713f12;border:1px solid #eab308;font-weight:900">⚠️ 待補價格</button><button id="quickV2Preview" type="button" class="btn gray">👁️ 預覽帳單</button><button id="quickV2Clear" type="button" class="btn gray">清空</button><button id="quickV2Save" type="button" class="btn primary">✅ 完成做帳</button><div class="quickV2Total">貨款小計 <span id="quickV2GoodsSubtotal">$0</span> ＋ 運費小計 <span id="quickV2FreightSubtotal">$0</span> ＋ 籃子小計 <span id="quickV2TurnoverSubtotal">$0</span> ＝ 總計 <span id="quickV2Total">$0</span></div></div><div id="quickV2OutputHost" class="quickV2OutputHost"></div></div>';qBindRows(work);qRecalc(work);const ent=work.querySelector('#quickV2Entity');const syncEntity=()=>{const c=qPaintContactInfo(work);if(c)work.querySelector('#quickV2Txn').value=qTxnDefault(c);qRecalc(work)};const settleEntity=()=>{const hit=qResolveContact(ent.value);if(hit){ent.dataset.lookupInput=hit.input;ent.dataset.vehiclePlate=hit.matchedBy==='vehicle'?hit.vehiclePlate:'';ent.value=hit.contact.name;const d=qDefaultFreight(hit.contact),om=work.querySelector('#qOrderFreightMode'),orr=work.querySelector('#qOrderFreightRate');if(om)om.value=d.mode;if(orr)orr.value=d.mode==='none'?'':d.rate}syncEntity()};ent.addEventListener('change',settleEntity);ent.addEventListener('blur',settleEntity);ent.addEventListener('input',syncEntity);work.querySelector('#quickV2Txn')?.addEventListener('change',()=>qRecalc(work));const bindTurnRows=()=>{work.querySelectorAll('[data-qturnrow]').forEach(row=>{if(row.dataset.bound)return;row.dataset.bound='1';row.querySelectorAll('select,input').forEach(el=>{el.addEventListener('input',()=>qRecalc(work));el.addEventListener('change',()=>qRecalc(work))});row.querySelector('.qTurnRemove')?.addEventListener('click',()=>{const all=work.querySelectorAll('[data-qturnrow]');if(all.length===1){row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');qRecalc(work);return}row.remove();qRecalc(work)})})};bindTurnRows();work.querySelector('#qTurnAdd')?.addEventListener('click',()=>{const host=work.querySelector('#qTurnRows'),first=host?.querySelector('[data-qturnrow]');if(!host||!first)return;const row=first.cloneNode(true);row.dataset.bound='';row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');const a=row.querySelector('.qTurnAmount');if(a)a.textContent='$0';host.appendChild(row);bindTurnRows();qRecalc(work)});qPaintContactInfo(work);qApplyQuickProfile(work);
     const orderPricing=work.querySelector('#qOrderPricing');
     orderPricing?.addEventListener('change',()=>{work.querySelectorAll('[data-qrow]').forEach(r=>{if(r.dataset.pricingOverride==='1')return;const x=r.querySelector('.qPricing');if(x)x.value=orderPricing.value;const lab=r.querySelector('.qPricingLabel');if(lab)lab.textContent=qPricingText(orderPricing.value)});qRecalc(work)});const orderFreightMode=work.querySelector('#qOrderFreightMode'),orderFreightRate=work.querySelector('#qOrderFreightRate');const syncOrderFreight=()=>{qRecalc(work)};orderFreightMode?.addEventListener('change',syncOrderFreight);orderFreightRate?.addEventListener('input',syncOrderFreight);
     const immediate=work.querySelector('#qImmediateSettle'),imWrap=work.querySelector('#qImmediateMethodWrap'),imMethod=work.querySelector('#qImmediateMethod');
@@ -8530,10 +8556,8 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     record.updatedAt=new Date().toISOString();
     record.audit=Array.isArray(record.audit)?record.audit.slice():[];
     record.audit.push({action:action||'edit',at:record.updatedAt,by:qActor(),before:before});
-    const source=(typeof acctRecords==='function'?acctRecords():[]),local=source.map(x=>String(x.id)===String(record.id)?record:x);
-    localStorage.setItem('xinru_acct_test_records',JSON.stringify(local));
-    if(typeof acctCloudRecords!=='undefined'&&acctCloudRecords!==null)acctCloudRecords=local;
     if(typeof saveAccountingCloud!=='function')throw new Error('帳務雲端儲存函式不存在');
+    // N442：正式修改先由 Supabase 確認成功；本機快取只由安全寫入核心在成功後更新。
     await saveAccountingCloud(record);
     if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
   }
