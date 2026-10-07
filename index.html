@@ -4688,6 +4688,96 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 
 
 
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
+
 </body></html>`;acctDownload(new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),acctSafeName(d.customer)+'_客戶帳本_LQ310.xls')};
 function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.customer)} 客戶帳本</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111}.acctLedgerSheet{border:0;padding:0}.acctLedgerTitle{text-align:center;font-weight:bold;margin-bottom:5px}.acctLedgerMeta{display:flex;justify-content:space-between;margin-bottom:5px}.acctLedgerColumns{display:grid;grid-template-columns:${d.isSupermarket?'repeat(2,1fr)':'repeat(3,1fr)'};gap:3px}.acctLedgerTable{width:100%;border-collapse:collapse;font-size:${d.isSupermarket?'8px':'10px'}}.acctLedgerTable th,.acctLedgerTable td{border:1px solid #333;padding:2px;white-space:nowrap}.acctLedgerTotal{text-align:right;font-weight:bold;margin-top:5px}.supermarketPage{break-after:page}.supermarketPage:last-child{break-after:auto}@page{size:14.875in 11in landscape;margin:0.18in}
 /* 第43階段：F2帳務＋LINE帳單修繕 */
@@ -4772,6 +4862,96 @@ function acctLedgerPrintHtml(d){return `<!doctype html><html><head><meta charset
 <!-- 第166階段：貨運現場配送穩固版｜指定司機個人型、未指定部門型、改派原子更新、修改確認、歷史查詢伺服器限本人、移除北南線與手動刷新 -->
 
 
+
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
 
 </body></html>`}
 $('#acctExportPdf').onclick=()=>{const d=acctLedgerData(),w=window.open('','_blank');if(!w){alert('請允許彈出視窗後再試一次');return}w.document.write(acctLedgerPrintHtml(d));w.document.close()};
@@ -6855,14 +7035,284 @@ let qN217IdentityCache = new WeakMap();
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:9px}header{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:2mm;font-size:10px}.stmt{break-inside:auto;margin-bottom:3mm}.stmtHead{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:1.2mm 1.5mm;font-size:10px;background:#f3f3f3}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.65mm .5mm;text-align:center;vertical-align:middle}.txdate td{text-align:left;font-weight:900;background:#f7f7f7}.emptyrow{padding:4mm}.tot{text-align:right;border:1px solid #333;border-top:0;padding:1.2mm;font-weight:900;font-size:9px}</style></head><body><header><b>'+qCompanyHeader+'</b><span>往來對象：'+qEsc(c.name)+'</span><span>期間：'+qEsc(qLedgerStatementDateLabel())+'</span></header>'+content+'<script>window.onload=()=>window.print()<\/script>
 
 
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
+
 </body></html>');w.document.close()
   }
   function qPrintRecord80(record){const c=qContact(record.contactId||record.customer)||{name:record.customer||'',freightDefault:'做帳時決定'},entry=qLedgerEntry(record),fake={entries:[entry],receivable:0,payable:0};const kind=entry.kind;if(kind==='sale')fake.receivable=qRecordTotal(record);if(kind==='purchase')fake.payable=qRecordTotal(record);/* N79：快速做帳與帳本查詢共用同一個80行排版決策。密集1–80不再只在帳本查詢生效。 */return qPrintSupermarket80(c,fake);const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const html=qStandard80SectionHtml(record.txnType==='purchase'?'進貨明細':'銷貨明細',[record],c,'','');w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:9px}header{display:flex;justify-content:space-between;margin-bottom:2mm}.stmtHead{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:1.2mm 1.5mm;font-size:10px;background:#f3f3f3}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.65mm .5mm;text-align:center}.txdate td{text-align:left;font-weight:900;background:#f7f7f7}.tot{text-align:right;border:1px solid #333;border-top:0;padding:1.2mm;font-weight:900}</style></head><body><header><b>'+qCompanyHeader+'</b><span>往來對象：'+qEsc(record.customer)+'</span></header>'+html+'<script>window.onload=()=>window.print()<\/script>
 
 
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
+
 </body></html>');w.document.close()}
   function qPrintBill(record,mode){if(mode==='80')return qPrintRecord80(record);const rows=qBillRows(record),hasFreight=rows.some(x=>x.freight),c=qContact(record.customer),sum=qAmountSummary(record),w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}const narrow=mode==='80';let cols,body;if(narrow){cols='<th>序</th><th>品名</th><th>KG</th><th>數量</th><th>單價</th><th>貨款</th><th>運費</th>';body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price===''?(x.kind==='goods'?'待補':''):x.price)+'</td><td>'+qEsc(x.kind==='goods'?(x.goods===''?'':x.goods):'')+'</td><td>'+qEsc(x.kind==='goods'?(x.freight||''):'')+'</td></tr>').join('')}else{cols='<th>序</th><th>品名</th><th>公斤</th><th>數量</th><th>單價</th>'+(hasFreight?'<th>運費</th>':'')+'<th>金額</th>';body=rows.map(x=>'<tr><td>'+x.no+'</td><td>'+qEsc(x.name)+'</td><td>'+qEsc(x.kg)+'</td><td>'+qEsc(x.qty)+'</td><td>'+qEsc(x.price===''?(x.kind==='goods'?'待補':''):x.price)+'</td>'+(hasFreight?'<td>'+qEsc(x.freight||'')+'</td>':'')+'<td>'+qEsc(x.goodsDisplay)+'</td></tr>').join('')}const sums='<table class="sum"><tr><th>貨款小計</th><td>$'+Math.round(sum.goods).toLocaleString('zh-TW')+'</td></tr><tr><th>運費小計</th><td>$'+Math.round(sum.freight).toLocaleString('zh-TW')+'</td></tr>'+(sum.turnover?'<tr><th>籃子小計</th><td>$'+Math.round(sum.turnover).toLocaleString('zh-TW')+'</td></tr>':'')+'<tr class="grand"><th>總計金額</th><td>$'+Math.round(sum.total).toLocaleString('zh-TW')+'</td></tr></table>';w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(record.customer)+' 帳單</title><style>@page{size:'+(narrow?'241mm 280mm':'A4')+';margin:'+(narrow?'4.2mm 18.9mm':'12mm')+'}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:'+(narrow?'10px':'13px')+';margin:0;'+(narrow?'width:203.2mm;':'')+'}h2{margin:0 0 5px}.meta{margin-bottom:6px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:'+(narrow?'2px 1px':'5px 4px')+';text-align:'+(narrow?'center':'right')+'}th:nth-child(2),td:nth-child(2){text-align:'+(narrow?'center':'left')+'}.sum{margin-top:8px;margin-left:auto;width:'+(narrow?'100%':'330px')+'}.sum th{text-align:left}.sum .grand{font-size:'+(narrow?'12px':'16px')+';font-weight:900}.note{margin-top:7px}</style></head><body><h2>'+qCompanyHeader+'</h2><div class="meta">客戶：'+qEsc(record.customer)+'　日期：'+qEsc(record.date)+'</div><table><thead><tr>'+cols+'</tr></thead><tbody>'+body+'</tbody></table>'+sums+(c?.outputNote?'<div class="note">備註：'+qEsc(c.outputNote)+'</div>':'')+'<script>window.onload=()=>{window.print()}<\/script>
 
+
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
 
 </body></html>');w.document.close()}
   function qBillBalanceSummary(record){if(record?.previewDraft)return null;const c=qContact(record?.contactId||record?.customer||'');if(!c)return null;const dir=(record.txnType==='purchase'||record.accountDirection==='payable')?'payment':'receipt',tot=qContactOpenTotals(c),pending=record?.pricingStatus==='pending_price'||qAmountSummary(record).pending,currentOutstanding=qRecordOutstanding(record),after=dir==='receipt'?tot.receivable:tot.payable,previous=Math.max(0,after-currentOutstanding),settled=!pending&&currentOutstanding<=0.000001;return {direction:dir,current:qRecordTotal(record),currentOutstanding,previous,after,settled,pending}}
@@ -7229,6 +7679,96 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     return '<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;margin:18px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px}.double{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.double table{font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th,td{border:1px solid #555;padding:5px;text-align:center;word-break:break-all}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.nofreight th:last-child,.nofreight td:last-child{display:none}.sum{margin-top:12px;text-align:right;font-weight:700}</style></head><body><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">貨款小計 '+qLedgerMoney(model.summary.goods)+'　＋　運費小計 '+qLedgerMoney(model.summary.freight)+(model.summary.turnoverBuyout?'　＋　籃子小計 '+qLedgerMoney(model.summary.turnoverBuyout):'')+'　＝　總計 '+qLedgerMoney(model.summary.total)+(model.kind==='general'?('　｜　'+qEsc(qN101OpenSummaryText(model))):'')+'</div>
 
 
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
+
 </body></html>';
   }
 
@@ -7450,6 +7990,96 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:'+cssPage+';margin:'+(paper?'3mm 8.5mm':'10mm')+'}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.farmerSheet{width:'+pageW+';height:'+pageH+'mm;margin:8px auto;background:#fff;display:grid;column-gap:3mm;row-gap:2.5mm;align-items:start;justify-content:center;box-shadow:0 2px 14px #999;overflow:visible;break-after:page;page-break-after:always}.farmerSheet:last-child{break-after:auto;page-break-after:auto}.farmerSheet.cols1{grid-template-columns:1fr}.farmerSheet.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.farmerSheet.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.farmerCol{display:flex;flex-direction:column;gap:3mm;min-width:0}.farmerCard{width:110.5mm;max-width:110.5mm;box-sizing:border-box;margin:0;border:1.2px dashed #555;break-inside:avoid;page-break-inside:avoid;padding:1.2mm;overflow:hidden}.farmerTitle{text-align:center;font-size:15pt;font-weight:900;line-height:7mm;white-space:nowrap}.farmerMeta{height:7mm;display:flex;align-items:center;justify-content:space-between;gap:1mm;font-size:12pt;white-space:nowrap;overflow:visible}.farmerCard table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13pt}.farmerCard th,.farmerCard td{border:1px solid #222;height:6.8mm;line-height:6.8mm;padding:0 .5mm;text-align:center;white-space:nowrap;overflow:hidden}.farmerCard th{font-weight:900}.farmerCard th:nth-child(1){width:16mm}.farmerCard th:nth-child(2){width:8mm}.farmerCard th:nth-child(3){width:38mm}.farmerCard th:nth-child(4){width:13mm}.farmerCard th:nth-child(5){width:15mm}.farmerCard th:nth-child(6){width:18mm}.farmerCard .item{text-align:left}.farmerCard .money{text-align:right}.farmerCard tfoot td{font-weight:900;height:7mm;line-height:7mm}.farmerCard tfoot td:first-child{text-align:right;padding-right:1mm}@media print{html,body{background:#fff}.toolbar{display:none!important}.farmerSheet{margin:0 auto;box-shadow:none;overflow:visible;transform:none!important;zoom:1!important;height:'+(paper?'272mm':pageH+'mm')+'!important}.farmerCard{width:110.5mm!important;max-width:110.5mm!important;margin:0!important;transform:none!important;zoom:1!important}}</style></head><body><div class="toolbar"><button onclick="window.close()">← 返回帳務</button><button onclick="window.print()">'+(paper?'🖨️ 列印 LQ-310':'📄 列印／另存 PDF')+'</button></div>'+pages+'
 
 
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
+
 </body></html>');w.document.close();
   }
   function qN101Pdf(model){
@@ -7461,6 +8091,96 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const containerText=qN103ContainerText(model),currentContainer=model.currentContainerText||'',stored=qN101IsStoredValue(model),sum=qN101SummaryText(model)+(model.kind==='general'?(stored?('<br><span class="openLine">'+qEsc(qN101OpenSummaryText(model))+'</span>'):('　｜　'+qN101OpenSummaryText(model))):'')+(containerText?('<br><span class="containers">'+qEsc(containerText)+'</span>'):'')+(currentContainer?('<br><span class="containers current">'+qEsc(currentContainer)+'</span>'):'');
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(title)+'</title><style>@page{size:A4 portrait;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:12mm;box-shadow:0 2px 14px #999;font-size:12pt}h1{font-size:20pt;margin:0 0 3mm}h3{font-size:14pt;margin:5mm 0 2mm}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5pt}th,td{border:1px solid #555;padding:2.1mm 1.4mm;text-align:center;word-break:break-word}.cash td{background:#f5f5f5;text-align:left}.num{text-align:right}.sum{margin-top:5mm;border-top:1px solid #444;padding-top:3mm;text-align:right;font-size:12.5pt;font-weight:800;line-height:1.6}.sum .openLine{display:block;margin-top:2mm;font-size:12.5pt}.sum .containers{display:block;margin-top:1.5mm;font-size:12pt}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:210mm;min-height:297mm;margin:0;box-shadow:none;padding:12mm;break-after:page}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印／另存 PDF</button></div><section class="sheet"><h1>'+qEsc(title)+'</h1><div>'+qEsc(qCompanyHeader)+'　'+qEsc(qN119DateLabel(model))+'</div>'+blocks+'<div class="sum">'+sum+'</div></section>'+qN101PreviewScript()+'
 
+
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
 
 </body></html>');w.document.close();
   }
@@ -7496,6 +8216,96 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>LQ-310 報表紙</title><style>@page{size:'+PAPER_W+'mm '+PAPER_H+'mm;margin:'+MARGIN_V+'mm 18.9mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,"Microsoft JhengHei",sans-serif;color:#111;background:#e9edf2}.toolbar{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border-bottom:1px solid #ccc}.toolbar button{font:700 16px "Microsoft JhengHei";padding:8px 18px;border:1px solid #aaa;border-radius:10px;background:#fff;cursor:pointer}.sheet{width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:18px auto;background:#fff;position:relative;box-shadow:0 2px 14px #999;font-size:10.5pt;overflow:hidden}.paper{break-after:page;page-break-after:always}.paper:last-child{break-after:auto;page-break-after:auto}header{height:'+HEAD_H+'mm;display:flex;flex-direction:column;justify-content:center;font-size:'+(doubleLayout?(large?'11':'10.5'):'10.5')+'pt;font-weight:700}.companyLine{width:100%;text-align:center;font-weight:900;line-height:8mm}.metaLine{width:100%;display:flex;justify-content:space-between;align-items:center;line-height:7mm}.twocol{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.4mm}.twocol .papercol{min-width:0}.twocol .papercol table{width:100%}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:'+TABLE_FONT+'pt}th,td{border:1px solid #333;height:'+ROW_H+'mm;padding:.6mm .7mm;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}thead th{height:'+COLHEAD_H+'mm;font-size:'+TABLE_FONT+'pt;font-weight:900}.name{text-align:left}.cash td{font-weight:700}.nofreight th:last-child,.nofreight td:last-child{display:none}.foot{position:absolute;left:0;right:0;bottom:0;border-top:1.4px solid #222;background:#fff;font-weight:900}.foot.simple{min-height:'+FOOT_H+'mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:2mm;padding:2mm 2.5mm;font-size:13.5pt}.foot.simple .open{font-size:15pt}.foot.simple .storedOpen{font-size:13pt;line-height:1.45;white-space:normal;max-width:100%;text-align:right}.foot.simple .container{font-size:12pt;text-align:right}.foot.sign{height:'+FOOT_H+'mm;padding:1.4mm 2.5mm;display:flex;flex-direction:column;justify-content:center;gap:.8mm}.foot.sign .calcLine{text-align:right;white-space:nowrap;font-size:12pt}.foot.sign .payLine{display:flex;align-items:center;justify-content:space-between;gap:4mm;white-space:nowrap;font-size:11.5pt}.foot.sign .payLine b{font-size:12.5pt}.foot.sign .container{font-size:10.5pt;text-align:right}@media print{html,body{background:#fff}.toolbar{display:none!important}.sheet{zoom:1!important;width:'+SAFE_W+'mm;height:'+PRINT_H+'mm;margin:0;box-shadow:none;overflow:hidden}}</style></head><body><div class="toolbar"><button onclick="goBackAcct()">← 返回帳務</button><button onclick="doPrint()">🖨️ 列印 LQ-310</button></div>'+pageHtml+qN101PreviewScript()+'
 
+
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
 
 </body></html>');w.document.close();
   }
@@ -8042,6 +8852,96 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 80行報表</title><style>@page{size:241mm 280mm;margin:4.2mm 18.9mm}html,body{width:203.2mm;margin:0;padding:0}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:8px}.page{width:203.2mm;break-after:page;page-break-after:always}.page:last-child{break-after:auto;page-break-after:auto}header{display:flex;justify-content:space-between;align-items:center;font-size:9px;margin-bottom:1.4mm}.sectionTitle{display:flex;justify-content:space-between;border:1px solid #333;border-bottom:0;padding:.8mm 1mm;font-size:9px;background:#f3f3f3}.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2mm}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #333;padding:.35mm .4mm;height:4.65mm;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-align:center;vertical-align:middle}.cols table th:first-child,.cols table td:first-child{width:8%;min-width:8%;font-weight:900}.q80NoFreight th:nth-child(2),.q80NoFreight td:nth-child(2){width:34%}.q80NoFreight th:nth-child(3),.q80NoFreight td:nth-child(3){width:13%}.q80NoFreight th:nth-child(4),.q80NoFreight td:nth-child(4){width:12%}.q80NoFreight th:nth-child(5),.q80NoFreight td:nth-child(5){width:16%}.q80NoFreight th:nth-child(6),.q80NoFreight td:nth-child(6){width:17%}.q80Freight th:nth-child(2),.q80Freight td:nth-child(2){width:28%}.q80Freight th:nth-child(3),.q80Freight td:nth-child(3){width:11%}.q80Freight th:nth-child(4),.q80Freight td:nth-child(4){width:11%}.q80Freight th:nth-child(5),.q80Freight td:nth-child(5){width:14%}.q80Freight th:nth-child(6),.q80Freight td:nth-child(6){width:14%}.q80Freight th:nth-child(7),.q80Freight td:nth-child(7){width:14%}.cash{margin-top:1.2mm}.cash>b{font-size:9px}.cashTable{margin-top:.5mm;font-size:8px}.cashTable th,.cashTable td{height:auto;padding:.6mm}.cashEmpty{border:1px solid #777;padding:1mm;margin-top:.5mm}.tot{text-align:right;font-size:9px;font-weight:900;margin-top:1.2mm;border-top:1px solid #333;padding-top:1mm}</style></head><body>'+pages.join('')+'<script>window.onload=()=>window.print()<\/script>
 
 
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
+
 </body></html>');w.document.close();
   }
   function qPrintLedgerStatement(c,ledger,mode){
@@ -8060,6 +8960,96 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     const w=window.open('','_blank');if(!w){alert('瀏覽器阻擋列印視窗，請允許彈出視窗');return}
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+qEsc(c.name)+' 帳本</title><style>@page{size:A4;margin:10mm}body{font-family:Arial,"Microsoft JhengHei",sans-serif;font-size:12px;margin:0}h2{margin:0 0 4px}.meta{margin-bottom:8px}.sectionTitle{display:flex;justify-content:space-between;border:1px solid #555;border-bottom:0;padding:7px 8px;background:#f3f3f3;font-size:14px;margin-top:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:5px 6px;text-align:left}.money{text-align:right;white-space:nowrap}.cashRow td{font-weight:700;background:#fafafa}.summary{margin-top:0;border:1px solid #555;border-top:0;padding:7px;font-weight:800;text-align:right}.amountCore{margin-top:12px;border:1px solid #555;padding:7px;font-weight:800}.empty{text-align:center;color:#666}</style></head><body><h2>'+qCompanyHeader+'</h2><div class="meta">往來對象：'+qEsc(c.name)+'　期間：'+qEsc(qLedgerStatementDateLabel())+'</div>'+content+'<div class="amountCore">'+qLedgerAmountSummaryHtml(c,ledger)+'</div><script>window.onload=()=>window.print()<\/script>
 
+
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
 
 </body></html>');w.document.close()
   }
@@ -11896,5 +12886,95 @@ window.qNormalizeTurnAction=qN93TurnAction;
 .stallFieldQuickTools{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 @media(max-width:720px){.quickToolTabs,.stallFieldQuickTools{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 </style>
+
+<script>
+/* N453 hotfix：缺貨表單確實轉為多行；派工兩功能各半滿版 */
+(function(){
+  function n453FixShortageForm(source){
+    const customer=document.getElementById(source+'ShortCustomer');
+    const oldItem=document.getElementById(source+'ShortItem');
+    if(!customer||!oldItem)return;
+
+    /* 把舊單行 input 原地換成 textarea，保留同一 ID，既有 JS 不需改 selector */
+    if(oldItem.tagName!=='TEXTAREA'){
+      const ta=document.createElement('textarea');
+      ta.id=oldItem.id;
+      ta.className=oldItem.className+' freightBulkText';
+      ta.placeholder='每行一項，例如：\n青江10\n油菜5\n小白菜8';
+      ta.rows=6;
+      ta.value=oldItem.value||'';
+      ta.style.minHeight='150px';
+      ta.style.resize='vertical';
+      oldItem.replaceWith(ta);
+    }
+
+    /* 舊的 件數/備註 欄位新版不再使用 */
+    const qty=document.getElementById(source+'ShortQty');
+    if(qty){
+      const field=qty.closest('.field');
+      if(field)field.remove(); else qty.remove();
+    }
+
+    /* 讓表單本體改為直向大欄位，不再維持舊三欄 shortageGrid */
+    const item=document.getElementById(source+'ShortItem');
+    const grid=item?.closest('.shortageGrid');
+    if(grid){
+      grid.style.display='grid';
+      grid.style.gridTemplateColumns='minmax(160px,220px) minmax(320px,1fr) auto';
+      grid.style.alignItems='end';
+      grid.style.gap='10px';
+    }
+  }
+
+  function n453FixAll(){
+    n453FixShortageForm('packing');
+    n453FixShortageForm('delivery');
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',n453FixAll);
+  else n453FixAll();
+
+  /* 切換分頁後舊 render 若重畫，仍再確認一次 */
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-tool="shortage"],[data-tab="packing"],[data-tab="delivery"],#packing,#delivery')){
+      setTimeout(n453FixAll,0);
+    }
+  });
+})();
+</script>
+<style>
+/* 派工／現場回報：兩個功能固定各 50%，完整吃滿一行 */
+#stallFieldCard .stallFieldQuickTools{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  width:100%!important;
+  gap:12px!important;
+}
+#stallFieldCard .stallFieldQuick{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+#stallFieldCard .stallFieldQuick>summary{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* 包裝／貨運缺貨新版大欄位 */
+#packingShortItem,#deliveryShortItem{
+  width:100%!important;
+  min-height:150px!important;
+  line-height:1.55!important;
+  box-sizing:border-box!important;
+}
+@media(max-width:760px){
+  #packingShortItem,#deliveryShortItem{min-height:130px!important}
+  #packing .shortageGrid,#delivery .shortageGrid{
+    grid-template-columns:1fr!important;
+    align-items:stretch!important;
+  }
+}
+</style>
+
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
