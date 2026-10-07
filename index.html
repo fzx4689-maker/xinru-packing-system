@@ -12257,5 +12257,109 @@ window.qNormalizeTurnAction=qN93TurnAction;
  .n457-statusbox{flex-basis:30px}
 }
 </style>
+
+<style id="n458-field-layout-match-dispatch">
+/* N458｜桌機：包裝部／貨運部現場回報版型比照派工 */
+@media(min-width:761px){
+  /* 原 quickTool 外框改成完整寬度 */
+  #packing .quickToolWrap,
+  #delivery .quickToolWrap,
+  #packing .quickTools,
+  #delivery .quickTools{
+    width:100%!important;
+    max-width:none!important;
+  }
+
+  /* 兩個功能平分一整行 */
+  #packing .quickToolTabs,
+  #delivery .quickToolTabs{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:14px!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+  }
+  #packing .quickToolTab,
+  #delivery .quickToolTab{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    min-height:58px!important;
+    margin:0!important;
+    border:1px solid #f0aa36!important;
+    border-radius:16px!important;
+    background:#fff9ed!important;
+    font-size:18px!important;
+    font-weight:900!important;
+  }
+  #packing .quickToolTab.active,
+  #delivery .quickToolTab.active{
+    background:#fff3d8!important;
+    border-color:#e89b22!important;
+  }
+
+  /* 展開內容吃滿整列，與派工卡片寬度一致 */
+  #packing .quickToolPanels,
+  #delivery .quickToolPanels,
+  #packing .quickToolPanel,
+  #delivery .quickToolPanel{
+    width:100%!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+  }
+  #packing .quickToolPanel.active,
+  #delivery .quickToolPanel.active{
+    margin-top:12px!important;
+    border:1px solid #f0aa36!important;
+    border-radius:16px!important;
+    background:#fff!important;
+    padding:14px!important;
+  }
+
+  /* 回報公斤與缺貨表單不要再縮成中間窄柱 */
+  #packing .packingToolBody,
+  #delivery .deliveryToolBody,
+  #packing .freightToolBody,
+  #delivery .freightToolBody{
+    width:100%!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+  }
+
+  /* 缺貨輸入：客戶 + 品項 + 送出，同列合理分配 */
+  #packing .shortageGrid,
+  #delivery .shortageGrid{
+    display:grid!important;
+    grid-template-columns:minmax(180px,240px) minmax(360px,1fr) 120px!important;
+    align-items:end!important;
+    gap:12px!important;
+    width:100%!important;
+  }
+  #packingShortItem,#deliveryShortItem{
+    width:100%!important;
+    height:82px!important;
+    min-height:82px!important;
+  }
+
+  /* 回報公斤輸入區也放寬 */
+  #packing .freightBulkForm,
+  #delivery .freightBulkForm,
+  #packing .freightBulkGrid,
+  #delivery .freightBulkGrid{
+    width:100%!important;
+    max-width:none!important;
+  }
+}
+
+/* 手機保留單欄，不套桌機雙欄展開 */
+@media(max-width:760px){
+  #packing .quickToolTabs,
+  #delivery .quickToolTabs{
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+  }
+}
+</style>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
