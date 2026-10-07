@@ -12111,25 +12111,6 @@ window.qNormalizeTurnAction=qN93TurnAction;
   .shortageRow .shortage-item-check + div{font-size:16px!important}
 }
 </style>
-<script id="n456-shortage-collapse-chat">
-(function(){
-  function collapseChats(){
-    document.querySelectorAll('.shortageRow details[open]').forEach(function(d){d.removeAttribute('open');});
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',collapseChats);
-  else collapseChats();
-  document.addEventListener('click',function(e){
-    if(e.target.closest('[data-tool="shortage"]'))setTimeout(collapseChats,0);
-  });
-  var mo=new MutationObserver(function(muts){
-    var need=false;
-    muts.forEach(function(m){if(m.addedNodes&&m.addedNodes.length)need=true;});
-    if(need)setTimeout(collapseChats,0);
-  });
-  if(document.body)mo.observe(document.body,{childList:true,subtree:true});
-})();
-</script>
-
 <script id="n457-shortage-batch-completion">
 (function(){
   /* N457：缺貨逐項完成；只有最後一項才確認整批結案 */
@@ -12258,52 +12239,78 @@ window.qNormalizeTurnAction=qN93TurnAction;
 }
 </style>
 
-<style id="n459-responsive-field-report">
-/* N459：桌機與手機分流，禁止互相套版 */
+<style id="n460-responsive-field-layout">
+/* N460：桌機與手機分流。只整理顯示結構，不改資料核心。 */
 
-/* ===== 桌機：包裝/貨運 = 派工左右雙大區 ===== */
+/* ===== 桌機：包裝／貨運 = 派工的左右兩個完整功能區 ===== */
 @media (min-width:761px){
-  #packing .quickToolTabs,
-  #delivery .quickToolTabs{
+  #packing .packingQuickTools,
+  #delivery .deliveryQuickTools{
     display:grid!important;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
     gap:14px!important;
+    align-items:start!important;
     width:100%!important;
   }
+
+  /* 利用原本「tabs + panels」結構，不拆 DOM；只在桌機把兩層攤平成同一個 2 欄 grid。 */
+  #packing .quickToolTabs,
+  #packing .quickToolPanels,
+  #delivery .quickToolTabs,
+  #delivery .quickToolPanels{
+    display:contents!important;
+  }
+
   #packing .quickToolTab,
   #delivery .quickToolTab{
-    min-height:58px!important;
     width:100%!important;
+    min-width:0!important;
+    min-height:58px!important;
     margin:0!important;
-    border:1px solid #f0aa36!important;
-    border-radius:16px 16px 0 0!important;
-    background:#fff4da!important;
+    padding:10px 14px!important;
+    box-sizing:border-box!important;
+    border:1px solid #f4b24a!important;
+    border-radius:14px 14px 0 0!important;
+    background:#fffaf0!important;
     font-size:18px!important;
     font-weight:900!important;
+    text-align:left!important;
   }
-  /* 桌機兩個 panel 同時顯示，左右各半 */
-  #packing .quickToolPanels,
-  #delivery .quickToolPanels{
-    display:grid!important;
-    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
-    gap:14px!important;
-    width:100%!important;
-    align-items:start!important;
+  #packing .quickToolTab.active,
+  #delivery .quickToolTab.active{
+    background:#fff4dd!important;
+    border-color:#f4b24a!important;
   }
+
+  /* 桌機兩個內容永遠同時顯示，各自落在自己標題正下方。 */
   #packing .quickToolPanel,
   #delivery .quickToolPanel{
     display:block!important;
     width:100%!important;
-    max-width:none!important;
     min-width:0!important;
+    max-width:none!important;
     margin:0!important;
     padding:12px!important;
     box-sizing:border-box!important;
-    border:1px solid #f0aa36!important;
-    border-radius:0 0 16px 16px!important;
+    border:1px solid #f4b24a!important;
+    border-top:0!important;
+    border-radius:0 0 14px 14px!important;
     background:#fff!important;
   }
-  /* 每半區內表單改直向，避免被擠成奇怪窄欄 */
+  #packing .quickToolPanel[data-panel="freight"],
+  #delivery .quickToolPanel[data-panel="freight"]{grid-column:1!important}
+  #packing .quickToolPanel[data-panel="shortage"],
+  #delivery .quickToolPanel[data-panel="shortage"]{grid-column:2!important}
+
+  #packing .quickToolPanel .packingToolBody,
+  #packing .quickToolPanel .deliveryToolBody,
+  #delivery .quickToolPanel .packingToolBody,
+  #delivery .quickToolPanel .deliveryToolBody{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
   #packing .shortageGrid,
   #delivery .shortageGrid{
     display:grid!important;
@@ -12311,116 +12318,157 @@ window.qNormalizeTurnAction=qN93TurnAction;
     gap:8px!important;
     width:100%!important;
   }
-  #packingShortItem,#deliveryShortItem{
-    width:100%!important;
-    height:82px!important;
-    min-height:82px!important;
-  }
-  #packing .packingToolBody,#delivery .deliveryToolBody,
-  #packing .freightToolBody,#delivery .freightToolBody{
-    width:100%!important;max-width:none!important;box-sizing:border-box!important;
-  }
 }
 
-/* ===== 手機：三邊都只顯示單一完整區塊 ===== */
+/* ===== 手機：包裝／貨運保留原本兩顆切換鈕 + 單一全寬內容 ===== */
 @media (max-width:760px){
-  #packing .quickToolTabs,#delivery .quickToolTabs{
-    display:grid!important;
-    grid-template-columns:1fr 1fr!important;
-    gap:8px!important;
-  }
-  #packing .quickToolPanels,#delivery .quickToolPanels{
+  #packing .packingQuickTools,
+  #delivery .deliveryQuickTools{
     display:block!important;
     width:100%!important;
   }
-  #packing .quickToolPanel,#delivery .quickToolPanel{
-    display:none!important;
-    width:100%!important;
-  }
-  #packing .quickToolPanel.active,#delivery .quickToolPanel.active{
-    display:block!important;
-  }
-
-  /* 派工：summary 變成上方兩顆切換鈕；內容一次只留一區 */
-  #stallFieldCard .stallFieldQuickTools{
+  #packing .quickToolTabs,
+  #delivery .quickToolTabs{
     display:grid!important;
     grid-template-columns:1fr 1fr!important;
     gap:8px!important;
     width:100%!important;
   }
-  #stallFieldCard .stallFieldQuick{
-    width:100%!important;
-    min-width:0!important;
-  }
-  #stallFieldCard .stallFieldQuick>summary{
-    min-height:54px!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    text-align:center!important;
-    padding:8px!important;
-    box-sizing:border-box!important;
-  }
-  /* open 的內容跨滿兩欄 */
-  #stallFieldCard .stallFieldQuick[open]{
-    grid-column:1 / -1!important;
-    display:grid!important;
-    grid-template-columns:1fr 1fr!important;
-  }
-  #stallFieldCard .stallFieldQuick[open]>summary{
-    grid-column:auto!important;
-  }
-  #stallFieldCard .stallFieldQuick[open]>.stallFieldToolBody{
-    grid-column:1 / -1!important;
+  #packing .quickToolPanels,
+  #delivery .quickToolPanels{
+    display:block!important;
     width:100%!important;
     margin-top:8px!important;
   }
+  #packing .quickToolPanel,
+  #delivery .quickToolPanel{display:none!important;width:100%!important}
+  #packing .quickToolPanel.active,
+  #delivery .quickToolPanel.active{display:block!important}
+
+  /* 派工手機：另外建立兩顆切換鈕；原 details 只當全寬內容容器。 */
+  #stallFieldCard .n460-mobile-field-tabs{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+    width:100%!important;
+    margin:8px 0!important;
+  }
+  #stallFieldCard .n460-mobile-field-tab{
+    min-width:0!important;
+    min-height:52px!important;
+    border:1px solid #d8dee7!important;
+    border-radius:12px!important;
+    background:#f7f9fb!important;
+    font-size:16px!important;
+    font-weight:900!important;
+  }
+  #stallFieldCard .n460-mobile-field-tab.active{
+    background:#eef5ff!important;
+    border-color:#8eb8ef!important;
+  }
+  #stallFieldCard .stallFieldQuickTools{
+    display:block!important;
+    width:100%!important;
+    margin:0!important;
+  }
+  #stallFieldCard .stallFieldQuick{display:none!important;width:100%!important;margin:0!important}
+  #stallFieldCard .stallFieldQuick[open]{display:block!important}
+  #stallFieldCard .stallFieldQuick>summary{display:none!important}
+  #stallFieldCard .stallFieldToolBody{
+    width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+    padding:10px!important;
+    border:1px solid #d8dee7!important;
+    border-radius:12px!important;
+    background:#fff!important;
+  }
+}
+@media (min-width:761px){
+  #stallFieldCard .n460-mobile-field-tabs{display:none!important}
 }
 </style>
 
-<script id="n459-state-and-mobile-tabs">
+<script id="n460-mobile-dispatch-and-chat-state">
 (function(){
-  /* 對話 open 狀態：依 batch/卡片內容記憶，render 後恢復 */
-  var chatState = window.__n459ChatState || (window.__n459ChatState = new Map());
+  /* ---------- 手機派工：兩顆按鈕切換，內容永遠單一全寬 ---------- */
+  function setupMobileDispatch(){
+    var host=document.querySelector('#stallFieldCard .stallFieldQuickTools');
+    if(!host || host.dataset.n460Ready==='1') return;
+    var details=[].slice.call(host.querySelectorAll(':scope > details.stallFieldQuick'));
+    if(details.length<2) return;
 
-  function chatKey(d){
-    var row=d.closest('.shortageRow');
-    if(!row)return '';
-    var batchBtn=row.querySelector('[data-batch]');
-    if(batchBtn&&batchBtn.dataset.batch)return 'b:'+batchBtn.dataset.batch;
-    var title=row.querySelector('.shortageTop')?.textContent||row.textContent.slice(0,80);
-    return 't:'+title.trim();
+    var nav=document.createElement('div');
+    nav.className='n460-mobile-field-tabs';
+    var labels=['📦 回報公斤','⚠️ 缺貨回報'];
+    details.slice(0,2).forEach(function(d,i){
+      var b=document.createElement('button');
+      b.type='button';
+      b.className='n460-mobile-field-tab';
+      b.textContent=labels[i];
+      b.addEventListener('click',function(){
+        var willOpen=!d.open;
+        details.forEach(function(x){x.open=false;});
+        if(willOpen)d.open=true;
+        sync();
+      });
+      nav.appendChild(b);
+    });
+    host.parentNode.insertBefore(nav,host);
+    host.dataset.n460Ready='1';
+
+    function sync(){
+      var bs=nav.querySelectorAll('.n460-mobile-field-tab');
+      details.slice(0,2).forEach(function(d,i){bs[i].classList.toggle('active',d.open);});
+    }
+    details.forEach(function(d){d.addEventListener('toggle',sync);});
+    sync();
   }
+
+  /* ---------- 缺貨即時對話：記住每個批次由使用者決定的展開狀態 ---------- */
+  var state=window.__n460ShortageChatState||(window.__n460ShortageChatState=new Map());
+
+  function batchKey(details){
+    var row=details.closest('.shortageRow');
+    if(!row)return '';
+    var btn=row.querySelector('[data-batch]');
+    if(btn && btn.dataset.batch)return 'batch:'+btn.dataset.batch;
+    return '';
+  }
+
   document.addEventListener('toggle',function(e){
     var d=e.target;
-    if(!(d instanceof HTMLDetailsElement)||!d.closest('.shortageRow'))return;
-    var k=chatKey(d); if(k)chatState.set(k,d.open);
+    if(!(d instanceof HTMLDetailsElement) || !d.closest('.shortageRow'))return;
+    var key=batchKey(d);
+    if(key)state.set(key,d.open);
   },true);
 
-  function restoreChats(){
-    document.querySelectorAll('.shortageRow details').forEach(function(d){
-      var k=chatKey(d);
-      if(k&&chatState.has(k)) d.open=!!chatState.get(k);
+  function restoreChatState(root){
+    (root||document).querySelectorAll('.shortageRow details').forEach(function(d){
+      var key=batchKey(d);
+      if(key && state.has(key))d.open=!!state.get(key);
     });
   }
-  var observer=new MutationObserver(function(){requestAnimationFrame(restoreChats);});
-  if(document.body)observer.observe(document.body,{childList:true,subtree:true});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',restoreChats);
-  else restoreChats();
 
-  /* 手機派工：回報公斤/缺貨回報一次只開一個 */
-  function mobileDispatchInit(){
-    if(!matchMedia('(max-width:760px)').matches)return;
-    var ds=[].slice.call(document.querySelectorAll('#stallFieldCard .stallFieldQuick'));
-    ds.forEach(function(d){
-      d.addEventListener('toggle',function(){
-        if(!d.open)return;
-        ds.forEach(function(other){if(other!==d&&other.open)other.open=false;});
-      });
+  var queued=false;
+  var mo=new MutationObserver(function(){
+    if(queued)return;
+    queued=true;
+    requestAnimationFrame(function(){
+      queued=false;
+      setupMobileDispatch();
+      restoreChatState(document);
     });
+  });
+
+  function init(){
+    setupMobileDispatch();
+    restoreChatState(document);
+    mo.observe(document.body,{childList:true,subtree:true});
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mobileDispatchInit);
-  else mobileDispatchInit();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
 })();
 </script>
 </body></html>
