@@ -12129,5 +12129,133 @@ window.qNormalizeTurnAction=qN93TurnAction;
   if(document.body)mo.observe(document.body,{childList:true,subtree:true});
 })();
 </script>
+
+<script id="n457-shortage-batch-completion">
+(function(){
+  /* N457：缺貨逐項完成；只有最後一項才確認整批結案 */
+  function batchKey(x){return x.batch_id||('old-'+x.id);}
+  function groupForItem(id){
+    var row=shortageReports.find(function(x){return Number(x.id)===Number(id);});
+    if(!row)return null;
+    var key=batchKey(row);
+    return {
+      key:key,
+      row:row,
+      items:shortageReports.filter(function(x){return batchKey(x)===key;})
+    };
+  }
+
+  async function setItemDone(id,done){
+    var payload={status:done?'arrived':'waiting'};
+    var r=await sb.from('shortage_reports').update(payload).eq('id',id);
+    if(r.error){alert('更新失敗：'+r.error.message);return false;}
+    await loadShortageReports();
+    return true;
+  }
+
+  async function finishLastItem(id){
+    var g=groupForItem(id);
+    if(!g)return;
+    var unfinished=g.items.filter(function(x){return x.status!=='arrived';});
+    var isLast=unfinished.length===1 && Number(unfinished[0].id)===Number(id);
+
+    if(!isLast){
+      await setItemDone(id,true);
+      return;
+    }
+
+    if(!confirm('這是最後一項缺貨。\n確認後這張缺貨回報才會結案，確定完成嗎？'))return;
+    await setItemDone(id,true);
+  }
+
+  async function reopenItem(id){
+    await setItemDone(id,false);
+  }
+
+  /* 攔截 N452 舊 handler，避免每項都呼叫 confirmShortageArrived() */
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest&&e.target.closest('.shortage-item-check');
+    if(!btn)return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var id=Number(btn.dataset.id);
+    var row=shortageReports.find(function(x){return Number(x.id)===id;});
+    if(!row)return;
+    if(row.status==='arrived')reopenItem(id);
+    else finishLastItem(id);
+  },true);
+
+  /* 重畫來源端：整批未全部完成以前，已勾品項仍留在同一卡片 */
+  var oldRenderSource=window.renderShortageSource||renderShortageSource;
+  renderShortageSource=function(source){
+    var box=document.getElementById(source==='packing'?'packingShortageReplies':'deliveryShortageReplies');
+    if(!box||!currentUser)return;
+    var uid=String(currentUser.id);
+    var all=shortageReports.filter(function(x){return x.source===source&&String(x.reported_by)===uid;});
+    var map=new Map();
+    all.forEach(function(x){
+      var k=batchKey(x);
+      if(!map.has(k))map.set(k,[]);
+      map.get(k).push(x);
+    });
+    var groups=[...map.entries()].map(function(pair){
+      var items=pair[1].sort(function(a,b){return Number(a.id||0)-Number(b.id||0);});
+      return {batch:pair[0],items:items,head:items[0]};
+    }).filter(function(g){return g.items.some(function(x){return x.status!=='arrived';});})
+      .sort(function(a,b){return String(b.head.reported_at||b.head.created_at||'').localeCompare(String(a.head.reported_at||a.head.created_at||''));});
+
+    box.innerHTML=groups.length?groups.map(function(g){
+      var pending=g.items.filter(function(x){return x.status!=='arrived';}).length;
+      var ids=new Set(g.items.map(function(x){return Number(x.id);}));
+      var msgs=shortageMessages.filter(function(m){return ids.has(Number(m.report_id));})
+        .sort(function(a,b){return String(a.created_at||'').localeCompare(String(b.created_at||''));});
+      var itemsHtml=g.items.map(function(x){
+        var done=x.status==='arrived';
+        return '<div class="n457-short-item '+(done?'is-done':'')+'">'+
+          '<button type="button" class="btn '+(done?'gray':'primary')+' shortage-item-check" data-id="'+x.id+'">'+(done?'✓':'')+'</button>'+
+          '<div><b>'+esc(x.item_text||'')+'</b>'+(x.qty_note?'｜'+esc(x.qty_note):'')+'</div></div>';
+      }).join('');
+      var thread='<details><summary style="cursor:pointer;font-weight:900">💬 即時對話 '+(msgs.length?'('+msgs.length+')':'')+'</summary>'+
+        '<div class="n457-thread">'+(msgs.length?msgs.map(function(m){return '<div class="n457-msg"><b>'+esc(displayMessageActorRole(m))+'－'+esc(m.actor_name||'')+'</b>：'+esc(m.message||'')+'<div class="meta">'+shortageTime(m.created_at)+'</div></div>';}).join(''):'<div class="meta">尚無對話</div>')+'</div></details>';
+      return '<div class="shortageRow"><div class="shortageTop"><div><b>'+esc(g.head.customer||'')+'</b></div><span class="shortageStatus">'+pending+' 項待處理</span></div>'+
+        itemsHtml+thread+
+        '<div class="shortageActions"><button class="btn blue shortage-batch-field-reply" data-batch="'+esc(String(g.batch))+'">💬 回覆總部</button></div></div>';
+    }).join(''):'';
+  };
+
+  /* 派工端也保留整批所有品項，直到全部完成才從待處理區消失 */
+  renderShortageManage=function(){
+    var box=document.getElementById('shortageManageList');if(!box)return;
+    var today=shortageReports.filter(function(x){return fieldIsToday(x.reported_at||x.created_at);});
+    var map=new Map();
+    today.forEach(function(x){var k=batchKey(x);if(!map.has(k))map.set(k,[]);map.get(k).push(x);});
+    var groups=[...map.entries()].map(function(pair){
+      var items=pair[1].sort(function(a,b){return Number(a.id||0)-Number(b.id||0);});
+      return {batch:pair[0],items:items,head:items[0]};
+    }).filter(function(g){return g.items.some(function(x){return x.status!=='arrived';});})
+      .sort(function(a,b){return String(b.head.reported_at||b.head.created_at||'').localeCompare(String(a.head.reported_at||a.head.created_at||''));});
+    box.innerHTML=groups.length?groups.map(function(g){
+      var pending=g.items.filter(function(x){return x.status!=='arrived';}).length;
+      var ids=new Set(g.items.map(function(x){return Number(x.id);}));
+      var msgs=shortageMessages.filter(function(m){return ids.has(Number(m.report_id));}).sort(function(a,b){return String(a.created_at||'').localeCompare(String(b.created_at||''));});
+      var itemsHtml=g.items.map(function(x){var done=x.status==='arrived';return '<div class="n457-short-item '+(done?'is-done':'')+'"><span class="n457-statusbox">'+(done?'✓':'')+'</span><div><b>'+esc(x.item_text||'')+'</b></div></div>';}).join('');
+      var thread='<details><summary style="cursor:pointer;font-weight:900">💬 即時對話 '+(msgs.length?'('+msgs.length+')':'')+'</summary><div class="n457-thread">'+(msgs.length?msgs.map(function(m){return '<div class="n457-msg"><b>'+esc(displayMessageActorRole(m))+'－'+esc(m.actor_name||'')+'</b>：'+esc(m.message||'')+'<div class="meta">'+shortageTime(m.created_at)+'</div></div>';}).join(''):'<div class="meta">尚無對話</div>')+'</div></details>';
+      return '<div class="shortageRow fieldMessageCard"><div class="shortageTop"><div><b>'+esc(g.head.customer||'')+'</b>｜'+esc(g.head.source_label||'')+'回報</div><span class="shortageStatus">'+pending+' 項待處理</span></div>'+itemsHtml+thread+'<div class="shortageActions"><button class="btn blue shortage-batch-office-reply" data-batch="'+esc(String(g.batch))+'">💬 回覆現場</button></div></div>';
+    }).join(''):'<div class="empty">今天目前沒有待處理缺貨</div>';
+  };
+})();
+</script>
+<style id="n457-shortage-check-style">
+.n457-short-item{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid #edf0f2}
+.n457-short-item>div{min-width:0;flex:1;writing-mode:horizontal-tb!important;word-break:break-word}
+.n457-short-item.is-done>div{text-decoration:line-through;opacity:.55}
+.n457-statusbox{flex:0 0 30px;width:30px;height:30px;border:2px solid #20a45a;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#16854a}
+.n457-thread{margin-top:5px;border-left:3px solid #dbe5ef;padding-left:8px}
+.n457-msg{padding:5px 0;border-bottom:1px solid #edf0f2}
+@media(max-width:760px){
+ .n457-short-item{padding:6px 0;gap:9px}
+ .n457-statusbox{flex-basis:30px}
+}
+</style>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
