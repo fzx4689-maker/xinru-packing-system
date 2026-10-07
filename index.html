@@ -12241,20 +12241,44 @@ window.qNormalizeTurnAction=qN93TurnAction;
 }
 </style>
 
-<script id="n462-field-toggle-only">
+
+<style id="n463-packing-only">
+/* N463：只處理包裝部。上方兩鍵；下方 active 內容永遠 100% 全寬。 */
+#packing .packingQuickTools{display:block!important;width:100%!important}
+#packing .quickToolTabs{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:8px!important;
+  width:100%!important;
+}
+#packing .quickToolPanels{
+  display:block!important;
+  width:100%!important;
+  margin-top:8px!important;
+}
+#packing .quickToolPanel{
+  display:none!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+#packing .quickToolPanel.active{display:block!important}
+</style>
+<script id="n463-packing-toggle-only">
 (function(){
- document.addEventListener('click',function(e){
-   var btn=e.target.closest&&e.target.closest('#packing .quickToolTab,#delivery .quickToolTab');
-   if(!btn||!btn.classList.contains('active'))return;
-   var root=btn.closest('.packingQuickTools,.deliveryQuickTools');
-   if(!root)return;
-   var panel=root.querySelector('.quickToolPanel[data-panel="'+btn.dataset.tool+'"]');
-   if(!panel||!panel.classList.contains('active'))return;
-   e.preventDefault();
-   e.stopImmediatePropagation();
-   btn.classList.remove('active');
-   panel.classList.remove('active');
- },true);
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest&&e.target.closest('#packing .quickToolTab');
+    if(!btn || !btn.classList.contains('active')) return;
+    var root=btn.closest('.packingQuickTools');
+    if(!root) return;
+    var panel=root.querySelector('.quickToolPanel[data-panel="'+btn.dataset.tool+'"]');
+    if(!panel || !panel.classList.contains('active')) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    btn.classList.remove('active');
+    panel.classList.remove('active');
+  },true);
 })();
 </script>
 </body></html>
