@@ -12239,232 +12239,230 @@ window.qNormalizeTurnAction=qN93TurnAction;
 }
 </style>
 
-<style id="n460-responsive-field-layout">
-/* N460：桌機與手機分流。只整理顯示結構，不改資料核心。 */
+<style id="n461-scoped-regression-fix">
+/* N461：所有修正均鎖定公告或三個現場回報容器；不碰帳務、快速做帳、容器管理。 */
 
-/* ===== 桌機：包裝／貨運 = 派工的左右兩個完整功能區 ===== */
-@media (min-width:761px){
-  #packing .packingQuickTools,
-  #delivery .deliveryQuickTools{
+/* ===== 公告：固定回精簡卡片，不讓管理按鈕把卡片撐大 ===== */
+#homeNoticeList .homeTodoCard{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  padding:9px 12px!important;
+  margin-bottom:0!important;
+  min-height:0!important;
+}
+#homeNoticeList .homeTodoMain{min-width:0!important;flex:1 1 auto!important}
+#homeNoticeList .homeTodoTitle{font-size:17px!important;line-height:1.35!important}
+#homeNoticeList .homeTodoNote{margin-top:3px!important;line-height:1.35!important}
+#homeNoticeList .homeTodoActions{
+  flex:0 0 auto!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:4px!important;
+  flex-wrap:wrap!important;
+  width:auto!important;
+  margin:0!important;
+}
+#homeNoticeList .homeTodoActions .btn{
+  flex:0 0 auto!important;
+  width:auto!important;
+  min-width:0!important;
+  height:30px!important;
+  min-height:30px!important;
+  padding:0 8px!important;
+  font-size:12px!important;
+  line-height:1!important;
+  border-radius:8px!important;
+}
+@media(max-width:600px){
+  #homeNoticeList .homeTodoCard{padding:8px 9px!important;gap:7px!important}
+  #homeNoticeList .homeTodoTitle{font-size:15px!important}
+  #homeNoticeList .homeTodoActions{gap:3px!important}
+  #homeNoticeList .homeTodoActions .btn{
+    height:28px!important;min-height:28px!important;padding:0 6px!important;font-size:11px!important
+  }
+}
+
+/* ===== 派工桌機：沿用原生 details，兩個完整區塊 50/50，原生可收起 ===== */
+@media(min-width:761px){
+  #stallFieldCard .stallFieldQuickTools{
     display:grid!important;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
-    gap:14px!important;
+    gap:12px!important;
     align-items:start!important;
+  }
+  #stallFieldCard .stallFieldQuick{min-width:0!important;width:100%!important}
+}
+
+/* ===== 包裝／貨運桌機：兩個標題同列、各自內容在正下方；兩邊可獨立收起 ===== */
+@media(min-width:761px){
+  #packing .packingQuickTools,
+  #delivery .deliveryQuickTools{display:block!important;width:100%!important}
+
+  #packing .quickToolTabs,#delivery .quickToolTabs,
+  #packing .quickToolPanels,#delivery .quickToolPanels{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:12px!important;
     width:100%!important;
   }
-
-  /* 利用原本「tabs + panels」結構，不拆 DOM；只在桌機把兩層攤平成同一個 2 欄 grid。 */
-  #packing .quickToolTabs,
-  #packing .quickToolPanels,
-  #delivery .quickToolTabs,
-  #delivery .quickToolPanels{
-    display:contents!important;
-  }
-
-  #packing .quickToolTab,
-  #delivery .quickToolTab{
-    width:100%!important;
-    min-width:0!important;
-    min-height:58px!important;
-    margin:0!important;
-    padding:10px 14px!important;
-    box-sizing:border-box!important;
+  #packing .quickToolPanels,#delivery .quickToolPanels{margin-top:0!important}
+  #packing .quickToolTab,#delivery .quickToolTab{
+    min-height:52px!important;
     border:1px solid #f4b24a!important;
     border-radius:14px 14px 0 0!important;
     background:#fffaf0!important;
-    font-size:18px!important;
-    font-weight:900!important;
     text-align:left!important;
+    padding:10px 14px!important;
+    font-size:17px!important;
   }
-  #packing .quickToolTab.active,
-  #delivery .quickToolTab.active{
-    background:#fff4dd!important;
-    border-color:#f4b24a!important;
+  #packing .quickToolTab.active,#delivery .quickToolTab.active{
+    background:#fff4dd!important;border-color:#f4b24a!important
   }
-
-  /* 桌機兩個內容永遠同時顯示，各自落在自己標題正下方。 */
-  #packing .quickToolPanel,
-  #delivery .quickToolPanel{
-    display:block!important;
-    width:100%!important;
+  #packing .quickToolPanel,#delivery .quickToolPanel{
+    display:none!important;
     min-width:0!important;
-    max-width:none!important;
+    width:100%!important;
     margin:0!important;
-    padding:12px!important;
+    padding:10px!important;
     box-sizing:border-box!important;
     border:1px solid #f4b24a!important;
     border-top:0!important;
     border-radius:0 0 14px 14px!important;
     background:#fff!important;
   }
-  #packing .quickToolPanel[data-panel="freight"],
-  #delivery .quickToolPanel[data-panel="freight"]{grid-column:1!important}
-  #packing .quickToolPanel[data-panel="shortage"],
-  #delivery .quickToolPanel[data-panel="shortage"]{grid-column:2!important}
-
-  #packing .quickToolPanel .packingToolBody,
-  #packing .quickToolPanel .deliveryToolBody,
-  #delivery .quickToolPanel .packingToolBody,
-  #delivery .quickToolPanel .deliveryToolBody{
-    width:100%!important;
-    max-width:none!important;
-    min-width:0!important;
-    box-sizing:border-box!important;
-  }
-  #packing .shortageGrid,
-  #delivery .shortageGrid{
-    display:grid!important;
-    grid-template-columns:1fr!important;
-    gap:8px!important;
-    width:100%!important;
-  }
+  #packing .quickToolPanel.active,#delivery .quickToolPanel.active{display:block!important}
 }
 
-/* ===== 手機：包裝／貨運保留原本兩顆切換鈕 + 單一全寬內容 ===== */
-@media (max-width:760px){
-  #packing .packingQuickTools,
-  #delivery .deliveryQuickTools{
-    display:block!important;
-    width:100%!important;
+/* ===== 包裝／貨運手機：保留既有兩顆按鈕＋單一全寬 active panel ===== */
+@media(max-width:760px){
+  #packing .packingQuickTools,#delivery .deliveryQuickTools{display:block!important;width:100%!important}
+  #packing .quickToolTabs,#delivery .quickToolTabs{
+    display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;width:100%!important
   }
-  #packing .quickToolTabs,
-  #delivery .quickToolTabs{
-    display:grid!important;
-    grid-template-columns:1fr 1fr!important;
-    gap:8px!important;
-    width:100%!important;
-  }
-  #packing .quickToolPanels,
-  #delivery .quickToolPanels{
-    display:block!important;
-    width:100%!important;
-    margin-top:8px!important;
-  }
-  #packing .quickToolPanel,
-  #delivery .quickToolPanel{display:none!important;width:100%!important}
-  #packing .quickToolPanel.active,
-  #delivery .quickToolPanel.active{display:block!important}
+  #packing .quickToolPanels,#delivery .quickToolPanels{display:block!important;width:100%!important;margin-top:7px!important}
+  #packing .quickToolPanel,#delivery .quickToolPanel{display:none!important;width:100%!important;box-sizing:border-box!important}
+  #packing .quickToolPanel.active,#delivery .quickToolPanel.active{display:block!important}
+}
 
-  /* 派工手機：另外建立兩顆切換鈕；原 details 只當全寬內容容器。 */
-  #stallFieldCard .n460-mobile-field-tabs{
+/* ===== 派工手機：真正的兩顆按鈕在上方；原 details 只當全寬內容容器 ===== */
+#stallFieldCard .n461-stall-mobile-tabs{display:none}
+@media(max-width:760px){
+  #stallFieldCard .n461-stall-mobile-tabs{
     display:grid!important;
     grid-template-columns:1fr 1fr!important;
-    gap:8px!important;
+    gap:6px!important;
     width:100%!important;
-    margin:8px 0!important;
+    margin:8px 0 7px!important;
   }
-  #stallFieldCard .n460-mobile-field-tab{
-    min-width:0!important;
-    min-height:52px!important;
-    border:1px solid #d8dee7!important;
-    border-radius:12px!important;
-    background:#f7f9fb!important;
-    font-size:16px!important;
-    font-weight:900!important;
+  #stallFieldCard .n461-stall-mobile-btn{
+    min-width:0!important;min-height:48px!important;
+    padding:7px 5px!important;
+    border:1px solid #d8dee7!important;border-radius:10px!important;
+    background:#f7f9fb!important;font-size:14px!important;font-weight:900!important;
   }
-  #stallFieldCard .n460-mobile-field-tab.active{
-    background:#eef5ff!important;
-    border-color:#8eb8ef!important;
-  }
-  #stallFieldCard .stallFieldQuickTools{
-    display:block!important;
-    width:100%!important;
-    margin:0!important;
-  }
-  #stallFieldCard .stallFieldQuick{display:none!important;width:100%!important;margin:0!important}
+  #stallFieldCard .n461-stall-mobile-btn.active{background:#eef5ff!important;border-color:#8eb8ef!important}
+  #stallFieldCard .stallFieldQuickTools{display:block!important;width:100%!important;margin:0!important}
+  #stallFieldCard .stallFieldQuick{display:none!important;width:100%!important;margin:0!important;border:0!important;background:transparent!important}
   #stallFieldCard .stallFieldQuick[open]{display:block!important}
   #stallFieldCard .stallFieldQuick>summary{display:none!important}
   #stallFieldCard .stallFieldToolBody{
-    width:100%!important;
-    min-width:0!important;
-    box-sizing:border-box!important;
-    margin:0!important;
-    padding:10px!important;
-    border:1px solid #d8dee7!important;
-    border-radius:12px!important;
-    background:#fff!important;
+    display:block!important;width:100%!important;min-width:0!important;
+    box-sizing:border-box!important;margin:0!important;padding:10px!important;
+    border:1px solid #d8dee7!important;border-radius:10px!important;background:#fff!important
   }
-}
-@media (min-width:761px){
-  #stallFieldCard .n460-mobile-field-tabs{display:none!important}
 }
 </style>
 
-<script id="n460-mobile-dispatch-and-chat-state">
+<script id="n461-scoped-behavior">
 (function(){
-  /* ---------- 手機派工：兩顆按鈕切換，內容永遠單一全寬 ---------- */
-  function setupMobileDispatch(){
+  function desktop(){ return window.matchMedia('(min-width:761px)').matches; }
+
+  /* 包裝／貨運：桌機允許兩區各自獨立開關；手機維持原本一次一區。 */
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest&&e.target.closest('#packing .quickToolTab,#delivery .quickToolTab');
+    if(!btn || !desktop()) return;
+    var root=btn.closest('.packingQuickTools,.deliveryQuickTools');
+    if(!root)return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var tool=btn.dataset.tool;
+    var panel=root.querySelector('.quickToolPanel[data-panel="'+tool+'"]');
+    if(!panel)return;
+    var opening=!btn.classList.contains('active');
+    btn.classList.toggle('active',opening);
+    panel.classList.toggle('active',opening);
+  },true);
+
+  /* 派工手機：只建立顯示控制，不複製、不搬動原本回報公斤/缺貨內容。 */
+  function setupStallMobile(){
     var host=document.querySelector('#stallFieldCard .stallFieldQuickTools');
-    if(!host || host.dataset.n460Ready==='1') return;
-    var details=[].slice.call(host.querySelectorAll(':scope > details.stallFieldQuick'));
-    if(details.length<2) return;
+    if(!host || host.dataset.n461Ready==='1')return;
+    var ds=host.querySelectorAll(':scope > details.stallFieldQuick');
+    if(ds.length<2)return;
 
     var nav=document.createElement('div');
-    nav.className='n460-mobile-field-tabs';
-    var labels=['📦 回報公斤','⚠️ 缺貨回報'];
-    details.slice(0,2).forEach(function(d,i){
+    nav.className='n461-stall-mobile-tabs';
+    ['📦 回報公斤','⚠️ 缺貨回報'].forEach(function(label,i){
       var b=document.createElement('button');
-      b.type='button';
-      b.className='n460-mobile-field-tab';
-      b.textContent=labels[i];
+      b.type='button'; b.className='n461-stall-mobile-btn'; b.textContent=label;
       b.addEventListener('click',function(){
-        var willOpen=!d.open;
-        details.forEach(function(x){x.open=false;});
-        if(willOpen)d.open=true;
+        var open=!ds[i].open;
+        ds.forEach(function(d){d.open=false;});
+        if(open)ds[i].open=true;
         sync();
       });
       nav.appendChild(b);
     });
     host.parentNode.insertBefore(nav,host);
-    host.dataset.n460Ready='1';
+    host.dataset.n461Ready='1';
 
     function sync(){
-      var bs=nav.querySelectorAll('.n460-mobile-field-tab');
-      details.slice(0,2).forEach(function(d,i){bs[i].classList.toggle('active',d.open);});
+      nav.querySelectorAll('.n461-stall-mobile-btn').forEach(function(b,i){
+        b.classList.toggle('active',!!ds[i].open);
+      });
     }
-    details.forEach(function(d){d.addEventListener('toggle',sync);});
+    ds.forEach(function(d){d.addEventListener('toggle',sync);});
     sync();
   }
 
-  /* ---------- 缺貨即時對話：記住每個批次由使用者決定的展開狀態 ---------- */
-  var state=window.__n460ShortageChatState||(window.__n460ShortageChatState=new Map());
-
-  function batchKey(details){
-    var row=details.closest('.shortageRow');
+  /* 缺貨即時對話：用 batch id 記住使用者自己決定的開/關。 */
+  var chatState=window.__n461ShortageChatState||(window.__n461ShortageChatState=new Map());
+  function chatKey(d){
+    var row=d.closest('.shortageRow');
     if(!row)return '';
-    var btn=row.querySelector('[data-batch]');
-    if(btn && btn.dataset.batch)return 'batch:'+btn.dataset.batch;
-    return '';
+    var b=row.querySelector('[data-batch]');
+    return b&&b.dataset.batch ? String(b.dataset.batch) : '';
   }
-
   document.addEventListener('toggle',function(e){
     var d=e.target;
     if(!(d instanceof HTMLDetailsElement) || !d.closest('.shortageRow'))return;
-    var key=batchKey(d);
-    if(key)state.set(key,d.open);
+    var k=chatKey(d); if(k)chatState.set(k,d.open);
   },true);
-
-  function restoreChatState(root){
-    (root||document).querySelectorAll('.shortageRow details').forEach(function(d){
-      var key=batchKey(d);
-      if(key && state.has(key))d.open=!!state.get(key);
+  function restoreChats(){
+    document.querySelectorAll('.shortageRow details').forEach(function(d){
+      var k=chatKey(d);
+      if(k && chatState.has(k))d.open=!!chatState.get(k);
     });
   }
 
   var queued=false;
-  var mo=new MutationObserver(function(){
-    if(queued)return;
-    queued=true;
-    requestAnimationFrame(function(){
-      queued=false;
-      setupMobileDispatch();
-      restoreChatState(document);
+  var mo=new MutationObserver(function(muts){
+    var relevant=muts.some(function(m){
+      return Array.from(m.addedNodes||[]).some(function(n){
+        return n.nodeType===1 && (n.matches?.('.shortageRow,#stallFieldCard') || n.querySelector?.('.shortageRow,#stallFieldCard'));
+      });
     });
+    if(!relevant || queued)return;
+    queued=true;
+    requestAnimationFrame(function(){queued=false;setupStallMobile();restoreChats();});
   });
 
   function init(){
-    setupMobileDispatch();
-    restoreChatState(document);
+    setupStallMobile(); restoreChats();
     mo.observe(document.body,{childList:true,subtree:true});
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
