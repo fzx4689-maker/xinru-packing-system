@@ -4650,7 +4650,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N195：容器核心收斂。容器管理新建只允許領用／使用／歸還且完全不碰金錢；快速做帳所有容器有價＝買賣不動欠餘、無價＝實體欠餘；盤點原因恢復；查詢總覽進頁即顯示全部容器。舊動作僅保留歷史讀取相容。 -->
 <!-- N198：容器事件快取；回籃／歸還統一進公司庫存；管理歸還固定同步往來欠餘；快速做帳既有規則保留：$0 容器不得單獨成帳。 -->
 <!-- N199：容器總覽雙軸顯示；公司實體庫存＝stockDelta，往來總欠／總餘＝balanceDelta；不修改既有欠餘核心。 -->
-<!-- N445：鐵架總覽展開往來明細時，在廠商總欠／餘下方列出各鐵架名稱（例如懋德→山內、清騰）及各自結餘；只改顯示，不改容器計算。 -->
+<!-- N446：鐵架總覽正式共用既有 qN169RackBalance 核心；同一廠商依 rackNameId/rackName 顯示各鐵架名稱欠餘，不另建第二套計算。 -->
 <!-- N202：容器總覽往來對象明細改為可收合「查看往來明細（人數）」；所有啟用容器共用，展開區限高捲動；不修改 stockDelta / balanceDelta / 快速做帳 / 容器事件核心。 -->
 <!-- N200：容器總覽顯示每一種容器的往來對象欠／餘明細；鐵架保留名稱分帳。只改顯示層，不修改 balanceDelta、stockDelta、快速做帳、管理歸還與四種列印。 -->
 <!-- N201：公司實體庫存方向補正；計籃=-qty、回籃/歸還=+qty，與金額正負完全分離；新快速做帳籃子事件正式寫入 stockDelta，歷史缺欄位資料於唯一正規化層補方向。不修改往來 balanceDelta 規則。 -->
@@ -10447,7 +10447,9 @@ K白.kg
   (events||[]).filter(e=>canonical(e.type)==='鐵架').forEach(e=>{const key=String(e.rackNameId||e.rackName||'__unspecified__'),x=by[key]||(by[key]={rackNameId:e.rackNameId||'',rackName:e.rackName||'未指定鐵架名稱',owed:0,surplus:0,buyout:0,events:[]});x.events.push(e);const d=Number(e.balanceDelta)||0;if(d>0){let q=d,settle=Math.min(x.owed,q);x.owed-=settle;x.surplus+=q-settle}else if(d<0){let q=Math.abs(d),from=Math.min(x.surplus,q);x.surplus-=from;x.owed+=q-from}if(e.action==='買斷')x.buyout+=Number(e.qty)||0});
   return Object.values(by);
 }
-function qN167ContainerAssetSummary(type=''){
+// N446：正式公開既有鐵架名稱分帳核心，總覽／查詢／盤點共用同一套計算。
+ window.qRackBalance=qN169RackBalance;
+ function qN167ContainerAssetSummary(type=''){
   const want=type?String(type):'';
   const all=qN93AllContainerEvents().filter(e=>!want||String(e.type)===want);
   const by={};
