@@ -9444,6 +9444,7 @@ K白.kg
       '其他支出':['其他支出']
     };
     const income={
+      '營業收入':['收銀貓營業收入','其他系統營業收入','其他營業收入補登'],
       '其他營業收入':['代辦／服務收入','運費／配送收入','場地／設備使用收入','回收收入','其他營業收入'],
       '補助／獎勵收入':['政府補助','獎勵金','其他補助／獎勵'],
       '利息收入':['銀行利息','其他利息'],
@@ -10074,7 +10075,7 @@ K白.kg
   function qRenderCompanyReport(work){
     if(typeof window.qRenderCompanyReportN354==='function') return window.qRenderCompanyReportN354(work);
     const today=qToday(),month=today.slice(0,7),first=month+'-01';
-    work.innerHTML='<div class="quickV2"><b style="font-size:22px">📊 報表</b><div class="helper" style="display:block!important;margin:5px 0 12px">報表只做統計分析；公司收支、收款、付款仍在各自分頁操作。</div><div class="quickV2Head"><div class="field"><label class="label">開始日期</label><input id="qRptFrom" class="input" type="date" value="'+first+'"></div><div class="field"><label class="label">結束日期</label><input id="qRptTo" class="input" type="date" value="'+today+'"></div><div class="field"><label class="label">分類</label><select id="qRptCat" class="input"><option value="">全部分類</option><option>營業收入</option>'+Object.keys(qFundCategories()).map(x=>'<option>'+qEsc(x)+'</option>').join('')+'</select></div></div><div id="qRptBody" style="margin-top:14px"></div></div>';
+    work.innerHTML='<div class="quickV2"><b style="font-size:22px">📊 報表</b><div class="helper" style="display:block!important;margin:5px 0 12px">報表只做統計分析；公司收支、收款、付款仍在各自分頁操作。</div><div class="quickV2Head"><div class="field"><label class="label">開始日期</label><input id="qRptFrom" class="input" type="date" value="'+first+'"></div><div class="field"><label class="label">結束日期</label><input id="qRptTo" class="input" type="date" value="'+today+'"></div><div class="field"><label class="label">分類</label><select id="qRptCat" class="input"><option value="">全部分類</option><option>營業收入</option>'+Object.keys(qFundCategories()).filter(x=>x!=='營業收入').map(x=>'<option>'+qEsc(x)+'</option>').join('')+'</select></div></div><div id="qRptBody" style="margin-top:14px"></div></div>';
     const paint=()=>{const f=work.querySelector('#qRptFrom').value,t=work.querySelector('#qRptTo').value,c=work.querySelector('#qRptCat').value;const rows=qCompanyVisibleCashflowRows().filter(r=>r.status!=='void'&&r.fundOwner==='xinru'&&(!f||r.date>=f)&&(!t||r.date<=t)&&(!c||r.fundCategory===c));const amt=r=>Math.abs(Number(r.fundAmount||r.fundDelta||0));const inc=rows.filter(r=>r.fundKind==='income').reduce((a,r)=>a+amt(r),0),exp=rows.filter(r=>r.fundKind==='expense').reduce((a,r)=>a+amt(r),0);const groups={};rows.forEach(r=>{const key=r.fundCategory||'未分類';groups[key]=(groups[key]||0)+(r.fundKind==='income'?1:-1)*amt(r)});work.querySelector('#qRptBody').innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"><div class="quickV2ContactHint"><div class="helper">公司收支收入</div><b style="font-size:26px">'+qFundMoney(inc)+'</b></div><div class="quickV2ContactHint"><div class="helper">公司營運支出</div><b style="font-size:26px">'+qFundMoney(exp)+'</b></div><div class="quickV2ContactHint"><div class="helper">收支差額</div><b style="font-size:26px">'+qFundMoney(inc-exp)+'</b></div></div><div style="margin-top:14px"><b>分類統計</b><div class="acctQueueList" style="margin-top:8px">'+(Object.keys(groups).length?Object.entries(groups).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).map(([k,v])=>'<div class="acctQueueRow"><b>'+qEsc(k)+'</b><strong>'+qFundMoney(Math.abs(v))+'</strong></div>').join(''):'<div class="empty">這段期間沒有公司收支資料</div>')+'</div></div>'};
     ['qRptFrom','qRptTo','qRptCat'].forEach(id=>work.querySelector('#'+id).onchange=paint);paint();
   }
@@ -11276,7 +11277,7 @@ window.qNormalizeTurnAction=qN93TurnAction;
     '工作服／制服':['工作服','制服訂製','外套','圍裙','工作鞋／雨鞋','帽子','其他工作服用品'],
     '公益／捐款':['公益捐款','贊助','其他捐款'],
     '稅費':['稅金','規費','其他'],
-    '其他支出':['其他'],'其他收入':['補助收入','其他營業收入','其他']
+    '其他支出':['其他'],'營業收入':['收銀貓營業收入','其他系統營業收入','其他營業收入補登'],'其他收入':['補助收入','其他營業收入','其他']
   }};
   window.qFundStageHeader=function(mode='home',title=''){
     const stage=document.getElementById('acctStage'),head=stage?.querySelector('.acctStageHead'),oldBack=stage?.querySelector('#acctStageBack'),arap=stage?.querySelector('#qN332Overview');
@@ -11332,7 +11333,8 @@ window.qNormalizeTurnAction=qN93TurnAction;
     '其他支出':['其他支出']
   };
   const INCOME_CATS={
-    '其他營業收入':['代辦／服務收入','運費／配送收入','場地／設備使用收入','回收收入','其他營業收入'],
+    '營業收入':['收銀貓營業收入','其他系統營業收入','其他營業收入補登'],
+      '其他營業收入':['代辦／服務收入','運費／配送收入','場地／設備使用收入','回收收入','其他營業收入'],
     '補助／獎勵收入':['政府補助','獎勵金','其他補助／獎勵'],
     '利息收入':['銀行利息','其他利息'],
     '退款／理賠收入':['費用退款','保險理賠','押金／保證金退回','其他退款／理賠'],
