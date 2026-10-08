@@ -7740,7 +7740,21 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     // N423：儲值型（例如 0299）允許實收超過未結清。
     // 正式交易只沖到欠款上限，多出的金額直接成為正的儲值金，不得阻擋存檔。
     const storedAccount=direction==='receipt'&&qStoredValueEnabled(c);
-    const opens=new Map(qOpenMoneyRows(c,direction).map(x=>[String(x.record.id),x.due]));
+    // N468：帳期僅供顯示；沖帳驗證須依原始交易 ID，不能拿帳期代表 ID 驗證所有 memberRows。
+    const opens=new Map();
+    qOpenMoneyRows(c,direction).forEach(group=>{
+      (group.memberRows||[group]).forEach(row=>{
+        const id=String(row?.record?.id||'');
+        if(id)opens.set(id,(opens.get(id)||0)+Math.max(0,qMoney(row.due)));
+      });
+    });
+    // 同一原始交易只允許一個總沖帳額，避免重複分配分別通過上限驗證。
+    const mergedAllocations=new Map();
+    (Array.isArray(allocations)?allocations:[]).forEach(a=>{
+      const id=String(a?.recordId||'');
+      if(id)mergedAllocations.set(id,(mergedAllocations.get(id)||0)+Math.max(0,qMoney(a?.amount)));
+    });
+    allocations=[...mergedAllocations].map(([recordId,amount])=>({recordId,amount}));
     let overflowFromAlloc=0;
     allocations=(Array.isArray(allocations)?allocations:[]).map(a=>{
       const amount=qMoney(a?.amount),due=opens.get(String(a?.recordId))||0;
@@ -7864,11 +7878,13 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       body.querySelector('#qRefundSave')?.addEventListener('click',async()=>{try{const allocations=[...body.querySelectorAll('.qRefundAlloc')].map(x=>({recordId:x.dataset.recordId,amount:Math.min(qMoney(x.value),qMoney(x.dataset.max))})).filter(x=>x.amount>0),methodRows=[...body.querySelectorAll('.qRefundMethod')].map(x=>({method:x.dataset.method,amount:qMoney(x.value)})).filter(x=>x.amount>0);await qSaveMoneyRefund(c,refundDir,qToday(),allocations,methodRows,body.querySelector('#qRefundNote')?.value||'');alert(refundDir==='refund_customer'?'退款已登記':'收回退款已登記');window.xrAccountingNav?.paintWorkBadges?.();suppressPrefillOnce=true;paint()}catch(e){alert(e.message||String(e))}});
       // N45：收／付款方式金額是實際拿到／付出的錢；輸入後即時計算總額，並不再跨帳期自動沖帳；使用者指定哪一張帳，本次收／付款就只沖那一張。
       // 使用者仍可手動改各筆沖帳；儲存前 qSaveMoneySettlement 會再次強制核對「沖帳合計＝付款方式合計」。
-      const qMoneyFormTotals=()=>{const alloc=[...body.querySelectorAll('.qMoneyAlloc')].reduce((a,x)=>a+Math.min(qMoney(x.value),qMoney(x.dataset.max)),0),method=[...body.querySelectorAll('.qMoneyMethod')].reduce((a,x)=>a+qMoney(x.value),0);return {alloc,method}};
+      const qMoneyInputs=()=>[...body.querySelectorAll(window.matchMedia('(max-width:700px)').matches?'.qMoneyAllocMobile':'.qMoneyAlloc:not(.qMoneyAllocMobile)')];
+      const qMoneyFormTotals=()=>{const alloc=qMoneyInputs().reduce((a,x)=>a+Math.min(qMoney(x.value),qMoney(x.dataset.max)),0),method=[...body.querySelectorAll('.qMoneyMethod')].reduce((a,x)=>a+qMoney(x.value),0);return {alloc,method}};
       const recalc=()=>{const t=qMoneyFormTotals(),el=body.querySelector('#qMoneyTotal');if(el)el.textContent=qLedgerMoney(t.alloc);const hint=body.querySelector('#qMoneyMethodTotal');if(hint){hint.textContent='方式合計：'+qLedgerMoney(t.method)+(Math.abs(t.alloc-t.method)>0.001?'｜尚差 '+qLedgerMoney(Math.abs(t.alloc-t.method)):'｜✓ 金額一致');hint.style.color=Math.abs(t.alloc-t.method)>0.001?'#b42318':'#067647'}};
-      const allocateOldestFirst=(amount)=>{let remain=Math.max(0,qMoney(amount));[...body.querySelectorAll('.qMoneyAlloc')].forEach(x=>{const max=Math.max(0,qMoney(x.dataset.max)),v=Math.min(max,remain);x.value=v>0?String(v):'0';remain=Math.max(0,remain-v)});recalc()};
+      const allocateOldestFirst=(amount)=>{let remain=Math.max(0,qMoney(amount));qMoneyInputs().forEach(x=>{const max=Math.max(0,qMoney(x.dataset.max)),v=Math.min(max,remain);x.value=v>0?String(v):'0';remain=Math.max(0,remain-v)});recalc()};
       const methodsBox=body.querySelector('#qMoneyMethods');if(methodsBox&&!body.querySelector('#qMoneyMethodTotal')){const h=document.createElement('div');h.id='qMoneyMethodTotal';h.className='helper';h.style.cssText='display:block!important;margin-top:7px;font-weight:800';methodsBox.insertAdjacentElement('afterend',h)}
       body.querySelectorAll('.qMoneyAlloc').forEach(x=>x.oninput=()=>{
+        body.querySelectorAll('.qMoneyAlloc').forEach(y=>{if(y!==x&&y.dataset.recordId===x.dataset.recordId)y.value=x.value});
         if(!qStoredValueEnabled(c)&&qMoney(x.value)>0){
           const current=x.dataset.recordId,rec=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r?.id||'')===String(current)),key=qN292PeriodMeta(c,rec).key;
           body.querySelectorAll('.qMoneyAlloc').forEach(y=>{if(y===x||qMoney(y.value)<=0)return;const yr=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r?.id||'')===String(y.dataset.recordId));if(qN292PeriodMeta(c,yr).key!==key)y.value='0'});
@@ -7879,7 +7895,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       body.querySelectorAll('.qMoneyMethod').forEach(x=>x.oninput=()=>{recalc();qSyncCheque()});
       recalc();qSyncCheque();
       body.querySelectorAll('.qMarkVehicleReturn').forEach(btn=>btn.addEventListener('click',async()=>{try{const kind=btn.dataset.returnKind,id=btn.dataset.recordId,date=await qN236AskVehicleReturn(kind);if(!date)return;await qN234MarkVehicleReturn(id,kind,date);alert((kind==='money'?'錢回來':'收據回來')+'已登記｜'+date);suppressPrefillOnce=true;paint()}catch(e){alert(e.message||String(e))}}));
-      body.querySelector('#qMoneySave')?.addEventListener('click',async()=>{try{const allocations=[...body.querySelectorAll('.qMoneyAlloc')].flatMap(x=>{const row=opens.find(o=>String(o.record?.id||'')===String(x.dataset.recordId||''));return row?qN295ExpandAllocation(row,Math.min(qMoney(x.value),qMoney(x.dataset.max))):[]}).filter(x=>x.amount>0),methodsRows=[...body.querySelectorAll('.qMoneyMethod')].map(x=>{const row={method:x.dataset.method,amount:qMoney(x.value)};if(direction==='receipt'&&row.method==='支票'&&row.amount>0){row.chequeNo=body.querySelector('#qChequeNo')?.value||'';row.chequeDate=body.querySelector('#qChequeDate')?.value||'';row.chequeBank=body.querySelector('#qChequeBank')?.value||'';row.chequeNote=body.querySelector('#qChequeNote')?.value||''}return row}).filter(x=>x.amount>0),moneyDate=qValidateMoneyDate(body.querySelector('#qMoneyDate')?.value||'');await qSaveMoneySettlement(c,direction,moneyDate,allocations,methodsRows,body.querySelector('#qMoneyNote')?.value||'',{moneyReturned:!!body.querySelector('#qMoneyReturned')?.checked,receiptReturned:!!body.querySelector('#qReceiptReturned')?.checked});alert(label+'已登記');window.xrAccountingNav?.paintWorkBadges?.();suppressPrefillOnce=true;paint()}catch(e){alert(e.message||String(e))}})
+      body.querySelector('#qMoneySave')?.addEventListener('click',async()=>{try{const allocations=qMoneyInputs().flatMap(x=>{const row=opens.find(o=>String(o.record?.id||'')===String(x.dataset.recordId||''));return row?qN295ExpandAllocation(row,Math.min(qMoney(x.value),qMoney(x.dataset.max))):[]}).filter(x=>x.amount>0),methodsRows=[...body.querySelectorAll('.qMoneyMethod')].map(x=>{const row={method:x.dataset.method,amount:qMoney(x.value)};if(direction==='receipt'&&row.method==='支票'&&row.amount>0){row.chequeNo=body.querySelector('#qChequeNo')?.value||'';row.chequeDate=body.querySelector('#qChequeDate')?.value||'';row.chequeBank=body.querySelector('#qChequeBank')?.value||'';row.chequeNote=body.querySelector('#qChequeNote')?.value||''}return row}).filter(x=>x.amount>0),moneyDate=qValidateMoneyDate(body.querySelector('#qMoneyDate')?.value||'');await qSaveMoneySettlement(c,direction,moneyDate,allocations,methodsRows,body.querySelector('#qMoneyNote')?.value||'',{moneyReturned:!!body.querySelector('#qMoneyReturned')?.checked,receiptReturned:!!body.querySelector('#qReceiptReturned')?.checked});alert(label+'已登記');window.xrAccountingNav?.paintWorkBadges?.();suppressPrefillOnce=true;paint()}catch(e){alert(e.message||String(e))}})
     };
     inp.addEventListener('input',paint);inp.addEventListener('change',paint);if(preset){paint()}else{paintOpenList('')}
   }
