@@ -6276,7 +6276,8 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     return qN332MoneySnapshot;
   }
   function qN332SaveCache(s){qN332MoneySnapshot=s;try{localStorage.setItem(QN332_CACHE_KEY,JSON.stringify(s))}catch(e){}return s}
-  function qN332Invalidate(){qN332MoneySnapshot=null;try{localStorage.removeItem(QN332_CACHE_KEY)}catch(e){}}
+  let qN332BuildVersion=0,qN332BuildRunning=false,qN332PendingGroup=null;
+  function qN332Invalidate(){qN332BuildVersion++;qN332BuildRunning=false;qN332MoneySnapshot=null;try{localStorage.removeItem(QN332_CACHE_KEY)}catch(e){}}
   window.xrInvalidateAccountingSummary=qN332Invalidate;
   function qN332BuildMoneySnapshot(force=false){
     if(!force){const cached=qN332LoadCache();if(cached)return cached}
@@ -6292,15 +6293,52 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     });
     return qN332SaveCache({groups,receiptTotal,paymentTotal,builtAt:Date.now()});
   }
+  // N332 性能修正：首次無快取時先顯示入口，再分批計算；每批讓出主執行緒。
+  // 不更動 qContactOpenTotals 核心，且資料異動會取消舊批次，避免寫回過期摘要。
+  function qN332ScheduleBuild(){
+    if(qN332LoadCache()||qN332BuildRunning)return;
+    qN332BuildRunning=true;
+    const version=++qN332BuildVersion;
+    const groups={receipt:{'一般客戶':[],超市:[],中盤:[],'其他應收':[]},payment:{產農:[],廠商:[],中盤:[],'其他應付':[]}};
+    let candidates=[],idx=0,receiptTotal=0,paymentTotal=0;
+    const next=()=>{
+      if(version!==qN332BuildVersion)return;
+      try{
+        if(!candidates.length&&idx===0)candidates=qAccountingMoneyContactCandidates();
+        qN219WithCalc(()=>{
+          const limit=Math.min(idx+6,candidates.length);
+          for(;idx<limit;idx++){
+            const c=candidates[idx],tot=qContactOpenTotals(c),r=Number(tot?.receivable||0),p=Number(tot?.payable||0),id=String(c?.identity||'').trim();
+            if(r>0.000001){const g=id==='超市'?'超市':id==='中盤'?'中盤':(id==='一般客戶'||id==='客戶')?'一般客戶':'其他應收';groups.receipt[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:r});receiptTotal+=r}
+            if(p>0.000001){const g=id==='產農'?'產農':id==='廠商'?'廠商':id==='中盤'?'中盤':'其他應付';groups.payment[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:p});paymentTotal+=p}
+          }
+        });
+        if(idx<candidates.length){setTimeout(next,0);return}
+        if(version!==qN332BuildVersion)return;
+        qN332BuildRunning=false;
+        const s=qN332SaveCache({groups,receiptTotal,paymentTotal,builtAt:Date.now()});
+        const el=document.getElementById('qN332Overview');
+        if(el&&el.isConnected){el.outerHTML=qN332OverviewFromSnapshot(s);qN332Bind()}
+        const pending=qN332PendingGroup;qN332PendingGroup=null;
+        if(pending&&document.getElementById('acctStageWork')&&document.getElementById('acctStage'))qN332OpenGroup(pending.dir,pending.group);
+      }catch(err){qN332BuildRunning=false;console.warn('N332 摘要建立失敗',err);const el=document.getElementById('qN332Overview');if(el)el.innerHTML='<div class="helper">摘要載入失敗，請重新進入收款／付款。</div>'}
+    };
+    setTimeout(next,0);
+  }
   function qN332OverviewHtml(){
-    const s=qN332LoadCache()||qN332BuildMoneySnapshot(true);
+    const s=qN332LoadCache();
+    if(s)return qN332OverviewFromSnapshot(s);
+    qN332ScheduleBuild();
+    return '<div id="qN332Overview" class="quickV2ContactHint" style="margin-bottom:14px">💰 應收／應付摘要計算中，其他按鈕可先操作…</div>';
+  }
+  function qN332OverviewFromSnapshot(s){
     const card=(dir,title,names,total)=>'<div style="min-width:0"><div style="font-size:18px;font-weight:900;margin-bottom:8px">'+title+'　'+qLedgerMoney(total)+'</div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'+names.map(g=>{const rows=s.groups[dir][g]||[],amt=rows.reduce((a,x)=>a+Number(x.due||0),0);return '<button type="button" class="btn gray" data-n332-dir="'+dir+'" data-n332-group="'+qEsc(g)+'" style="height:auto;min-height:64px;text-align:left;justify-content:flex-start"><span><b>'+qEsc(g)+'　'+qLedgerMoney(amt)+'</b><small style="display:block;margin-top:4px">'+rows.length+' 個往來對象</small></span></button>'}).join('')+'</div></div>';
     return '<div id="qN332Overview" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px">'+card('receipt','💰 目前應收',['一般客戶','超市','中盤','其他應收'],s.receiptTotal)+card('payment','💸 目前應付',['產農','廠商','中盤','其他應付'],s.paymentTotal)+'</div>';
   }
   function qN332OpenGroup(dir,group){
     const work=document.getElementById('acctStageWork'),grid=document.querySelector('#acctStage .acctStageGrid'),overview=document.getElementById('qN332Overview');if(!work)return;
     if(grid)grid.style.display='none';if(overview)overview.style.display='none';
-    const s=qN332LoadCache()||qN332BuildMoneySnapshot(true),rows=(s.groups?.[dir]?.[group]||[]).slice().sort((a,b)=>Number(b.due||0)-Number(a.due||0)||String(a.name||'').localeCompare(String(b.name||''))),total=rows.reduce((a,x)=>a+Number(x.due||0),0);
+    const s=qN332LoadCache();if(!s){qN332PendingGroup={dir,group};qN332ScheduleBuild();work.innerHTML='<div class="helper">摘要計算中，完成後會自動開啟分類…</div>';return}const rows=(s.groups?.[dir]?.[group]||[]).slice().sort((a,b)=>Number(b.due||0)-Number(a.due||0)||String(a.name||'').localeCompare(String(b.name||''))),total=rows.reduce((a,x)=>a+Number(x.due||0),0);
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>'+(dir==='receipt'?'💰 應收':'💸 應付')+'｜'+qEsc(group)+'｜'+qLedgerMoney(total)+'</b><div class="helper">摘要已快取；點往來對象後才載入該對象正式收款／付款內容。</div></div><button type="button" class="btn gray" id="qN332Back">← 返回分類總覽</button></div><div class="acctQueueList" style="margin-top:10px">'+(rows.length?rows.map(x=>'<button type="button" class="acctQueueRow" data-n332-contact="'+qEsc(x.id||x.code||x.name)+'" style="width:100%;text-align:left;cursor:pointer"><div><b>'+qEsc(x.code?x.code+'｜'+x.name:x.name)+'</b><div class="helper">'+qEsc(x.identity||'')+'</div></div><div><strong>'+qLedgerMoney(x.due)+'</strong><span style="margin-left:8px">處理 →</span></div></button>').join(''):'<div class="empty">目前沒有未結清資料</div>')+'</div></div>';
     work.querySelector('#qN332Back').onclick=()=>open('payment');
     work.querySelectorAll('[data-n332-contact]').forEach(b=>b.onclick=()=>qRenderMoneyCenter(work,b.dataset.n332Contact,dir));
