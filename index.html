@@ -6327,20 +6327,26 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
   }
   function qN332SaveCache(s){qN332MoneySnapshot=s;try{localStorage.setItem(QN332_CACHE_KEY,JSON.stringify(s))}catch(e){}return s}
   let qN332BuildVersion=0,qN332BuildRunning=false,qN332PendingGroup=null;
-  function qN332Invalidate(){qN332BuildVersion++;qN332BuildRunning=false;qN332MoneySnapshot=null;qN215MoneyQueues=null;qN215Candidates=null;try{localStorage.removeItem(QN332_CACHE_KEY)}catch(e){}}
+  // Shared in-memory calculation rows only; never persist contact objects or monetary snapshots across reloads.
+  let qN215SharedRows=null;
+  function qN332Invalidate(){qN332BuildVersion++;qN332BuildRunning=false;qN332MoneySnapshot=null;qN215MoneyQueues=null;qN215Candidates=null;qN215SharedRows=null;try{localStorage.removeItem(QN332_CACHE_KEY)}catch(e){}}
   window.xrInvalidateAccountingSummary=qN332Invalidate;
   function qN332BuildMoneySnapshot(force=false){
     if(!force){const cached=qN332LoadCache();if(cached)return cached}
     const groups={receipt:{'一般客戶':[],超市:[],中盤:[],'其他應收':[]},payment:{產農:[],廠商:[],中盤:[],'其他應付':[]}};
     let receiptTotal=0,paymentTotal=0;
+    const sharedRows=[];
     qN219WithCalc(()=>{
       const candidates=qAccountingMoneyContactCandidates();
       for(const c of candidates){
         const tot=qContactOpenTotals(c),r=Number(tot?.receivable||0),p=Number(tot?.payable||0),id=String(c?.identity||'').trim();
+        sharedRows.push({c,r,p});
         if(r>0.000001){const g=id==='超市'?'超市':id==='中盤'?'中盤':(id==='一般客戶'||id==='客戶')?'一般客戶':'其他應收';groups.receipt[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:r});receiptTotal+=r}
         if(p>0.000001){const g=id==='產農'?'產農':id==='廠商'?'廠商':id==='中盤'?'中盤':'其他應付';groups.payment[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:p});paymentTotal+=p}
       }
     });
+    qN215SharedRows={version:qN332BuildVersion,rows:sharedRows};
+    qN215MoneyQueues=null;
     return qN332SaveCache({groups,receiptTotal,paymentTotal,builtAt:Date.now()});
   }
   // N332 性能修正：首次無快取時先顯示入口，再分批計算；每批讓出主執行緒。
@@ -6351,6 +6357,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     const version=++qN332BuildVersion;
     const groups={receipt:{'一般客戶':[],超市:[],中盤:[],'其他應收':[]},payment:{產農:[],廠商:[],中盤:[],'其他應付':[]}};
     let candidates=[],idx=0,receiptTotal=0,paymentTotal=0;
+    const sharedRows=[];
     const next=()=>{
       if(version!==qN332BuildVersion)return;
       try{
@@ -6359,6 +6366,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
           const limit=Math.min(idx+6,candidates.length);
           for(;idx<limit;idx++){
             const c=candidates[idx],tot=qContactOpenTotals(c),r=Number(tot?.receivable||0),p=Number(tot?.payable||0),id=String(c?.identity||'').trim();
+            sharedRows.push({c,r,p});
             if(r>0.000001){const g=id==='超市'?'超市':id==='中盤'?'中盤':(id==='一般客戶'||id==='客戶')?'一般客戶':'其他應收';groups.receipt[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:r});receiptTotal+=r}
             if(p>0.000001){const g=id==='產農'?'產農':id==='廠商'?'廠商':id==='中盤'?'中盤':'其他應付';groups.payment[g].push({id:c.id||c.contactId||'',code:c.code||'',name:c.name||'',identity:c.identity||c.type||'',due:p});paymentTotal+=p}
           }
@@ -6366,6 +6374,8 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
         if(idx<candidates.length){setTimeout(next,0);return}
         if(version!==qN332BuildVersion)return;
         qN332BuildRunning=false;
+        qN215SharedRows={version,rows:sharedRows};
+        qN215MoneyQueues=null;
         const s=qN332SaveCache({groups,receiptTotal,paymentTotal,builtAt:Date.now()});
         const el=document.getElementById('qN332Overview');
         if(el&&el.isConnected){el.outerHTML=qN332OverviewFromSnapshot(s);qN332Bind()}
@@ -7664,6 +7674,16 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qN215MoneyQueueSnapshot(){
     const version=qN332BuildVersion;
     if(qN215MoneyQueues&&qN215MoneyQueues.version===version)return qN215MoneyQueues;
+    // N332 has already computed the same contact totals: reuse the exact rows,
+    // but only in this page lifetime and only for the same accounting-data version.
+    if(qN215SharedRows&&qN215SharedRows.version===version){
+      const receipt=[],payment=[];
+      for(const {c,r,p} of qN215SharedRows.rows){
+        if(r>0.000001)receipt.push({c,due:r});
+        if(p>0.000001)payment.push({c,due:p});
+      }
+      return (qN215MoneyQueues={version,receipt,payment});
+    }
     const snapshot=qN219WithCalc(()=>{
       const receipt=[],payment=[];
       for(const c of qAccountingMoneyContactCandidates()){
