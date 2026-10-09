@@ -9151,14 +9151,36 @@ K白.kg
   const qN481LineKey=(r,i)=>qN481Record(r)+':'+i;
   const qN481Fingerprint=i=>JSON.stringify([String(i?.name||''),String(i?.kg??''),String(i?.qty??''),String(i?.price??''),String(i?.amount??''),String(i?.goodsAmount??''),String(i?.freight??'')]);
   const qN481Names=new Map();
+  // N483: 僅在客戶尚未建立任何獨立分類時初始化原有七類。
+  // 不碰舊共用分類、不覆寫既有客戶分類，也不自動移轉可能屬於別人的商品記憶。
+  const qN483SeedInFlight=new Map();
+  async function qN483EnsureDefaultCategories(cid){
+    if(qN483SeedInFlight.has(cid))return qN483SeedInFlight.get(cid);
+    const task=(async()=>{
+      const table='farmer_receipt_customer_categories_v481';
+      const {data:existing,error:readError}=await sb.from(table).select('id,name,sort_order').eq('contact_id',cid).order('sort_order');
+      if(readError)throw readError;
+      if(existing?.length)return existing;
+      // 再次確認空表後才建立；唯一鍵(contact_id,name)防止並行重複。
+      const rows=QN265_DEFAULT_CATS.map((name,i)=>({contact_id:cid,name,sort_order:(i+1)*10}));
+      const {error:seedError}=await sb.from(table).upsert(rows,{onConflict:'contact_id,name',ignoreDuplicates:true});
+      if(seedError)throw Error('初始化原有七類失敗：'+seedError.message);
+      const {data:seeded,error:reloadError}=await sb.from(table).select('id,name,sort_order').eq('contact_id',cid).order('sort_order');
+      if(reloadError)throw reloadError;
+      if(!seeded?.length)throw Error('七類初始化後未能讀回，請檢查權限');
+      return seeded;
+    })();
+    qN483SeedInFlight.set(cid,task);
+    try{return await task}finally{qN483SeedInFlight.delete(cid)}
+  }
   async function qN481LoadFor(c){
     const cid=qN481Contact(c);if(!cid)throw Error('客戶沒有正式 ID，請先確認往來資料');
-    const [ca,ru]=await Promise.all([
-      sb.from('farmer_receipt_customer_categories_v481').select('id,name,sort_order').eq('contact_id',cid).order('sort_order'),
+    const [cats,ru]=await Promise.all([
+      qN483EnsureDefaultCategories(cid),
       sb.from('farmer_receipt_customer_rules_v481').select('product_key,category_id,excluded').eq('contact_id',cid)
     ]);
-    if(ca.error)throw ca.error;if(ru.error)throw ru.error;
-    const cats=ca.data||[],rules=new Map((ru.data||[]).map(x=>[x.product_key,x]));
+    if(ru.error)throw ru.error;
+    const rules=new Map((ru.data||[]).map(x=>[x.product_key,x]));
     qN481Names.set(cid,new Map(cats.map(x=>[x.id,x.name])));
     return {cats,rules};
   }
