@@ -9120,7 +9120,7 @@ K白.kg
     return Math.max(0,a-f);
   };
   const qN265NeedContacts=()=>qProfiles().filter(c=>c&&c.farmerReceipt===true&&c.active!==false);
-  const qN265RecordBelongs=(r,c)=>String(r?.contactId||'')===String(c?.id||'')||String(r?.customer||'').trim()===String(c?.name||'').trim();
+  const qN265RecordBelongs=(r,c)=>{const rid=String(r?.contactId||'').trim(),cid=String(c?.id||'').trim();return rid&&cid?rid===cid:(!rid&&String(r?.customer||'').trim()===String(c?.name||'').trim()&&qN265NeedContacts().filter(x=>String(x.name||'').trim()===String(c?.name||'').trim()).length===1)};
   const qN265Trips=()=>{
     const cs=qN265NeedContacts(),rs=(typeof acctRecords==='function'?acctRecords():[]);
     return rs.filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.mode!=='money_settlement'&&r.txnType==='sale'&&Array.isArray(r.items)&&r.items.length&&cs.some(c=>qN265RecordBelongs(r,c)))
@@ -9133,7 +9133,63 @@ K白.kg
       sb.from('farmer_receipt_trip_status').select('record_id,processed,processed_at,processed_by')
     ]);
     if(rr.error)throw rr.error;if(cc.error)throw cc.error;if(ss.error)throw ss.error;
-    return {rules:new Map((rr.data||[]).map(x=>[String(x.product_name||'').trim(),x])),cats:(cc.data||[]).map(x=>x.name),status:new Map((ss.data||[]).map(x=>[String(x.record_id),x]))};
+    return {legacyRules:new Map((rr.data||[]).map(x=>[String(x.product_name||'').trim(),x])),legacyCats:(cc.data||[]).map(x=>x.name),rules:new Map((rr.data||[]).map(x=>[String(x.product_name||'').trim(),x])),cats:(cc.data||[]).map(x=>x.name),status:new Map((ss.data||[]).map(x=>[String(x.record_id),x]))};
+  }
+  // N481: 農收專用獨立鍵；不修改正式 accounting_records.payload。
+  const qN481Key=n=>String(n||'').normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();
+  const qN481Contact=c=>String(c?.id||'').trim();
+  const qN481Record=r=>String(r?.id||'').trim();
+  const qN481LineKey=(r,i)=>qN481Record(r)+':'+i;
+  const qN481Fingerprint=i=>JSON.stringify([String(i?.name||''),String(i?.kg??''),String(i?.qty??''),String(i?.price??''),String(i?.amount??''),String(i?.goodsAmount??''),String(i?.freight??'')]);
+  const qN481Names=new Map();
+  async function qN481LoadFor(c){
+    const cid=qN481Contact(c);if(!cid)throw Error('客戶沒有正式 ID，請先確認往來資料');
+    const [ca,ru]=await Promise.all([
+      sb.from('farmer_receipt_customer_categories_v481').select('id,name,sort_order').eq('contact_id',cid).order('sort_order'),
+      sb.from('farmer_receipt_customer_rules_v481').select('product_key,category_id,excluded').eq('contact_id',cid)
+    ]);
+    if(ca.error)throw ca.error;if(ru.error)throw ru.error;
+    const cats=ca.data||[],rules=new Map((ru.data||[]).map(x=>[x.product_key,x]));
+    qN481Names.set(cid,new Map(cats.map(x=>[x.id,x.name])));
+    return {cats,rules};
+  }
+  async function qN481SaveRule(c,name,categoryId,excluded=false){
+    const cid=qN481Contact(c),key=qN481Key(name);if(!cid||!key)throw Error('客戶 ID 或商品名稱缺失');
+    const row={contact_id:cid,product_key:key,product_name:String(name).trim(),category_id:excluded?null:(categoryId||null),excluded:!!excluded,updated_at:new Date().toISOString()};
+    const {error}=await sb.from('farmer_receipt_customer_rules_v481').upsert(row,{onConflict:'contact_id,product_key'});if(error)throw error;
+  }
+  async function qN481SaveLine(c,r,index,categoryId,excluded=false,remember=false){
+    const cid=qN481Contact(c),rid=qN481Record(r),item=r.items[index];
+    if(!cid||!rid||!item)throw Error('車趟或商品識別不完整');
+    const row={contact_id:cid,record_id:rid,line_index:index,product_name:String(item.name||''),line_fingerprint:qN481Fingerprint(item),category_id:excluded?null:(categoryId||null),excluded:!!excluded,amount:qN265GoodsAmount(item),updated_at:new Date().toISOString()};
+    const {error}=await sb.from('farmer_receipt_trip_lines_v481').upsert(row,{onConflict:'contact_id,record_id,line_index'});if(error)throw error;
+    if(remember)await qN481SaveRule(c,item.name,categoryId,excluded);
+  }
+  async function qN481LoadLines(g){
+    const cid=qN481Contact(g.contact),ids=g.records.map(qN481Record);
+    const {data,error}=await sb.from('farmer_receipt_trip_lines_v481').select('*').eq('contact_id',cid).in('record_id',ids);
+    if(error)throw error;
+    return new Map((data||[]).map(x=>[x.record_id+':'+x.line_index,x]));
+  }
+  function qN481Resolved(c,r,index,config,lines){
+    const item=r.items[index],key=qN481LineKey(r,index),saved=lines.get(key),fingerprint=qN481Fingerprint(item);
+    if(saved&&saved.locked_at)return {...saved,conflict:false,historical:true};
+    if(saved&&saved.line_fingerprint!==fingerprint)return {conflict:true,category_id:null,excluded:false};
+    if(saved)return {...saved,conflict:false};
+    const rule=config.rules.get(qN481Key(item.name));
+    return {category_id:rule?.category_id||null,excluded:!!rule?.excluded,conflict:false,auto:!!rule};
+  }
+  async function qN481ConfirmGroup(g,sid){
+    const cid=qN481Contact(g.contact),config=await qN481LoadFor(g.contact),lines=await qN481LoadLines(g),rows=[];
+    for(const r of g.records)for(let i=0;i<r.items.length;i++){
+      const item=r.items[i],x=qN481Resolved(g.contact,r,i,config,lines);
+      if(x.conflict||(!x.excluded&&!x.category_id))throw Error('有商品未分類或原始明細已修改，請先核對');
+      rows.push({contact_id:cid,record_id:qN481Record(r),line_index:i,product_name:String(item.name||''),line_fingerprint:qN481Fingerprint(item),category_id:x.excluded?null:x.category_id,category_name:x.excluded?'':(config.cats.find(z=>z.id===x.category_id)?.name||''),excluded:!!x.excluded,amount:qN265GoodsAmount(item),updated_at:new Date().toISOString(),locked_at:new Date().toISOString()});
+      if(!x.excluded&&!rows[rows.length-1].category_name)throw Error('分類已不存在，請重新分類');
+    }
+    // 先固定明細，全部成功才標記完成；重新執行仍可安全覆寫尚未鎖定的紀錄。
+    const {error}=await sb.from('farmer_receipt_trip_lines_v481').upsert(rows,{onConflict:'contact_id,record_id,line_index'});if(error)throw error;
+    await qN265SetProcessed(sid,true);
   }
   async function qN270LoadSplits(){
     const {data,error}=await sb.from('farmer_receipt_period_splits').select('*');
@@ -9252,37 +9308,29 @@ K白.kg
     const body=work.querySelector('#qN265Body');
 
     if(tab==='分類'){
-      const names=[...new Set(trips.filter(x=>qN267ReceiptMode(x.contact)==='classified').flatMap(x=>(x.record.items||[]).map(i=>String(i.name||'').trim()).filter(Boolean)))].sort((x,y)=>x.localeCompare(y,'zh-Hant'));
-      const catOpts=(selected='')=>['<option value="">待確認</option>',...data.cats.map(c=>'<option value="'+qEsc(c)+'" '+(c===selected?'selected':'')+'>'+qEsc(c)+'</option>'),'<option value="__exclude__" '+(selected==='__exclude__'?'selected':'')+'>🚫 不開農收</option>'].join('');
-      const countCat=c=>names.filter(n=>{const r=data.rules.get(n);return r&&!r.excluded&&r.category===c}).length;
-      const pendingCount=names.filter(n=>{const r=data.rules.get(n);return !r||(!r.excluded&&!r.category)}).length;
-      const excludedCount=names.filter(n=>data.rules.get(n)?.excluded).length;
-      body.innerHTML='<div style="border:1px solid #dfe4ea;border-radius:14px;padding:12px;margin:8px 0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>農收分類管理</b><button id="qN271ManageCats" class="btn gray">⚙ 管理分類</button></div><div style="display:flex;gap:7px;flex-wrap:wrap;margin:10px 0">'+data.cats.map(c=>'<button class="btn gray" data-fr-cat="'+qEsc(c)+'">'+qEsc(c)+'（'+countCat(c)+'）</button>').join('')+'</div><div style="border-top:1px solid #edf0f2;padding-top:9px"><span class="helper" style="display:inline-block!important;margin-right:8px">商品狀態</span><button class="btn gray" data-fr-cat="__pending">待確認（'+pendingCount+'）</button> <button class="btn gray" data-fr-cat="__excluded">不開農收（'+excludedCount+'）</button> <button class="btn gray" data-fr-cat="">全部（'+names.length+'）</button></div><div id="qN271CatAdmin" style="display:none;margin-top:10px;border-top:1px solid #edf0f2;padding-top:10px"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><input id="qN265NewCat" class="input" style="max-width:220px" placeholder="新增分類名稱"><button id="qN265AddCat" class="btn gray">＋新增分類</button></div>'+data.cats.map(c=>'<div style="display:flex;align-items:center;gap:8px;padding:5px 0"><b style="min-width:100px">'+qEsc(c)+'</b><button class="btn gray" data-fr-rename="'+qEsc(c)+'">修改名稱</button><button class="btn gray" data-fr-delete="'+qEsc(c)+'">刪除</button></div>').join('')+'</div></div><div style="margin-top:14px"><b>商品分類設定</b><div class="helper">點上面的分類即可查看已分到該類的商品；只使用「分類農收」客戶帳單中的商品。</div><input id="qN265Search" class="input" style="max-width:300px;margin-top:8px" placeholder="搜尋商品"></div><div id="qN265RuleList"></div>';
-      let catFilter='';
-      const paint=()=>{
-        const q=String(body.querySelector('#qN265Search')?.value||'').trim().toLowerCase();
-        const hit=names.filter(n=>{
-          if(q&&!n.toLowerCase().includes(q))return false;
-          const r=data.rules.get(n);
-          if(catFilter==='__pending')return !r||(!r.excluded&&!r.category);
-          if(catFilter==='__excluded')return !!r?.excluded;
-          if(catFilter)return !!r&&!r.excluded&&r.category===catFilter;
-          return true;
-        });
-        body.querySelector('#qN265RuleList').innerHTML=hit.map(n=>{const r=data.rules.get(n),v=r?.excluded?'__exclude__':(r?.category||'');return '<div style="display:grid;grid-template-columns:minmax(120px,1fr) minmax(150px,240px);gap:8px;align-items:center;border-bottom:1px solid #edf0f2;padding:8px 0"><b>'+qEsc(n)+'</b><select class="input" data-fr-rule="'+qEsc(n)+'">'+catOpts(v)+'</select></div>'}).join('')||'<div class="empty">這個分類目前沒有商品</div>';
-        body.querySelectorAll('[data-fr-rule]').forEach(sel=>sel.onchange=async()=>{try{await qN265SaveRule(sel.dataset.frRule,sel.value,sel.value==='__exclude__');qN265Render(work,'分類')}catch(e){alert('儲存失敗：'+e.message)}});
-      };
-      paint();
-      body.querySelector('#qN265Search').oninput=paint;
-      body.querySelector('#qN271ManageCats').onclick=()=>{const x=body.querySelector('#qN271CatAdmin');x.style.display=x.style.display==='none'?'block':'none'};
-      body.querySelectorAll('[data-fr-cat]').forEach(b=>b.onclick=()=>{catFilter=b.dataset.frCat||'';paint()});
-      body.querySelector('#qN265AddCat').onclick=async()=>{const name=body.querySelector('#qN265NewCat').value.trim();if(!name)return;const max=Math.max(0,...data.cats.map((_,i)=>(i+1)*10));const {error}=await sb.from('farmer_receipt_categories').upsert({name,sort_order:max+10,active:true},{onConflict:'name'});if(error)return alert('新增失敗：'+error.message);qN265Render(work,'分類')};
-      body.querySelectorAll('[data-fr-rename]').forEach(b=>b.onclick=async()=>{const old=b.dataset.frRename,n=prompt('修改農收分類名稱',old)?.trim();if(!n||n===old)return;const {error}=await sb.from('farmer_receipt_categories').update({name:n}).eq('name',old);if(error)return alert('修改失敗：'+error.message);qN265Render(work,'分類')});
-      body.querySelectorAll('[data-fr-delete]').forEach(b=>b.onclick=async()=>{const n=b.dataset.frDelete,cnt=countCat(n);if(!confirm('確定刪除「'+n+'」？'+(cnt?'\n目前有 '+cnt+' 個商品，刪除後會回到待確認。':'')))return;const {error}=await sb.from('farmer_receipt_categories').delete().eq('name',n);if(error)return alert('刪除失敗：'+error.message);qN265Render(work,'分類')});
+      const contacts=qN265NeedContacts().filter(c=>qN267ReceiptMode(c)==='classified'&&qN481Contact(c));
+      const selected=qN481Contact(contacts.find(c=>qN481Contact(c)===window.qN481SelectedContact)||contacts[0]);
+      const c=contacts.find(x=>qN481Contact(x)===selected);
+      if(!c){body.innerHTML='<div class="empty">目前沒有設定分類農收的客戶</div>';return}
+      window.qN481SelectedContact=selected;
+      let config;try{config=await qN481LoadFor(c)}catch(e){body.innerHTML='<div class="empty">客戶分類資料讀取失敗：'+qEsc(e.message)+'</div>';return}
+      const names=[...new Set(trips.filter(x=>qN481Contact(x.contact)===selected).flatMap(x=>(x.record.items||[]).map(i=>String(i.name||'').trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+      const opts=(v='')=>'<option value="">待分類</option>'+config.cats.map(z=>'<option value="'+qEsc(z.id)+'" '+(z.id===v?'selected':'')+'>'+qEsc(z.name)+'</option>').join('')+'<option value="__exclude__" '+(v==='__exclude__'?'selected':'')+'>不開農收</option>';
+      body.innerHTML='<div style="padding:10px;border:1px solid #ddd;border-radius:12px"><b>客戶獨立分類</b> <select id="qN481Contact" class="input">'+contacts.map(x=>'<option value="'+qEsc(qN481Contact(x))+'" '+(qN481Contact(x)===selected?'selected':'')+'>'+qEsc(x.name)+'</option>').join('')+'</select><div class="helper">只修改此客戶的分類記憶，不影響其他客戶。</div><div style="margin:8px 0"><input id="qN481NewCat" class="input" placeholder="新增此客戶分類名稱"><button class="btn gray" id="qN481AddCat">新增分類</button></div>'+config.cats.map(z=>'<div style="padding:5px"><b>'+qEsc(z.name)+'</b> <button class="btn gray" data-n481-rename="'+qEsc(z.id)+'">改名</button> <button class="btn gray" data-n481-delete="'+qEsc(z.id)+'">刪除</button></div>').join('')+'</div><div style="margin-top:10px"><b>商品自動分類記憶</b><input id="qN481Search" class="input" placeholder="搜尋商品"><div id="qN481RuleRows"></div></div>';
+      const paint=()=>{const q=String(body.querySelector('#qN481Search').value||'').trim();body.querySelector('#qN481RuleRows').innerHTML=names.filter(n=>n.includes(q)).map(n=>{const x=config.rules.get(qN481Key(n)),v=x?.excluded?'__exclude__':x?.category_id||'';return '<div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid #ddd"><span style="flex:1">'+qEsc(n)+'</span><select class="input" data-n481-rule="'+qEsc(n)+'">'+opts(v)+'</select></div>'}).join('')||'<div class="empty">沒有符合商品</div>';body.querySelectorAll('[data-n481-rule]').forEach(el=>el.onchange=async()=>{try{await qN481SaveRule(c,el.dataset.n481Rule,el.value,el.value==='__exclude__');qN265Render(work,'分類')}catch(e){alert(e.message)}})};
+      paint();body.querySelector('#qN481Search').oninput=paint;
+      body.querySelector('#qN481Contact').onchange=e=>{window.qN481SelectedContact=e.target.value;qN265Render(work,'分類')};
+      body.querySelector('#qN481AddCat').onclick=async()=>{const name=body.querySelector('#qN481NewCat').value.trim();if(!name)return;const {error}=await sb.from('farmer_receipt_customer_categories_v481').insert({contact_id:selected,name,sort_order:(config.cats.length+1)*10});if(error)alert(error.message);else qN265Render(work,'分類')};
+      body.querySelectorAll('[data-n481-rename]').forEach(b=>b.onclick=async()=>{const z=config.cats.find(x=>x.id===b.dataset.n481Rename),name=prompt('修改分類名稱',z?.name||'')?.trim();if(!name||name===z.name)return;const {error}=await sb.from('farmer_receipt_customer_categories_v481').update({name}).eq('id',z.id).eq('contact_id',selected);if(error)alert(error.message);else qN265Render(work,'分類')});
+      body.querySelectorAll('[data-n481-delete]').forEach(b=>b.onclick=async()=>{const z=config.cats.find(x=>x.id===b.dataset.n481Delete);if(!confirm('刪除「'+z.name+'」？使用此分類的商品會回到待分類，已確認歷史不變。'))return;const {error}=await sb.from('farmer_receipt_customer_categories_v481').delete().eq('id',z.id).eq('contact_id',selected);if(error)alert(error.message);else qN265Render(work,'分類')});
       return;
     }
 
     body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><input id="qN265Month" class="input" type="month" value="'+qEsc(month)+'" style="max-width:190px"><select id="qN265State" class="input" style="max-width:180px"><option value="pending">待處理</option><option value="done">已處理</option><option value="all">全部</option></select></div><div id="qN265Trips"></div>';
+    const classifiedConfigs=new Map(),classifiedLines=new Map();
+    try{for(const c of qN265NeedContacts().filter(x=>qN267ReceiptMode(x)==='classified'&&qN481Contact(x)))classifiedConfigs.set(qN481Contact(c),await qN481LoadFor(c));
+      for(const g of qN268GroupTrips(trips).filter(x=>qN267ReceiptMode(x.contact)==='classified'))classifiedLines.set(g.key,await qN481LoadLines(g));
+    }catch(e){body.querySelector('#qN265Trips').innerHTML='<div class="empty">分類資料讀取失敗：'+qEsc(e.message)+'</div>';return}
     const paintTrips=()=>{
       const mo=body.querySelector('#qN265Month').value,st=body.querySelector('#qN265State').value;
       const groups=qN268GroupTrips(trips.filter(x=>!mo||String(x.record.date||'').slice(0,7)===mo)).filter(g=>{
@@ -9291,15 +9339,22 @@ K白.kg
       });
       body.querySelector('#qN265Trips').innerHTML=groups.map((g,idx)=>{
         const c=g.contact,mode=qN267ReceiptMode(c),cycle=qN267ReceiptCycle(c),sid=qN268StatusId(g),done=!!data.status.get(sid)?.processed;
-        const sums=g.records.map(r=>qN265TripSummary(r,data,c)),agg=new Map(),unknown=[];
-        sums.forEach(z=>{z.groups.forEach((v,k)=>agg.set(k,(agg.get(k)||0)+v));unknown.push(...z.unknown)});
-        const total=[...agg.values()].reduce((x,y)=>x+y,0);
-        const rows=[...agg.entries()].map(([k,v])=>'<tr><td><b>'+qEsc(k)+'</b></td><td style="text-align:right"><b>'+qN265Money(v)+'</b></td></tr>').join('');
-        const un=unknown.map(u=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0"><span>'+qEsc(u.name)+'</span><span>'+qN265Money(u.amount)+'</span></div>').join('');
+        const config=classifiedConfigs.get(qN481Contact(c)),lines=classifiedLines.get(g.key)||new Map(),agg=new Map(),unknown=[];
+        let total=0,excludedTotal=0,goodsTotal=0;
+        const details=mode==='classified'?g.records.map(r=>'<div style="margin:9px 0;border:1px solid #ddd;padding:8px;border-radius:8px"><b>'+qEsc(r.date||'')+'｜車趟 '+qEsc(qN481Record(r))+'</b><table class="table"><thead><tr><th>商品</th><th>數量</th><th>貨款</th><th>農收分類</th></tr></thead><tbody>'+(r.items||[]).map((item,i)=>{const x=qN481Resolved(c,r,i,config,lines),amount=qN265GoodsAmount(item);goodsTotal+=amount;if(x.excluded)excludedTotal+=amount;else if(x.category_id&&!x.conflict){const name=x.historical?x.category_name:config.cats.find(z=>z.id===x.category_id)?.name;if(name){agg.set(name,(agg.get(name)||0)+(x.historical?Number(x.amount):amount));total+=(x.historical?Number(x.amount):amount)}else unknown.push({name:item.name,amount})}else unknown.push({name:item.name,amount});const val=x.excluded?'__exclude__':x.category_id||'';return '<tr><td>'+qEsc(item.name||'')+(x.conflict?' ⚠️ 原明細已修改':'')+'</td><td>'+qEsc(item.qty??'')+'</td><td>'+qN265Money(amount)+'</td><td><select class="input" data-n481-line="'+qEsc(qN481Record(r))+':'+i+'" '+(done?'disabled':'')+'><option value="">待分類</option>'+config.cats.map(z=>'<option value="'+qEsc(z.id)+'" '+(z.id===val?'selected':'')+'>'+qEsc(z.name)+'</option>').join('')+'<option value="__exclude__" '+(val==='__exclude__'?'selected':'')+'>不開農收</option></select></td></tr>'}).join('')+'</tbody></table></div>').join(''):'';
+        const rows=[...agg.entries()].map(([k,v])=>'<tr><td>'+qEsc(k)+'</td><td style="text-align:right">'+qN265Money(v)+'</td></tr>').join('');
+        const un=unknown.map(u=>'<div>'+qEsc(u.name)+'：'+qN265Money(u.amount)+'</div>').join('');
         const label=qN268PeriodLabel(c,g.records[0]),status=done?'✓ 已處理':(mode==='classified'?(unknown.length?'🔴 '+unknown.length+' 項待分類':'🟢 分類完成'):'🟡 一般農收待處理');
-        return '<details style="border:1px solid #dfe4ea;border-radius:14px;padding:10px 12px;margin:8px 0;background:#fff" '+(idx===0?'open':'')+'><summary style="cursor:pointer;font-weight:900">'+qEsc(label)+'｜'+qEsc(c?.name||g.records[0]?.customer||'')+(cycle==='每車／每次'?'':'')+'　'+status+'</summary><div style="margin-top:10px">'+(mode==='classified'?((rows?'<table class="table"><thead><tr><th>農收分類</th><th style="text-align:right">金額</th></tr></thead><tbody>'+rows+'</tbody></table><div style="text-align:right;font-size:18px;font-weight:900;margin:10px 0">農收金額合計：'+qN265Money(total)+'</div>':'<div class="helper">目前沒有已歸入農收的商品。</div>')+(un?'<div style="border:1px solid #f0b7b7;background:#fff5f5;border-radius:12px;padding:10px;margin-top:8px"><b>⚠️ 待確認商品</b>'+un+'<div class="helper">請到「分類設定」選擇農收分類或「不開農收」。</div></div>':'')):(()=>{const due=qN270GroupTotal(g),sp=data.splits.get(sid),vals=Array.isArray(sp?.amounts)?sp.amounts:[],ss=vals.reduce((a,v)=>a+(Number(v)||0),0),diff=due-ss;return '<div style="border:1px solid #dfe4ea;background:#f8fafb;border-radius:12px;padding:10px"><b>一般農收・'+qEsc(cycle)+'</b><div style="font-size:18px;font-weight:900;margin-top:8px">本期貨款總額：'+qN265Money(due)+'</div><div class="helper">'+(cycle==='每車／每次'?'這車開立完成後直接標記已處理。':'依開立週期合併為 1 筆提醒。')+'</div>'+(c?.farmerReceiptSplit?'<div style="margin-top:10px;border-top:1px solid #dfe4ea;padding-top:10px" data-fr-splitbox="'+qEsc(sid)+'" data-fr-due="'+due+'"><b>農收分張金額</b><div class="helper">由對方提供每張金額；系統不自行拆分，只核對合計。</div><div data-fr-splitrows="'+qEsc(sid)+'">'+((vals.length?vals:[0]).map((v,i)=>'<div style="display:grid;grid-template-columns:72px minmax(140px,220px) 70px;gap:7px;align-items:center;margin-top:7px"><b>第 '+(i+1)+' 張</b><input class="input" type="number" min="0" step="1" data-fr-splitval="'+qEsc(sid)+'" value="'+(v||'')+'" placeholder="輸入金額"><button class="btn gray" data-fr-delrow="'+qEsc(sid)+'">刪除</button></div>').join(''))+'</div><button class="btn gray" style="margin-top:8px" data-fr-addrow="'+qEsc(sid)+'">＋增加一張</button><div data-fr-splitsum="'+qEsc(sid)+'" style="margin-top:8px"><b>分張合計：'+qN265Money(ss)+'</b>　'+(Math.abs(diff)<0.01?'✓ 與貨款相符':(diff>0?'尚差 '+qN265Money(diff):'超出 '+qN265Money(Math.abs(diff))))+'</div><button class="btn gray" style="margin-top:7px" data-fr-save-split="'+qEsc(sid)+'">儲存分張金額</button></div>':'')+'</div>'})())+'<div class="actions" style="margin-top:10px">'+(done?'<button class="btn gray" data-fr-undone="'+qEsc(sid)+'">↩ 改回待處理</button>':'<button class="btn primary" data-fr-done="'+qEsc(sid)+'" '+(mode==='classified'&&unknown.length?'disabled title="仍有待分類商品"':'')+'>✓ 這筆農收已處理</button>')+'</div></div></details>';
+        return '<details style="border:1px solid #dfe4ea;border-radius:14px;padding:10px 12px;margin:8px 0;background:#fff" '+(idx===0?'open':'')+'><summary style="cursor:pointer;font-weight:900">'+qEsc(label)+'｜'+qEsc(c?.name||g.records[0]?.customer||'')+(cycle==='每車／每次'?'':'')+'　'+status+'</summary><div style="margin-top:10px">'+(mode==='classified'?('<div class="helper">逐趟顯示全部品項；分類會依客戶記憶自動帶入。</div>'+details+'<table class="table"><thead><tr><th>分類</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table><div style="text-align:right">商品貨款 '+qN265Money(goodsTotal)+'｜不開農收 '+qN265Money(excludedTotal)+'｜農收分類合計 '+qN265Money(total)+'</div>'+(un?'<div style="color:#a33">待分類／需核對：'+un+'</div>':'') ):(()=>{const due=qN270GroupTotal(g),sp=data.splits.get(sid),vals=Array.isArray(sp?.amounts)?sp.amounts:[],ss=vals.reduce((a,v)=>a+(Number(v)||0),0),diff=due-ss;return '<div style="border:1px solid #dfe4ea;background:#f8fafb;border-radius:12px;padding:10px"><b>一般農收・'+qEsc(cycle)+'</b><div style="font-size:18px;font-weight:900;margin-top:8px">本期貨款總額：'+qN265Money(due)+'</div><div class="helper">'+(cycle==='每車／每次'?'這車開立完成後直接標記已處理。':'依開立週期合併為 1 筆提醒。')+'</div>'+(c?.farmerReceiptSplit?'<div style="margin-top:10px;border-top:1px solid #dfe4ea;padding-top:10px" data-fr-splitbox="'+qEsc(sid)+'" data-fr-due="'+due+'"><b>農收分張金額</b><div class="helper">由對方提供每張金額；系統不自行拆分，只核對合計。</div><div data-fr-splitrows="'+qEsc(sid)+'">'+((vals.length?vals:[0]).map((v,i)=>'<div style="display:grid;grid-template-columns:72px minmax(140px,220px) 70px;gap:7px;align-items:center;margin-top:7px"><b>第 '+(i+1)+' 張</b><input class="input" type="number" min="0" step="1" data-fr-splitval="'+qEsc(sid)+'" value="'+(v||'')+'" placeholder="輸入金額"><button class="btn gray" data-fr-delrow="'+qEsc(sid)+'">刪除</button></div>').join(''))+'</div><button class="btn gray" style="margin-top:8px" data-fr-addrow="'+qEsc(sid)+'">＋增加一張</button><div data-fr-splitsum="'+qEsc(sid)+'" style="margin-top:8px"><b>分張合計：'+qN265Money(ss)+'</b>　'+(Math.abs(diff)<0.01?'✓ 與貨款相符':(diff>0?'尚差 '+qN265Money(diff):'超出 '+qN265Money(Math.abs(diff))))+'</div><button class="btn gray" style="margin-top:7px" data-fr-save-split="'+qEsc(sid)+'">儲存分張金額</button></div>':'')+'</div>'})())+'<div class="actions" style="margin-top:10px">'+(done?'<button class="btn gray" data-fr-undone="'+qEsc(sid)+'">↩ 改回待處理</button>':'<button class="btn primary" data-fr-done="'+qEsc(sid)+'" '+(mode==='classified'&&unknown.length?'disabled title="仍有待分類商品"':'')+'>✓ 這筆農收已處理</button>')+'</div></div></details>';
       }).join('')||'<div class="empty">這個月份沒有符合的農收資料</div>';
-      body.querySelectorAll('[data-fr-done]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frDone,true);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});
+      body.querySelectorAll('[data-n481-line]').forEach(el=>el.onchange=async()=>{try{
+        const key=el.dataset.n481Line,sep=key.lastIndexOf(':'),rid=key.slice(0,sep),idx=Number(key.slice(sep+1));
+        const trip=trips.find(x=>qN481Record(x.record)===rid);if(!trip)throw Error('找不到原始車趟');
+        const val=el.value,remember=!!val&&confirm('要記住「'+trip.record.items[idx].name+'」的分類，讓這位客戶以後自動帶入嗎？\n按「取消」只修改這一趟。');
+        await qN481SaveLine(trip.contact,trip.record,idx,val,val==='__exclude__',remember);
+        qN265Render(work,'整理');
+      }catch(e){alert('分類儲存失敗：'+e.message)}});
+      body.querySelectorAll('[data-fr-done]').forEach(b=>b.onclick=async()=>{try{const g=qN268GroupTrips(trips).find(x=>qN268StatusId(x)===b.dataset.frDone);if(g&&qN267ReceiptMode(g.contact)==='classified')await qN481ConfirmGroup(g,b.dataset.frDone);else await qN265SetProcessed(b.dataset.frDone,true);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});
       body.querySelectorAll('[data-fr-undone]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frUndone,false);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});
       const renumberSplit=sid=>{body.querySelectorAll('[data-fr-splitrows="'+CSS.escape(sid)+'"] > div').forEach((r,i)=>{const b=r.querySelector('b');if(b)b.textContent='第 '+(i+1)+' 張'})};
       const calcSplit=sid=>{const box=body.querySelector('[data-fr-splitbox="'+CSS.escape(sid)+'"]'),due=Number(box?.dataset.frDue)||0,vals=[...body.querySelectorAll('[data-fr-splitval="'+CSS.escape(sid)+'"]')].map(x=>Number(x.value)||0),sum=vals.reduce((a,v)=>a+v,0),diff=due-sum,o=body.querySelector('[data-fr-splitsum="'+CSS.escape(sid)+'"]');if(o)o.innerHTML='<b>分張合計：'+qN265Money(sum)+'</b>　'+(Math.abs(diff)<0.01?'✓ 與貨款相符':(diff>0?'尚差 '+qN265Money(diff):'超出 '+qN265Money(Math.abs(diff))))};
