@@ -7783,11 +7783,13 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   function qSettlementAllocated(recordId){const id=String(recordId||'');return qMoneySettlements().reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0)}
   function qRecordOutstanding(r){const c=qContact(r?.contactId||r?.customer||'');return qAccountingOutstanding(r,c)}
   function qOpenMoneyRows(c,direction){
-    let rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qAccountingOutstanding(r,c)})).filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
+    // N333: one contact/direction scan per call; preserve original order and predicates.
+    const allPeriodSource=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
+    let rows=allPeriodSource.map(r=>({record:r,due:qAccountingOutstanding(r,c)})).filter(x=>x.due>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
     rows=qBillingApplyFeeToOpenRows(c,direction,rows);
     // N321：有金額的容器負項（例如回籃 -300）是正式帳款折抵，不是獨立「待收負帳」。
     // 先保留正額交易供收／付款 allocation，再把同帳期負額直接扣進該帳期 due。
-    const signedCredits=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')).map(r=>({record:r,due:qN124ProjectedTotal(r,c)-qAccountingAdjustmentTotal(r.id)-qAccountingPaidTotal(r)})).filter(x=>x.due<-0.000001);
+    const signedCredits=allPeriodSource.map(r=>({record:r,due:qN124ProjectedTotal(r,c)-qAccountingAdjustmentTotal(r.id)-qAccountingPaidTotal(r)})).filter(x=>x.due<-0.000001);
     // N295：收／付款以「帳期」為單位。週結、半月結、月結、3日結同一 period key 合併成一張帳；
     // 車趟結／現結的 period key 本來就逐筆唯一，因此仍維持每張獨立。
     const groups=new Map();
@@ -7795,8 +7797,14 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     signedCredits.forEach(x=>{const p=qN292PeriodMeta(c,x.record),key=p.key||String(x.record?.id||'');let g=groups.get(key);if(!g){g={record:x.record,due:0,period:p,memberRows:[],originalAmount:0,itemCount:0,originalRecordCount:0};groups.set(key,g)}g.due+=qMoney(x.due)});
     // N296：帳期的「原金額／筆數／品項數」必須固定取完整原始帳期，不能因部分收付款後某筆已結清就縮水。
     // memberRows 仍只保留未結清交易供 allocation 分配；顯示與後續帳期輸出則讀完整 periodMembers。
-    const allPeriodSource=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
-    groups.forEach((g,key)=>{const members=allPeriodSource.filter(r=>{const p=qN292PeriodMeta(c,r);return String(p.key||r.id||'')===String(key)});g.periodMembers=members;g.originalRecordCount=members.length;g.originalAmount=members.reduce((sum,r)=>sum+qMoney(qRecordTotal(r)),0);g.itemCount=members.reduce((sum,r)=>sum+(r?.items||[]).filter(v=>v&&v.name).length,0)});
+    const membersByPeriod=new Map();
+    allPeriodSource.forEach(r=>{
+      const p=qN292PeriodMeta(c,r),key=String(p.key||r.id||'');
+      let members=membersByPeriod.get(key);
+      if(!members){members=[];membersByPeriod.set(key,members)}
+      members.push(r);
+    });
+    groups.forEach((g,key)=>{const members=membersByPeriod.get(String(key))||[];g.periodMembers=members;g.originalRecordCount=members.length;g.originalAmount=members.reduce((sum,r)=>sum+qMoney(qRecordTotal(r)),0);g.itemCount=members.reduce((sum,r)=>sum+(r?.items||[]).filter(v=>v&&v.name).length,0)});
     return [...groups.values()].filter(g=>qMoney(g.due)>0.000001).sort((a,b)=>String(a.period?.start||a.record?.date||'').localeCompare(String(b.period?.start||b.record?.date||''))||String(a.record?.createdAt||'').localeCompare(String(b.record?.createdAt||'')));
   }
   function qN295OpenOriginal(x){return qMoney(x?.originalAmount!=null?x.originalAmount:qRecordTotal(x?.record))}
