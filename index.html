@@ -6327,7 +6327,7 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
   }
   function qN332SaveCache(s){qN332MoneySnapshot=s;try{localStorage.setItem(QN332_CACHE_KEY,JSON.stringify(s))}catch(e){}return s}
   let qN332BuildVersion=0,qN332BuildRunning=false,qN332PendingGroup=null;
-  function qN332Invalidate(){qN332BuildVersion++;qN332BuildRunning=false;qN332MoneySnapshot=null;try{localStorage.removeItem(QN332_CACHE_KEY)}catch(e){}}
+  function qN332Invalidate(){qN332BuildVersion++;qN332BuildRunning=false;qN332MoneySnapshot=null;qN215MoneyQueues=null;qN215Candidates=null;try{localStorage.removeItem(QN332_CACHE_KEY)}catch(e){}}
   window.xrInvalidateAccountingSummary=qN332Invalidate;
   function qN332BuildMoneySnapshot(force=false){
     if(!force){const cached=qN332LoadCache();if(cached)return cached}
@@ -7637,7 +7637,10 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // N148：帳務首頁四顆待辦共用中央來源。待收／付款不得只讀目前往來主檔，
   // 必須與收付款中心相同：主檔＋正式交易反查後統一歸戶，避免首頁數字與實際清單不一致。
   function qAccountingMoneyContactCandidates(...args){return qN215Measure('qAccountingMoneyContactCandidates',()=>qN215Original_qAccountingMoneyContactCandidates(...args));}
+  let qN215Candidates=null;
   function qN215Original_qAccountingMoneyContactCandidates(){
+    const version=qN332BuildVersion;
+    if(qN215Candidates&&qN215Candidates.version===version)return qN215Candidates.rows.slice();
     const out=[],seen=new Set();
     const push=c=>{
       if(!c)return;
@@ -7650,11 +7653,33 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       const c=qContact(r.contactId||r.customer||r.lookupInput||r.vehiclePlate||'');
       if(c)push(c);
     });
-    return out;
+    if(version===qN332BuildVersion)qN215Candidates={version,rows:out};
+    return out.slice();
   }
   function qAccountingMoneyOpenContacts(...args){return qN215Measure('qAccountingMoneyOpenContacts',()=>qN215Original_qAccountingMoneyOpenContacts(...args));}
+  // N215 targeted: one immutable calculation snapshot for both receipt/payment queues.
+  // Reuse only while N332's accounting data version is unchanged. Do not cache
+  // monetary results across writes or replace any accounting calculation formula.
+  let qN215MoneyQueues=null;
+  function qN215MoneyQueueSnapshot(){
+    const version=qN332BuildVersion;
+    if(qN215MoneyQueues&&qN215MoneyQueues.version===version)return qN215MoneyQueues;
+    const snapshot=qN219WithCalc(()=>{
+      const receipt=[],payment=[];
+      for(const c of qAccountingMoneyContactCandidates()){
+        const tot=qContactOpenTotals(c);
+        const r=Number(tot?.receivable||0),p=Number(tot?.payable||0);
+        if(r>0.000001)receipt.push({c,due:r});
+        if(p>0.000001)payment.push({c,due:p});
+      }
+      return {version,receipt,payment};
+    });
+    // A write could have invalidated the summary during the calculation.
+    if(version===qN332BuildVersion)qN215MoneyQueues=snapshot;
+    return snapshot;
+  }
   function qN215Original_qAccountingMoneyOpenContacts(direction){
-    return qN219WithCalc(()=>qAccountingMoneyContactCandidates().map(c=>({c,tot:qContactOpenTotals(c)})).map(x=>({c:x.c,due:direction==='payment'?x.tot.payable:x.tot.receivable})).filter(x=>x.due>0.000001));
+    return qN215MoneyQueueSnapshot()[direction==='payment'?'payment':'receipt'].slice();
   }
   function qPaintWorkBadges(){
   const qN217Outer = qN217BadgeCalcActive;
