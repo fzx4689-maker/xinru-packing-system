@@ -6267,6 +6267,56 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     if(clear&&!clear.dataset.bound){clear.dataset.bound='1';clear.onclick=()=>{const f=document.getElementById('acctDateFrom'),t=document.getElementById('acctDateTo');if(f)f.value='';if(t)t.value='';qAcctApplyController()}}
   }
   function home(skipNavSave=false){if(!skipNavSave)acctNavWrite({layer:'home',section:'',action:'',recordId:'',detailId:'',backMode:'',searchTerm:''});qAcctSyncDateController();grid.style.display='grid';stage.style.display='none';stage.innerHTML='';document.querySelector('.acctFirstLedgerSearch')?.classList.remove('hidden');const dc=document.getElementById('acctDateController');if(dc)dc.style.removeProperty('display');document.querySelector('.acctManagementHome>h2')?.classList.remove('hidden');document.querySelector('.acctManagementHome>h2+div.helper')?.classList.remove('hidden');const wb=document.getElementById('acctWorkBadges');if(wb)wb.style.display='flex';const sr=document.getElementById('acctGlobalSearchResults');if(sr){const ds=qAcctDateState();if(ds.dateFrom||ds.dateTo)qPaintDateRangeResults();else if(document.getElementById('acctGlobalSearchInput')?.value.trim())qPaintGlobalSearch();else{sr.innerHTML='';sr.style.display='none'}}document.querySelectorAll('.acctManagementBtn').forEach(x=>x.classList.remove('active'));try{qInitAccountingHomeUi()}catch(err){console.warn(err)}}
+  // N215：暫時效能診斷（唯讀）。只記函式耗時/次數，不收集客戶或交易內容。
+  const qN215Metrics=Object.create(null);
+  let qN215Active=false,qN215Panel=null,qN215UpdateQueued=false;
+  function qN215Measure(name,fn){
+    if(!qN215Active)return fn();
+    const start=performance.now();
+    try{return fn()}finally{
+      const elapsed=performance.now()-start;
+      const m=qN215Metrics[name]||(qN215Metrics[name]={calls:0,total:0,max:0,slow:0});
+      m.calls++;m.total+=elapsed;m.max=Math.max(m.max,elapsed);
+      if(elapsed>=50)m.slow++;
+      qN215SchedulePaint();
+    }
+  }
+  function qN215Snapshot(){
+    return Object.entries(qN215Metrics).map(([name,m])=>({name,calls:m.calls,totalMs:+m.total.toFixed(1),avgMs:+(m.total/m.calls).toFixed(2),maxMs:+m.max.toFixed(1),over50ms:m.slow})).sort((a,b)=>b.totalMs-a.totalMs);
+  }
+  function qN215SchedulePaint(){
+    if(qN215UpdateQueued)return;
+    qN215UpdateQueued=true;
+    setTimeout(()=>{qN215UpdateQueued=false;qN215Paint()},250);
+  }
+  function qN215Paint(){
+    if(!qN215Panel)return;
+    const rows=qN215Snapshot(),el=qN215Panel.querySelector('[data-n215-results]');
+    if(!el)return;
+    el.textContent=rows.length?rows.map(r=>r.name+'｜'+r.calls+'次｜總 '+r.totalMs+'ms｜平均 '+r.avgMs+'ms｜最慢 '+r.maxMs+'ms').join('\n'):'尚無測量資料。請依序開啟收款、付款、交易查詢。';
+    const state=qN215Panel.querySelector('[data-n215-state]');if(state)state.textContent=qN215Active?'測量中':'已暫停';
+  }
+  function qN215Init(){
+    if(document.getElementById('qN215Panel'))return;
+    const panel=document.createElement('div');panel.id='qN215Panel';
+    panel.style.cssText='position:fixed;right:12px;bottom:12px;z-index:2147482000;max-width:min(470px,calc(100vw - 24px));width:410px;background:#fff;color:#17212b;border:2px solid #334155;border-radius:12px;box-shadow:0 5px 22px #0004;font:13px/1.5 system-ui,sans-serif;padding:10px';
+    panel.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b>N215 效能診斷｜<span data-n215-state>測量中</span></b><button type="button" data-n215-collapse style="padding:4px 8px">收起</button></div><div data-n215-body><div style="margin:5px 0;color:#475569">僅記錄耗時與次數，不修改帳務、不記錄客戶資料。總耗時含子函式，不能直接相加。</div><pre data-n215-results style="white-space:pre-wrap;overflow:auto;max-height:210px;font:12px/1.5 monospace;background:#f1f5f9;padding:8px;border-radius:6px">尚無測量資料</pre><div style="display:flex;flex-wrap:wrap;gap:6px"><button type="button" data-n215-toggle>暫停測量</button><button type="button" data-n215-reset>清除重測</button><button type="button" data-n215-copy>複製報告</button></div></div>';
+    document.body.appendChild(panel);qN215Panel=panel;qN215Active=true;
+    const btn=(name)=>panel.querySelector('[data-n215-'+name+']');
+    btn('toggle').onclick=()=>{qN215Active=!qN215Active;btn('toggle').textContent=qN215Active?'暫停測量':'開始測量';qN215Paint()};
+    btn('reset').onclick=()=>{for(const k of Object.keys(qN215Metrics))delete qN215Metrics[k];qN215Paint()};
+    btn('collapse').onclick=()=>{const body=panel.querySelector('[data-n215-body]');const collapsed=body.style.display!=='none';body.style.display=collapsed?'none':'';btn('collapse').textContent=collapsed?'展開':'收起'};
+    btn('copy').onclick=async()=>{
+      const report='N215 效能診斷（僅函式耗時，不含客戶資料）\n'+JSON.stringify({createdAt:new Date().toISOString(),measurements:qN215Snapshot()},null,2);
+      try{await navigator.clipboard.writeText(report);btn('copy').textContent='已複製'}catch(e){
+        const t=document.createElement('textarea');t.value=report;panel.appendChild(t);t.select();try{document.execCommand('copy');btn('copy').textContent='已複製'}catch(_e){btn('copy').textContent='複製失敗'}t.remove();
+      }
+      setTimeout(()=>{btn('copy').textContent='複製報告'},1500);
+    };
+    qN215Paint();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',qN215Init,{once:true});else setTimeout(qN215Init,0);
+
   // N332：應收應付摘要快取。首頁直接讀摘要；帳務資料異動後才失效重算，避免每次進第一層掃完整歷史。
   let qN332MoneySnapshot=null;
   const QN332_CACHE_KEY='q_accounting_money_summary_v1';
@@ -7586,7 +7636,8 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   }
   // N148：帳務首頁四顆待辦共用中央來源。待收／付款不得只讀目前往來主檔，
   // 必須與收付款中心相同：主檔＋正式交易反查後統一歸戶，避免首頁數字與實際清單不一致。
-  function qAccountingMoneyContactCandidates(){
+  function qAccountingMoneyContactCandidates(...args){return qN215Measure('qAccountingMoneyContactCandidates',()=>qN215Original_qAccountingMoneyContactCandidates(...args));}
+  function qN215Original_qAccountingMoneyContactCandidates(){
     const out=[],seen=new Set();
     const push=c=>{
       if(!c)return;
@@ -7601,7 +7652,8 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     });
     return out;
   }
-  function qAccountingMoneyOpenContacts(direction){
+  function qAccountingMoneyOpenContacts(...args){return qN215Measure('qAccountingMoneyOpenContacts',()=>qN215Original_qAccountingMoneyOpenContacts(...args));}
+  function qN215Original_qAccountingMoneyOpenContacts(direction){
     return qN219WithCalc(()=>qAccountingMoneyContactCandidates().map(c=>({c,tot:qContactOpenTotals(c)})).map(x=>({c:x.c,due:direction==='payment'?x.tot.payable:x.tot.receivable})).filter(x=>x.due>0.000001));
   }
   function qPaintWorkBadges(){
@@ -7681,7 +7733,8 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   // N39：應收／應付核心。原銷貨／進貨交易是債權債務來源；真正收款／付款另存 money_settlement，透過 allocations 沖銷原交易。
   // 不複製帳本、不改寫原交易金額；部分收付與多種付款方式都保留稽核軌跡。
   function qMoneySettlements(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode==='money_settlement'&&r.status!=='void')}
-  function qMoneyActivityRecords(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(r.mode==='money_settlement'||r.mode==='money_refund')&&r.status!=='void')}
+  function qMoneyActivityRecords(...args){return qN215Measure('qMoneyActivityRecords',()=>qN215Original_qMoneyActivityRecords(...args));}
+  function qN215Original_qMoneyActivityRecords(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(r.mode==='money_settlement'||r.mode==='money_refund')&&r.status!=='void')}
   function qSettlementAllocated(recordId){const id=String(recordId||'');return qMoneySettlements().reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0)}
   function qRecordOutstanding(r){const c=qContact(r?.contactId||r?.customer||'');return qAccountingOutstanding(r,c)}
   function qOpenMoneyRows(c,direction){
@@ -7734,7 +7787,8 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     });
     return qMoney(net);
   }
-  function qContactOpenTotals(c){
+  function qContactOpenTotals(...args){return qN215Measure('qContactOpenTotals',()=>qN215Original_qContactOpenTotals(...args));}
+  function qN215Original_qContactOpenTotals(c){
     if(qStoredValueEnabled(c)){
       const net=qStoredValueAccountNet(c);
       return {receivable:Math.max(0,net),payable:0,net};
@@ -7945,7 +7999,8 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const lines=members.map((r,i)=>{const names=(r?.items||[]).map(v=>v?.name).filter(Boolean).join('、')||'—';return '<div class="qN383TxnLine"><b>'+(i+1)+'. '+qEsc(r?.date||'')+'｜'+qEsc(r?.txnTypeLabel||'交易')+'｜'+qLedgerMoney(qRecordTotal(r))+'</b><div class="qN383TxnItems">'+qEsc(names)+'</div></div>'}).join('');
     return '<details class="qN383TxnDetails"><summary>'+qEsc(x?.record?.txnTypeLabel||'交易')+'｜帳期 '+qEsc(qN292PeriodMeta(qContact(x?.record?.contactId||x?.record?.customer||''),x?.record).label)+'｜共 '+(x?.originalRecordCount||members.length||1)+' 筆｜'+qN295OpenItemCount(x)+' 項</summary><div class="qN383TxnInner">'+(lines||'<div class="empty">沒有原交易明細</div>')+'</div></details>';
   }
-  function qRenderMoneyCenter(work,preset='',directionPreset=''){
+  function qRenderMoneyCenter(...args){return qN215Measure('qRenderMoneyCenter',()=>qN215Original_qRenderMoneyCenter(...args));}
+  function qN215Original_qRenderMoneyCenter(work,preset='',directionPreset=''){
     const ps=qProfiles(),opts=ps.flatMap(x=>['<option value="'+qEsc(x.name)+'">'+qEsc(x.name)+'</option>',x.code?'<option value="'+qEsc(x.code)+'">'+qEsc(x.name)+'</option>':'',(x.vehicles||[]).map(v=>'<option value="'+qEsc(v.plate)+'">'+qEsc(x.name)+'</option>').join('')]).join('');
     const centerTitle=directionPreset==='payment'?'💸 付款':directionPreset==='receipt'?'💰 收款':'💰 收款／付款';
     const centerHelp=directionPreset==='payment'?'只處理實際付出的款項；從應付未結清交易進行沖帳。':directionPreset==='receipt'?'只處理實際收到的款項；從應收未結清交易進行沖帳。':'銷貨形成應收、進貨形成應付；實際收到／付出的錢在這裡沖帳。';
@@ -8862,7 +8917,8 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
     work.querySelectorAll('[data-farmer-pay]').forEach(b=>b.onclick=()=>qRenderMoneyCenter(work,b.dataset.farmerPay,'payment'));
   }
 
-  function qRenderMoneyHistory(work){
+  function qRenderMoneyHistory(...args){return qN215Measure('qRenderMoneyHistory',()=>qN215Original_qRenderMoneyHistory(...args));}
+  function qN215Original_qRenderMoneyHistory(work){
     const state=qAcctDateState();
     const source=(typeof acctRecords==='function'?acctRecords():[]);
     const rows=source.filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&qAcctRecordInDateRange(r,state))
@@ -9535,7 +9591,8 @@ K白.kg
     return ''; // 儲值／司機代收／其他：沒有足夠資料時禁止猜公司帳戶或現金
   }
   function qFundAccountLabel(a){return a==='company_bank'?'公司帳戶':a==='company_cash'?'公司現金':a==='checks_received'?'收到的支票':'待確認資金帳戶'}
-  function qFundRows(){
+  function qFundRows(...args){return qN215Measure('qFundRows',()=>qN215Original_qFundRows(...args));}
+  function qN215Original_qFundRows(){
     const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.status!=='deleted');
     const out=[];
     all.forEach(r=>{
