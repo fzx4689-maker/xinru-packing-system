@@ -7674,7 +7674,36 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const negativePeriods=[...byPeriod.values()].filter(v=>v<-0.000001).reduce((a,v)=>a+v,0);
     return Math.max(0,base+negativePeriods);
   }
-  function qContactOpenTotals(c){const recv=qN321SignedDirectionBalance(c,'receipt'),pay=qN321SignedDirectionBalance(c,'payment');return {receivable:recv,payable:pay,net:recv-pay}}
+  // 儲值客戶：應收總覽以實際銷貨／入金的淨額計算；不將尚未 allocation 的真實入金再算作欠款。
+  // 不修改任何交易或分配紀錄，保留原始明細供核帳。其他客戶仍使用既有 N321 核心。
+  function qStoredValueAccountNet(c){
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c));
+    let net=0;
+    rows.forEach(r=>{
+      if(r.mode==='money_settlement'){
+        if(r.txnType==='receipt')net-=qMoney(r.amount??r.total);
+        else if(r.txnType==='payment')net+=qMoney(r.amount??r.total);
+      }else if(r.mode==='money_refund'){
+        if(r.accountDirection==='refund_customer')net+=qMoney(r.amount??r.total);
+        else if(r.accountDirection==='refund_from_supplier')net-=qMoney(r.amount??r.total);
+      }else if(qAccountingIsAdjustment(r)){
+        const src=rows.find(x=>String(x.id||'')===String(r.sourceRecordId||''));
+        if(src&&(src.txnType==='sale'||src.accountDirection==='receivable'||src.txnTypeLabel==='銷貨'))net-=qMoney(r.amount??r.total);
+        else if(src&&(src.txnType==='purchase'||src.accountDirection==='payable'||src.txnTypeLabel==='進貨'))net+=qMoney(r.amount??r.total);
+      }else if(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨')net+=qN124ProjectedTotal(r,c);
+      else if(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨')net-=qN124ProjectedTotal(r,c);
+      else if(r.txnType==='deposit')net-=qMoney(r.deposit??r.amount??r.total);
+    });
+    return qMoney(net);
+  }
+  function qContactOpenTotals(c){
+    if(qStoredValueEnabled(c)){
+      const net=qStoredValueAccountNet(c);
+      return {receivable:Math.max(0,net),payable:0,net};
+    }
+    const recv=qN321SignedDirectionBalance(c,'receipt'),pay=qN321SignedDirectionBalance(c,'payment');
+    return {receivable:recv,payable:pay,net:recv-pay};
+  }
   function qContactCreditTotals(c){
     const source=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund');
     let receivableCredit=0,payableCredit=0;
