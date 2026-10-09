@@ -9372,7 +9372,34 @@ K白.kg
         const c=g.contact,mode=qN267ReceiptMode(c),cycle=qN267ReceiptCycle(c),sid=qN268StatusId(g),done=!!data.status.get(sid)?.processed;
         const config=classifiedConfigs.get(qN481Contact(c)),lines=classifiedLines.get(g.key)||new Map(),agg=new Map(),unknown=[];
         let total=0,excludedTotal=0,goodsTotal=0;
-        const details=mode==='classified'?g.records.map(r=>'<div style="margin:9px 0;border:1px solid #ddd;padding:8px;border-radius:8px"><b>'+qEsc(r.date||'')+'｜車趟 '+qEsc(qN481Record(r))+'</b><table class="table"><thead><tr><th>商品</th><th>數量</th><th>貨款</th><th>農收分類</th></tr></thead><tbody>'+(r.items||[]).map((item,i)=>{const x=qN481Resolved(c,r,i,config,lines),amount=qN265GoodsAmount(item);goodsTotal+=amount;if(x.excluded)excludedTotal+=amount;else if(x.category_id&&!x.conflict){const name=x.historical?x.category_name:config.cats.find(z=>z.id===x.category_id)?.name;if(name){agg.set(name,(agg.get(name)||0)+(x.historical?Number(x.amount):amount));total+=(x.historical?Number(x.amount):amount)}else unknown.push({name:item.name,amount})}else unknown.push({name:item.name,amount});const val=x.excluded?'__exclude__':x.category_id||'';return '<tr><td>'+qEsc(item.name||'')+(x.conflict?' ⚠️ 原明細已修改':'')+'</td><td>'+qEsc(item.qty??'')+'</td><td>'+qN265Money(amount)+'</td><td><select class="input" data-n481-line="'+qEsc(qN481Record(r))+':'+i+'" '+(done?'disabled':'')+'><option value="">待分類</option>'+config.cats.map(z=>'<option value="'+qEsc(z.id)+'" '+(z.id===val?'selected':'')+'>'+qEsc(z.name)+'</option>').join('')+'<option value="__exclude__" '+(val==='__exclude__'?'selected':'')+'>不開農收</option></select></td></tr>'}).join('')+'</tbody></table></div>').join(''):'';
+        const seven=['水菜','生菜','根莖','地瓜','花果','辛香料','菇類'];
+        const details=mode==='classified'?g.records.map(r=>{
+          const tripAgg=new Map(seven.map(n=>[n,0]));
+          let tripGoods=0,tripExcluded=0,tripUnknown=0,tripClassified=0;
+          const itemRows=(r.items||[]).map((item,i)=>{
+            const x=qN481Resolved(c,r,i,config,lines),amount=qN265GoodsAmount(item);
+            goodsTotal+=amount;tripGoods+=amount;
+            if(x.excluded){excludedTotal+=amount;tripExcluded+=amount}
+            else if(x.category_id&&!x.conflict){
+              const name=x.historical?x.category_name:config.cats.find(z=>z.id===x.category_id)?.name;
+              if(name){
+                const classifiedAmount=x.historical?Number(x.amount):amount;
+                agg.set(name,(agg.get(name)||0)+classifiedAmount);
+                tripAgg.set(name,(tripAgg.get(name)||0)+classifiedAmount);
+                total+=classifiedAmount;tripClassified+=classifiedAmount;
+              }else{unknown.push({name:item.name,amount});tripUnknown+=amount}
+            }else{unknown.push({name:item.name,amount});tripUnknown+=amount}
+            const val=x.excluded?'__exclude__':x.category_id||'';
+            return '<tr><td>'+qEsc(item.name||'')+(x.conflict?' ⚠️ 原明細已修改':'')+'</td><td>'+qEsc(item.qty??'')+'</td><td>'+qN265Money(amount)+'</td><td><select class="input" data-n481-line="'+qEsc(qN481Record(r))+':'+i+'" '+(done?'disabled':'')+'><option value="">待分類</option>'+config.cats.map(z=>'<option value="'+qEsc(z.id)+'" '+(z.id===val?'selected':'')+'>'+qEsc(z.name)+'</option>').join('')+'<option value="__exclude__" '+(val==='__exclude__'?'selected':'')+'>不開農收</option></select></td></tr>';
+          }).join('');
+          const orderedNames=[...seven,...[...tripAgg.keys()].filter(n=>!seven.includes(n))];
+          const subtotalRows=orderedNames.map(name=>'<tr><td>'+qEsc(name)+'</td><td style="text-align:right">'+qN265Money(tripAgg.get(name)||0)+'</td></tr>').join('');
+          const reconcile=tripGoods-(tripClassified+tripUnknown+tripExcluded);
+          return '<div style="margin:9px 0;border:1px solid #ddd;padding:8px;border-radius:8px"><b>'+qEsc(r.date||'')+'｜車趟 '+qEsc(qN481Record(r))+'</b><table class="table"><thead><tr><th>商品</th><th>數量</th><th>貨款</th><th>農收分類</th></tr></thead><tbody>'+itemRows+'</tbody></table>'+
+            '<div style="margin-top:10px;border:1px solid #dfe4ea;border-radius:10px;padding:10px;background:#f8fafc"><b>本趟七類農收金額</b><table class="table"><thead><tr><th>分類</th><th style="text-align:right">金額</th></tr></thead><tbody>'+subtotalRows+
+            '<tr><td>未分類／需核對</td><td style="text-align:right">'+qN265Money(tripUnknown)+'</td></tr><tr><td>不開農收</td><td style="text-align:right">'+qN265Money(tripExcluded)+'</td></tr><tr><th>本趟農收合計（已分類）</th><th style="text-align:right">'+qN265Money(tripClassified)+'</th></tr></tbody></table>'+
+            '<div style="text-align:right">本趟商品貨款 '+qN265Money(tripGoods)+'｜核對 '+(Math.abs(reconcile)<0.01?'✓ 金額相符':'⚠️ 差額 '+qN265Money(reconcile))+'</div></div></div>';
+        }).join(''):'';
         const rows=[...agg.entries()].map(([k,v])=>'<tr><td>'+qEsc(k)+'</td><td style="text-align:right">'+qN265Money(v)+'</td></tr>').join('');
         const un=unknown.map(u=>'<div>'+qEsc(u.name)+'：'+qN265Money(u.amount)+'</div>').join('');
         const label=qN268PeriodLabel(c,g.records[0]),status=done?'✓ 已處理':(mode==='classified'?(unknown.length?'🔴 '+unknown.length+' 項待分類':'🟢 分類完成'):'🟡 一般農收待處理');
