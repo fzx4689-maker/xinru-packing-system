@@ -6727,7 +6727,7 @@ let qN217IdentityCache = new WeakMap();
     }).filter(x=>x.type&&x.action&&x.qty>0);
   }
   function qQuickTurnoverMoney(work){const rows=qQuickTurnoverRows(work);return {unitPrice:0,amount:rows.reduce((a,x)=>a+(Number(x.amount)||0),0)}}
-  function qAmountSummary(r){if(!r)return {goods:0,freight:0,turnover:0,total:0,pending:false};if(r.mode==='money_settlement')return {goods:Number(r.total)||0,freight:0,turnover:0,total:Number(r.total)||0,pending:false};const items=Array.isArray(r.items)?r.items:[];let goods=0,freight=0,pending=false;items.forEach(it=>{const f=Number(it?.freight)||0;freight+=f;if(qItemPricePending(it)||it?.freightMode==='pending'||(qItemChargesGoods(it)&&it?.amount===''))pending=true;const a=Number(it?.amount);if(Number.isFinite(a))goods+=Math.max(0,a-f)});if(r?.freightMode==='truck')freight=Number(r.freightTotal??r.freight)||0;const tm=qRecordTurnoverMoney(r),turnover=Number(tm.amount)||0;
+  function qAmountSummary(r){if(!r)return {goods:0,freight:0,turnover:0,total:0,pending:false};if(r.mode==='money_settlement')return {goods:Number(r.total)||0,freight:0,turnover:0,total:Number(r.total)||0,pending:false};const items=Array.isArray(r.items)?r.items:[];let goods=0,freight=0,pending=false;items.forEach(it=>{const f=Number(it?.freight)||0;freight+=f;if(qItemPricePending(it)||it?.freightMode==='pending'||(qItemChargesGoods(it)&&it?.amount===''))pending=true;const a=Number(it?.amount);if(Number.isFinite(a))goods+=(a-f)});if(r?.freightMode==='truck')freight=Number(r.freightTotal??r.freight)||0;const tm=qRecordTurnoverMoney(r),turnover=Number(tm.amount)||0;
     // N322 唯一帳款公式：容器金額不是獨立帳；正負容器款都直接進正式應收／應付。
     const total=goods+freight+turnover;
     return {goods,freight,turnover,total,pending}}
@@ -6759,11 +6759,11 @@ let qN217IdentityCache = new WeakMap();
   function qAccountingBaseTotal(r,c){
     if(!r||qAccountingIsAdjustment(r)||r.mode==='money_refund')return 0;
     if(r.mode==='money_settlement')return qMoney(r.amount??r.total);
-    return Math.max(0,qN124ProjectedTotal(r,c));
+    return qN124ProjectedTotal(r,c);
   }
   function qAccountingEffectiveTotal(r,c,cutoff=''){
     if(!r||qAccountingIsAdjustment(r)||r.mode==='money_settlement'||r.mode==='money_refund')return 0;
-    return Math.max(0,qAccountingBaseTotal(r,c)-qAccountingAdjustmentTotal(r.id,cutoff));
+    return qAccountingBaseTotal(r,c)-qAccountingAdjustmentTotal(r.id,cutoff);
   }
   function qAccountingPaidTotal(r,cutoff=''){
     if(!r)return 0;
@@ -7100,11 +7100,11 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const members=(activities||[]).filter(Boolean),ids=new Set(members.map(r=>String(r.id||'')));
     const rawOriginalAmount=members.reduce((n,r)=>n+qMoney(qRecordTotal(r)),0);
     const periodFee=(direction==='receipt'&&members.length)?qBillingPeriodFeeAmount(c):0;
-    const originalAmount=qMoney(Math.max(0,rawOriginalAmount-periodFee));
+    const originalAmount=qMoney(rawOriginalAmount-periodFee);
     const storedValue=qN298StoredValuePeriodSummary(c,period);
     if(storedValue)storedValue.inflowDetails=qN305StoredValueInflowDetails(c,{from:period?.start||'',to:period?.end||''});
     const settlements=qMoneySettlements().filter(x=>qRecordBelongsToContact(x,c)&&((direction==='receipt'&&x.txnType==='receipt')||(direction==='payment'&&x.txnType==='payment'))).map(x=>{const amount=(Array.isArray(x.allocations)?x.allocations:[]).filter(a=>ids.has(String(a?.recordId||''))).reduce((n,a)=>n+qMoney(a?.amount),0);return {record:x,amount}}).filter(x=>x.amount>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
-    const paid=Math.min(originalAmount,settlements.reduce((n,x)=>n+x.amount,0)),outstanding=Math.max(0,originalAmount-paid),lastPaymentDate=settlements.length?String(settlements[settlements.length-1].record.date||''):'',settled=originalAmount>0&&outstanding<=0.000001;
+    const paid=qMoney(settlements.reduce((n,x)=>n+x.amount,0)),outstanding=qMoney(originalAmount-paid),lastPaymentDate=settlements.length?String(settlements[settlements.length-1].record.date||''):'',settled=originalAmount>0&&outstanding<=0.000001;
     const allFormal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,direction));
     const prior=storedValue?[]:allFormal.filter(r=>{const p=qN292PeriodMeta(c,r);return p?.ok&&String(p.key)!==String(period?.key||'')&&String(p.end||r.date||'')<String(period?.start||'')});
     const priorOutstanding=storedValue?0:prior.reduce((n,r)=>n+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
@@ -7770,7 +7770,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const byPeriod=new Map();
     source.forEach(r=>{const signed=qN124ProjectedTotal(r,c)-qAccountingAdjustmentTotal(r.id)-qAccountingPaidTotal(r),p=qN292PeriodMeta(c,r),key=p.key||String(r.id||'');byPeriod.set(key,(byPeriod.get(key)||0)+qMoney(signed))});
     const negativePeriods=[...byPeriod.values()].filter(v=>v<-0.000001).reduce((a,v)=>a+v,0);
-    return Math.max(0,base+negativePeriods);
+    return qMoney(base+negativePeriods);
   }
   // 儲值客戶：應收總覽以實際銷貨／入金的淨額計算；不將尚未 allocation 的真實入金再算作欠款。
   // 不修改任何交易或分配紀錄，保留原始明細供核帳。其他客戶仍使用既有 N321 核心。
