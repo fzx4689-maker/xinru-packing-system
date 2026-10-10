@@ -8465,6 +8465,29 @@ function qLedgerForContact(c,includeVoid=false){return qN219WithCalc(()=>{
   if(!document.getElementById(qPendingResponsiveStyleId)){const st=document.createElement('style');st.id=qPendingResponsiveStyleId;st.textContent=`
   .qPendingRecord{border-top:1px solid #e5e7eb;padding:5px 7px}.qPendingRecordHead{display:flex;align-items:center;gap:6px;margin-bottom:3px}.qPendingRecordHead .helper{display:inline!important;margin:0}.qPendingRows{display:flex;flex-direction:column}.qPendingRow{display:grid;grid-template-columns:30px minmax(135px,1.5fr) 64px 58px 105px 88px 145px auto auto;gap:6px;align-items:center;font-size:14px;padding:4px 0;border-top:1px solid #eef2f6}.qPendingRow:first-child{border-top:0}.qPendingRow small{display:none}.qPendingPrice,.qPendingDate{min-height:32px;padding:3px 6px}.qPendingDate{width:145px}.qPendingDraft,.qPendingSave{min-height:32px;padding:4px 8px;white-space:nowrap}.qPendingDraftMeta{display:block!important;font-size:11px}.qPendingKg,.qPendingQty{text-align:center}
   @media(max-width:760px){.qPendingRecord{padding:7px}.qPendingRecordHead{margin-bottom:5px}.qPendingRow{grid-template-columns:1fr 1fr;gap:7px 8px;padding:10px 4px}.qPendingNo{display:none}.qPendingName{grid-column:1/-1;font-size:17px}.qPendingKg,.qPendingQty{text-align:left}.qPendingKg small,.qPendingQty small,.qPendingPriceBox small,.qPendingDateBox small{display:block;color:#64748b;font-size:11px;font-weight:700;margin-bottom:2px}.qPendingPriceBox,.qPendingDateBox{min-width:0}.qPendingPrice,.qPendingDate{width:100%;max-width:none;box-sizing:border-box}.qPendingAmount{align-self:end;padding-bottom:7px;text-align:right}.qPendingDraft,.qPendingSave{width:100%} }
+
+  /* Mobile pending-price compact layout; presentation only, no accounting logic changes. */
+  @media(max-width:760px){
+    .qPendingRecord{padding:4px 8px}
+    .qPendingRecordHead{padding:3px 0;margin-bottom:2px;font-size:12px}
+    .qPendingRecordHead .helper{font-size:11px}
+    .qPendingRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(92px,112px) 70px;column-gap:6px;row-gap:3px;padding:7px 0;align-items:center}
+    .qPendingNo{display:none}
+    .qPendingName{grid-column:1;grid-row:1;font-size:15px;min-width:0;overflow-wrap:anywhere}
+    .qPendingKg{grid-column:1;grid-row:2;display:inline;font-size:12px;text-align:left;color:#64748b}
+    .qPendingQty{grid-column:1;grid-row:3;display:inline;font-size:12px;text-align:left;color:#64748b}
+    .qPendingKg small,.qPendingQty small{display:inline!important;margin:0 4px 0 0;font-size:11px}
+    .qPendingPriceBox{grid-column:2;grid-row:1 / span 2;min-width:0}
+    .qPendingPriceBox small{display:none!important}
+    .qPendingPrice{min-height:38px;font-size:16px;width:100%}
+    .qPendingSave{grid-column:3;grid-row:1 / span 2;width:100%;min-height:38px;padding:5px 2px;font-size:13px}
+    .qPendingAmount{grid-column:2;grid-row:3;text-align:right;padding:0;font-size:12px}
+    .qPendingDateBox{grid-column:1 / span 2;grid-row:4;display:flex;align-items:center;gap:6px;min-width:0}
+    .qPendingDateBox small{display:inline!important;white-space:nowrap;margin:0;font-size:11px}
+    .qPendingDate{width:100%;min-width:0;min-height:30px;font-size:12px}
+    .qPendingDraft{grid-column:3;grid-row:4;width:100%;min-height:30px;padding:3px 2px;font-size:12px}
+    .qPendingDraftMeta{font-size:10px;line-height:1.2}
+  }
   `;document.head.appendChild(st)}
   function renderPendingPrices(work,scope='all'){
     const rows=qQueueRows('pending_price').filter(r=>{const id=qRecordPartyIdentity(r),txn=String(r?.txnType||'').toLowerCase(),label=String(r?.txnTypeLabel||''),dir=String(r?.accountDirection||'').toLowerCase(),isPurchase=(txn==='purchase'||dir==='payable'||/進貨/.test(label));if(scope==='farmer')return id==='產農'&&isPurchase;if(scope==='vendor')return id==='廠商'&&isPurchase;return true});
