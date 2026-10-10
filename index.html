@@ -9553,8 +9553,21 @@ K白.kg
         const key=el.dataset.n481Line,sep=key.lastIndexOf(':'),rid=key.slice(0,sep),idx=Number(key.slice(sep+1));
         const trip=trips.find(x=>qN481Record(x.record)===rid);if(!trip)throw Error('找不到原始車趟');
         const val=el.value,remember=!!val&&confirm('要記住「'+trip.record.items[idx].name+'」的分類，讓這位客戶以後自動帶入嗎？\n按「取消」只修改這一趟。');
+        const tripBox=body.querySelector('#qN265Trips');
+        const openGroups=[...tripBox.querySelectorAll(':scope > details')].map((d,i)=>({i,open:d.open}));
+        const savedScrollY=window.scrollY;
+        const savedMonth=body.querySelector('#qN265Month')?.value;
+        const savedState=body.querySelector('#qN265State')?.value;
         await qN481SaveLine(trip.contact,trip.record,idx,val,val==='__exclude__',remember);
-        qN265Render(work,'整理');
+        // N483: 在原農收整理畫面更新，不重新進入首頁；保留月份、篩選、展開客戶及捲動位置。
+        const group=qN268GroupTrips(trips).find(g=>g.records.some(r=>qN481Record(r)===rid));
+        if(group)classifiedLines.set(group.key,await qN481LoadLines(group));
+        if(remember)classifiedConfigs.set(qN481Contact(trip.contact),await qN481LoadFor(trip.contact));
+        if(savedMonth)body.querySelector('#qN265Month').value=savedMonth;
+        if(savedState)body.querySelector('#qN265State').value=savedState;
+        paintTrips();
+        [...tripBox.querySelectorAll(':scope > details')].forEach((d,i)=>{if(openGroups[i])d.open=openGroups[i].open});
+        window.scrollTo(0,savedScrollY);
       }catch(e){alert('分類儲存失敗：'+e.message)}});
       body.querySelectorAll('[data-fr-done]').forEach(b=>b.onclick=async()=>{try{const g=qN268GroupTrips(trips).find(x=>qN268StatusId(x)===b.dataset.frDone);if(g&&qN267ReceiptMode(g.contact)==='classified')await qN481ConfirmGroup(g,b.dataset.frDone);else await qN265SetProcessed(b.dataset.frDone,true);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});
       body.querySelectorAll('[data-fr-undone]').forEach(b=>b.onclick=async()=>{try{await qN265SetProcessed(b.dataset.frUndone,false);qN265Render(work,'整理')}catch(e){alert('儲存失敗：'+e.message)}});
