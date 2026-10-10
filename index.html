@@ -748,6 +748,34 @@ body.wall-focus #wall .progress{height:8px!important}
 .n481-folder:hover{background:#eef5ff;border-color:#9ab9e2}
 .n481-folder small{color:#64748b}
 @media(max-width:700px){.n481-folder-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* N485 農收分類：寬版資料夾、完整商品名稱、收合管理 */
+.n485-panel{border:1px solid #dbe3ec;border-radius:16px;background:#fff;padding:16px;min-width:0}
+.n485-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.n485-top>b,.n485-top b{font-size:19px}
+.n485-contact-label{display:flex;align-items:center;gap:9px;font-weight:700}
+.n485-contact-label select{min-width:160px;max-width:260px}
+.n485-search{display:flex;gap:8px;margin:15px 0 10px}
+.n485-search input{flex:1;min-width:0}
+#qN481RuleRows{display:block!important;width:100%;min-width:0}
+.n485-folder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 10px}
+.n485-crumb{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.n481-folder-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;width:100%}
+.n481-folder{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:12px!important;min-height:92px!important;min-width:0!important;width:100%!important;padding:15px!important;text-align:left!important;flex-wrap:wrap}
+.n481-folder b{font-size:17px;white-space:normal;overflow-wrap:normal;word-break:keep-all}
+.n481-folder small{margin-left:auto;white-space:nowrap;font-size:12px}
+.n485-folder-icon{font-size:29px;flex:none}
+#qN481RuleRows .n481-rule-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;width:100%}
+#qN481RuleRows .n481-rule-card{min-width:0!important;width:auto!important;display:flex!important;flex-direction:column!important;gap:10px!important;padding:14px!important}
+#qN481RuleRows .n481-rule-name{font-size:17px;line-height:1.5;word-break:normal!important;overflow-wrap:anywhere!important;white-space:normal!important}
+#qN481RuleRows .n481-rule-select{width:100%;min-width:0;max-width:100%}
+.n485-manage{margin-top:20px;border-top:1px solid #e2e8f0;padding-top:13px}
+.n485-manage summary{cursor:pointer;font-weight:700;padding:8px 0}
+.n485-add{display:flex;gap:8px;margin:12px 0}.n485-add input{flex:1;min-width:0}
+.n485-manage-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.n485-manage-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;min-width:0}
+.n485-manage-row>div{white-space:nowrap}
+@media(max-width:760px){.n485-panel{padding:10px}.n481-folder-grid,#qN481RuleRows .n481-rule-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.n481-folder{padding:10px!important;min-height:90px!important;gap:7px!important}.n481-folder small{width:100%;margin-left:0}.n485-manage-grid{grid-template-columns:1fr}.n485-contact-label{width:100%}.n485-contact-label select{flex:1}.n485-folder-icon{font-size:24px}}
 </style>
 
 
@@ -9498,9 +9526,9 @@ K白.kg
       let config;try{config=await qN481LoadFor(c)}catch(e){body.innerHTML='<div class="empty">客戶分類資料讀取失敗：'+qEsc(e.message)+'</div>';return}
       const names=[...new Set(trips.filter(x=>qN481Contact(x.contact)===selected).flatMap(x=>(x.record.items||[]).map(i=>String(i.name||'').trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
       const opts=(v='')=>'<option value="">待分類</option>'+config.cats.map(z=>'<option value="'+qEsc(z.id)+'" '+(z.id===v?'selected':'')+'>'+qEsc(z.name)+'</option>').join('')+'<option value="__exclude__" '+(v==='__exclude__'?'selected':'')+'>不開農收</option>';
-      body.innerHTML='<div style="padding:10px;border:1px solid #ddd;border-radius:12px"><b>客戶獨立分類</b> <select id="qN481Contact" class="input">'+contacts.map(x=>'<option value="'+qEsc(qN481Contact(x))+'" '+(qN481Contact(x)===selected?'selected':'')+'>'+qEsc(x.name)+'</option>').join('')+'</select><div class="helper">只修改此客戶的分類記憶，不影響其他客戶。</div><div style="margin:8px 0"><input id="qN481NewCat" class="input" placeholder="新增此客戶分類名稱"><button class="btn gray" id="qN481AddCat">新增分類</button></div>'+config.cats.map(z=>'<div style="padding:5px"><b>'+qEsc(z.name)+'</b> <button class="btn gray" data-n481-rename="'+qEsc(z.id)+'">改名</button> <button class="btn gray" data-n481-delete="'+qEsc(z.id)+'">刪除</button></div>').join('')+'</div><div style="margin-top:10px"><b>商品自動分類記憶</b><input id="qN481Search" class="input" placeholder="搜尋商品"><div id="qN481RuleRows" class="n481-rule-grid"></div></div>';
+      body.innerHTML='<section class="n485-panel"><div class="n485-top"><div><b>商品自動分類記憶</b><div class="helper">每位客戶獨立設定；點分類資料夾查看商品。</div></div><label class="n485-contact-label">目前客戶 <select id="qN481Contact" class="input">'+contacts.map(x=>'<option value="'+qEsc(qN481Contact(x))+'" '+(qN481Contact(x)===selected?'selected':'')+'>'+qEsc(x.name)+'</option>').join('')+'</select></label></div><div class="n485-search"><input id="qN481Search" class="input" placeholder="搜尋商品名稱（跨分類搜尋）"><button type="button" class="btn gray" id="qN485ClearSearch">清除</button></div><div id="qN481RuleRows"></div><details class="n485-manage"><summary>⚙️ 分類管理（新增、改名、刪除）</summary><div class="n485-add"><input id="qN481NewCat" class="input" placeholder="新增此客戶分類名稱"><button class="btn gray" id="qN481AddCat">新增分類</button></div><div class="n485-manage-grid">'+config.cats.map(z=>'<div class="n485-manage-row"><b>'+qEsc(z.name)+'</b><div><button class="btn gray" data-n481-rename="'+qEsc(z.id)+'">改名</button> <button class="btn gray" data-n481-delete="'+qEsc(z.id)+'">刪除</button></div></div>').join('')+'</div></details></section>';
       // N484: 分類資料夾 → 該分類商品。沿用客戶原有分類，不預設分類名稱。
-      let activeFolder='';
+      let activeFolder=null;
       const folderId=n=>{const x=config.rules.get(qN481Key(n));return x?.excluded?'__exclude__':(x?.category_id||'')};
       const folders=[...config.cats.map(z=>({id:z.id,name:z.name})),{id:'',name:'待分類'},{id:'__exclude__',name:'不開農收'}];
       const paint=()=>{
@@ -9508,17 +9536,15 @@ K白.kg
         const target=body.querySelector('#qN481RuleRows');
         const counts=new Map(folders.map(f=>[f.id,0]));
         names.forEach(n=>counts.set(folderId(n),(counts.get(folderId(n))||0)+1));
-        // 有搜尋文字時，在目前分類中搜尋；不自動展開全部商品。
-        if(activeFolder===null){
-          target.innerHTML='<div class="n481-folder-grid">'+folders.map(f=>'<button type="button" class="n481-folder" data-n481-folder="'+qEsc(f.id)+'"><span style="font-size:25px">📁</span><b>'+qEsc(f.name)+'</b><small>'+Number(counts.get(f.id)||0)+' 項商品</small></button>').join('')+'</div>';
+        if(activeFolder===null && !q){
+          target.innerHTML='<div class="n485-folder-head"><b>分類資料夾</b><span class="helper">'+names.length+' 項商品</span></div><div class="n481-folder-grid">'+folders.map(f=>'<button type="button" class="n481-folder" data-n481-folder="'+qEsc(f.id)+'"><span class="n485-folder-icon">📁</span><b>'+qEsc(f.name)+'</b><small>'+Number(counts.get(f.id)||0)+' 項商品</small></button>').join('')+'</div>';
           target.querySelectorAll('[data-n481-folder]').forEach(el=>el.onclick=()=>{activeFolder=el.dataset.n481Folder;paint()});
           return;
         }
         const folder=folders.find(f=>f.id===activeFolder);
-        if(!folder){activeFolder=null;paint();return}
-        const visible=names.filter(n=>folderId(n)===activeFolder&&(!q||n.includes(q)));
-        target.innerHTML='<div style="display:flex;align-items:center;gap:12px;margin:10px 0"><button type="button" class="btn gray" id="qN484Back">← 返回分類資料夾</button><b>📂 '+qEsc(folder.name)+'</b><span class="helper">'+visible.length+' 項商品</span></div><div class="n481-rule-grid">'+(visible.map(n=>{const v=folderId(n);return '<div class="n481-rule-card"><span class="n481-rule-name" title="'+qEsc(n)+'">'+qEsc(n)+'</span><select class="input n481-rule-select" data-n481-rule="'+qEsc(n)+'">'+opts(v)+'</select></div>'}).join('')||'<div class="empty">此分類目前沒有符合的商品</div>')+'</div>';
-        target.querySelector('#qN484Back').onclick=()=>{activeFolder=null;paint()};
+        const visible=names.filter(n=>(q ? n.includes(q) : folderId(n)===activeFolder));
+        target.innerHTML='<div class="n485-folder-head"><div class="n485-crumb">'+(q?'<b>搜尋結果</b>':'<button type="button" class="btn gray" id="qN484Back">← 返回分類資料夾</button><b>📂 '+qEsc(folder?.name||'')+'</b>')+'</div><span class="helper">'+visible.length+' 項商品</span></div><div class="n481-rule-grid">'+(visible.map(n=>{const v=folderId(n);return '<div class="n481-rule-card"><span class="n481-rule-name" title="'+qEsc(n)+'">'+qEsc(n)+'</span><select class="input n481-rule-select" data-n481-rule="'+qEsc(n)+'">'+opts(v)+'</select></div>'}).join('')||'<div class="empty">此分類目前沒有符合的商品</div>')+'</div>';
+        const back=target.querySelector('#qN484Back');if(back)back.onclick=()=>{activeFolder=null;paint()};
         target.querySelectorAll('[data-n481-rule]').forEach(el=>el.onchange=async()=>{
           const product=el.dataset.n481Rule, old=folderId(product), next=el.value;
           try{
@@ -9530,7 +9556,7 @@ K白.kg
         });
       };
       activeFolder=null;
-      paint();body.querySelector('#qN481Search').oninput=paint;
+      paint();body.querySelector('#qN481Search').oninput=paint;body.querySelector('#qN485ClearSearch').onclick=()=>{body.querySelector('#qN481Search').value='';activeFolder=null;paint()};
       body.querySelector('#qN481Contact').onchange=e=>{window.qN481SelectedContact=e.target.value;qN265Render(work,'分類')};
       body.querySelector('#qN481AddCat').onclick=async()=>{const name=body.querySelector('#qN481NewCat').value.trim();if(!name)return;const {error}=await sb.from('farmer_receipt_customer_categories_v481').insert({contact_id:selected,name,sort_order:(config.cats.length+1)*10});if(error)alert(error.message);else qN265Render(work,'分類')};
       body.querySelectorAll('[data-n481-rename]').forEach(b=>b.onclick=async()=>{const z=config.cats.find(x=>x.id===b.dataset.n481Rename),name=prompt('修改分類名稱',z?.name||'')?.trim();if(!name||name===z.name)return;const {error}=await sb.from('farmer_receipt_customer_categories_v481').update({name}).eq('id',z.id).eq('contact_id',selected);if(error)alert(error.message);else qN265Render(work,'分類')});
