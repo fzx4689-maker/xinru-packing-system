@@ -7098,9 +7098,13 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   }
   function qN297BillingPeriodSummary(c,direction,period,activities){
     const members=(activities||[]).filter(Boolean),ids=new Set(members.map(r=>String(r.id||'')));
-    const rawOriginalAmount=members.reduce((n,r)=>n+qMoney(qRecordTotal(r)),0);
+    // 退貨／扣款／折讓是原交易的調整事件，不另建立進貨或付款。
+    const memberIds=new Set(members.map(r=>String(r.id||'')));
+    const adjustments=qN96FormalRecords(c).filter(r=>r&&qAccountingIsAdjustment(r)&&r.status!=='void'&&r.status!=='draft'&&memberIds.has(String(r.sourceRecordId||''))&&qN225ActivityDirectionMatch(r,direction));
+    const adjustmentAmount=adjustments.reduce((n,r)=>n+Math.abs(qMoney(r.amount??r.total)),0);
+    const rawOriginalAmount=members.reduce((n,r)=>n+qMoney(qRecordTotal(r)),0)-adjustmentAmount;
     const periodFee=(direction==='receipt'&&members.length)?qBillingPeriodFeeAmount(c):0;
-    const originalAmount=qMoney(Math.max(0,rawOriginalAmount-periodFee));
+    const originalAmount=qMoney(rawOriginalAmount-periodFee);
     const storedValue=qN298StoredValuePeriodSummary(c,period);
     if(storedValue)storedValue.inflowDetails=qN305StoredValueInflowDetails(c,{from:period?.start||'',to:period?.end||''});
     const settlements=qMoneySettlements().filter(x=>qRecordBelongsToContact(x,c)&&((direction==='receipt'&&x.txnType==='receipt')||(direction==='payment'&&x.txnType==='payment'))).map(x=>{const amount=(Array.isArray(x.allocations)?x.allocations:[]).filter(a=>ids.has(String(a?.recordId||''))).reduce((n,a)=>n+qMoney(a?.amount),0);return {record:x,amount}}).filter(x=>x.amount>0.000001).sort((a,b)=>String(a.record.date||'').localeCompare(String(b.record.date||''))||String(a.record.createdAt||'').localeCompare(String(b.record.createdAt||'')));
@@ -7153,6 +7157,10 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     }).sort(qN96Cmp);
     if(!activities.length)return null;
     let rows=[];activities.forEach(r=>rows.push(...qN222RowsFromActivity(r,c)));
+    // 帳期明細與帳期金額共用同一組關聯調整事件；退貨必須顯示在四種輸出中。
+    const activityIds=new Set(activities.map(r=>String(r.id||'')));
+    const periodAdjustments=formal.filter(r=>qAccountingIsAdjustment(r)&&activityIds.has(String(r.sourceRecordId||''))&&qN225ActivityDirectionMatch(r,direction));
+    periodAdjustments.forEach(r=>rows.push(...qN222RowsFromAdjustment(r,c)));
     if(qStoredValueEnabled(c))rows.push(...qN306StoredValueDetailRows(c,{from:selected.start||record.date||'',to:selected.end||record.date||''}));
     else rows.push(...qN307PeriodSettlementRows(c,direction,selected,activities));
     rows.push(...qBillingPeriodFeeRows(c,direction,activities));
