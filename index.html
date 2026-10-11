@@ -9321,11 +9321,23 @@ K白.kg
     if(!i)return 0;
     const st=String(i.itemStatus||'').trim();
     if(['未送','缺貨','取消'].includes(st))return 0;
-    if(i.goodsAmount!==undefined&&i.goodsAmount!=='')return Number(i.goodsAmount)||0;
-    const a=i.amount===''?0:(Number(i.amount)||0),f=Number(i.freight)||0;
-    return Math.max(0,a-f);
+    // 農收貨款只讀正式銷售端資料；代購成本不可作為農收金額。
+    // 代購優先用銷售單價及正式計價方式重算，其他商品沿用帳務共用核心。
+    const source=String(i.source||'').trim();
+    const price=Number(i.price);
+    if(source.includes('代購')&&i.price!==''&&i.price!=null&&Number.isFinite(price)){
+      return Math.round(qN119ItemGoodsFromStored(i,price));
+    }
+    if(typeof qN323StoredItemAmount==='function'){
+      const amount=Number(qN323StoredItemAmount(i));
+      if(Number.isFinite(amount)&&i.amount!=='')return amount-(Number(i.freight)||0);
+    }
+    if(i.goodsAmount!==undefined&&i.goodsAmount!==''&&i.goodsAmount!==null)return Number(i.goodsAmount)||0;
+    const a=Number(i.amount)||0,f=Number(i.freight)||0;
+    return a-f; // 保留負單價，不得以 Math.max(0,...) 截斷
   };
-  const qN265NeedContacts=()=>qProfiles().filter(c=>c&&c.farmerReceipt===true&&c.active!==false);
+  const qN265MoneyDiff=(a,b)=>Math.abs((Number(a)||0)-(Number(b)||0))>0.01;
+    const qN265NeedContacts=()=>qProfiles().filter(c=>c&&c.farmerReceipt===true&&c.active!==false);
   const qN265RecordBelongs=(r,c)=>{const rid=String(r?.contactId||'').trim(),cid=String(c?.id||'').trim();return rid&&cid?rid===cid:(!rid&&String(r?.customer||'').trim()===String(c?.name||'').trim()&&qN265NeedContacts().filter(x=>String(x.name||'').trim()===String(c?.name||'').trim()).length===1)};
   const qN265Trips=()=>{
     const cs=qN265NeedContacts(),rs=(typeof acctRecords==='function'?acctRecords():[]);
@@ -9572,7 +9584,7 @@ K白.kg
         const seven=['水菜','生菜','根莖','地瓜','花果','辛香料','菇類'];
         const details=mode==='classified'?g.records.map(r=>{
           const tripAgg=new Map(seven.map(n=>[n,0]));
-          let tripGoods=0,tripExcluded=0,tripUnknown=0,tripClassified=0;
+          let tripGoods=0,tripExcluded=0,tripUnknown=0,tripClassified=0;const tripDifferences=[];
           const itemRows=(r.items||[]).map((item,i)=>{
             const x=qN481Resolved(c,r,i,config,lines),amount=qN265GoodsAmount(item);
             goodsTotal+=amount;tripGoods+=amount;
@@ -9580,7 +9592,11 @@ K白.kg
             else if(x.category_id&&!x.conflict){
               const name=x.historical?x.category_name:config.cats.find(z=>z.id===x.category_id)?.name;
               if(name){
-                const classifiedAmount=x.historical?Number(x.amount):amount;
+                // 已處理歷史金額不覆寫雲端；畫面加總依當前正式帳本逐項計算。
+                const classifiedAmount=amount;
+                if(x.historical&&qN265MoneyDiff(x.amount,amount)){
+                  tripDifferences.push({name:item.name,old:Number(x.amount)||0,current:amount});
+                }
                 agg.set(name,(agg.get(name)||0)+classifiedAmount);
                 tripAgg.set(name,(tripAgg.get(name)||0)+classifiedAmount);
                 total+=classifiedAmount;tripClassified+=classifiedAmount;
@@ -9595,7 +9611,7 @@ K白.kg
           return (done?'<details style="margin:7px 0;border:1px solid #dfe4ea;border-radius:9px;padding:8px"><summary style="cursor:pointer;font-weight:700">'+qEsc(r.date||'')+'｜車趟 '+qEsc(qN481Record(r))+'｜'+(r.items||[]).length+' 項｜貨款 '+qN265Money(tripGoods)+'</summary><div style="margin-top:8px">':'<div style="margin:9px 0;border:1px solid #ddd;padding:8px;border-radius:8px"><b>'+qEsc(r.date||'')+'｜車趟 '+qEsc(qN481Record(r))+'</b>')+'<table class="table" style="width:100%;table-layout:fixed"><thead><tr><th>商品</th><th>數量</th><th>貨款</th><th>農收分類</th></tr></thead><tbody>'+itemRows+'</tbody></table>'+
             '<div style="margin-top:10px;border:1px solid #dfe4ea;border-radius:10px;padding:10px;background:#f8fafc"><b>本趟七類農收金額</b><table class="table"><thead><tr><th>分類</th><th style="text-align:right">金額</th></tr></thead><tbody>'+subtotalRows+
             '<tr><td>未分類／需核對</td><td style="text-align:right">'+qN265Money(tripUnknown)+'</td></tr><tr><td>不開農收</td><td style="text-align:right">'+qN265Money(tripExcluded)+'</td></tr><tr><th>本趟農收合計（已分類）</th><th style="text-align:right">'+qN265Money(tripClassified)+'</th></tr></tbody></table>'+
-            '<div style="text-align:right">本趟商品貨款 '+qN265Money(tripGoods)+'｜核對 '+(Math.abs(reconcile)<0.01?'✓ 金額相符':'⚠️ 差額 '+qN265Money(reconcile))+'</div></div>'+(done?'</div></details>':'</div>');
+            '<div style="text-align:right">本趟商品貨款 '+qN265Money(tripGoods)+'｜核對 '+(Math.abs(reconcile)<0.01?'✓ 金額相符':'⚠️ 差額 '+qN265Money(reconcile))+'</div></div>'+(tripDifferences.length?'<div style="color:#a33;padding:8px;border:1px solid #f2c4c4;border-radius:6px">⚠️ 正式帳本與已處理鎖定金額不一致（未改動歷史紀錄）：'+tripDifferences.map(d=>'<div>'+qEsc(d.name)+'：原鎖定 '+qN265Money(d.old)+' → 現行 '+qN265Money(d.current)+'</div>').join('')+'</div>':'')+(done?'</div></details>':'</div>');
         }).join(''):'';
         const rows=[...agg.entries()].map(([k,v])=>'<tr><td>'+qEsc(k)+'</td><td style="text-align:right">'+qN265Money(v)+'</td></tr>').join('');
         const un=unknown.map(u=>'<div>'+qEsc(u.name)+'：'+qN265Money(u.amount)+'</div>').join('');
