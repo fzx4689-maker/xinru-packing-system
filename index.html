@@ -15,8 +15,28 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="NEXUS" />
 <title>NEXUS</title>
+<!-- N-PWA-BOOT: cold-start feedback appears before remote scripts are requested. -->
+<style id="xrPwaBootStyle">
+html.xr-pwa-starting{background:#f3f5f7}
+html.xr-pwa-starting::before{content:"";position:fixed;inset:0;background:#f3f5f7;z-index:2147483645;pointer-events:none}
+html.xr-pwa-starting::after{content:"欣儒系統\A 載入中…";white-space:pre;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2147483646;text-align:center;font:700 19px/2 -apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;color:#3f1b7a;pointer-events:none}
+</style>
+<script>document.documentElement.classList.add('xr-pwa-starting');performance.mark&&performance.mark('xr-pwa-head-start');</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+/* OCR is downloaded only when photo recognition is requested. */
+let xrOcrLoadingPromise=null;
+function xrLoadTesseract(){
+ if(window.Tesseract)return Promise.resolve(window.Tesseract);
+ if(!xrOcrLoadingPromise)xrOcrLoadingPromise=new Promise((resolve,reject)=>{
+  const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  script.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR library missing'));
+  script.onerror=()=>reject(new Error('OCR library download failed'));
+  document.head.appendChild(script);
+ }).catch(e=>{xrOcrLoadingPromise=null;throw e});
+ return xrOcrLoadingPromise;
+}
+</script>
 <script src="https://unpkg.com/pinyin-pro"></script>
 <style>
 :root{--bg:#f3f5f7;--card:#fff;--text:#16181d;--muted:#7b818b;--line:#e5e8ec;--blue:#dbeeff;--blueText:#1e5f94;--green:#1f9d55;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed;--shadow:0 8px 28px rgba(0,0,0,.06)}
@@ -3605,7 +3625,7 @@ $('#takePhoto').onclick=()=>$('#photoInput').click();
 let photoPreviewUrl='';
 $('#clearPhoto').onclick=()=>{photoFile=null;$('#photoInput').value='';if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl='';$('#photoPreview').style.display='none';$('#photoPreview').src='';$('#ocrStatus').textContent=''};
 $('#photoInput').onchange=async e=>{const original=e.target.files[0];if(!original)return;const status=$('#ocrStatus');status.textContent='正在處理照片…';photoFile=await compressPhoto(original);if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl=URL.createObjectURL(photoFile);$('#photoPreview').src=photoPreviewUrl;$('#photoPreview').style.display='block';status.textContent=`✅ 照片已準備（${photoSizeText(photoFile)}），送出時會自動上傳`};
-$('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';try{const result=await Tesseract.recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
+$('#ocrPhoto').onclick=async()=>{if(!photoFile){alert('請先拍照或選照片');return}const btn=$('#ocrPhoto');btn.disabled=true;btn.textContent='辨識中…';$('#ocrStatus').textContent='正在辨識照片文字，第一次使用可能需要較久…';try{const result=await (await xrLoadTesseract()).recognize(photoFile,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`辨識中 ${Math.round((m.progress||0)*100)}%`}});const text=(result.data.text||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n');if(text){$('#items').value=text;$('#ocrStatus').textContent='辨識完成，請檢查內容與數量後再送出。'}else{$('#ocrStatus').textContent='沒有辨識到文字，請換清楚一點的照片或手動輸入。'}}catch(e){console.error(e);$('#ocrStatus').textContent='辨識失敗：'+e.message}finally{btn.disabled=false;btn.textContent='辨識照片文字'}};
 async function uploadPhoto(orderNo){if(!photoFile)return null;return uploadOrderPhoto(photoFile,`${orderNo}-${Date.now()}.jpg`,$('#ocrStatus'))}
 function updateOrderTargetUI(){
   const target=$('#orderTarget')?.value||'packing';
@@ -4161,7 +4181,7 @@ async function loadMyProfile(user){
   if(!data.is_active)throw new Error('這個員工帳號已停用');
   return data;
 }
-function showLogin(msg=''){document.body.classList.remove('auth-booting');$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
+function showLogin(msg=''){document.body.classList.remove('auth-booting');document.documentElement.classList.remove('xr-pwa-starting');$('#authGate').classList.remove('hidden');$('#mainApp').style.visibility='hidden';$('#loginError').textContent=msg;}
 function showApp(){
   $('#authGate').classList.add('hidden');$('#mainApp').style.visibility='visible';$('#userBar').classList.add('show');
   const shownName=(currentProfile.nickname||'').trim()||currentProfile.display_name;
@@ -4266,7 +4286,7 @@ async function startApp(user){
        bootAccountingNav.section)
     );
 
-    document.body.classList.remove('auth-booting');
+    document.body.classList.remove('auth-booting');document.documentElement.classList.remove('xr-pwa-starting');
     showApp();
     if(bootRememberedTab==='accounting'&&bootHasAccountingLayer){
       const mainApp=document.getElementById('mainApp');
@@ -4311,7 +4331,7 @@ async function startApp(user){
       await sb.auth.signOut();currentUser=null;currentProfile=null;showLogin('此帳號已停用');
     }else{
       console.error('第169C3啟動失敗：',e);
-      document.body.classList.remove('auth-booting');showApp();const mainApp=document.getElementById('mainApp');if(mainApp)mainApp.style.visibility='visible';alert('連線或資料初始化暫時失敗，登入狀態仍保留。\n\n'+msg);
+      document.body.classList.remove('auth-booting');document.documentElement.classList.remove('xr-pwa-starting');showApp();const mainApp=document.getElementById('mainApp');if(mainApp)mainApp.style.visibility='visible';alert('連線或資料初始化暫時失敗，登入狀態仍保留。\n\n'+msg);
     }
   }
 }
