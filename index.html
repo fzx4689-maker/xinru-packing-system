@@ -4473,10 +4473,9 @@ const deliveryChannel=sb.channel('xinru-delivery-live')
   loadDelivery();
 }).subscribe();
 $('#queryDate').onchange=()=>{try{localStorage.setItem('xinru_query_date',$('#queryDate').value)}catch(e){}renderToday()};
-$('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';try{localStorage.setItem('xinru_order_query_mode','packing')}catch(e){}renderToday()};
-$('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';deliveryRecordMode='date';try{localStorage.setItem('xinru_order_query_mode','delivery')}catch(e){}renderToday()};
-$('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
-$('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
+if($('#queryPackingBtn'))$('#queryPackingBtn').onclick=()=>{orderQueryMode='packing';try{localStorage.setItem('xinru_order_query_mode','packing')}catch(e){}renderToday()};
+if($('#queryDeliveryBtn'))$('#queryDeliveryBtn').onclick=()=>{orderQueryMode='delivery';deliveryRecordMode='date';try{localStorage.setItem('xinru_order_query_mode','delivery')}catch(e){}renderToday()};
+if($('#deliveryQueryDate'))$('#deliveryQueryDate').onchange=()=>{try{localStorage.setItem('xinru_delivery_query_date',$('#deliveryQueryDate').value)}catch(e){}renderDeliveryRecordQuery()};
 // 第35階段：市場帳完整流程。資料仍沿用 accounting_records 雲端保存。
 let acctDraftItems=[];
 let acctExternalDraftItems=[];
@@ -4486,7 +4485,7 @@ const acctMoney=n=>'$'+Math.round(Number(n)||0).toLocaleString('zh-TW');
 function acctCatalog(){return acctLoad('xinru_acct_test_products',{})}
 var acctCloudRecords=null;
 var acctCloudReady=false;
-function acctRecords(){return acctCloudRecords===null?acctLoad('xinru_acct_test_records',[]):acctCloudRecords}
+function acctRecords(){const rows=acctCloudRecords===null?acctLoad('xinru_acct_test_records',[]):acctCloudRecords;return Array.isArray(rows)?rows:[]}
 // N442：正式帳務以 Supabase 為唯一真實來源；完整分頁下載，避免資料量增加後只拿到部分紀錄。
 async function loadAccountingCloud(){
   if(!currentUser)return;
@@ -5888,7 +5887,7 @@ document.addEventListener('touchend',()=>{if(xrPullReady)xrRefreshVisibleData();
 let stage9Realtime=null;function startStage9Realtime(){if(!currentUser||stage9Realtime)return;stage9Realtime=sb.channel('xinru-stage10-live').on('postgres_changes',{event:'*',schema:'public',table:'field_questions'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'field_question_messages'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipts'},loadStage9).on('postgres_changes',{event:'*',schema:'public',table:'freight_receipt_change_logs'},loadStage9).subscribe()}
 document.addEventListener('click',e=>{const btn=e.target.closest?.('.quickToolTab');if(!btn)return;const root=btn.closest('.packingQuickTools,.deliveryQuickTools');if(!root)return;const tool=btn.dataset.tool,was=btn.classList.contains('active');root.querySelectorAll('.quickToolTab').forEach(x=>x.classList.remove('active'));root.querySelectorAll('.quickToolPanel').forEach(x=>x.classList.remove('active'));if(!was){btn.classList.add('active');root.querySelector('.quickToolPanel[data-panel="'+tool+'"]')?.classList.add('active')}});
 // 第175A階段：回前景改由共用 xrResumeSync 去重處理；保留原本登入後初始化。
-window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];renderFreightDraft('packing');renderFreightDraft('delivery');startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},30000);
+window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'',qty:'',kg:''}];freightDraft.delivery=[{item:'',qty:'',kg:''}];if(typeof renderFreightDraft==='function'){renderFreightDraft('packing');renderFreightDraft('delivery')}startStage9Realtime()},2200));setInterval(()=>{if(currentUser&&document.visibilityState==='visible')loadStage9()},30000);
 </script>
 <script>
 /* 第169C3階段：六大權限正式接管＋登入後同步權限。
