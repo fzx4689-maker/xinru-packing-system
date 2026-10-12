@@ -6513,9 +6513,12 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     if(settlement==='自訂')return {ok:true,key:[cid,'自訂',rid||d].join('|'),type:'自訂',start:d,end:d,label:d,recordId:rid};
     let ps=new Date(dt),pe=new Date(dt);
     if(settlement==='3日結'){
-      // 每月固定三天一帳：1-3、4-6、7-9…；月底最後一帳收至月底。
-      const day=dt.getDate(),sd=Math.floor((day-1)/3)*3+1,last=new Date(dt.getFullYear(),dt.getMonth()+1,0,12).getDate(),ed=Math.min(sd+2,last);
-      ps=new Date(dt.getFullYear(),dt.getMonth(),sd,12);pe=new Date(dt.getFullYear(),dt.getMonth(),ed,12);
+      // N6D：3日結依每週營業日切帳，週一～週三、週四～週六；週日公休不計入正常帳期。
+      // 週日若存在例外交易，獨立成單日帳期，不擅自併入前後帳期。
+      const weekday=dt.getDay();
+      if(weekday>=1&&weekday<=3){ps=qBillingAddDays(dt,1-weekday);pe=qBillingAddDays(ps,2)}
+      else if(weekday>=4&&weekday<=6){ps=qBillingAddDays(dt,4-weekday);pe=qBillingAddDays(ps,2)}
+      else{ps=new Date(dt);pe=new Date(dt)}
     }else if(settlement==='週結'){
       ps=qBillingAddDays(dt,-dt.getDay());pe=qBillingAddDays(ps,6);
     }else if(settlement==='半月結'){
