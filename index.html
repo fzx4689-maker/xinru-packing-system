@@ -7367,7 +7367,21 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const paid=Math.min(originalAmount,settlements.reduce((n,x)=>n+x.amount,0)),outstanding=Math.max(0,originalAmount-paid),lastPaymentDate=settlements.length?String(settlements[settlements.length-1].record.date||''):'',settled=originalAmount>0&&outstanding<=0.000001;
     const allFormal=qN96FormalRecords(c).filter(r=>r&&r.status!=='draft'&&r.status!=='void'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN225ActivityDirectionMatch(r,direction));
     const prior=storedValue?[]:allFormal.filter(r=>{const p=qN292PeriodMeta(c,r);return p?.ok&&String(p.key)!==String(period?.key||'')&&String(p.end||r.date||'')<String(period?.start||'')});
-    const priorOutstanding=storedValue?0:prior.reduce((n,r)=>n+Math.max(0,qAccountingOutstanding(r,c,null)||0),0);
+    // N78：只修報表前期結轉：純周轉物負額（例如回籃退款）需抵減前期餘額。
+    // 不改 qAccountingOutstanding、一般負數貨款、折讓、收款分配或籃子庫存核心。
+    const priorOutstanding=storedValue?0:(()=>{
+      let positive=0,turnoverCredits=0;
+      prior.forEach(r=>{
+        const amount=qN124ProjectedSummary(r,c);
+        const rawDue=qAccountingEffectiveTotal(r,c)-qAccountingPaidTotal(r);
+        // 僅辨識「沒有貨款、沒有運費、純周轉物負額」的正式交易。
+        // 其他負數交易和折讓仍按原有邏輯，不在此做跨類型抵扣。
+        const pureNegativeTurnover=Number(amount.turnover)<-0.000001&&Math.abs(Number(amount.goods)||0)<0.000001&&Math.abs(Number(amount.freight)||0)<0.000001&&Number(amount.total)<-0.000001;
+        if(pureNegativeTurnover&&rawDue<0)turnoverCredits+=rawDue;
+        else positive+=Math.max(0,qAccountingOutstanding(r,c,null)||0);
+      });
+      return qMoney(Math.max(0,positive+turnoverCredits));
+    })();
     return {periodKey:period?.key||'',periodType:period?.type||'',periodStart:period?.start||'',periodEnd:period?.end||'',periodLabel:period?.label||'',originalRecordCount:members.length,originalAmount,paidAmount:paid,outstanding,settled,settledDate:settled?lastPaymentDate:'',lastPaymentDate,priorOutstanding,settlements,storedValue};
   }
   function qN297PeriodStatusLines(model){
