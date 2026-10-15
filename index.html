@@ -13547,16 +13547,37 @@ async function refresh(d,keepEdit=false){
   else status('雲端資料已載入');draw();
  }catch(e){console.error(e);status('讀取失敗：'+e.message);el('lhInvBody').innerHTML='<div class="empty">讀取失敗，請確認六禾庫存 SQL 已執行及帳號有權限。</div>'}finally{loading=false}
 }
-async function ensureDay(){
- if(!allowed())throw Error('沒有六禾庫存操作權限');if(day)return;
- const {data:prev,error:pe}=await sb.from('liuho_inventory_days').select('stock_date').lt('stock_date',date).order('stock_date',{ascending:false}).limit(1);if(pe)throw pe;
- const prevDate=prev?.[0]?.stock_date;
- const {error}=await sb.from('liuho_inventory_days').upsert({stock_date:date,is_complete:false,updated_by_name:who()},{onConflict:'stock_date',ignoreDuplicates:true});if(error)throw error;
- // Copy only if this is the first editor and there are no rows yet. Stable UUID item keys prevent duplicates.
- if(prevDate){const [existing,previous]=await Promise.all([fetchRows(date),fetchRows(prevDate)]);if(!existing.length&&previous.length){const batch=previous.filter(x=>x.active!==false).map(x=>({stock_date:date,item_key:x.item_key,name:x.name,category:x.category,kind:x.kind,qty:x.qty,f1:x.f1,f2:x.f2,total:x.total,active:true,sort_order:x.sort_order,updated_by_name:who()}));const {error:ce}=await sb.from('liuho_inventory_items').upsert(batch,{onConflict:'stock_date,item_key',ignoreDuplicates:true});if(ce)throw ce}}
- await refresh(date,true)
+// 新日期第一次編輯：若該日尚無品項，複製此前最近一份「有品項」的庫存。
+// 只在空白日初始化，不覆寫既有盤點；每一日期維持獨立快照。
+async function inheritPreviousIfEmpty(targetDate){
+ const existing=await fetchRows(targetDate);
+ if(existing.length)return false;
+ const {data:days,error:de}=await sb.from('liuho_inventory_days').select('stock_date').lt('stock_date',targetDate).order('stock_date',{ascending:false}).limit(1000);
+ if(de)throw de;
+ let previous=[];
+ for(const d of days||[]){
+  previous=await fetchRows(d.stock_date);
+  if(previous.length)break;
+ }
+ if(!previous.length)return false;
+ const batch=previous.filter(x=>x.active!==false).map(x=>({stock_date:targetDate,item_key:x.item_key,name:x.name,category:x.category,kind:x.kind,qty:x.qty,f1:x.f1,f2:x.f2,total:x.total,active:true,sort_order:x.sort_order,updated_by_name:who()}));
+ if(!batch.length)return false;
+ const {error}=await sb.from('liuho_inventory_items').upsert(batch,{onConflict:'stock_date,item_key',ignoreDuplicates:true});
+ if(error)throw error;
+ return true;
 }
-async function create(){try{status('建立庫存中…');await ensureDay();editing=true;draw();status('已建立，可開始盤點')}catch(e){status('建立失敗：'+e.message)}}
+async function ensureDay(){
+ if(!allowed())throw Error('沒有六禾庫存操作權限');
+ if(day&&day.is_complete)throw Error('已完成盤點，請先重新開放編輯');
+ if(!day){
+  const {error}=await sb.from('liuho_inventory_days').upsert({stock_date:date,is_complete:false,updated_by_name:who()},{onConflict:'stock_date',ignoreDuplicates:true});
+  if(error)throw error;
+ }
+ const copied=await inheritPreviousIfEmpty(date);
+ await refresh(date,true);
+ return copied;
+}
+async function create(){try{status('載入上一份庫存中…');const copied=await ensureDay();editing=true;draw();status(copied?'✓ 已帶入上一份庫存，可開始盤點':'已建立，可開始盤點')}catch(e){status('建立失敗：'+e.message)}}
 async function stamp(){if(!day)return;const {error}=await sb.from('liuho_inventory_days').update({updated_by_name:who(),updated_at:new Date().toISOString()}).eq('stock_date',date);if(error)throw error}
 async function saveField(id,key,value){
  const r=rows.find(x=>String(x.id)===String(id));if(!r||!canEdit())return;
@@ -13689,7 +13710,7 @@ function init(){
  });
  el('lhInvBack').addEventListener('click',setView);
  el('lhInvDate').addEventListener('change',async e=>{if(!safeDate(e.target.value))return;if(writing||pending.size){alert('請等待儲存完成再切換日期');e.target.value=date;return}filter='全部';el('lhInvInactivePanel').hidden=true;await refresh(e.target.value)});
- el('lhInvMode').addEventListener('click',()=>{editing=true;draw()});
+ el('lhInvMode').addEventListener('click',async()=>{if(writing||pending.size)return;try{status('準備盤點資料中…');const copied=await ensureDay();editing=true;draw();status(copied?'✓ 已帶入上一份庫存，可開始盤點':'雲端資料已載入')}catch(e){status('編輯失敗：'+e.message)}});
  el('lhInvFinish').addEventListener('click',()=>complete(true));
  el('lhInvReopen').addEventListener('click',async()=>{await complete(false);editing=true;draw()});
  el('lhInvSearch').addEventListener('input',draw);
