@@ -7861,7 +7861,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const W=720,pad=34,rowH=38,headH=190,containerText=qN103ContainerText(model),currentContainer=model.currentContainerText||'',buyoutText=qN104BuyoutTextModel(model);
     const rows=model.kind==='farmer_weekly'?model.groups.flatMap(g=>[{kind:'group',name:g.contact?.name||'產農'},...(g.rows||[])]):model.rows;
     // N104：LINE 圖片不是固定紙張；高度完全依「明細列＋結算列」計算，內容增加就自動往下長。
-    const openLines=model.kind==='general'?qN277OpenLines(model):[];const footerLines=2+(buyoutText?1:0)+(containerText?1:0)+(currentContainer?1:0)+openLines.length;
+    const openLines=model.kind==='general'?qN277OpenLines(model):[];const footerLines=4+(buyoutText?1:0)+(containerText?1:0)+(currentContainer?1:0)+openLines.length;
     const footerTopGap=28,footerLineH=34,footerBottom=34;
     const H=Math.max(360,headH+rows.length*rowH+footerTopGap+footerLines*footerLineH+footerBottom),cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
     x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111';x.textBaseline='middle';
@@ -7874,6 +7874,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     y+=footerTopGap-8;x.strokeStyle='#444';x.beginPath();x.moveTo(pad,y);x.lineTo(W-pad,y);x.stroke();y+=footerLineH;
     txt('貨款小計 '+money(model.summary.goods),W-pad,y,19,true,'right');y+=footerLineH;
     if(!model.noFreight){txt('運費小計 '+money(model.summary.freight),W-pad,y,19,true,'right');}
+    y+=footerLineH;txt('籃子小計 '+money(model.summary.turnoverBuyout??model.summary.turnover??0),W-pad,y,19,true,'right');
     if(buyoutText){y+=footerLineH;txt(buyoutText,W-pad,y,18,true,'right')}
     if(containerText){y+=footerLineH;txt(containerText,W-pad,y,18,true,'right')}
     if(currentContainer){y+=footerLineH;txt(currentContainer,pad,y,18,true,'left')}
