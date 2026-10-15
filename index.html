@@ -10205,7 +10205,7 @@ K白.kg
     };
     paintTrips();body.querySelector('#qN265Month').onchange=paintTrips;body.querySelector('#qN265State').onchange=paintTrips;
   }
-  function qN230RenderFarmerReceipt(work){qN265Render(work,'整理')}
+  function qN230RenderFarmerReceipt(work){return qN265Render(work,'整理')}
   const QN230_SALES_KEY='xinru_sales_document_drafts_v1';
   function qN230SalesRows(){try{return JSON.parse(localStorage.getItem(QN230_SALES_KEY)||'[]')}catch(e){return[]}}
   function qN230SalesSave(rows){localStorage.setItem(QN230_SALES_KEY,JSON.stringify(rows))}
@@ -11239,7 +11239,26 @@ K白.kg
     if(section==='contacts'&&a==='＋ 新增往來對象'){
       if(window.xrContactsV2?.renderEditor){window.xrContactsV2.renderEditor(work,'');return;}
     }
-    if(section==='receipt'&&a==='🧾 農民收據'){qN230RenderFarmerReceipt(work);return;}
+    if(section==='receipt'&&/農民收據/.test(String(a).replace(/<[^>]*>/g,''))){
+      // iOS Safari：明確保留工作區並顯示載入／錯誤狀態，避免點入口後只剩空白。
+      work.hidden=false;
+      work.style.removeProperty('display');
+      work.innerHTML='<div class="acctWorkPlaceholder">農收資料讀取中…</div>';
+      try{
+        const result=qN230RenderFarmerReceipt(work);
+        if(result&&typeof result.catch==='function')result.catch(err=>{
+          if(!work.isConnected)return;
+          work.innerHTML='<div class="acctWorkPlaceholder"><b>農收載入失敗</b><div class="helper"></div><button type="button" class="btn blue" id="frMobileRetry">重新載入農收</button></div>';
+          work.querySelector('.helper').textContent=String(err?.message||err||'未知錯誤');
+          work.querySelector('#frMobileRetry').onclick=()=>qRenderAccountingAction('receipt','🧾 農民收據',true);
+        });
+      }catch(err){
+        work.innerHTML='<div class="acctWorkPlaceholder"><b>農收畫面無法開啟</b><div class="helper"></div><button type="button" class="btn blue" id="frMobileRetry">重新載入農收</button></div>';
+        work.querySelector('.helper').textContent=String(err?.message||err||'未知錯誤');
+        work.querySelector('#frMobileRetry').onclick=()=>qRenderAccountingAction('receipt','🧾 農民收據',true);
+      }
+      return;
+    }
     if(section==='receipt'&&/六禾包裝規格表/.test(String(a).replace(/<[^>]*>/g,''))){qN230RenderMaster(work,'liuhe');return;}
     if(section==='receipt'&&a==='📦 商品重量／參考價表'){qN230RenderMaster(work,'weight');return;}
     if(section==='receipt'&&a==='📄 銷貨單'){qN230RenderSales(work);return;}
@@ -11252,6 +11271,16 @@ K白.kg
     const nav=acctNavRead()||{};
     const section=nav.section||Object.keys(defs).find(k=>stage.querySelector('.acctStageHead h3')?.textContent===defs[k].title)||'';
     qRenderAccountingAction(section,a,false);
+    if(section==='receipt'&&/農民收據/.test(String(a))){
+      setTimeout(()=>{
+        const w=document.getElementById('acctStageWork');
+        if(!w||!stage.classList.contains('acctActionLayer'))return;
+        if(!w.textContent.trim()&&!w.querySelector('input,button,select')){
+          w.innerHTML='<div class="acctWorkPlaceholder"><b>農收畫面未正常顯示</b><div class="helper">手機版載入程序中斷，請按下方按鈕重試。</div><button class="btn blue" id="frMobileRetry" type="button">重新載入農收</button></div>';
+          w.querySelector('#frMobileRetry').onclick=()=>qRenderAccountingAction('receipt','🧾 農民收據',true);
+        }
+      },1200);
+    }
   });
   function qRestoreAccountingNav(){
     const savedAcctNav=acctNavRead();
