@@ -11240,23 +11240,27 @@ K白.kg
       if(window.xrContactsV2?.renderEditor){window.xrContactsV2.renderEditor(work,'');return;}
     }
     if(section==='receipt'&&/農民收據/.test(String(a).replace(/<[^>]*>/g,''))){
-      // iOS Safari：明確保留工作區並顯示載入／錯誤狀態，避免點入口後只剩空白。
+      // 農收手機診斷：錯誤原因一定可見，並提供一鍵複製，不修改任何帳務資料。
       work.hidden=false;
       work.style.removeProperty('display');
       work.innerHTML='<div class="acctWorkPlaceholder">農收資料讀取中…</div>';
+      const showFarmerError=(err,phase)=>{
+        if(!work.isConnected)return;
+        const msg=String(err?.message||err?.details||err||'未知錯誤');
+        const detail=[phase,msg,err?.code?'代碼：'+err.code:'',err?.hint?'提示：'+err.hint:'',err?.stack?String(err.stack).slice(0,1400):''].filter(Boolean).join('\\n');
+        work.innerHTML='<div class="acctWorkPlaceholder" style="display:block!important;text-align:left"><b style="display:block;margin-bottom:8px">農收載入失敗（診斷版）</b><pre id="frMobileErrorText" style="display:block!important;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5;padding:12px;border:1px solid #d9dfe8;background:#fff;border-radius:9px;max-height:320px;overflow:auto"></pre><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><button type="button" class="btn blue" id="frMobileRetry">重新載入農收</button><button type="button" class="btn gray" id="frMobileCopyError">複製錯誤內容</button></div></div>';
+        work.querySelector('#frMobileErrorText').textContent=detail;
+        work.querySelector('#frMobileRetry').onclick=()=>qRenderAccountingAction('receipt','🧾 農民收據',true);
+        work.querySelector('#frMobileCopyError').onclick=()=>{
+          const txt=work.querySelector('#frMobileErrorText')?.textContent||detail;
+          if(navigator.clipboard?.writeText)navigator.clipboard.writeText(txt).then(()=>alert('已複製錯誤內容')).catch(()=>prompt('請複製以下錯誤內容',txt));
+          else prompt('請複製以下錯誤內容',txt);
+        };
+      };
       try{
         const result=qN230RenderFarmerReceipt(work);
-        if(result&&typeof result.catch==='function')result.catch(err=>{
-          if(!work.isConnected)return;
-          work.innerHTML='<div class="acctWorkPlaceholder"><b>農收載入失敗</b><div class="helper"></div><button type="button" class="btn blue" id="frMobileRetry">重新載入農收</button></div>';
-          work.querySelector('.helper').textContent=String(err?.message||err||'未知錯誤');
-          work.querySelector('#frMobileRetry').onclick=()=>qRenderAccountingAction('receipt','🧾 農民收據',true);
-        });
-      }catch(err){
-        work.innerHTML='<div class="acctWorkPlaceholder"><b>農收畫面無法開啟</b><div class="helper"></div><button type="button" class="btn blue" id="frMobileRetry">重新載入農收</button></div>';
-        work.querySelector('.helper').textContent=String(err?.message||err||'未知錯誤');
-        work.querySelector('#frMobileRetry').onclick=()=>qRenderAccountingAction('receipt','🧾 農民收據',true);
-      }
+        if(result&&typeof result.catch==='function')result.catch(err=>showFarmerError(err,'農收非同步載入失敗'));
+      }catch(err){showFarmerError(err,'農收啟動畫面失敗')}
       return;
     }
     if(section==='receipt'&&/六禾包裝規格表/.test(String(a).replace(/<[^>]*>/g,''))){qN230RenderMaster(work,'liuhe');return;}
