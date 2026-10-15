@@ -10048,7 +10048,7 @@ K白.kg
     const frPrevOpen=[...work.querySelectorAll('details[data-fr-group-id],details[data-fr-trip-id]')].filter(x=>x.open).map(x=>x.dataset.frGroupId?'group:'+x.dataset.frGroupId:'trip:'+x.dataset.frTripId);
     const frPrevMonth=work.querySelector('#qN265Month')?.value;
     const frPrevState=work.querySelector('#qN265State')?.value;
-    const frPrevAnchor=work.querySelector('details[data-fr-trip-id]:open')||work.querySelector('details[data-fr-group-id]:open');
+    const frPrevAnchor=work.querySelector('details[data-fr-trip-id][open]')||work.querySelector('details[data-fr-group-id][open]');
     const frPrevAnchorKey=frPrevAnchor?(frPrevAnchor.dataset.frTripId?'trip:'+frPrevAnchor.dataset.frTripId:'group:'+frPrevAnchor.dataset.frGroupId):null;
     const frPrevAnchorTop=frPrevAnchor?.getBoundingClientRect().top;
     const frPrevScrollY=window.scrollY;
