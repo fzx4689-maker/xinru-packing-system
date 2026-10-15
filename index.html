@@ -13513,11 +13513,12 @@ function draw(){
  const q=el('lhInvSearch').value.trim().toLowerCase();let groups=catNames.filter(c=>filter==='全部'||c===filter).map(c=>({name:c,items:rows.filter(r=>r.category===c&&r.active!==false&&(!q||String(r.name).toLowerCase().includes(q)))})).filter(g=>g.items.length||canEdit()&&!q);
  if(!day){el('lhInvBody').innerHTML='<div class="empty">這個日期沒有庫存表。<br><button class="btn primary" type="button" id="lhInvCreate">✏️ 開始填寫這一天</button></div>';return}
  el('lhInvBody').innerHTML=groups.map(g=>{
-  const kind=categories.find(c=>c.name===g.name)?.kind||g.items[0]?.kind||'single';
+  // 日期快照優先：舊日期使用當時商品儲存的 kind，不受分類主檔後續修改影響。
   const cells=g.items.map(r=>{
    const field=(key,value,caption)=>'<label class="lh-inv-field"><span>'+caption+'</span><input data-item="'+r.id+'" data-field="'+key+'" value="'+E(value??'')+'" aria-label="'+E(r.name+' '+caption)+'" autocomplete="off"></label>';
    const name='<span class="lh-inv-name">'+E(r.name)+'</span>';
    const tools=canEdit()?'<div class="lh-inv-card-tools"><button class="lh-inv-mini" data-action="rename" data-id="'+r.id+'">改名</button><button class="lh-inv-mini" data-action="move" data-id="'+r.id+'">分類</button><button class="lh-inv-mini" data-action="stop" data-id="'+r.id+'">停用</button></div>':'';
+   const kind=r.kind||categories.find(c=>c.name===g.name)?.kind||'single';
    const quantity=canEdit()?(kind==='floors'?'<div class="lh-inv-card-fields">'+field('f1',r.f1,'1F')+field('f2',r.f2,'2F')+field('total',total(r),'總庫存')+'</div>':'<div class="lh-inv-card-fields">'+field('qty',r.qty,'庫存')+'</div>'):'<span class="lh-inv-card-total">'+E(total(r))+'</span>';
    return '<div class="lh-inv-product">'+name+quantity+tools+'</div>';
   }).join('');
@@ -13547,11 +13548,10 @@ async function refresh(d,keepEdit=false){
   else status('雲端資料已載入');draw();
  }catch(e){console.error(e);status('讀取失敗：'+e.message);el('lhInvBody').innerHTML='<div class="empty">讀取失敗，請確認六禾庫存 SQL 已執行及帳號有權限。</div>'}finally{loading=false}
 }
-// 新日期第一次編輯：若該日尚無品項，複製此前最近一份「有品項」的庫存。
-// 只在空白日初始化，不覆寫既有盤點；每一日期維持獨立快照。
+// 新日期繼承上一份完整快照（包含停用商品）。
+// 若當日已有資料，只補上先前版本漏複製的「停用商品」，不覆寫任何現存品項。
 async function inheritPreviousIfEmpty(targetDate){
  const existing=await fetchRows(targetDate);
- if(existing.length)return false;
  const {data:days,error:de}=await sb.from('liuho_inventory_days').select('stock_date').lt('stock_date',targetDate).order('stock_date',{ascending:false}).limit(1000);
  if(de)throw de;
  let previous=[];
@@ -13560,7 +13560,13 @@ async function inheritPreviousIfEmpty(targetDate){
   if(previous.length)break;
  }
  if(!previous.length)return false;
- const batch=previous.filter(x=>x.active!==false).map(x=>({stock_date:targetDate,item_key:x.item_key,name:x.name,category:x.category,kind:x.kind,qty:x.qty,f1:x.f1,f2:x.f2,total:x.total,active:true,sort_order:x.sort_order,updated_by_name:who()}));
+ const keys=new Set(existing.map(x=>String(x.item_key)));
+ const candidates=existing.length?previous.filter(x=>x.active===false):previous;
+ const batch=candidates.filter(x=>!keys.has(String(x.item_key))).map(x=>({
+  stock_date:targetDate,item_key:x.item_key,name:x.name,category:x.category,kind:x.kind,
+  qty:x.qty,f1:x.f1,f2:x.f2,total:x.total,active:x.active!==false,
+  sort_order:x.sort_order,updated_by_name:who()
+ }));
  if(!batch.length)return false;
  const {error}=await sb.from('liuho_inventory_items').upsert(batch,{onConflict:'stock_date,item_key',ignoreDuplicates:true});
  if(error)throw error;
@@ -13577,7 +13583,7 @@ async function ensureDay(){
  await refresh(date,true);
  return copied;
 }
-async function create(){try{status('載入上一份庫存中…');const copied=await ensureDay();editing=true;draw();status(copied?'✓ 已帶入上一份庫存，可開始盤點':'已建立，可開始盤點')}catch(e){status('建立失敗：'+e.message)}}
+async function create(){try{status('載入上一份庫存中…');const copied=await ensureDay();editing=true;draw();status(copied?'✓ 已帶入／補齊上一份庫存（含停用商品）':'已建立，可開始盤點')}catch(e){status('建立失敗：'+e.message)}}
 async function stamp(){if(!day)return;const {error}=await sb.from('liuho_inventory_days').update({updated_by_name:who(),updated_at:new Date().toISOString()}).eq('stock_date',date);if(error)throw error}
 async function saveField(id,key,value){
  const r=rows.find(x=>String(x.id)===String(id));if(!r||!canEdit())return;
@@ -13635,6 +13641,7 @@ async function act(action,id,cat){
    const c=categories.find(x=>x.name===cat);if(!c)return;
    const kind=confirm('使用 1F、2F、總庫存格式？\n確定＝樓層庫存；取消＝一般庫存');
    const {error}=await sb.from('liuho_inventory_categories').update({name:n.trim(),kind:kind?'floors':'single'}).eq('id',c.id);if(error)throw error;
+   // 只修改目前日期的商品快照；舊日期的分類、商品名稱、數量與欄位型態均不動。
    const {error:ie}=await sb.from('liuho_inventory_items').update({category:n.trim(),kind:kind?'floors':'single'}).eq('stock_date',date).eq('category',cat);if(ie)throw ie;
    if(filter===cat)filter=n.trim();
   }else{
@@ -13710,7 +13717,7 @@ function init(){
  });
  el('lhInvBack').addEventListener('click',setView);
  el('lhInvDate').addEventListener('change',async e=>{if(!safeDate(e.target.value))return;if(writing||pending.size){alert('請等待儲存完成再切換日期');e.target.value=date;return}filter='全部';el('lhInvInactivePanel').hidden=true;await refresh(e.target.value)});
- el('lhInvMode').addEventListener('click',async()=>{if(writing||pending.size)return;try{status('準備盤點資料中…');const copied=await ensureDay();editing=true;draw();status(copied?'✓ 已帶入上一份庫存，可開始盤點':'雲端資料已載入')}catch(e){status('編輯失敗：'+e.message)}});
+ el('lhInvMode').addEventListener('click',async()=>{if(writing||pending.size)return;try{status('準備盤點資料中…');const copied=await ensureDay();editing=true;draw();status(copied?'✓ 已帶入／補齊上一份庫存（含停用商品）':'雲端資料已載入')}catch(e){status('編輯失敗：'+e.message)}});
  el('lhInvFinish').addEventListener('click',()=>complete(true));
  el('lhInvReopen').addEventListener('click',async()=>{await complete(false);editing=true;draw()});
  el('lhInvSearch').addEventListener('input',draw);
