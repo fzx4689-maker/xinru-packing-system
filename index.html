@@ -13676,48 +13676,80 @@ async function act(action,id,cat){
 }
 // 六禾每日庫存專用：有明確編號的分類內排序，不再使用 ↑ ↓ 盲目移動。
 let reorderOpen='';
-function renderReorder(cat){
- const list=rows.filter(r=>r.category===cat&&r.active!==false&&r.deleted!==true).sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||Number(a.id)-Number(b.id));
- const section=[...el('lhInvBody').querySelectorAll('.lh-inv-group')].find(s=>s.querySelector('[data-action="reorder"]')?.dataset.category===cat);
- if(!section)return;
- section.querySelector('.lh-inv-reorder-panel')?.remove();
- const panel=document.createElement('div');panel.className='lh-inv-reorder-panel';
- panel.style.cssText='padding:12px;border:1px solid #b6d6c1;border-radius:10px;background:#f4fbf6;margin:8px 0';
- const head=document.createElement('div');head.style.cssText='display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px';
- head.innerHTML='<strong>調整「'+E(cat)+'」順序（共 '+list.length+' 項）</strong><button type="button" class="lh-inv-mini" data-close-order>完成／關閉</button>';panel.appendChild(head);
- const hint=document.createElement('p');hint.textContent='請選擇商品要移到第幾位，按「移動並儲存」；只調整本分類的排列，不會改庫存數量。';hint.style.cssText='font-size:13px;margin:4px 0 10px';panel.appendChild(hint);
- const choose=document.createElement('div');choose.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px';
- const sel=document.createElement('select');sel.setAttribute('aria-label','要移動的商品');sel.style.cssText='min-width:150px;max-width:100%;padding:8px';
- list.forEach((r,i)=>{const o=document.createElement('option');o.value=String(r.id);o.textContent=(i+1)+'. '+r.name;sel.appendChild(o)});
- const target=document.createElement('select');target.setAttribute('aria-label','移動到第幾位');target.style.cssText='padding:8px';
- list.forEach((r,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent='第 '+(i+1)+' 位';target.appendChild(o)});
- const go=document.createElement('button');go.type='button';go.className='lh-inv-mini';go.textContent='移動並儲存';go.style.cssText='padding:9px;background:#e0f3e4';
- const current=()=>{const idx=list.findIndex(r=>String(r.id)===sel.value);target.value=String(Math.max(0,idx));};sel.addEventListener('change',current);current();
- go.addEventListener('click',async()=>{
-  if(writing||pending.size){status('請等待庫存儲存完成再排序');return}
-  const from=list.findIndex(r=>String(r.id)===sel.value),to=Number(target.value);
-  if(from<0||to<0||to>=list.length||from===to)return;
-  go.disabled=true;status('排序儲存中…');
-  try{
-   const ordered=list.slice(),[moved]=ordered.splice(from,1);ordered.splice(to,0,moved);
-   // 保留目前庫存數值，僅寫入 sort_order；只影響本日期、本分類。
-   for(let i=0;i<ordered.length;i++){
-    const rank=(i+1)*10;
-    if(Number(ordered[i].sort_order)===rank)continue;
-    const {error}=await sb.from('liuho_inventory_items').update({sort_order:rank}).eq('id',ordered[i].id).eq('stock_date',date).eq('category',cat);
-    if(error)throw error;
+
+// 六禾排序共用拖曳介面：滑鼠、觸控與鍵盤上下按鈕；不碰庫存數字。
+function lhSortDialog(title,source,onSave){
+ document.getElementById('lhSortOverlay')?.remove();
+ const ordered=source.slice();
+ const overlay=document.createElement('div');overlay.id='lhSortOverlay';
+ overlay.style.cssText='position:fixed;inset:0;z-index:200120;background:#0009;display:flex;align-items:center;justify-content:center;padding:12px';
+ const panel=document.createElement('div');panel.style.cssText='width:min(570px,100%);max-height:90dvh;display:flex;flex-direction:column;background:#fff;border-radius:16px;padding:15px;box-shadow:0 15px 45px #0004';
+ const header=document.createElement('h3');header.textContent=title;header.style.margin='0 0 7px';
+ const hint=document.createElement('p');hint.textContent='按住左側 ☰ 拖曳到想要的位置；手機也可長按拖動。亦可用 ↑ ↓ 微調，最後按「儲存順序」。';hint.style.cssText='font-size:13px;color:#566;margin:0 0 10px;line-height:1.5';
+ const list=document.createElement('div');list.style.cssText='overflow:auto;min-height:70px;flex:1;display:grid;align-content:start;gap:5px;overscroll-behavior:contain';
+ const foot=document.createElement('div');foot.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:12px';
+ const cancel=document.createElement('button');cancel.type='button';cancel.className='btn gray';cancel.textContent='取消';
+ const save=document.createElement('button');save.type='button';save.className='btn primary';save.textContent='儲存順序';
+ const close=()=>{overlay.remove();reorderOpen=''};
+ function render(){
+  list.replaceChildren();
+  ordered.forEach((r,i)=>{
+   const row=document.createElement('div');row.dataset.sortId=String(r.id);
+   row.style.cssText='display:flex;align-items:center;gap:7px;border:1px solid #d6e6da;border-radius:9px;padding:6px 8px;background:#f6fbf7;min-height:43px';
+   const handle=document.createElement('span');handle.textContent='☰';handle.title='按住拖曳排序';handle.style.cssText='cursor:grab;touch-action:none;user-select:none;padding:6px 9px;font-size:20px;color:#456';
+   const name=document.createElement('span');name.textContent=(i+1)+'. '+r.name;name.style.cssText='flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px';
+   const up=document.createElement('button'),down=document.createElement('button');
+   for(const [btn,label,offset] of [[up,'↑',-1],[down,'↓',1]]){
+    btn.type='button';btn.textContent=label;btn.className='lh-inv-mini';btn.disabled=i+offset<0||i+offset>=ordered.length;
+    btn.addEventListener('click',()=>{const j=ordered.findIndex(x=>String(x.id)===String(r.id));const k=j+offset;if(k<0||k>=ordered.length)return;[ordered[j],ordered[k]]=[ordered[k],ordered[j]];render()});
    }
-   reorderOpen=cat;await stamp();await refresh(date,true);status('✓ 順序已儲存：'+moved.name+' → 第 '+(to+1)+' 位');
-   renderReorder(cat);
-  }catch(e){status('⚠️ 排序未完全儲存，請重新載入確認：'+e.message);await refresh(date,true)}finally{go.disabled=false}
- });
- choose.append(sel,target,go);panel.appendChild(choose);
- const listing=document.createElement('div');listing.style.cssText='max-height:250px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:4px';
- list.forEach((r,i)=>{const d=document.createElement('div');d.textContent=(i+1)+'. '+r.name;d.style.cssText='border:1px solid #d8e7dd;border-radius:5px;padding:5px 7px;background:white;font-size:13px';listing.appendChild(d)});
- panel.appendChild(listing);
- head.querySelector('[data-close-order]').addEventListener('click',()=>{reorderOpen='';panel.remove()});
- section.appendChild(panel);
+   handle.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    e.preventDefault();handle.setPointerCapture(e.pointerId);
+    row.style.opacity='.55';row.style.border='2px dashed #2d9252';
+    const move=ev=>{
+     const target=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-sort-id]');
+     if(!target||target===row||!list.contains(target))return;
+     const from=ordered.findIndex(x=>String(x.id)===String(r.id));
+     const to=ordered.findIndex(x=>String(x.id)===target.dataset.sortId);
+     if(from<0||to<0)return;
+     const [moved]=ordered.splice(from,1);ordered.splice(to,0,moved);
+     const rect=target.getBoundingClientRect();
+     list.insertBefore(row,ev.clientY<rect.top+rect.height/2?target:target.nextSibling);
+     if(ev.clientY<list.getBoundingClientRect().top+28)list.scrollTop-=18;
+     if(ev.clientY>list.getBoundingClientRect().bottom-28)list.scrollTop+=18;
+    };
+    const done=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',done);handle.removeEventListener('pointercancel',done);render()};
+    handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',done);handle.addEventListener('pointercancel',done);
+   });
+   row.append(handle,name,up,down);list.append(row);
+  });
+ }
+ cancel.onclick=close;
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+ save.onclick=async()=>{
+  if(writing||pending.size){status('請等待庫存儲存完成再排序');return}
+  save.disabled=true;save.textContent='儲存中…';
+  try{await onSave(ordered);close();status('✓ 順序已儲存')}
+  catch(e){status('⚠️ 排序儲存失敗，請重新整理確認：'+e.message);save.disabled=false;save.textContent='重試儲存'}
+ };
+ foot.append(cancel,save);panel.append(header,hint,list,foot);overlay.append(panel);document.body.append(overlay);render();
 }
+function renderReorder(cat){
+ if(!canEdit())return;
+ const items=rows.filter(r=>r.category===cat&&r.active!==false&&r.deleted!==true).sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||Number(a.id)-Number(b.id));
+ reorderOpen='';
+ lhSortDialog('調整「'+cat+'」商品順序',items,async ordered=>{
+  for(let i=0;i<ordered.length;i++){
+   const rank=(i+1)*10;
+   if(Number(ordered[i].sort_order)===rank)continue;
+   const {error}=await sb.from('liuho_inventory_items').update({sort_order:rank}).eq('id',ordered[i].id).eq('stock_date',date).eq('category',cat);
+   if(error)throw error;
+  }
+  await stamp();await refresh(date,true);
+ });
+}
+
 async function complete(value){if(!day||writing)return;try{status('更新盤點狀態中…');const {error}=await sb.from('liuho_inventory_days').update({is_complete:value,updated_by_name:who(),updated_at:new Date().toISOString()}).eq('stock_date',date);if(error)throw error;editing=false;await refresh(date);status(value?'✓ 已完成盤點':'✓ 已重新開放編輯')}catch(e){status('更新失敗：'+e.message)}}
 function init(){
  if(!el('liuhoOpenInventory'))return;
@@ -13741,61 +13773,16 @@ function init(){
  // 六禾分類排序：只更新分類主檔的 sort_order，所有日期共用順序；不修改盤點品項。
  el('lhInvCategoryOrder').addEventListener('click',()=>{
   if(!canEdit())return;
-  document.getElementById('lhInvCategoryOrderDialog')?.remove();
-  const ordered=categories.slice();
-  const overlay=document.createElement('div');
-  overlay.id='lhInvCategoryOrderDialog';
-  overlay.style.cssText='position:fixed;inset:0;z-index:200100;background:#0008;display:flex;align-items:center;justify-content:center;padding:14px';
-  const panel=document.createElement('div');
-  panel.style.cssText='width:min(520px,100%);max-height:90vh;overflow:auto;background:white;border-radius:16px;padding:18px;box-shadow:0 12px 35px #0003';
-  const heading=document.createElement('h3');heading.textContent='調整分類顯示順序';heading.style.margin='0 0 8px';
-  const hint=document.createElement('p');hint.textContent='選擇分類與新位置，按「移動」可繼續調整；最後按「儲存順序」。此順序適用所有日期，不更改商品及庫存。';hint.style.cssText='font-size:13px;line-height:1.5;color:#526070';
-  const controls=document.createElement('div');controls.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:12px 0';
-  const item=document.createElement('select'),position=document.createElement('select');
-  [item,position].forEach(x=>x.style.cssText='padding:9px;max-width:100%;flex:1;min-width:130px;border:1px solid #ccd5dd;border-radius:8px');
-  const move=document.createElement('button');move.type='button';move.className='btn gray';move.textContent='移動';
-  const list=document.createElement('div');list.style.cssText='display:grid;gap:5px;max-height:40vh;overflow:auto';
-  const buttons=document.createElement('div');buttons.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:14px';
-  const cancel=document.createElement('button');cancel.type='button';cancel.className='btn gray';cancel.textContent='取消';
-  const save=document.createElement('button');save.type='button';save.className='btn primary';save.textContent='儲存順序';
-  const close=()=>overlay.remove();
-  function render(){
-   const chosen=item.value||String(ordered[0]?.id||'');
-   item.replaceChildren();position.replaceChildren();list.replaceChildren();
-   ordered.forEach((c,i)=>{
-    const a=document.createElement('option');a.value=String(c.id);a.textContent=c.name;item.append(a);
-    const b=document.createElement('option');b.value=String(i);b.textContent='第 '+(i+1)+' 位';position.append(b);
-    const r=document.createElement('div');r.textContent=(i+1)+'. '+c.name;r.style.cssText='background:#f5faf6;border:1px solid #d9e7dc;border-radius:7px;padding:7px 10px';list.append(r);
-   });
-   item.value=ordered.some(c=>String(c.id)===chosen)?chosen:String(ordered[0]?.id||'');
-   position.value=String(Math.max(0,ordered.findIndex(c=>String(c.id)===item.value)));
-  }
-  item.addEventListener('change',()=>{position.value=String(ordered.findIndex(c=>String(c.id)===item.value))});
-  move.addEventListener('click',()=>{
-   const from=ordered.findIndex(c=>String(c.id)===item.value),to=Number(position.value);
-   if(from<0||to<0||to>=ordered.length)return;
-   const [c]=ordered.splice(from,1);ordered.splice(to,0,c);render();
+  lhSortDialog('調整分類顯示順序',categories.slice().sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)),async ordered=>{
+   for(let i=0;i<ordered.length;i++){
+    const rank=(i+1)*10;
+    if(Number(ordered[i].sort_order)===rank)continue;
+    const {error}=await sb.from('liuho_inventory_categories').update({sort_order:rank}).eq('id',ordered[i].id);
+    if(error)throw error;
+   }
+   await refresh(date,true);
   });
-  cancel.onclick=close;
-  overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
-  save.addEventListener('click',async()=>{
-   if(writing||pending.size){status('請等待庫存儲存完成再排序');return}
-   save.disabled=true;status('分類排序儲存中…');
-   try{
-    // 分類的排序欄位已存在，不新增 SQL 或變更分類名稱。
-    for(let i=0;i<ordered.length;i++){
-     const rank=(i+1)*10;
-     if(Number(ordered[i].sort_order)===rank)continue;
-     const {error}=await sb.from('liuho_inventory_categories').update({sort_order:rank}).eq('id',ordered[i].id);
-     if(error)throw error;
-    }
-    close();await refresh(date,true);status('✓ 分類順序已儲存');
-   }catch(e){status('⚠️ 分類排序儲存失敗，請重新整理確認：'+e.message);await refresh(date,true)}
-   finally{save.disabled=false}
-  });
-  controls.append(item,position,move);buttons.append(cancel,save);panel.append(heading,hint,controls,list,buttons);overlay.append(panel);document.body.append(overlay);render();
  });
-
  el('lhInvInactiveToggle').addEventListener('click',()=>{if(!canEdit())return;const panel=el('lhInvInactivePanel');panel.hidden=!panel.hidden;if(!panel.hidden){drawInactive();panel.querySelector('[data-inactive-search]')?.focus()}});
  el('lhInvInactivePanel').addEventListener('click',async e=>{
   if(e.target.closest('[data-inactive-close]')){el('lhInvInactivePanel').hidden=true;return}
