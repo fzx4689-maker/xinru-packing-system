@@ -13687,48 +13687,72 @@ let reorderOpen='';
 function lhSortDialog(title,source,onSave){
  document.getElementById('lhSortOverlay')?.remove();
  const ordered=source.slice();
+ let selectedId=null,dragId=null,dragMoved=false;
  const overlay=document.createElement('div');overlay.id='lhSortOverlay';
  overlay.style.cssText='position:fixed;inset:0;z-index:200120;background:#0009;display:flex;align-items:center;justify-content:center;padding:12px';
  const panel=document.createElement('div');panel.style.cssText='width:min(570px,100%);max-height:90dvh;display:flex;flex-direction:column;background:#fff;border-radius:16px;padding:15px;box-shadow:0 15px 45px #0004';
  const header=document.createElement('h3');header.textContent=title;header.style.margin='0 0 7px';
- const hint=document.createElement('p');hint.textContent='按住左側 ☰ 拖曳到想要的位置；手機也可長按拖動。亦可用 ↑ ↓ 微調，最後按「儲存順序」。';hint.style.cssText='font-size:13px;color:#566;margin:0 0 10px;line-height:1.5';
+ const hint=document.createElement('p');hint.textContent='直接按住任一商品拖曳排序；也可以先點要移動的商品，再點目標位置。不用一直按箭頭。最後按「儲存順序」。';hint.style.cssText='font-size:13px;color:#566;margin:0 0 10px;line-height:1.5';
  const list=document.createElement('div');list.style.cssText='overflow:auto;min-height:70px;flex:1;display:grid;align-content:start;gap:5px;overscroll-behavior:contain';
  const foot=document.createElement('div');foot.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:12px';
  const cancel=document.createElement('button');cancel.type='button';cancel.className='btn gray';cancel.textContent='取消';
  const save=document.createElement('button');save.type='button';save.className='btn primary';save.textContent='儲存順序';
  const close=()=>{overlay.remove();reorderOpen=''};
+ function relocate(id,targetId){
+  const from=ordered.findIndex(x=>String(x.id)===String(id));
+  const to=ordered.findIndex(x=>String(x.id)===String(targetId));
+  if(from<0||to<0||from===to)return;
+  const [item]=ordered.splice(from,1);ordered.splice(to,0,item);
+ }
  function render(){
   list.replaceChildren();
   ordered.forEach((r,i)=>{
    const row=document.createElement('div');row.dataset.sortId=String(r.id);
-   row.style.cssText='display:flex;align-items:center;gap:7px;border:1px solid #d6e6da;border-radius:9px;padding:6px 8px;background:#f6fbf7;min-height:43px';
-   const handle=document.createElement('span');handle.textContent='☰';handle.title='按住拖曳排序';handle.style.cssText='cursor:grab;touch-action:none;user-select:none;padding:6px 9px;font-size:20px;color:#456';
-   const name=document.createElement('span');name.textContent=(i+1)+'. '+r.name;name.style.cssText='flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px';
-   const up=document.createElement('button'),down=document.createElement('button');
-   for(const [btn,label,offset] of [[up,'↑',-1],[down,'↓',1]]){
-    btn.type='button';btn.textContent=label;btn.className='lh-inv-mini';btn.disabled=i+offset<0||i+offset>=ordered.length;
-    btn.addEventListener('click',()=>{const j=ordered.findIndex(x=>String(x.id)===String(r.id));const k=j+offset;if(k<0||k>=ordered.length)return;[ordered[j],ordered[k]]=[ordered[k],ordered[j]];render()});
-   }
-   handle.addEventListener('pointerdown',e=>{
-    if(e.button!==0)return;
-    e.preventDefault();handle.setPointerCapture(e.pointerId);
-    row.style.opacity='.55';row.style.border='2px dashed #2d9252';
-    const move=ev=>{
-     const target=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-sort-id]');
-     if(!target||target===row||!list.contains(target))return;
-     const from=ordered.findIndex(x=>String(x.id)===String(r.id));
-     const to=ordered.findIndex(x=>String(x.id)===target.dataset.sortId);
-     if(from<0||to<0)return;
-     const [moved]=ordered.splice(from,1);ordered.splice(to,0,moved);
-     const rect=target.getBoundingClientRect();
-     list.insertBefore(row,ev.clientY<rect.top+rect.height/2?target:target.nextSibling);
-     if(ev.clientY<list.getBoundingClientRect().top+28)list.scrollTop-=18;
-     if(ev.clientY>list.getBoundingClientRect().bottom-28)list.scrollTop+=18;
-    };
-    const done=()=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',done);handle.removeEventListener('pointercancel',done);render()};
-    handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',done);handle.addEventListener('pointercancel',done);
+   row.style.cssText='display:flex;align-items:center;gap:10px;border:1px solid '+(selectedId===String(r.id)?'#21864b':'#d6e6da')+';border-radius:9px;padding:12px 11px;background:'+(selectedId===String(r.id)?'#d8f3e2':'#f6fbf7')+';min-height:49px;cursor:grab;touch-action:pan-y;user-select:none';
+   const grip=document.createElement('span');grip.textContent='☰';grip.style.cssText='font-size:20px;color:#456;touch-action:none;cursor:grab;padding:2px 6px';
+   const name=document.createElement('span');name.textContent=(i+1)+'. '+r.name;name.style.cssText='flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px';
+   row.append(grip,name);
+   row.addEventListener('click',()=>{
+    if(dragMoved){dragMoved=false;return}
+    const id=String(r.id);
+    if(selectedId===null){selectedId=id;render();return}
+    if(selectedId===id){selectedId=null;render();return}
+    relocate(selectedId,id);selectedId=null;render();
    });
-   row.append(handle,name,up,down);list.append(row);
+   row.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    const id=String(r.id),y0=e.clientY,x0=e.clientX;
+    let dragging=false,lastY=y0;
+    const move=ev=>{
+     if(Math.abs(ev.clientY-y0)+Math.abs(ev.clientX-x0)<9&&!dragging)return;
+     if(!dragging){
+      dragging=true;dragId=id;dragMoved=true;
+      row.style.opacity='.6';row.style.border='2px dashed #21864b';
+      try{row.setPointerCapture(e.pointerId)}catch(_){}
+     }
+     lastY=ev.clientY;
+     const target=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-sort-id]');
+     if(target&&target!==row&&list.contains(target)){
+      const targetId=target.dataset.sortId;
+      relocate(id,targetId);
+      const rect=target.getBoundingClientRect();
+      list.insertBefore(row,ev.clientY<rect.top+rect.height/2?target:target.nextSibling);
+     }
+     const bounds=list.getBoundingClientRect();
+     if(lastY<bounds.top+35)list.scrollTop-=20;
+     else if(lastY>bounds.bottom-35)list.scrollTop+=20;
+    };
+    const done=()=>{
+     row.removeEventListener('pointermove',move);
+     row.removeEventListener('pointerup',done);
+     row.removeEventListener('pointercancel',done);
+     if(dragging){dragId=null;selectedId=null;render()}
+    };
+    row.addEventListener('pointermove',move);
+    row.addEventListener('pointerup',done);
+    row.addEventListener('pointercancel',done);
+   });
+   list.append(row);
   });
  }
  cancel.onclick=close;
