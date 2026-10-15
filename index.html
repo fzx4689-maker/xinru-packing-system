@@ -2154,6 +2154,23 @@ function switchFieldReportPanel(kind){
   .n485-panel .n485-add {display:flex!important;flex-direction:column!important}
 }
 </style>
+<style id="lhInvOct13InlineGrid">
+/* 僅六禾每日庫存：查看八欄，商品名稱與數量同一行；編輯四欄、格內直接輸入 */
+#liuhoInventoryPane .lh-inv-view-grid{grid-template-columns:repeat(8,minmax(0,1fr))!important}
+#liuhoInventoryPane .lh-inv-edit-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#liuhoInventoryPane .lh-inv-view-grid .lh-inv-product{flex-direction:row!important;justify-content:space-between!important;gap:5px!important;padding:7px 6px!important;min-height:35px;text-align:left!important}
+#liuhoInventoryPane .lh-inv-view-grid .lh-inv-name{font-size:13px!important;flex:1;min-width:0}
+#liuhoInventoryPane .lh-inv-view-grid .lh-inv-card-total{font-size:16px!important;flex-shrink:0}
+#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-product{justify-content:flex-start!important;padding:6px 5px!important}
+#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-name{font-size:13px!important}
+#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-card-fields{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px!important}
+#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-field{min-width:0;flex-basis:auto!important}
+#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-field input{width:100%;min-height:40px;font-size:16px!important;background:#fafffa}
+#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-card-tools{margin-top:4px}
+@media(max-width:1000px){#liuhoInventoryPane .lh-inv-view-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}#liuhoInventoryPane .lh-inv-edit-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:600px){#liuhoInventoryPane .lh-inv-view-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#liuhoInventoryPane .lh-inv-edit-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#liuhoInventoryPane .lh-inv-view-grid .lh-inv-product{padding:8px 5px!important}#liuhoInventoryPane .lh-inv-view-grid .lh-inv-name{font-size:12px!important}#liuhoInventoryPane .lh-inv-view-grid .lh-inv-card-total{font-size:15px!important}#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-field input{min-height:44px;font-size:16px!important}#liuhoInventoryPane .lh-inv-edit-grid .lh-inv-name{font-size:12px!important}}
+@media(max-width:350px){#liuhoInventoryPane .lh-inv-edit-grid{grid-template-columns:1fr!important}}
+</style>
 </head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
@@ -2441,9 +2458,18 @@ body.auth-booting #mainApp{visibility:hidden!important}
           <button type="button" class="liuho-tile liuho-action" id="liuhoOpenLedger"><strong>📖 進貨帳本</strong><span>唯讀連動欣儒六禾帳本，依日期查看正式品項明細</span></button>
           <div class="liuho-tile"><strong>💰 六禾公司內帳</strong><span>獨立收支資料・尚未啟用</span></div>
           <div class="liuho-tile"><strong>📊 營運與投資回收</strong><span>營收、成本、盈虧與設備投資・尚未啟用</span></div>
-          <div class="liuho-tile"><strong>📦 每日庫存</strong><span>六禾每日庫存記錄・尚未啟用</span></div>
+          <button type="button" class="liuho-tile liuho-action" id="liuhoOpenInventory"><strong>📦 每日庫存</strong><span>依日期查看商品剩餘數量；手機盤點、自動儲存</span></button>
           <div class="liuho-tile"><strong><img src="data:image/webp;base64,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" alt="" style="width:38px;height:44px;object-fit:cover;vertical-align:middle;border-radius:8px;margin-right:7px">蔬菜研究所</strong><span>蔬菜知識、品種介紹、料理食譜・尚未啟用</span></div>
         </div>
+        <section id="liuhoInventoryPane" hidden aria-label="六禾每日庫存">
+          <div class="lh-inv-head"><button class="btn gray" type="button" id="lhInvBack">← 六禾首頁</button><strong>📦 每日庫存</strong><span id="lhInvSync" role="status">尚未載入</span></div>
+          <div class="lh-inv-toolbar"><label>庫存日期 <input type="date" id="lhInvDate"></label><button class="btn gray" type="button" id="lhInvMode">✏️ 編輯</button><button class="btn primary" type="button" id="lhInvFinish" hidden>完成盤點</button><button class="btn gray" type="button" id="lhInvReopen" hidden>重新編輯</button></div>
+          <div class="lh-inv-meta" id="lhInvMeta"></div>
+          <div class="lh-inv-categories" id="lhInvCats"></div>
+          <input class="input lh-inv-search" id="lhInvSearch" placeholder="🔎 搜尋品名" aria-label="搜尋品名">
+          <div id="lhInvBody"><div class="empty">請選擇日期查看庫存。</div></div>
+          <div id="lhInvTools" hidden><button class="btn gray" type="button" id="lhInvNewCategory">＋ 新增分類</button></div>
+</section>
         <div id="liuhoLedgerPane" hidden>
           <div class="liuho-ledger-toolbar">
             <button class="btn" type="button" id="liuhoLedgerBack">← 返回六禾首頁</button>
@@ -4866,6 +4892,7 @@ $('#acctExportExcel').onclick=()=>{const d=acctLedgerData();if(d.isSupermarket){
 <!-- N352：公司內帳層級一次修正：第一層移除帳戶互轉；公司內帳標題與返回路由統一；快速輸入移除收支紀錄與互轉舊入口。 -->
 
 <!-- N365 效能核心 V2 第一階段：首頁摘要、寫後局部刷新、首屏延遲重算 --><!-- N434：僅修正80行報表紙欄寬；序號固定可見、品名縮回，不動其他輸出與帳務核心。 -->
+
 
 
 
@@ -13333,5 +13360,247 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 <style id="liuhoPermissionStyle">.liuho-no-read{opacity:.6;cursor:not-allowed!important}</style>
+<style id="liuhoDailyInventoryStyle">
+#liuhoInventoryPane[hidden],#liuhoHomeTiles[hidden],#liuhoLedgerPane[hidden]{display:none!important}
+.lh-inv-head,.lh-inv-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}.lh-inv-head strong{font-size:19px}.lh-inv-head #lhInvSync{margin-left:auto;font-size:12px;color:#366d4b;font-weight:700}
+.lh-inv-toolbar label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800}.lh-inv-toolbar input{min-height:40px;border:1px solid #d6ded8;border-radius:10px;padding:5px;font-size:15px}
+.lh-inv-meta{font-size:12px;color:#667085;margin:5px 0 9px}.lh-inv-categories{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;padding:5px 0 9px;-webkit-overflow-scrolling:touch}
+.lh-inv-cat{border:1px solid #d9e5dc;background:#f5f7f5;border-radius:999px;padding:9px 12px;font-size:13px;font-weight:800;flex:none}.lh-inv-cat.active{background:#d9f1df;color:#14633c;border-color:#84bd94}
+.lh-inv-search{max-width:400px;margin:3px 0 12px}.lh-inv-group{border:1px solid #d8e7db;border-radius:12px;overflow:hidden;margin-bottom:13px;background:white}.lh-inv-group-head{background:#dff2e3;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:6px;font-weight:900}
+.lh-inv-table{width:100%;border-collapse:collapse;table-layout:fixed}.lh-inv-table th,.lh-inv-table td{padding:9px 7px;border-bottom:1px solid #edf0ee;font-size:14px;overflow-wrap:anywhere}.lh-inv-table th{background:#f4faf5;font-size:12px}.lh-inv-table th:last-child,.lh-inv-table td:last-child{text-align:right}.lh-inv-table .lh-inv-name{font-weight:700}.lh-inv-table input{width:100%;min-width:0;min-height:40px;padding:6px 4px;border:1px solid #cbd9ce;border-radius:8px;font-size:16px;text-align:center;background:white}
+.lh-inv-table .lh-inv-total{font-weight:900;color:#155e36}.lh-inv-table .lh-inv-small{width:21%}.lh-inv-group-actions{padding:9px;display:flex;gap:6px;flex-wrap:wrap}.lh-inv-group-actions button,.lh-inv-mini{font-size:12px;padding:6px 8px;border:1px solid #d6e1d9;background:#f6faf7;border-radius:8px;cursor:pointer}.lh-inv-name-tools{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.lh-inv-muted{color:#667085;font-size:12px}
+@media(max-width:600px){.lh-inv-head strong{font-size:16px}.lh-inv-head #lhInvSync{width:100%;margin-left:0}.lh-inv-table th,.lh-inv-table td{padding:8px 4px;font-size:12px}.lh-inv-table input{font-size:16px;padding:4px 1px}.lh-inv-table .lh-inv-small{width:19%}.lh-inv-name-tools .lh-inv-mini{padding:5px}.lh-inv-toolbar .btn{padding:8px 9px}}
+
+/* 六禾每日庫存：僅緊密化顯示，不影響其他模組 */
+#liuhoInventoryPane .lh-inv-head,#liuhoInventoryPane .lh-inv-toolbar{gap:5px;margin:4px 0}
+#liuhoInventoryPane .lh-inv-head strong{font-size:17px}
+#liuhoInventoryPane .lh-inv-toolbar input{min-height:34px;padding:3px 6px}
+#liuhoInventoryPane .lh-inv-toolbar .btn{padding:7px 10px;font-size:13px}
+#liuhoInventoryPane .lh-inv-meta{margin:3px 0 5px;line-height:1.35}
+#liuhoInventoryPane .lh-inv-categories{gap:4px;padding:3px 0 5px}
+#liuhoInventoryPane .lh-inv-cat{padding:6px 10px;font-size:12px}
+#liuhoInventoryPane .lh-inv-search{margin:2px 0 6px;max-width:360px;padding:8px 10px}
+#liuhoInventoryPane .lh-inv-group{margin-bottom:7px;border-radius:9px}
+#liuhoInventoryPane .lh-inv-group-head{padding:6px 9px;min-height:31px}
+#liuhoInventoryPane .lh-inv-table th,#liuhoInventoryPane .lh-inv-table td{padding:5px 7px;font-size:13px;line-height:1.3}
+#liuhoInventoryPane .lh-inv-table th{font-size:12px;padding-top:5px;padding-bottom:5px}
+#liuhoInventoryPane .lh-inv-table input{min-height:34px;padding:4px 3px;font-size:16px}
+#liuhoInventoryPane .lh-inv-group-actions{padding:5px}
+#liuhoInventoryPane .lh-inv-group-actions button{padding:5px 7px}
+@media(max-width:600px){
+ #liuhoInventoryPane .lh-inv-head strong{font-size:16px}
+ #liuhoInventoryPane .lh-inv-head #lhInvSync{font-size:11px}
+ #liuhoInventoryPane .lh-inv-table th,#liuhoInventoryPane .lh-inv-table td{padding:5px 4px;font-size:12px}
+ #liuhoInventoryPane .lh-inv-table input{min-height:36px}
+ #liuhoInventoryPane .lh-inv-cat{padding:6px 9px}
+}
+
+/* 六禾每日庫存：查看每排六品、編輯每排四品；僅此分頁生效 */
+#liuhoInventoryPane .lh-inv-products{display:grid;gap:5px;padding:6px;align-items:stretch}
+#liuhoInventoryPane .lh-inv-view-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+#liuhoInventoryPane .lh-inv-edit-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+#liuhoInventoryPane .lh-inv-product{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:7px 4px;border:1px solid #e1e9e2;border-radius:7px;background:#fff;text-align:center}
+#liuhoInventoryPane .lh-inv-product .lh-inv-name{font-weight:750;font-size:13px;overflow-wrap:anywhere;line-height:1.25}
+#liuhoInventoryPane .lh-inv-card-total{font-size:18px;font-weight:900;color:#155e36;overflow-wrap:anywhere;line-height:1.25}
+#liuhoInventoryPane .lh-inv-card-fields{display:flex;justify-content:center;gap:4px;width:100%;min-width:0}
+#liuhoInventoryPane .lh-inv-field{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700}
+#liuhoInventoryPane .lh-inv-field input{width:100%;min-width:0;min-height:36px;border:1px solid #cad9cc;border-radius:6px;padding:4px 2px;text-align:center;font-size:16px;background:#fff}
+#liuhoInventoryPane .lh-inv-card-tools{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+#liuhoInventoryPane .lh-inv-card-tools .lh-inv-mini{padding:3px 5px;font-size:10px}
+@media(max-width:600px){
+ #liuhoInventoryPane .lh-inv-products{gap:3px;padding:4px}
+ #liuhoInventoryPane .lh-inv-product{padding:5px 2px;gap:3px}
+ #liuhoInventoryPane .lh-inv-product .lh-inv-name{font-size:11px}
+ #liuhoInventoryPane .lh-inv-card-total{font-size:14px}
+ #liuhoInventoryPane .lh-inv-card-fields{gap:2px;flex-wrap:wrap}
+ #liuhoInventoryPane .lh-inv-field{font-size:10px;flex-basis:28%}
+ #liuhoInventoryPane .lh-inv-field input{font-size:14px;min-height:34px}
+}
+</style>
+<script id="liuhoDailyInventoryModule">
+(function(){
+'use strict';
+const el=id=>document.getElementById(id);
+const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
+const defaults=[['蔬菜類','floors'],['水果類','floors'],['冷凍類','single'],['南北貨','single'],['素食','single'],['甜品','single'],['蛋類','single'],['調味包','single'],['調味粉','single'],['醬料油品','single'],['罐頭','single'],['其他商品','single']];
+let date='',day=null,rows=[],categories=[],filter='全部',editing=false,opened=false,loading=false,writing=0,pending=new Map(),timers=new Map(),lastSeen='',poll=null;
+const who=()=>String(currentProfile?.display_name||currentProfile?.nickname||currentUser?.email||'員工');
+const allowed=()=>!!(currentUser&&(currentProfile?.role==='admin'||(v17Perm?.configured&&v17Perm.pages.includes('liuho'))));
+const status=s=>{el('lhInvSync').textContent=s};
+const setView=()=>{el('liuhoHomeTiles').hidden=false;el('liuhoInventoryPane').hidden=true;el('liuhoLedgerPane').hidden=true;opened=false;editing=false;if(poll){clearInterval(poll);poll=null}};
+const num=s=>/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(String(s).trim());
+const total=r=>r.kind==='single'?String(r.qty??''):(String(r.total??'')!==''?String(r.total):num(r.f1)&&num(r.f2)?String(Number((Number(r.f1)+Number(r.f2)).toFixed(6))):'');
+const safeDate=d=>/^\d{4}-\d{2}-\d{2}$/.test(d);
+async function fetchDay(d){const {data,error}=await sb.from('liuho_inventory_days').select('*').eq('stock_date',d).maybeSingle();if(error)throw error;return data}
+async function fetchRows(d){const {data,error}=await sb.from('liuho_inventory_items').select('*').eq('stock_date',d).order('sort_order',{ascending:true}).order('id',{ascending:true}).limit(2000);if(error)throw error;return data||[]}
+async function fetchCats(){const {data,error}=await sb.from('liuho_inventory_categories').select('*').order('sort_order',{ascending:true});if(error)throw error;return data||[]}
+async function latestDate(){const {data,error}=await sb.from('liuho_inventory_days').select('stock_date,is_complete').order('stock_date',{ascending:false}).limit(100);if(error)throw error;return (data||[]).find(x=>!x.is_complete)?.stock_date||(data||[])[0]?.stock_date||today()}
+function canEdit(){return editing&&!!day&&!day.is_complete}
+function draw(){
+ el('lhInvDate').value=date;
+ el('lhInvMode').hidden=editing||!day||day.is_complete;
+ el('lhInvFinish').hidden=!canEdit();
+ el('lhInvReopen').hidden=!day||!day.is_complete;
+ el('lhInvTools').hidden=!canEdit();
+ el('lhInvMeta').textContent=day?(day.is_complete?'✅ 已完成':'🟡 盤點中')+'　最後修改：'+(day.updated_by_name||'—')+'　'+(day.updated_at?new Date(day.updated_at).toLocaleString('zh-TW',{hour12:false}):''):'這一天沒有庫存資料。';
+ const catNames=[...new Set([...categories.map(x=>x.name),...rows.map(x=>x.category)])];
+ el('lhInvCats').innerHTML=['全部',...catNames].map(c=>'<button type="button" class="lh-inv-cat '+(filter===c?'active':'')+'" data-cat="'+E(c)+'">'+E(c)+'</button>').join('');
+ const q=el('lhInvSearch').value.trim().toLowerCase();let groups=catNames.filter(c=>filter==='全部'||c===filter).map(c=>({name:c,items:rows.filter(r=>r.category===c&&r.active!==false&&(!q||String(r.name).toLowerCase().includes(q)))})).filter(g=>g.items.length||canEdit()&&!q);
+ if(!day){el('lhInvBody').innerHTML='<div class="empty">這個日期沒有庫存表。<br><button class="btn primary" type="button" id="lhInvCreate">✏️ 開始填寫這一天</button></div>';return}
+ el('lhInvBody').innerHTML=groups.map(g=>{
+  const kind=categories.find(c=>c.name===g.name)?.kind||g.items[0]?.kind||'single';
+  const cells=g.items.map(r=>{
+   const field=(key,value,caption)=>'<label class="lh-inv-field"><span>'+caption+'</span><input data-item="'+r.id+'" data-field="'+key+'" value="'+E(value??'')+'" aria-label="'+E(r.name+' '+caption)+'" autocomplete="off"></label>';
+   const name='<span class="lh-inv-name">'+E(r.name)+'</span>';
+   const tools=canEdit()?'<div class="lh-inv-card-tools"><button class="lh-inv-mini" data-action="rename" data-id="'+r.id+'">改名</button><button class="lh-inv-mini" data-action="move" data-id="'+r.id+'">分類</button><button class="lh-inv-mini" data-action="stop" data-id="'+r.id+'">停用</button></div>':'';
+   const quantity=canEdit()?(kind==='floors'?'<div class="lh-inv-card-fields">'+field('f1',r.f1,'1F')+field('f2',r.f2,'2F')+field('total',total(r),'總庫存')+'</div>':'<div class="lh-inv-card-fields">'+field('qty',r.qty,'庫存')+'</div>'):'<span class="lh-inv-card-total">'+E(total(r))+'</span>';
+   return '<div class="lh-inv-product">'+name+quantity+tools+'</div>';
+  }).join('');
+  return '<section class="lh-inv-group"><div class="lh-inv-group-head">'+E(g.name)+(canEdit()?'<button class="lh-inv-mini" data-action="category" data-category="'+E(g.name)+'">設定分類</button>':'')+'</div><div class="lh-inv-products '+(canEdit()?'lh-inv-edit-grid':'lh-inv-view-grid')+'">'+cells+'</div>' +(canEdit()?'<div class="lh-inv-group-actions"><button data-action="add" data-category="'+E(g.name)+'">＋ 新增品項</button><button data-action="reorder" data-category="'+E(g.name)+'">☷ 調整順序</button></div>':'')+'</section>';
+ }).join('')||'<div class="empty">沒有符合條件的品項。</div>';
+ if(reorderOpen&&canEdit())renderReorder(reorderOpen);
+}
+async function refresh(d,keepEdit=false){
+ if(loading)return;loading=true;status('讀取中…');try{
+  const [D,R,C]=await Promise.all([fetchDay(d),fetchRows(d),fetchCats()]);date=d;day=D;rows=R;categories=C;lastSeen=D?.updated_at||'';if(!keepEdit)editing=false;
+  if(!categories.length&&day){status('尚未建立分類，請先執行提供的資料庫 SQL');}
+  else status('雲端資料已載入');draw();
+ }catch(e){console.error(e);status('讀取失敗：'+e.message);el('lhInvBody').innerHTML='<div class="empty">讀取失敗，請確認六禾庫存 SQL 已執行及帳號有權限。</div>'}finally{loading=false}
+}
+async function ensureDay(){
+ if(!allowed())throw Error('沒有六禾庫存操作權限');if(day)return;
+ const {data:prev,error:pe}=await sb.from('liuho_inventory_days').select('stock_date').lt('stock_date',date).order('stock_date',{ascending:false}).limit(1);if(pe)throw pe;
+ const prevDate=prev?.[0]?.stock_date;
+ const {error}=await sb.from('liuho_inventory_days').upsert({stock_date:date,is_complete:false,updated_by_name:who()},{onConflict:'stock_date',ignoreDuplicates:true});if(error)throw error;
+ // Copy only if this is the first editor and there are no rows yet. Stable UUID item keys prevent duplicates.
+ if(prevDate){const [existing,previous]=await Promise.all([fetchRows(date),fetchRows(prevDate)]);if(!existing.length&&previous.length){const batch=previous.filter(x=>x.active!==false).map(x=>({stock_date:date,item_key:x.item_key,name:x.name,category:x.category,kind:x.kind,qty:x.qty,f1:x.f1,f2:x.f2,total:x.total,active:true,sort_order:x.sort_order,updated_by_name:who()}));const {error:ce}=await sb.from('liuho_inventory_items').upsert(batch,{onConflict:'stock_date,item_key',ignoreDuplicates:true});if(ce)throw ce}}
+ await refresh(date,true)
+}
+async function create(){try{status('建立庫存中…');await ensureDay();editing=true;draw();status('已建立，可開始盤點')}catch(e){status('建立失敗：'+e.message)}}
+async function stamp(){if(!day)return;const {error}=await sb.from('liuho_inventory_days').update({updated_by_name:who(),updated_at:new Date().toISOString()}).eq('stock_date',date);if(error)throw error}
+async function saveField(id,key,value){
+ const r=rows.find(x=>String(x.id)===String(id));if(!r||!canEdit())return;
+ const saveDate=date;const old=String(r[key]??'');r[key]=value;
+ const patch={[key]:value,updated_by_name:who(),updated_at:new Date().toISOString()};
+ if(r.kind==='floors'&&(key==='f1'||key==='f2')){
+   // Never overwrite another person's total while they are editing it.
+   if(num(r.f1)&&num(r.f2))patch.total=total(r);
+   else delete patch.total;
+   if(Object.prototype.hasOwnProperty.call(patch,'total'))r.total=patch.total;
+ }
+ writing++;status('儲存中…');
+ try{
+  const {data,error}=await sb.from('liuho_inventory_items').update(patch).eq('id',id).eq('stock_date',saveDate).eq(key,old).select('id').maybeSingle();if(error)throw error;
+  if(!data){status('⚠️ 其他人已修改這一格，請重新載入確認');await refresh(saveDate,true);return}
+  await stamp();status('✓ 已儲存 '+new Date().toLocaleTimeString('zh-TW',{hour12:false}));
+ }catch(e){status('⚠️ 儲存失敗：'+e.message);r[key]=old;}finally{writing--;if(!writing&&!document.activeElement?.matches('#liuhoInventoryPane input[data-item]'))draw()}
+}
+async function updateItem(id,patch){const {error}=await sb.from('liuho_inventory_items').update({...patch,updated_by_name:who(),updated_at:new Date().toISOString()}).eq('id',id).eq('stock_date',date);if(error)throw error;await stamp();await refresh(date,true)}
+async function act(action,id,cat){
+ try{
+  if(action==='add'){
+   const name=prompt('新增商品品名');if(!name?.trim())return;
+   const kind=categories.find(c=>c.name===cat)?.kind||'single';
+   const max=Math.max(0,...rows.map(x=>Number(x.sort_order)||0));
+   const {error}=await sb.from('liuho_inventory_items').insert({stock_date:date,name:name.trim(),category:cat,kind,sort_order:max+10,updated_by_name:who()});if(error)throw error;
+  }else if(action==='newcat'){
+   const name=prompt('新分類名稱');if(!name?.trim())return;
+   const kind=confirm('這個分類需要 1F、2F、總庫存欄位嗎？\n確定＝樓層庫存；取消＝一般庫存');
+   const {error}=await sb.from('liuho_inventory_categories').insert({name:name.trim(),kind:kind?'floors':'single',sort_order:categories.length*10+10});if(error)throw error;
+  }else if(action==='category'){
+   const n=prompt('分類名稱',cat);if(n===null||!n.trim())return;
+   const c=categories.find(x=>x.name===cat);if(!c)return;
+   const kind=confirm('使用 1F、2F、總庫存格式？\n確定＝樓層庫存；取消＝一般庫存');
+   const {error}=await sb.from('liuho_inventory_categories').update({name:n.trim(),kind:kind?'floors':'single'}).eq('id',c.id);if(error)throw error;
+   const {error:ie}=await sb.from('liuho_inventory_items').update({category:n.trim(),kind:kind?'floors':'single'}).eq('stock_date',date).eq('category',cat);if(ie)throw ie;
+   if(filter===cat)filter=n.trim();
+  }else{
+   const r=rows.find(x=>String(x.id)===String(id));if(!r)return;
+   if(action==='rename'){const n=prompt('修改品名',r.name);if(n===null||!n.trim())return;await updateItem(id,{name:n.trim()});return}
+   if(action==='move'){const n=prompt('移到哪個分類？\n'+categories.map(c=>c.name).join('、'),r.category);if(!n||!categories.some(c=>c.name===n))return;const kind=categories.find(c=>c.name===n).kind;await updateItem(id,{category:n,kind});return}
+   if(action==='stop'){if(!confirm('停用「'+r.name+'」？往後庫存不再帶入，歷史仍保留。'))return;await updateItem(id,{active:false});return}
+   if(action==='up'||action==='down'){
+    const siblings=rows.filter(x=>x.category===r.category&&x.active!==false);const i=siblings.findIndex(x=>x.id===r.id),j=i+(action==='up'?-1:1);if(j<0||j>=siblings.length)return;
+    const other=siblings[j],v=r.sort_order,w=other.sort_order;
+    const {error:a}=await sb.from('liuho_inventory_items').update({sort_order:w}).eq('id',r.id);if(a)throw a;
+    const {error:b}=await sb.from('liuho_inventory_items').update({sort_order:v}).eq('id',other.id);if(b)throw b;
+   }
+  }
+  await stamp();await refresh(date,true)
+ }catch(e){status('操作失敗：'+e.message)}
+}
+// 六禾每日庫存專用：有明確編號的分類內排序，不再使用 ↑ ↓ 盲目移動。
+let reorderOpen='';
+function renderReorder(cat){
+ const list=rows.filter(r=>r.category===cat&&r.active!==false).sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||Number(a.id)-Number(b.id));
+ const section=[...el('lhInvBody').querySelectorAll('.lh-inv-group')].find(s=>s.querySelector('[data-action="reorder"]')?.dataset.category===cat);
+ if(!section)return;
+ section.querySelector('.lh-inv-reorder-panel')?.remove();
+ const panel=document.createElement('div');panel.className='lh-inv-reorder-panel';
+ panel.style.cssText='padding:12px;border:1px solid #b6d6c1;border-radius:10px;background:#f4fbf6;margin:8px 0';
+ const head=document.createElement('div');head.style.cssText='display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px';
+ head.innerHTML='<strong>調整「'+E(cat)+'」順序（共 '+list.length+' 項）</strong><button type="button" class="lh-inv-mini" data-close-order>完成／關閉</button>';panel.appendChild(head);
+ const hint=document.createElement('p');hint.textContent='請選擇商品要移到第幾位，按「移動並儲存」；只調整本分類的排列，不會改庫存數量。';hint.style.cssText='font-size:13px;margin:4px 0 10px';panel.appendChild(hint);
+ const choose=document.createElement('div');choose.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px';
+ const sel=document.createElement('select');sel.setAttribute('aria-label','要移動的商品');sel.style.cssText='min-width:150px;max-width:100%;padding:8px';
+ list.forEach((r,i)=>{const o=document.createElement('option');o.value=String(r.id);o.textContent=(i+1)+'. '+r.name;sel.appendChild(o)});
+ const target=document.createElement('select');target.setAttribute('aria-label','移動到第幾位');target.style.cssText='padding:8px';
+ list.forEach((r,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent='第 '+(i+1)+' 位';target.appendChild(o)});
+ const go=document.createElement('button');go.type='button';go.className='lh-inv-mini';go.textContent='移動並儲存';go.style.cssText='padding:9px;background:#e0f3e4';
+ const current=()=>{const idx=list.findIndex(r=>String(r.id)===sel.value);target.value=String(Math.max(0,idx));};sel.addEventListener('change',current);current();
+ go.addEventListener('click',async()=>{
+  if(writing||pending.size){status('請等待庫存儲存完成再排序');return}
+  const from=list.findIndex(r=>String(r.id)===sel.value),to=Number(target.value);
+  if(from<0||to<0||to>=list.length||from===to)return;
+  go.disabled=true;status('排序儲存中…');
+  try{
+   const ordered=list.slice(),[moved]=ordered.splice(from,1);ordered.splice(to,0,moved);
+   // 保留目前庫存數值，僅寫入 sort_order；只影響本日期、本分類。
+   for(let i=0;i<ordered.length;i++){
+    const rank=(i+1)*10;
+    if(Number(ordered[i].sort_order)===rank)continue;
+    const {error}=await sb.from('liuho_inventory_items').update({sort_order:rank}).eq('id',ordered[i].id).eq('stock_date',date).eq('category',cat);
+    if(error)throw error;
+   }
+   reorderOpen=cat;await stamp();await refresh(date,true);status('✓ 順序已儲存：'+moved.name+' → 第 '+(to+1)+' 位');
+   renderReorder(cat);
+  }catch(e){status('⚠️ 排序未完全儲存，請重新載入確認：'+e.message);await refresh(date,true)}finally{go.disabled=false}
+ });
+ choose.append(sel,target,go);panel.appendChild(choose);
+ const listing=document.createElement('div');listing.style.cssText='max-height:250px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:4px';
+ list.forEach((r,i)=>{const d=document.createElement('div');d.textContent=(i+1)+'. '+r.name;d.style.cssText='border:1px solid #d8e7dd;border-radius:5px;padding:5px 7px;background:white;font-size:13px';listing.appendChild(d)});
+ panel.appendChild(listing);
+ head.querySelector('[data-close-order]').addEventListener('click',()=>{reorderOpen='';panel.remove()});
+ section.appendChild(panel);
+}
+async function complete(value){if(!day||writing)return;try{status('更新盤點狀態中…');const {error}=await sb.from('liuho_inventory_days').update({is_complete:value,updated_by_name:who(),updated_at:new Date().toISOString()}).eq('stock_date',date);if(error)throw error;editing=false;await refresh(date);status(value?'✓ 已完成盤點':'✓ 已重新開放編輯')}catch(e){status('更新失敗：'+e.message)}}
+function init(){
+ if(!el('liuhoOpenInventory'))return;
+ el('liuhoOpenInventory').addEventListener('click',async()=>{
+  if(!allowed()){alert('沒有六禾每日庫存權限');return}
+  el('liuhoHomeTiles').hidden=true;el('liuhoLedgerPane').hidden=true;el('liuhoInventoryPane').hidden=false;opened=true;
+  try{const d=await latestDate();await refresh(d)}catch(e){status('讀取失敗：'+e.message)}
+  if(poll)clearInterval(poll);poll=setInterval(async()=>{
+   if(!opened||loading||writing||pending.size||document.activeElement?.matches('#liuhoInventoryPane input[data-item]'))return;
+   try{const d=await fetchDay(date);if((d?.updated_at||'')!==lastSeen)await refresh(date,editing)}catch(e){status('⚠️ 同步失敗：'+e.message)}
+  },7000);
+ });
+ el('lhInvBack').addEventListener('click',setView);
+ el('lhInvDate').addEventListener('change',async e=>{if(!safeDate(e.target.value))return;if(writing||pending.size){alert('請等待儲存完成再切換日期');e.target.value=date;return}filter='全部';await refresh(e.target.value)});
+ el('lhInvMode').addEventListener('click',()=>{editing=true;draw()});
+ el('lhInvFinish').addEventListener('click',()=>complete(true));
+ el('lhInvReopen').addEventListener('click',async()=>{await complete(false);editing=true;draw()});
+ el('lhInvSearch').addEventListener('input',draw);
+ el('lhInvCats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;filter=b.dataset.cat;draw()});
+ el('lhInvNewCategory').addEventListener('click',()=>act('newcat'));
+ el('lhInvBody').addEventListener('click',e=>{if(e.target.closest('#lhInvCreate')){create();return}const b=e.target.closest('[data-action]');if(!b||!canEdit())return;if(b.dataset.action==='reorder'){reorderOpen=b.dataset.category;renderReorder(reorderOpen);return}act(b.dataset.action,b.dataset.id,b.dataset.category)});
+ el('lhInvBody').addEventListener('input',e=>{const t=e.target;if(!t.matches('input[data-item]'))return;const key=t.dataset.item+'|'+t.dataset.field;pending.set(key,{id:t.dataset.item,field:t.dataset.field,value:t.value});clearTimeout(timers.get(key));status('待儲存…');timers.set(key,setTimeout(async()=>{const p=pending.get(key);pending.delete(key);if(p)await saveField(p.id,p.field,p.value)},650))});
+ document.querySelectorAll('.tab[data-tab="liuho"]').forEach(b=>b.addEventListener('click',()=>{if(opened)setView()}));
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
