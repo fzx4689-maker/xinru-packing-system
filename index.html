@@ -2486,7 +2486,14 @@ body.auth-booting #mainApp{visibility:hidden!important}
           <div class="lh-inv-toolbar"><label>庫存日期 <input type="date" id="lhInvDate"></label><button class="btn gray" type="button" id="lhInvMode">✏️ 編輯</button><button class="btn primary" type="button" id="lhInvFinish" hidden>完成盤點</button><button class="btn gray" type="button" id="lhInvReopen" hidden>重新編輯</button><div id="lhInvTools" hidden><button class="btn gray" type="button" id="lhInvNewCategory">＋ 新增分類</button> <button class="btn gray" type="button" id="lhInvCategoryOrder">☷ 調整分類順序</button> <button class="btn gray" type="button" id="lhInvInactiveToggle">已停用商品（<span id="lhInvInactiveCount">0</span>）</button></div></div>
           <div class="lh-inv-meta" id="lhInvMeta"></div>
           <div class="lh-inv-categories" id="lhInvCats"></div>
-          <input class="input lh-inv-search" id="lhInvSearch" placeholder="🔎 搜尋品名" aria-label="搜尋品名">
+          <div class="lh-inv-search-wrap"><input class="input lh-inv-search" id="lhInvSearch" placeholder="🔎 搜尋品名" aria-label="搜尋品名"><button type="button" id="lhInvSearchClear" aria-label="清除商品搜尋" title="清除搜尋" hidden>✕</button></div>
+<style id="lhInvSearchClearStyle">
+#liuhoInventoryPane .lh-inv-search-wrap{position:relative;width:min(100%,480px);max-width:100%;}
+#liuhoInventoryPane .lh-inv-search-wrap .lh-inv-search{width:100%;box-sizing:border-box;padding-right:45px;}
+#liuhoInventoryPane #lhInvSearchClear:not([hidden]){display:flex;align-items:center;justify-content:center;position:absolute;right:7px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:1px solid #d1dad4;border-radius:50%;background:#f0f3f1;color:#455b4c;font-size:18px;cursor:pointer;}
+#liuhoInventoryPane #lhInvSearchClear[hidden]{display:none!important;}
+</style>
+
           <div id="lhInvBody"><div class="empty">請選擇日期查看庫存。</div></div>
           <div id="lhInvInactivePanel" hidden role="dialog" aria-modal="true" aria-label="已停用商品搜尋與恢復"></div>
 <style id="lhInvInactiveDialogStyle">
@@ -10037,6 +10044,14 @@ K白.kg
     return {mode,groups,unknown,total:[...groups.values()].reduce((x,y)=>x+y,0)};
   }
   async function qN265Render(work,tab='整理'){
+    // 農收分類儲存後保留目前展開的客戶、車趟、篩選月份與捲動位置。
+    const frPrevOpen=[...work.querySelectorAll('details[data-fr-group-id],details[data-fr-trip-id]')].filter(x=>x.open).map(x=>x.dataset.frGroupId?'group:'+x.dataset.frGroupId:'trip:'+x.dataset.frTripId);
+    const frPrevMonth=work.querySelector('#qN265Month')?.value;
+    const frPrevState=work.querySelector('#qN265State')?.value;
+    const frPrevAnchor=work.querySelector('details[data-fr-trip-id]:open')||work.querySelector('details[data-fr-group-id]:open');
+    const frPrevAnchorKey=frPrevAnchor?(frPrevAnchor.dataset.frTripId?'trip:'+frPrevAnchor.dataset.frTripId:'group:'+frPrevAnchor.dataset.frGroupId):null;
+    const frPrevAnchorTop=frPrevAnchor?.getBoundingClientRect().top;
+    const frPrevScrollY=window.scrollY;
     work.innerHTML='<div class="acctWorkPlaceholder">農收資料讀取中…</div>';
     let data;try{data=await qN265Load();data.splits=await qN270LoadSplits()}catch(e){const msg=String(e?.message||e||'');work.innerHTML='<div class="acctWorkPlaceholder"><b>農收分類資料讀取失敗</b><div class="helper">'+(/permission denied/i.test(msg)?'資料表已建立，但 Supabase Data API 尚未授權目前登入角色。請執行 N266 權限修正 SQL。':'請確認 Supabase 農收資料表與連線。')+'<br>'+qEsc(msg)+'</div></div>';return}
     const trips=qN265Trips(),now=qToday(),month=now.slice(0,7);
@@ -10101,6 +10116,8 @@ K白.kg
     }
 
     body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><input id="qN265Month" class="input" type="month" value="'+qEsc(month)+'" style="max-width:190px"><select id="qN265State" class="input" style="max-width:180px"><option value="pending">待處理</option><option value="done">已處理</option><option value="all">全部</option></select></div><div id="qN265Trips"></div>';
+    if(frPrevMonth && body.querySelector('#qN265Month option[value="'+frPrevMonth+'"]'))body.querySelector('#qN265Month').value=frPrevMonth;
+    if(frPrevState)body.querySelector('#qN265State').value=frPrevState;
     const classifiedConfigs=new Map(),classifiedLines=new Map();
     try{for(const c of qN265NeedContacts().filter(x=>qN267ReceiptMode(x)==='classified'&&qN481Contact(x)))classifiedConfigs.set(qN481Contact(c),await qN481LoadFor(c));
       for(const g of qN268GroupTrips(trips).filter(x=>qN267ReceiptMode(x.contact)==='classified'))classifiedLines.set(g.key,await qN481LoadLines(g));
@@ -10149,15 +10166,27 @@ K白.kg
           // 僅保留需要人工處理的品項；不再顯示每車重複的七類小計。
           if(!pendingCount && !tripDifferences.length)return '';
           // 待分類商品清單預設收合，需處理時展開；分類金額在日期層僅顯示一次。
-          return '<details style="margin:9px 0;border:1px solid #ddd;padding:8px;border-radius:8px"><summary style="cursor:pointer;font-weight:700">'+qEsc(r.date||'')+'｜車趟 '+qEsc(qN481Record(r))+'｜待處理 '+pendingCount+' 項（點擊展開商品）</summary>'+
+          return '<details data-fr-trip-id="'+qEsc(qN481Record(r))+'" style="margin:9px 0;border:1px solid #ddd;padding:8px;border-radius:8px"><summary style="cursor:pointer;font-weight:700">'+qEsc(r.date||'')+'｜車趟 '+qEsc(qN481Record(r))+'｜待處理 '+pendingCount+' 項（點擊展開商品）</summary>'+
             (pendingCount?'<table class="table" style="width:100%;table-layout:fixed"><thead><tr><th>商品</th><th>數量</th><th>貨款</th><th>農收分類</th></tr></thead><tbody>'+itemRows+'</tbody></table>':'')+
             (tripDifferences.length?'<div style="color:#a33;padding:8px;border:1px solid #f2c4c4;border-radius:6px">⚠️ 已處理鎖定金額與正式帳本不一致（未改動歷史紀錄）：'+tripDifferences.map(d=>'<div>'+qEsc(d.name)+'：原鎖定 '+qN265Money(d.old)+' → 現行 '+qN265Money(d.current)+'</div>').join('')+'</div>':'')+'</details>';
         }).join(''):'';
         const rows=[...seven,...[...agg.keys()].filter(n=>!seven.includes(n))].map(k=>'<tr><td>'+qEsc(k)+'</td><td style="text-align:right">'+qN265Money(agg.get(k)||0)+'</td></tr>').join('');
         const un=unknown.map(u=>'<div>'+qEsc(u.name)+'：'+qN265Money(u.amount)+'</div>').join('');
         const label=qN268PeriodLabel(c,g.records[0]),status=done?'✓ 已處理':(mode==='classified'?(unknown.length?'🔴 '+unknown.length+' 項待分類':'🟢 分類完成'):'🟡 一般農收待處理');
-        return '<details style="border:1px solid #dfe4ea;border-radius:14px;padding:10px 12px;margin:8px 0;background:#fff" '+(!done&&idx===0?'open':'')+'><summary style="cursor:pointer;font-weight:900">'+qEsc(label)+'｜'+qEsc(c?.name||g.records[0]?.customer||'')+(cycle==='每車／每次'?'':'')+'　'+status+(done?'｜'+g.records.length+' 車｜貨款 '+qN265Money(qN270GroupTotal(g)):'')+'</summary><div style="margin-top:10px">'+(mode==='classified'?('<div class="helper">僅顯示待分類或需核對的商品；已記憶分類仍計入下方金額，不重複列出。</div>'+details+'<table class="table"><thead><tr><th>分類</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table><div style="text-align:right">商品貨款 '+qN265Money(goodsTotal)+'｜不開農收 '+qN265Money(excludedTotal)+'｜農收分類合計 '+qN265Money(total)+'</div>' ):(()=>{const due=qN270GroupTotal(g),sp=data.splits.get(sid),vals=Array.isArray(sp?.amounts)?sp.amounts:[],ss=vals.reduce((a,v)=>a+(Number(v)||0),0),diff=due-ss;return '<div style="border:1px solid #dfe4ea;background:#f8fafb;border-radius:12px;padding:10px"><b>一般農收・'+qEsc(cycle)+'</b><div style="font-size:18px;font-weight:900;margin-top:8px">本期貨款總額：'+qN265Money(due)+'</div><div class="helper">'+(cycle==='每車／每次'?'這車開立完成後直接標記已處理。':'依開立週期合併為 1 筆提醒。')+'</div>'+(c?.farmerReceiptSplit?'<div style="margin-top:10px;border-top:1px solid #dfe4ea;padding-top:10px" data-fr-splitbox="'+qEsc(sid)+'" data-fr-due="'+due+'"><b>農收分張金額</b><div class="helper">由對方提供每張金額；系統不自行拆分，只核對合計。</div><div data-fr-splitrows="'+qEsc(sid)+'">'+((vals.length?vals:[0]).map((v,i)=>'<div style="display:grid;grid-template-columns:72px minmax(140px,220px) 70px;gap:7px;align-items:center;margin-top:7px"><b>第 '+(i+1)+' 張</b><input class="input" type="number" min="0" step="1" data-fr-splitval="'+qEsc(sid)+'" value="'+(v||'')+'" placeholder="輸入金額"><button class="btn gray" data-fr-delrow="'+qEsc(sid)+'">刪除</button></div>').join(''))+'</div><button class="btn gray" style="margin-top:8px" data-fr-addrow="'+qEsc(sid)+'">＋增加一張</button><div data-fr-splitsum="'+qEsc(sid)+'" style="margin-top:8px"><b>分張合計：'+qN265Money(ss)+'</b>　'+(Math.abs(diff)<0.01?'✓ 與貨款相符':(diff>0?'尚差 '+qN265Money(diff):'超出 '+qN265Money(Math.abs(diff))))+'</div><button class="btn gray" style="margin-top:7px" data-fr-save-split="'+qEsc(sid)+'">儲存分張金額</button></div>':'')+'</div>'})())+'<div class="actions" style="margin-top:10px">'+(done?'<button class="btn gray" data-fr-undone="'+qEsc(sid)+'">↩ 改回待處理</button>':'<button class="btn primary" data-fr-done="'+qEsc(sid)+'" '+(mode==='classified'&&unknown.length?'disabled title="仍有待分類商品"':'')+'>✓ 這筆農收已處理</button>')+'</div></div></details>';
+        return '<details data-fr-group-id="'+qEsc(sid)+'" style="border:1px solid #dfe4ea;border-radius:14px;padding:10px 12px;margin:8px 0;background:#fff" '+(!done&&idx===0?'open':'')+'><summary style="cursor:pointer;font-weight:900">'+qEsc(label)+'｜'+qEsc(c?.name||g.records[0]?.customer||'')+(cycle==='每車／每次'?'':'')+'　'+status+(done?'｜'+g.records.length+' 車｜貨款 '+qN265Money(qN270GroupTotal(g)):'')+'</summary><div style="margin-top:10px">'+(mode==='classified'?('<div class="helper">僅顯示待分類或需核對的商品；已記憶分類仍計入下方金額，不重複列出。</div>'+details+'<table class="table"><thead><tr><th>分類</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table><div style="text-align:right">商品貨款 '+qN265Money(goodsTotal)+'｜不開農收 '+qN265Money(excludedTotal)+'｜農收分類合計 '+qN265Money(total)+'</div>' ):(()=>{const due=qN270GroupTotal(g),sp=data.splits.get(sid),vals=Array.isArray(sp?.amounts)?sp.amounts:[],ss=vals.reduce((a,v)=>a+(Number(v)||0),0),diff=due-ss;return '<div style="border:1px solid #dfe4ea;background:#f8fafb;border-radius:12px;padding:10px"><b>一般農收・'+qEsc(cycle)+'</b><div style="font-size:18px;font-weight:900;margin-top:8px">本期貨款總額：'+qN265Money(due)+'</div><div class="helper">'+(cycle==='每車／每次'?'這車開立完成後直接標記已處理。':'依開立週期合併為 1 筆提醒。')+'</div>'+(c?.farmerReceiptSplit?'<div style="margin-top:10px;border-top:1px solid #dfe4ea;padding-top:10px" data-fr-splitbox="'+qEsc(sid)+'" data-fr-due="'+due+'"><b>農收分張金額</b><div class="helper">由對方提供每張金額；系統不自行拆分，只核對合計。</div><div data-fr-splitrows="'+qEsc(sid)+'">'+((vals.length?vals:[0]).map((v,i)=>'<div style="display:grid;grid-template-columns:72px minmax(140px,220px) 70px;gap:7px;align-items:center;margin-top:7px"><b>第 '+(i+1)+' 張</b><input class="input" type="number" min="0" step="1" data-fr-splitval="'+qEsc(sid)+'" value="'+(v||'')+'" placeholder="輸入金額"><button class="btn gray" data-fr-delrow="'+qEsc(sid)+'">刪除</button></div>').join(''))+'</div><button class="btn gray" style="margin-top:8px" data-fr-addrow="'+qEsc(sid)+'">＋增加一張</button><div data-fr-splitsum="'+qEsc(sid)+'" style="margin-top:8px"><b>分張合計：'+qN265Money(ss)+'</b>　'+(Math.abs(diff)<0.01?'✓ 與貨款相符':(diff>0?'尚差 '+qN265Money(diff):'超出 '+qN265Money(Math.abs(diff))))+'</div><button class="btn gray" style="margin-top:7px" data-fr-save-split="'+qEsc(sid)+'">儲存分張金額</button></div>':'')+'</div>'})())+'<div class="actions" style="margin-top:10px">'+(done?'<button class="btn gray" data-fr-undone="'+qEsc(sid)+'">↩ 改回待處理</button>':'<button class="btn primary" data-fr-done="'+qEsc(sid)+'" '+(mode==='classified'&&unknown.length?'disabled title="仍有待分類商品"':'')+'>✓ 這筆農收已處理</button>')+'</div></div></details>';
       }).join('')||'<div class="empty">這個月份沒有符合的農收資料</div>';
+      // 恢復原展開狀態，避免每次選分類後跳回第一筆客戶。
+      if(frPrevOpen.length){
+        body.querySelectorAll('details[data-fr-group-id],details[data-fr-trip-id]').forEach(d=>{
+          const k=d.dataset.frGroupId?'group:'+d.dataset.frGroupId:'trip:'+d.dataset.frTripId;
+          d.open=frPrevOpen.includes(k);
+        });
+        const anchor=[...body.querySelectorAll('details[data-fr-group-id],details[data-fr-trip-id]')].find(d=>
+          (d.dataset.frGroupId?'group:'+d.dataset.frGroupId:'trip:'+d.dataset.frTripId)===frPrevAnchorKey);
+        if(anchor&&Number.isFinite(frPrevAnchorTop)){
+          window.scrollBy(0,anchor.getBoundingClientRect().top-frPrevAnchorTop);
+        }else if(Number.isFinite(frPrevScrollY))window.scrollTo(0,frPrevScrollY);
+      }
       body.querySelectorAll('[data-n481-line]').forEach(el=>el.onchange=async()=>{try{
         const key=el.dataset.n481Line,sep=key.lastIndexOf(':'),rid=key.slice(0,sep),idx=Number(key.slice(sep+1));
         const trip=trips.find(x=>qN481Record(x.record)===rid);if(!trip)throw Error('找不到原始車趟');
@@ -13595,10 +13624,11 @@ async function saveField(id,key,value){
  const saveDate=date;const old=String(r[key]??'');r[key]=value;
  const patch={[key]:value,updated_by_name:who(),updated_at:new Date().toISOString()};
  if(r.kind==='floors'&&(key==='f1'||key==='f2')){
-   // Never overwrite another person's total while they are editing it.
-   if(num(r.f1)&&num(r.f2))patch.total=total(r);
-   else delete patch.total;
-   if(Object.prototype.hasOwnProperty.call(patch,'total'))r.total=patch.total;
+   // 只有兩欄都是純數字才自動加總；C、文字、空白都不改總庫存。
+   if(num(r.f1)&&num(r.f2)){
+     patch.total=String(Number((Number(r.f1)+Number(r.f2)).toFixed(6)));
+     r.total=patch.total;
+   }
  }
  writing++;status('儲存中…');
  try{
@@ -13797,7 +13827,10 @@ function init(){
  el('lhInvMode').addEventListener('click',async()=>{if(writing||pending.size)return;try{status('準備盤點資料中…');const copied=await ensureDay();editing=true;draw();status(copied?'✓ 已帶入／補齊上一份庫存（含停用商品）':'雲端資料已載入')}catch(e){status('編輯失敗：'+e.message)}});
  el('lhInvFinish').addEventListener('click',()=>complete(true));
  el('lhInvReopen').addEventListener('click',async()=>{await complete(false);editing=true;draw()});
- el('lhInvSearch').addEventListener('input',draw);
+ const syncSearchClear=()=>{el('lhInvSearchClear').hidden=!el('lhInvSearch').value};
+ el('lhInvSearch').addEventListener('input',()=>{syncSearchClear();draw()});
+ el('lhInvSearchClear').addEventListener('click',()=>{el('lhInvSearch').value='';syncSearchClear();draw();el('lhInvSearch').focus()});
+ syncSearchClear();
  el('lhInvCats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;filter=b.dataset.cat;draw()});
  el('lhInvNewCategory').addEventListener('click',()=>act('newcat')); 
  // 六禾分類排序：只更新分類主檔的 sort_order，所有日期共用順序；不修改盤點品項。
@@ -13830,7 +13863,18 @@ function init(){
  if(!confirm('恢復「'+r.name+'」到「'+r.category+'」？只恢復此日期的商品狀態，庫存數字不變。'))return;
  b.disabled=true;updateItem(r.id,{active:true}).then(()=>status('✓ 已恢復：'+r.name)).catch(err=>{status('恢復失敗：'+err.message);b.disabled=false});return;
 }act(b.dataset.action,b.dataset.id,b.dataset.category)});
- el('lhInvBody').addEventListener('input',e=>{const t=e.target;if(!t.matches('input[data-item]'))return;const key=t.dataset.item+'|'+t.dataset.field;pending.set(key,{id:t.dataset.item,field:t.dataset.field,value:t.value});clearTimeout(timers.get(key));status('待儲存…');timers.set(key,setTimeout(async()=>{const p=pending.get(key);pending.delete(key);if(p)await saveField(p.id,p.field,p.value)},650))});
+ el('lhInvBody').addEventListener('input',e=>{const t=e.target;if(!t.matches('input[data-item]'))return;const key=t.dataset.item+'|'+t.dataset.field;
+  const r=rows.find(x=>String(x.id)===String(t.dataset.item));
+  if(r&&r.kind==='floors'&&(t.dataset.field==='f1'||t.dataset.field==='f2')){
+   const first=t.dataset.field==='f1'?t.value:String(pending.get(t.dataset.item+'|f1')?.value??r.f1??'');
+   const second=t.dataset.field==='f2'?t.value:String(pending.get(t.dataset.item+'|f2')?.value??r.f2??'');
+   const totalInput=t.closest('.lh-inv-product')?.querySelector('input[data-field="total"]');
+   if(num(first)&&num(second)&&totalInput){
+    const sum=String(Number((Number(first)+Number(second)).toFixed(6)));
+    totalInput.value=sum;
+   }
+  }
+  pending.set(key,{id:t.dataset.item,field:t.dataset.field,value:t.value});clearTimeout(timers.get(key));status('待儲存…');timers.set(key,setTimeout(async()=>{const p=pending.get(key);pending.delete(key);if(p)await saveField(p.id,p.field,p.value)},650))});
  document.querySelectorAll('.tab[data-tab="liuho"]').forEach(b=>b.addEventListener('click',()=>{if(opened)setView()}));
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
