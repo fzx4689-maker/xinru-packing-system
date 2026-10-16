@@ -13849,7 +13849,7 @@ function init(){
  el('liuhoOpenInventory').addEventListener('click',async()=>{
   if(!allowed()){alert('沒有六禾每日庫存權限');return}
   el('liuhoHomeTiles').hidden=true;el('liuhoLedgerPane').hidden=true;el('liuhoInventoryPane').hidden=false;opened=true;
-  try{const d=await latestDate();await refresh(d)}catch(e){status('讀取失敗：'+e.message)}
+  try{await refresh(today())}catch(e){status('讀取失敗：'+e.message)}
   if(poll)clearInterval(poll);poll=setInterval(async()=>{
    if(!opened||loading||writing||pending.size||document.activeElement?.matches('#liuhoInventoryPane input[data-item]'))return;
    try{const d=await fetchDay(date);if((d?.updated_at||'')!==lastSeen)await refresh(date,editing)}catch(e){status('⚠️ 同步失敗：'+e.message)}
