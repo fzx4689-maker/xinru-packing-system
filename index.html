@@ -7078,44 +7078,34 @@ let qN217IdentityCache = new WeakMap();
     if(!r||qAccountingIsAdjustment(r)||r.mode==='money_settlement'||r.mode==='money_refund')return 0;
     return qAccountingBaseTotal(r,c)-qAccountingAdjustmentTotal(r.id,cutoff);
   }
-  // N480：帳期手續費與實收分離。舊收款不改寫；只在「同一帳期的實收已付清淨額」時，
-  // 將原帳期剩下的手續費歸屬到原交易，避免原交易仍顯示 $30 未收。
-  // 注意：這是讀取時的核銷歸屬，不是虛構銀行收款，也不新增第二筆金流。
-  function qN480FeeAttributions(c,cutoff=''){
-    const fee=qBillingPeriodFeeAmount(c),result=new Map();
-    if(!(fee>0)||!c)return result;
-    const cacheKey=String(c?.id||c?.name||'')+'|'+(typeof cutoff==='string'?cutoff:JSON.stringify(cutoff||''));
-    if(qN219CalcCache){
-      if(!qN219CalcCache.feeAttributionCache)qN219CalcCache.feeAttributionCache=new Map();
-      if(qN219CalcCache.feeAttributionCache.has(cacheKey))return qN219CalcCache.feeAttributionCache.get(cacheKey);
-    }
+  // N481：帳期手續費僅在「已有實際收款，且帳期餘額恰好為手續費」時核銷。
+  // 手續費不是銀行入帳金額；以交易及實際 allocations 推導同帳期歸屬，避免重複扣減。
+  // asOfSettlement 可精確指定正在查看的收款，避免建立時間相同／日期截點導致該筆被排除。
+  function qN481FeeAttributions(c,cutoff='',asOfSettlement=null){
+    const result=new Map(),fee=qBillingPeriodFeeAmount(c);
+    if(!c||!(fee>0))return result;
     const all=(typeof acctRecords==='function'?acctRecords():[]);
-    const tx=all.filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qRecordBelongsToContact(r,c)&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'));
+    const eligible=r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c);
+    const tx=all.filter(r=>eligible(r)&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qN96DirectionMatch(r,'receipt')&&(!cutoff||qAccountingCutoffAllows(r,cutoff)));
     const groups=new Map();
-    for(const r of tx){
-      const key=qBillingPeriodFeeKey(c,r);if(!key)continue;
-      if(cutoff&&!qAccountingCutoffAllows(r,cutoff))continue;
-      if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);
-    }
-    const settlements=all.filter(s=>s&&s.mode==='money_settlement'&&s.status!=='void'&&s.txnType==='receipt'&&qAccountingCutoffAllows(s,cutoff));
+    for(const r of tx){const key=qBillingPeriodFeeKey(c,r);if(!key)continue;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r)}
+    const settlements=all.filter(r=>r&&r.mode==='money_settlement'&&r.status!=='void'&&r.txnType==='receipt'&&(!cutoff||qAccountingCutoffAllows(r,cutoff)||String(r.id||'')===String(asOfSettlement?.id||'__none__')));
     const paid=new Map();
-    for(const s of settlements)for(const a of (Array.isArray(s.allocations)?s.allocations:[])){
+    for(const r of settlements)for(const a of (Array.isArray(r.allocations)?r.allocations:[])){
       const id=String(a?.recordId||'');paid.set(id,(paid.get(id)||0)+Math.max(0,qMoney(a?.amount)));
     }
     for(const members of groups.values()){
       const due=members.map(r=>({r,left:Math.max(0,qAccountingEffectiveTotal(r,c,cutoff)-qMoney(r.paid)-(paid.get(String(r.id||''))||0))}));
-      const total=due.reduce((n,x)=>n+x.left,0);
-      const cashApplied=members.some(r=>(paid.get(String(r.id||''))||0)>0);
-      // 只有收款後剩下的差額不超過一個帳期手續費，才視為已扣手續費結清。
-      // 防止在部分收款時提前沖銷未收貨款，也防止多次重複認列。
-      if(!cashApplied||total<=0.000001||total>fee+0.001)continue;
-      let left=Math.min(fee,total);
-      for(let i=due.length-1;i>=0&&left>0.000001;i--){
-        const x=due[i],take=Math.min(left,x.left);if(take>0){result.set(String(x.r.id||''),take);left-=take}
-      }
+      const residual=due.reduce((sum,x)=>sum+x.left,0);
+      if(residual<0.000001||Math.abs(residual-fee)>0.001||!members.some(r=>(paid.get(String(r.id||''))||0)>0))continue;
+      let remaining=fee;
+      for(let i=due.length-1;i>=0&&remaining>0.000001;i--){const x=due[i],n=Math.min(remaining,x.left);if(n>0){result.set(String(x.r.id||''),n);remaining-=n}}
     }
-    if(qN219CalcCache)qN219CalcCache.feeAttributionCache.set(cacheKey,result);
     return result;
+  }
+  function qN480FeeAttributions(c,cutoff=''){
+    // 不跨次快取，避免切換客戶或收款後保留舊的核銷狀態。
+    return qN481FeeAttributions(c,cutoff);
   }
   function qAccountingPaidTotal(r,cutoff=''){
     if(!r)return 0;
@@ -9275,18 +9265,21 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const receipt=r?.txnType!=='payment',title=receipt?'收款':'付款',allocs=Array.isArray(r?.allocations)?r.allocations:[],methods=Array.isArray(r?.methods)?r.methods:[];
     const records=(typeof acctRecords==='function'?acctRecords():[]);
     const cutoff=String(r?.createdAt||r?.updatedAt||'');
+    const feeAlloc=receipt&&contact?qN481FeeAttributions(contact,cutoff,r):new Map();
     const rows=allocs.map((a,i)=>{
       const src=records.find(x=>String(x?.id||'')===String(a?.recordId||'')),amt=qMoney(a?.amount);
-      const after=src?qAccountingOutstanding(src,contact,cutoff):0,before=after+amt;
+      const fee=src?(feeAlloc.get(String(src.id||''))||0):0;
+      const rawAfter=src?Math.max(0,qAccountingEffectiveTotal(src,contact,cutoff)-qMoney(src.paid)-qMoneySettlements().filter(s=>s.status!=='void'&&qAccountingCutoffAllows(s,cutoff)||String(s.id||'')===String(r.id||'')).reduce((sum,s)=>sum+(s.allocations||[]).filter(v=>String(v.recordId||'')===String(src.id||'')).reduce((z,v)=>z+qMoney(v.amount),0),0)):0;
+      const after=Math.max(0,rawAfter-fee),before=rawAfter+amt;
       const names=src?(src.items||[]).map(x=>x?.name).filter(Boolean).join('、'):'';
-      return {i:i+1,src,amt,before,after,names};
+      return {i:i+1,src,amt,fee,before,after,names};
     });
     const methodText=methods.map(m=>{let t=qEsc(m.method||'')+' '+qLedgerMoney(m.amount);if(m.method==='支票'){if(m.chequeNo)t+='｜票號 '+qEsc(m.chequeNo);if(m.chequeDate)t+='｜支票日 '+qEsc(m.chequeDate);if(m.chequeBank)t+='｜'+qEsc(m.chequeBank);if(m.chequeNote)t+='｜'+qEsc(m.chequeNote)}return t}).join('<br>')||'—';
-    const cards=rows.length?rows.map(x=>'<div class="qN383AllocCard"><div class="qN383AllocHead"><div><div class="qN383AllocTitle">'+x.i+'. '+qEsc(x.src?.date||'—')+'｜'+qEsc(x.src?.txnTypeLabel||(receipt?'銷貨':'進貨'))+'</div><div class="qN383AllocItems">'+qEsc(x.names||'交易 '+String(x.src?.id||x.src?.recordId||x.src?.customer||''))+'</div></div></div><div class="qN383AllocMoney"><div><small>沖帳前</small><b>'+qLedgerMoney(x.before)+'</b></div><div class="hit"><small>本次沖帳</small><b>'+qLedgerMoney(x.amt)+'</b></div><div><small>沖帳後</small><b>'+qLedgerMoney(x.after)+'</b></div></div></div>').join(''):'<div class="empty">這筆'+title+'沒有沖帳明細</div>';
+    const cards=rows.length?rows.map(x=>'<div class="qN383AllocCard"><div class="qN383AllocHead"><div><div class="qN383AllocTitle">'+x.i+'. '+qEsc(x.src?.date||'—')+'｜'+qEsc(x.src?.txnTypeLabel||(receipt?'銷貨':'進貨'))+'</div><div class="qN383AllocItems">'+qEsc(x.names||'交易 '+String(x.src?.id||x.src?.recordId||x.src?.customer||''))+'</div></div></div><div class="qN383AllocMoney"><div><small>沖帳前</small><b>'+qLedgerMoney(x.before)+'</b></div><div class="hit"><small>本次沖帳</small><b>'+qLedgerMoney(x.amt)+'</b></div><div><small>沖帳後</small><b>'+qLedgerMoney(x.after)+'</b></div></div>'+(x.fee>0?'<div class="helper" style="margin-top:6px">本帳期手續費核銷 '+qLedgerMoney(x.fee)+'（非銀行入帳）</div>':'')+'</div>').join(''):'<div class="empty">這筆'+title+'沒有沖帳明細</div>';
     return '<div class="quickV2 qRecordDetailView"><div class="quickV2RecordTop"><div><b>🧾 '+title+'交易明細｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important;margin-top:5px">實際'+title+'日期：'+qEsc(r.date||'')+'｜交易編號：'+qEsc(r.id||'')+'</div></div><button type="button" class="btn gray" id="qDetailBack">← 返回</button></div>'+
       '<div class="quickV2Record" style="margin-top:12px"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px"><div><b>本次'+title+'</b><div style="font-size:22px;font-weight:900">'+qLedgerMoney(r.amount||r.total)+'</div></div><div><b>'+title+'方式</b><div>'+methodText+'</div></div>'+(r.note?'<div><b>備註</b><div>'+qEsc(r.note)+'</div></div>':'')+'</div></div>'+
       '<div class="quickV2ContactHint" style="margin-top:12px"><b>🔗 沖帳明細</b><div class="helper" style="display:block!important;margin-top:4px">直接顯示這筆'+title+'實際沖到哪些原交易；資料來源為同一筆 settlement.allocations。</div></div><div class="qN383AllocList">'+cards+'</div>'+
-      '<div class="qN383SettlementTotal"><span>本次'+title+' <b>'+qLedgerMoney(r.amount||r.total)+'</b></span><span>本次沖帳 <b>'+qLedgerMoney(rows.reduce((z,x)=>z+x.amt,0))+'</b></span></div>'+
+      '<div class="qN383SettlementTotal"><span>本次'+title+' <b>'+qLedgerMoney(r.amount||r.total)+'</b></span><span>銀行實收沖帳 <b>'+qLedgerMoney(rows.reduce((z,x)=>z+x.amt,0))+'</b></span>'+(rows.some(x=>x.fee>0)?'<span>帳期手續費核銷 <b>'+qLedgerMoney(rows.reduce((z,x)=>z+x.fee,0))+'</b></span>':'')+'</div>'+
       '<div class="quickV2OutputBtns" style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px"><b style="margin-right:4px">交易管理</b>'+(r.status==='void'?'':'<button type="button" class="btn gray" data-detail-manage="edit">✏️ 修改</button><button type="button" class="btn gray" data-detail-manage="void">🚫 作廢</button>')+((qN6ICanDeleteAccounting())?'<button type="button" class="btn red" data-detail-manage="delete">🗑️ 永久刪除</button>':'')+'</div></div>';
   }
   function qRecordDetailHtml(r){
