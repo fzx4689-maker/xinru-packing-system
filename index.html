@@ -6732,8 +6732,10 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     const fee=qBillingPeriodFeeAmount(c);if(direction!=='receipt'||fee<=0||!list.length)return list;
     const groups=new Map();
     list.forEach((x,i)=>{const key=qBillingPeriodFeeKey(c,x.record);if(!key)return;const a=groups.get(key)||[];a.push(i);groups.set(key,a)});
+    const attributed=qN480FeeAttributions(c);
     for(const idxs of groups.values()){
-      let left=fee;
+      const already=idxs.reduce((n,i)=>n+(attributed.get(String(list[i]?.record?.id||''))||0),0);
+      let left=Math.max(0,fee-already);
       // 同一帳期只扣一次；從該帳期最後一筆未結清往前吸收，避免製造額外交易或重複扣款。
       for(let z=idxs.length-1;z>=0&&left>0.000001;z--){const i=idxs[z],take=Math.min(left,list[i].due);list[i].due=Math.max(0,list[i].due-take);left-=take}
     }
@@ -7076,11 +7078,52 @@ let qN217IdentityCache = new WeakMap();
     if(!r||qAccountingIsAdjustment(r)||r.mode==='money_settlement'||r.mode==='money_refund')return 0;
     return qAccountingBaseTotal(r,c)-qAccountingAdjustmentTotal(r.id,cutoff);
   }
+  // N480：帳期手續費與實收分離。舊收款不改寫；只在「同一帳期的實收已付清淨額」時，
+  // 將原帳期剩下的手續費歸屬到原交易，避免原交易仍顯示 $30 未收。
+  // 注意：這是讀取時的核銷歸屬，不是虛構銀行收款，也不新增第二筆金流。
+  function qN480FeeAttributions(c,cutoff=''){
+    const fee=qBillingPeriodFeeAmount(c),result=new Map();
+    if(!(fee>0)||!c)return result;
+    const cacheKey=String(c?.id||c?.name||'')+'|'+(typeof cutoff==='string'?cutoff:JSON.stringify(cutoff||''));
+    if(qN219CalcCache){
+      if(!qN219CalcCache.feeAttributionCache)qN219CalcCache.feeAttributionCache=new Map();
+      if(qN219CalcCache.feeAttributionCache.has(cacheKey))return qN219CalcCache.feeAttributionCache.get(cacheKey);
+    }
+    const all=(typeof acctRecords==='function'?acctRecords():[]);
+    const tx=all.filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&qRecordBelongsToContact(r,c)&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'));
+    const groups=new Map();
+    for(const r of tx){
+      const key=qBillingPeriodFeeKey(c,r);if(!key)continue;
+      if(cutoff&&!qAccountingCutoffAllows(r,cutoff))continue;
+      if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);
+    }
+    const settlements=all.filter(s=>s&&s.mode==='money_settlement'&&s.status!=='void'&&s.txnType==='receipt'&&qAccountingCutoffAllows(s,cutoff));
+    const paid=new Map();
+    for(const s of settlements)for(const a of (Array.isArray(s.allocations)?s.allocations:[])){
+      const id=String(a?.recordId||'');paid.set(id,(paid.get(id)||0)+Math.max(0,qMoney(a?.amount)));
+    }
+    for(const members of groups.values()){
+      const due=members.map(r=>({r,left:Math.max(0,qAccountingEffectiveTotal(r,c,cutoff)-qMoney(r.paid)-(paid.get(String(r.id||''))||0))}));
+      const total=due.reduce((n,x)=>n+x.left,0);
+      const cashApplied=members.some(r=>(paid.get(String(r.id||''))||0)>0);
+      // 只有收款後剩下的差額不超過一個帳期手續費，才視為已扣手續費結清。
+      // 防止在部分收款時提前沖銷未收貨款，也防止多次重複認列。
+      if(!cashApplied||total<=0.000001||total>fee+0.001)continue;
+      let left=Math.min(fee,total);
+      for(let i=due.length-1;i>=0&&left>0.000001;i--){
+        const x=due[i],take=Math.min(left,x.left);if(take>0){result.set(String(x.r.id||''),take);left-=take}
+      }
+    }
+    if(qN219CalcCache)qN219CalcCache.feeAttributionCache.set(cacheKey,result);
+    return result;
+  }
   function qAccountingPaidTotal(r,cutoff=''){
     if(!r)return 0;
     const id=String(r.id||''),legacy=qMoney(r.paid);
     const settled=(!cutoff&&qN219CalcCache)?(qN219CalcCache.paidByRecord.get(id)||0):qMoneySettlements().filter(s=>qAccountingCutoffAllows(s,cutoff)).reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0);
-    return legacy+settled;
+    const c=qContact(r?.contactId||r?.customer||'');
+    const feeOffset=c?qN480FeeAttributions(c,cutoff).get(id)||0:0;
+    return legacy+settled+feeOffset;
   }
   function qAccountingOutstanding(r,c,cutoff=''){
     if(!r||r.status==='void'||r.status==='draft'||qAccountingIsAdjustment(r)||r.mode==='money_settlement'||r.mode==='money_refund')return 0;
