@@ -8391,7 +8391,10 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       allocations.forEach(a=>{const id=String(a.recordId||''),key=recordPeriods.get(id);if(!key)throw new Error('找不到最新帳期，請重新開啟收／付款畫面；本次尚未入帳。');byPeriod.set(key,(byPeriod.get(key)||0)+qMoney(a.amount))});
       for(const [key,amount] of byPeriod){const due=periodCaps.get(key)||0;if(amount>due+0.001)throw new Error('帳期沖帳超額：本次 '+qLedgerMoney(amount)+'，最新帳期可沖 '+qLedgerMoney(due)+'。請重新開啟收／付款畫面；本次尚未入帳。')}
     }
-    const billingPeriod=qN292AssertSinglePeriod(c,allocations);
+    // N486：付款可在同一張付款單分配同一廠商的多個帳期；
+    // 收款保留既有單帳期限制，避免牽動手續費及既有收款規則。
+    const paymentPeriods=direction==='payment'?qN292AllocationPeriods(c,allocations):[];
+    const billingPeriod=direction==='payment'?(paymentPeriods.length===1?paymentPeriods[0]:null):qN292AssertSinglePeriod(c,allocations);
     const allocatedAmount=allocations.reduce((a,x)=>a+qMoney(x.amount),0);
     const methodTotal=methods.reduce((a,x)=>a+qMoney(x.amount),0);
     const hasStored=storedAccount||methods.some(m=>String(m?.method||'')==='儲值'&&qMoney(m?.amount)>0);
@@ -8403,7 +8406,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
 
     const now=new Date().toISOString(),isVehicle=String(c.settlement||'')==='車趟結',returnDate=qToday();
     const creditAmount=direction==='receipt'&&hasStored?Math.max(0,methodTotal-allocatedAmount):0;
-    const record={id:qMoneyId(),schemaVersion:7,date,customer:c.name||'',contactId:c.id||null,type:c.identity||c.type||'',mode:'money_settlement',txnType:direction==='receipt'?'receipt':'payment',txnTypeLabel:direction==='receipt'?'收款':'付款',accountDirection:direction==='receipt'?'settle_receivable':'settle_payable',amount:methodTotal,total:methodTotal,paid:methodTotal,due:0,methods,allocations,allocatedAmount,creditAmount,billingPeriodKey:billingPeriod?.key||'',billingPeriodType:billingPeriod?.type||'',billingPeriodStart:billingPeriod?.start||'',billingPeriodEnd:billingPeriod?.end||'',billingPeriodLabel:billingPeriod?.label||'',note:String(note||'').trim(),vehicleSettlement:isVehicle,moneyReturned:isVehicle&&!!vehicleReturn.moneyReturned,moneyReturnedAt:(isVehicle&&vehicleReturn.moneyReturned)?returnDate:null,receiptReturned:isVehicle&&!!vehicleReturn.receiptReturned,receiptReturnedAt:(isVehicle&&vehicleReturn.receiptReturned)?returnDate:null,status:'active',pricingStatus:'priced',settlementStatus:'settled',createdAt:now,updatedAt:now,createdBy:(currentProfile?.display_name||currentUser?.email||''),audit:[{action:direction==='receipt'?'receipt':'payment',at:now,by:(currentProfile?.display_name||currentUser?.email||'')} ]};
+    const record={id:qMoneyId(),schemaVersion:7,date,customer:c.name||'',contactId:c.id||null,type:c.identity||c.type||'',mode:'money_settlement',txnType:direction==='receipt'?'receipt':'payment',txnTypeLabel:direction==='receipt'?'收款':'付款',accountDirection:direction==='receipt'?'settle_receivable':'settle_payable',amount:methodTotal,total:methodTotal,paid:methodTotal,due:0,methods,allocations,allocatedAmount,creditAmount,billingPeriodKey:billingPeriod?.key||'',billingPeriodType:billingPeriod?.type||'',billingPeriodStart:billingPeriod?.start||'',billingPeriodEnd:billingPeriod?.end||'',billingPeriodLabel:billingPeriod?.label||(paymentPeriods.length>1?'多帳期付款':''),billingPeriods:direction==='payment'?paymentPeriods.map(p=>({key:p.key,type:p.type,start:p.start,end:p.end,label:p.label,amount:qMoney(p.amount),recordIds:p.recordIds})):[],note:String(note||'').trim(),vehicleSettlement:isVehicle,moneyReturned:isVehicle&&!!vehicleReturn.moneyReturned,moneyReturnedAt:(isVehicle&&vehicleReturn.moneyReturned)?returnDate:null,receiptReturned:isVehicle&&!!vehicleReturn.receiptReturned,receiptReturnedAt:(isVehicle&&vehicleReturn.receiptReturned)?returnDate:null,status:'active',pricingStatus:'priced',settlementStatus:'settled',createdAt:now,updatedAt:now,createdBy:(currentProfile?.display_name||currentUser?.email||''),audit:[{action:direction==='receipt'?'receipt':'payment',at:now,by:(currentProfile?.display_name||currentUser?.email||'')} ]};
     await qPersist(record);
     return record
   }
@@ -8638,7 +8641,9 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       const methodsBox=body.querySelector('#qMoneyMethods');if(methodsBox&&!body.querySelector('#qMoneyMethodTotal')){const h=document.createElement('div');h.id='qMoneyMethodTotal';h.className='helper';h.style.cssText='display:block!important;margin-top:7px;font-weight:800';methodsBox.insertAdjacentElement('afterend',h)}
       body.querySelectorAll('.qMoneyAlloc').forEach(x=>x.oninput=()=>{
         body.querySelectorAll('.qMoneyAlloc').forEach(y=>{if(y!==x&&y.dataset.recordId===x.dataset.recordId)y.value=x.value});
-        if(!qStoredValueEnabled(c)&&qMoney(x.value)>0){
+        // N486：付款多帳期可同時輸入，不能把其他帳期已填金額清零。
+        // 收款仍維持原有單帳期行為，以免影響帳期手續費規則。
+        if(direction!=='payment'&&!qStoredValueEnabled(c)&&qMoney(x.value)>0){
           const current=x.dataset.recordId,rec=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r?.id||'')===String(current)),key=qN292PeriodMeta(c,rec).key;
           body.querySelectorAll('.qMoneyAlloc').forEach(y=>{if(y===x||qMoney(y.value)<=0)return;const yr=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r?.id||'')===String(y.dataset.recordId));if(qN292PeriodMeta(c,yr).key!==key)y.value='0'});
         }
