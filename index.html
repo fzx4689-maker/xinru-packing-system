@@ -10692,8 +10692,30 @@ K白.kg
     }catch(e){alert(e.message||String(e))}};
   }
   // N326：資金帳戶第二層。零用金與支票都接唯一資金流水，不另建第二套餘額。
+  // N499: 支票收款直接投影為在手支票，不新增第二筆收款或應收沖帳。
+  // 以原收款 ID + 方式序號當作固定關聯鍵，避免重複建立資產資料。
+  function qN499SettlementChecks(){
+    const records=typeof acctRecords==='function'?acctRecords():[];
+    const deposits=new Map(records.filter(r=>r&&r.status!=='void'&&r.status!=='deleted'&&r.fundKind==='received_check_deposit'&&r.sourceCheckId).map(r=>[String(r.sourceCheckId),r]));
+    const linked=new Set(records.filter(r=>r&&r.fundKind==='received_check'&&r.sourceSettlementId).map(r=>String(r.sourceSettlementId)+'_'+String(r.sourceMethodIndex||0)));
+    const out=[];
+    records.forEach(r=>{
+      if(!r||r.mode!=='money_settlement'||r.txnType!=='receipt'||r.status==='void'||r.status==='draft'||r.status==='deleted')return;
+      (Array.isArray(r.methods)?r.methods:[]).forEach((m,i)=>{
+        if(String(m?.method||'')!=='支票'||qMoney(m?.amount)<=0||linked.has(String(r.id)+'_'+i))return;
+        const id='settlement_check_'+String(r.id)+'_'+i,dep=deposits.get(id);
+        out.push({id,sourceSettlementId:String(r.id),sourceMethodIndex:i,date:r.date,createdAt:r.createdAt,customer:r.customer,contactId:r.contactId,
+          mode:'fund_check_projection',fundKind:'received_check',checkAction:'receive',checkStatus:dep?'deposited':'holding',
+          checkAmount:qMoney(m.amount),checkNo:String(m.chequeNo||''),checkDueDate:String(m.chequeDate||''),checkBank:String(m.chequeBank||''),
+          payer:r.customer,depositedAccount:dep?.fundAccount||'',note:String(m.chequeNote||''),fundDelta:0});
+      });
+    });
+    return out;
+  }
   function qFundSpecialRows(kind){
-    return qFundRows().filter(r=>r&&r.fundKind===kind).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    const rows=qFundRows().filter(r=>r&&r.fundKind===kind);
+    if(kind==='received_check')rows.push(...qN499SettlementChecks());
+    return rows.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   }
   function qPettyCashRows(){
     return qFundRows().filter(r=>r&&(r.fundKind==='petty_cash'||r.pettyAction==='expense')).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
@@ -10764,8 +10786,8 @@ K白.kg
     const pending=receives.filter(r=>!['deposited','void','bounced'].includes(r.checkStatus));
     work.innerHTML='<div class="quickV2"><div class="quickV2ContactHint"><b>🧾 收到的支票</b><div style="font-size:26px;font-weight:900;margin-top:6px">未兌現 '+qFundMoney(pending.reduce((a,r)=>a+Math.abs(Number(r.checkAmount)||0),0))+'</div><div class="helper">收到＝在手支票，不增加公司帳戶；實際存入／兌現後才增加選定的資金帳戶。</div></div>'+
       '<div class="actions" style="margin:12px 0"><button class="btn primary" id="qCheckReceive">＋ 登記收到支票</button></div>'+
-      '<h4 style="margin:12px 0 6px">在手支票</h4><div class="acctQueueList">'+(pending.length?pending.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.payer||r.customer||'')+'</b><div class="helper">票號 '+qEsc(r.checkNo||'未填')+(r.checkDueDate?'｜到期 '+qEsc(r.checkDueDate):'')+'</div></div><div><strong>'+qFundMoney(r.checkAmount||0)+'</strong> <button class="btn primary" type="button" data-check-deposit="'+qEsc(r.id)+'">存入／兌現</button> <button class="btn" type="button" data-check-void="'+qEsc(r.id)+'">作廢</button></div></div>').join(''):'<div class="empty">目前沒有未兌現支票</div>')+'</div>'+
-      '<h4 style="margin:16px 0 6px">支票紀錄</h4><div class="acctQueueList">'+(receives.length?receives.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.payer||r.customer||'')+'｜'+qCheckStatusText(r)+'</b><div class="helper">票號 '+qEsc(r.checkNo||'未填')+(r.checkDueDate?'｜到期 '+qEsc(r.checkDueDate):'')+(r.depositedAccount?'｜入帳 '+qEsc(qFundAccountName(r.depositedAccount)):'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+qFundMoney(r.checkAmount||0)+'</strong></div>').join(''):'<div class="empty">目前沒有支票紀錄</div>')+'</div></div>';
+      '<h4 style="margin:12px 0 6px">在手支票</h4><div class="acctQueueList">'+(pending.length?pending.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.payer||r.customer||'')+'</b><div class="helper">票號 '+qEsc(r.checkNo||'未填')+(r.checkDueDate?'｜到期 '+qEsc(r.checkDueDate):'')+(r.checkBank?'｜銀行 '+qEsc(r.checkBank):'')+'</div></div><div><strong>'+qFundMoney(r.checkAmount||0)+'</strong> <button class="btn primary" type="button" data-check-deposit="'+qEsc(r.id)+'">存入／兌現</button> '+(r.sourceSettlementId?'':'<button class="btn" type="button" data-check-void="'+qEsc(r.id)+'">作廢</button>')+'</div></div>').join(''):'<div class="empty">目前沒有未兌現支票</div>')+'</div>'+
+      '<h4 style="margin:16px 0 6px">支票紀錄</h4><div class="acctQueueList">'+(receives.length?receives.map(r=>'<div class="acctQueueRow"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.payer||r.customer||'')+'｜'+qCheckStatusText(r)+'</b><div class="helper">票號 '+qEsc(r.checkNo||'未填')+(r.checkDueDate?'｜到期 '+qEsc(r.checkDueDate):'')+(r.checkBank?'｜銀行 '+qEsc(r.checkBank):'')+(r.depositedAccount?'｜入帳 '+qEsc(qFundAccountName(r.depositedAccount)):'')+(r.note?'｜'+qEsc(r.note):'')+'</div></div><strong>'+qFundMoney(r.checkAmount||0)+'</strong></div>').join(''):'<div class="empty">目前沒有支票紀錄</div>')+'</div></div>';
     work.querySelector('#qCheckReceive').onclick=()=>qRenderCheckEntry(work);
     work.querySelectorAll('[data-check-deposit]').forEach(b=>b.onclick=()=>qDepositCheck(work,b.dataset.checkDeposit));
     work.querySelectorAll('[data-check-void]').forEach(b=>b.onclick=()=>qVoidCheck(work,b.dataset.checkVoid));
@@ -10790,18 +10812,21 @@ K白.kg
   }
   async function qDepositCheck(work,id){
     try{
-      const source=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r.id)===String(id));if(!source)throw new Error('找不到支票資料');if(source.checkStatus==='deposited')throw new Error('這張支票已經存入');
+      const source=qFundSpecialRows('received_check').find(r=>String(r.id)===String(id));if(!source)throw new Error('找不到支票資料');if(source.checkStatus==='deposited')throw new Error('這張支票已經存入');
+      if(qFundRows().some(r=>r.fundKind==='received_check_deposit'&&String(r.sourceCheckId||'')===String(id)))throw new Error('這張支票已有存入紀錄，不可重複存入');
       const amount=Math.abs(Number(source.checkAmount)||0);if(!amount)throw new Error('支票金額不正確');
       const choices=qFundAccountMasters().filter(a=>a.status!=='inactive'&&a.accountType!=='cash');if(!choices.length)throw new Error('目前沒有可存入的銀行／資金帳戶');
       const ans=prompt('存入哪個資金帳戶？\n'+choices.map((a,i)=>(i+1)+'. '+a.accountName).join('\n'),'1');if(ans===null)return;const dest=choices[Number(ans)-1];if(!dest)throw new Error('請選擇正確帳戶');if(!confirm('確認 '+qFundMoney(amount)+' 存入「'+dest.accountName+'」？'))return;
       const now=new Date().toISOString(),key=qFundAccountKey(dest),dep={...source,id:'checkdeposit_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),date:qToday(),mode:'fund_special',txnType:'fund_movement',txnTypeLabel:'支票存入',checkAction:'deposit',checkStatus:'deposited',sourceCheckId:source.id,fundKind:'received_check_deposit',fundAccount:key,fundAmount:amount,fundDelta:amount,createdAt:now,updatedAt:now};
-      await saveAccountingCloud(dep);await saveAccountingCloud({...source,checkStatus:'deposited',depositedAccount:key,depositedAt:now,updatedAt:now});
+      await saveAccountingCloud(dep);
+      // 自動關聯的支票狀態由存入紀錄推導，不修改原收款交易。
+      if(!source.sourceSettlementId)await saveAccountingCloud({...source,checkStatus:'deposited',depositedAccount:key,depositedAt:now,updatedAt:now});
       if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderChecks(document.getElementById('acctStageWork'));
     }catch(e){alert(e.message||String(e))}
   }
   async function qVoidCheck(work,id){
     try{
-      const source=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r.id)===String(id));if(!source)throw new Error('找不到支票資料');if(source.checkStatus==='deposited')throw new Error('已存入的支票不能直接作廢');if(!confirm('確認將這張支票標記為作廢？'))return;
+      const source=(typeof acctRecords==='function'?acctRecords():[]).find(r=>String(r.id)===String(id));if(!source)throw new Error('找不到支票資料');if(source.sourceSettlementId)throw new Error('此支票已連結正式收款，請從原收款交易修改或作廢，不可單獨作廢');if(source.checkStatus==='deposited')throw new Error('已存入的支票不能直接作廢');if(!confirm('確認將這張支票標記為作廢？'))return;
       await saveAccountingCloud({...source,checkStatus:'void',updatedAt:new Date().toISOString()});if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderChecks(document.getElementById('acctStageWork'));
     }catch(e){alert(e.message||String(e))}
   }
