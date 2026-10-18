@@ -14280,14 +14280,14 @@ const el=id=>document.getElementById(id);
 const kinds={
  revenue:['門市營收','其他營業收入'],
  cogs:['蔬果進貨','其他進貨成本'],
- expense:['租金','水電／能源','伙食／飲料','營業耗材','用品／文具','設備／維修','電話／網路／系統','宣傳／廣告','交際／送禮','祭祀／拜拜','公益／捐款','薪資／人事','運費','稅費','車輛費用','其他營業費用'],
+ expense:['租金','管理費','水電／能源','伙食／飲料','營業耗材','用品／文具','設備／維修','電話／網路／系統','宣傳／廣告','交際／送禮','祭祀／拜拜','公益／捐款','薪資／人事','運費','稅費','車輛費用','其他營業費用'],
  investment:['開店裝潢','冰庫設備','輸送帶','貨架','收銀設備','其他設備投資'],
  capital_in:['業主投入','股東投入','其他資金投入'],
  capital_out:['業主取回','股東資金返還','其他資金取回']};
 const details={
  '租金':['店舖／攤位租金','其他租金'],
  '水電／能源':['水費','電費','瓦斯','其他能源'],
- '伙食／飲料':['伙食費','飲料','員工餐費','其他'],
+ '伙食／飲料':['員工餐（午餐／晚餐）','點心','飲料','其他'],
  '營業耗材':['包裝袋','紙箱','膠帶','其他耗材'],
  '用品／文具':['清潔用品','辦公用品','名片','其他用品'],
  '設備／維修':['設備維修','工具維修','其他維修'],
@@ -14381,7 +14381,7 @@ async function save(e){e.preventDefault();if(busy)return;if(!allowed())return al
  const duplicate=type==='revenue'&&category==='門市營收'&&rows.some(x=>x.id!==editId&&x.status==='active'&&x.entry_date===date&&x.entry_type==='revenue'&&x.category==='門市營收');if(duplicate)return alert('這一天已有門市營收，請修改原紀錄，避免重複登記。');
  busy=true;el('lhfSave').disabled=true;status('儲存中…');try{const payload={entry_date:date,entry_type:type,category,subcategory,capital_out_kind:capitalOutKind,investor_name:investorName,amount,note,vehicle_id:vehicleId,updated_by:currentUser.id};let result;if(editId){result=await sb.from('liuho_finance_entries').update(payload).eq('id',editId).eq('status','active').select('id');if(!result.error&&!result.data?.length)throw Error('資料已變更，請重新整理')}else{result=await sb.from('liuho_finance_entries').insert({...payload,created_by:currentUser.id}).select('id')}if(result.error)throw result.error;reset();status('已儲存');}catch(err){alert('儲存失敗：'+err.message);status('儲存失敗')}finally{busy=false;el('lhfSave').disabled=false}await load();}
 async function action(e){const btn=e.target.closest('button[data-edit],button[data-void],button[data-delete]');if(!btn||busy)return;const id=btn.dataset.edit||btn.dataset.void||btn.dataset.delete;const r=rows.find(x=>x.id===id);if(!r)return;
- if(btn.dataset.edit){if(r.status!=='active')return;editId=id;el('lhfDate').value=r.entry_date;el('lhfType').value=r.entry_type;cat();if(!kinds[r.entry_type]?.includes(r.category)){el('lhfCategory').add(new Option(r.category+'（歷史分類）',r.category));}el('lhfCategory').value=r.category;categoryChanged();if(r.subcategory&&details[r.category]?.includes(r.subcategory))el('lhfDetail').value=r.subcategory;if(r.capital_out_kind)el('lhfCapitalKind').value=r.capital_out_kind;el('lhfInvestor').value=r.investor_name||'欣儒';el('lhfAmount').value=r.amount;el('lhfNote').value=r.note||'';vehicleOptions();el('lhfVehicle').value=r.vehicle_id||'';el('lhfCancel').hidden=false;el('lhfFormTitle').textContent='修改六禾內帳';el('lhfForm').scrollIntoView({behavior:'smooth',block:'start'});return}
+ if(btn.dataset.edit){if(r.status!=='active')return;editId=id;el('lhfDate').value=r.entry_date;el('lhfType').value=r.entry_type;cat();if(!kinds[r.entry_type]?.includes(r.category)){el('lhfCategory').add(new Option(r.category+'（歷史分類）',r.category));}el('lhfCategory').value=r.category;categoryChanged();if(r.subcategory){if(![...el('lhfDetail').options].some(o=>o.value===r.subcategory))el('lhfDetail').add(new Option(r.subcategory+'（歷史細項）',r.subcategory));el('lhfDetail').value=r.subcategory;}if(r.capital_out_kind)el('lhfCapitalKind').value=r.capital_out_kind;el('lhfInvestor').value=r.investor_name||'欣儒';el('lhfAmount').value=r.amount;el('lhfNote').value=r.note||'';vehicleOptions();el('lhfVehicle').value=r.vehicle_id||'';el('lhfCancel').hidden=false;el('lhfFormTitle').textContent='修改六禾內帳';el('lhfForm').scrollIntoView({behavior:'smooth',block:'start'});return}
  const del=!!btn.dataset.delete;if(del&&!admin())return alert('僅管理員可永久刪除');if(!confirm(del?'確定永久刪除此筆六禾內帳？無法復原。':'確定作廢此筆六禾內帳？'))return;busy=true;try{const result=del?await sb.from('liuho_finance_entries').delete().eq('id',id):await sb.from('liuho_finance_entries').update({status:'void',updated_by:currentUser.id}).eq('id',id).eq('status','active');if(result.error)throw result.error;reset();}catch(err){alert('操作失敗：'+err.message)}finally{busy=false}await load();}
 function init(){if(!el('lhFinanceOpenLedger'))return;el('lhFinanceOpenLedger').addEventListener('click',()=>open('ledger'));el('lhfBack').addEventListener('click',home);el('lhfTabLedger').addEventListener('click',()=>setView('ledger'));el('lhfTabReport').addEventListener('click',()=>setView('report'));el('lhfRefresh').addEventListener('click',load);el('lhfMonth').addEventListener('change',load);el('lhfType').addEventListener('change',cat);el('lhfCategory').addEventListener('change',categoryChanged);el('lhfForm').addEventListener('submit',save);el('lhfCancel').addEventListener('click',reset);el('lhfList').addEventListener('click',action);reset();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
@@ -14428,10 +14428,13 @@ function updatePreviews(){for(const [id,preview] of [['lhrImage','lhrImagePrevie
 async function prepareImage(file){if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('只支援 JPG、PNG、WebP 照片');if(file.size>20*1024*1024)throw Error('照片不得超過 20MB');const img=await createImageBitmap(file);const scale=Math.min(1,1600/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);img.close?.();let blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.83));if(!blob||blob.size>3*1024*1024)blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.65));if(!blob||blob.size>3*1024*1024)throw Error('照片壓縮後仍超過 3MB，請先縮小');return blob;}
 async function blobBase64(blob){const buffer=await blob.arrayBuffer();const bytes=new Uint8Array(buffer);let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(binary);}
 async function remove(){if(editing==null)return;const p=products.find(x=>x.id===editing);if(!confirm(`永久刪除 #${editing}「${p?.variety||''}」？已印的商品 QR 將失效！建議改用下架。`))return;if(prompt('請輸入「永久刪除」確認')!=='永久刪除')return;try{await request('delete',{id:editing});products=products.filter(p=>String(p.id)!==String(editing));lastLoadedAt=Date.now();render();$('lhrEditor').hidden=true;status('商品已刪除')}catch(e){alert(e.message);status('刪除失敗')}}
-// N510: The top-level Liuho tab is already active in a nested pane;
-// intercept that repeat click to return to the Liuho home tiles.
-document.querySelectorAll('[data-tab="liuho"]').forEach(tab=>tab.addEventListener('click',e=>{
-  if(!$('lhResearchPane').hidden){home();e.stopImmediatePropagation();}
+// N515: Always return to the Liuho home when its top-level tab is clicked.
+// Never cancel the original tab click: the main navigation must still activate #liuho.
+document.querySelectorAll('.tab[data-tab="liuho"]').forEach(tab=>tab.addEventListener('click',()=>{
+  for(const id of ['lhResearchPane','lhFinancePane','liuhoInventoryPane','liuhoLedgerPane']){
+    const pane=$(id);if(pane)pane.hidden=true;
+  }
+  const tiles=$('liuhoHomeTiles');if(tiles)tiles.hidden=false;
 },true));
 $('liuhoOpenResearch')?.addEventListener('click',show);$('lhrBack')?.addEventListener('click',home);$('lhrRefresh')?.addEventListener('click',()=>load(true));$('lhrNew')?.addEventListener('click',()=>edit(null));$('lhrCancel')?.addEventListener('click',()=>{$('lhrEditor').hidden=true});$('lhrSearch')?.addEventListener('input',render);$('lhrCategory')?.addEventListener('change',render);for(const [fileId,urlId,previewId,clearId] of [['lhrImageFile','lhrImage','lhrImagePreview','lhrImageClear'],['lhrRecipeImageFile','lhrRecipeImage','lhrRecipeImagePreview','lhrRecipeImageClear']]){$(fileId).addEventListener('change',()=>{const file=$(fileId).files?.[0];if(file){const objectUrl=URL.createObjectURL(file);$(previewId).innerHTML='<img alt="待上傳照片" style="max-width:160px;max-height:125px;object-fit:contain;border-radius:8px" src="'+objectUrl+'"><small> 儲存商品時上傳</small>';}});$(clearId).addEventListener('click',()=>{$(fileId).value='';$(urlId).value='';updatePreviews()});}$('lhrForm')?.addEventListener('submit',save);$('lhrDelete')?.addEventListener('click',remove);
 })();
