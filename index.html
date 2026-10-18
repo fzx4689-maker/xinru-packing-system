@@ -2191,7 +2191,10 @@ function switchFieldReportPanel(kind){
  #liuhoInventoryPane .lh-inv-edit-grid .lh-inv-card-tools .lh-inv-mini{font-size:9px!important;padding:3px 2px!important}
 }
 </style>
-</head>
+<style id="lhfN502NavigationCSS">
+#liuho #lhFinancePane[hidden],#liuho #liuhoHomeTiles[hidden],#liuho #liuhoLedgerPane[hidden],#liuho #liuhoInventoryPane[hidden],#liuho #lhfLedgerView[hidden],#liuho #lhfReportView[hidden],#liuho #lhfTabReport[hidden],#liuho #lhfVehicleWrap[hidden],#liuho #lhfDetailWrap[hidden],#liuho #lhfCapitalWrap[hidden]{display:none!important}
+#liuho:has(#lhFinancePane:not([hidden])) #liuhoHomeTiles{display:none!important}
+</style></head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
 body.auth-booting #authGate,
@@ -2476,11 +2479,54 @@ body.auth-booting #mainApp{visibility:hidden!important}
         <p class="helper">六禾專用工作區｜第一階段入口</p>
         <div class="liuho-grid" id="liuhoHomeTiles">
           <button type="button" class="liuho-tile liuho-action" id="liuhoOpenLedger"><strong>📖 進貨帳本</strong><span>唯讀連動欣儒六禾帳本，依日期查看正式品項明細</span></button>
-          <div class="liuho-tile"><strong>💰 六禾公司內帳</strong><span>獨立收支資料・尚未啟用</span></div>
-          <div class="liuho-tile"><strong>📊 營運與投資回收</strong><span>營收、成本、盈虧與設備投資・尚未啟用</span></div>
+          <button type="button" class="liuho-tile liuho-action" id="lhFinanceOpenLedger"><strong>💰 六禾公司內帳</strong><span>iCHEF 每日營收手動登記・獨立收支與投資</span></button>
           <button type="button" class="liuho-tile liuho-action" id="liuhoOpenInventory"><strong>📦 每日庫存</strong><span>依日期查看商品剩餘數量；手機盤點、自動儲存</span></button>
           <div class="liuho-tile"><strong><img src="data:image/webp;base64,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" alt="" style="width:38px;height:44px;object-fit:cover;vertical-align:middle;border-radius:8px;margin-right:7px">蔬菜研究所</strong><span>蔬菜知識、品種介紹、料理食譜・尚未啟用</span></div>
         </div>
+        <section id="lhFinancePane" hidden aria-label="六禾公司內帳及營運與投資回收">
+          <div class="lhf-head"><button type="button" class="btn gray" id="lhfBack">← 六禾首頁</button><strong id="lhfTitle">六禾公司內帳</strong><span id="lhfStatus" role="status"></span></div>
+          <div class="lhf-tabs"><button type="button" class="btn" id="lhfTabLedger">💰 公司內帳</button><button type="button" class="btn gray" id="lhfTabReport">📊 營運與投資回收</button></div>
+          <div class="lhf-filter"><label>查詢月份 <input id="lhfMonth" class="input" type="month"></label><button type="button" class="btn gray" id="lhfRefresh">重新整理</button></div>
+          <div id="lhfLedgerView">
+            <div class="lhf-box"><h3 id="lhfFormTitle">新增六禾內帳</h3>
+              <form id="lhfForm"><div class="lhf-form-grid">
+                <label>日期 <input required type="date" class="input" id="lhfDate"></label>
+                <label>帳務類型 <select class="input" id="lhfType"><option value="revenue">營業收入</option><option value="cogs">進貨成本</option><option value="expense">營業費用</option><option value="investment">設備／裝潢投資</option><option value="capital_in">資金投入</option><option value="capital_out">資金取回</option></select></label>
+                <label>分類 <select class="input" id="lhfCategory"></select></label>
+                <label id="lhfDetailWrap" hidden>細項 <select class="input" id="lhfDetail"></select></label>
+                <label id="lhfCapitalWrap" hidden>資金取回性質 <select class="input" id="lhfCapitalKind"><option value="principal_return">返還出資本金（計入實際回收）</option><option value="profit_distribution">盈餘分配（不扣除出資本金）</option><option value="other">其他資金取回（不計入本金回收）</option></select></label>
+                <label id="lhfVehicleWrap" hidden>六禾車籍 <select class="input" id="lhfVehicle"><option value="">請選擇車輛</option></select></label>
+                <label>金額（元） <input required min="0.01" step="0.01" type="number" class="input" id="lhfAmount" inputmode="decimal"></label>
+                <label class="lhf-wide">摘要／對象 <input maxlength="200" class="input" id="lhfNote" placeholder="例如：iCHEF 10/18 營業額、房租、冰庫"></label>
+              </div><div class="lhf-actions"><button type="submit" class="btn primary" id="lhfSave">儲存六禾內帳</button><button type="button" class="btn gray" id="lhfCancel" hidden>取消修改</button></div></form>
+              <p class="lhf-help">門市每日營業額從 iCHEF 手動輸入總額；同日重複登記會阻擋。這裡不會同步欣儒帳務中心。</p>
+            </div>
+            <details class="lhf-box" id="lhfLedgerDetails"><summary class="lhf-ledger-summary"><strong>本月六禾內帳（<span id="lhfLedgerCount">0</span> 筆）</strong><span class="lhf-ledger-toggle" aria-hidden="true"></span></summary><div id="lhfList"></div></details>
+          </div>
+          <style id="n504LiuhoReportStyle">
+#lhfReportView .lhf-report-sections{display:grid;gap:13px;margin-top:12px}
+#lhfReportView .lhf-report-group{border:1px solid #d9e9df;border-radius:13px;padding:15px;background:#fff}
+#lhfReportView .lhf-report-group h3{margin:0 0 5px;font-size:18px}
+#lhfReportView .lhf-report-group p{margin:0 0 12px;color:#607269;font-size:12px;line-height:1.65}
+#lhfReportView .lhf-report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#lhfReportView .lhf-report-metric{border:1px solid #e0ebe3;background:#f7faf8;border-radius:10px;padding:11px;min-width:0}
+#lhfReportView .lhf-report-metric small{display:block;color:#52685c;font-size:12px}
+#lhfReportView .lhf-report-metric strong{display:block;font-size:clamp(17px,2vw,23px);margin-top:3px;overflow-wrap:anywhere}
+#lhfReportView .lhf-report-metric span{display:block;color:#607269;font-size:11px}
+#lhfReportView .lhf-report-breakdown{border-bottom:1px solid #e6ebe7}
+#lhfReportView .lhf-report-breakdown summary{display:flex;justify-content:space-between;gap:12px;padding:13px 4px;cursor:pointer;list-style:none}
+#lhfReportView .lhf-report-breakdown summary:before{content:'▸';margin-right:4px;color:#607269}
+#lhfReportView .lhf-report-breakdown[open] summary:before{content:'▾'}
+#lhfReportView .lhf-report-breakdown summary strong:first-of-type{margin-right:auto}
+#lhfReportView .lhf-report-detail{display:flex;justify-content:space-between;gap:12px;padding:9px 15px;color:#47584e;font-size:13px}
+@media(max-width:600px){#lhfReportView .lhf-report-group{padding:11px}#lhfReportView .lhf-report-grid{gap:7px}#lhfReportView .lhf-report-metric{padding:9px}}
+</style>
+          <div id="lhfReportView" hidden>
+            <div id="lhfSummary" class="lhf-report-sections"></div>
+            <div class="lhf-box"><h3>本月營運明細（點分類展開）</h3><div id="lhfBreakdown"></div></div>
+            <p class="lhf-help">營運回本＝累積營運損益對已登記投資成本；實際資金回收＝已確認返還出資本金對累計出資。兩種回收獨立計算；盈餘分配另列。歷史未標明性質的取回不自動認列為本金返還。設備投資與出資不相加，避免重複計算。報表數字為依已登記資料的統計，並非現金流量或稅務損益。</p>
+          </div>
+        </section>
         <section id="liuhoInventoryPane" hidden aria-label="六禾每日庫存">
           <div class="lh-inv-head"><button class="btn gray" type="button" id="lhInvBack">← 六禾首頁</button><strong>📦 每日庫存</strong><span id="lhInvSync" role="status">尚未載入</span></div>
           <div class="lh-inv-toolbar"><label>庫存日期 <input type="date" id="lhInvDate"></label><button class="btn gray" type="button" id="lhInvMode">✏️ 編輯</button><button class="btn primary" type="button" id="lhInvFinish" hidden>完成盤點</button><button class="btn gray" type="button" id="lhInvReopen" hidden>重新編輯</button><div id="lhInvTools" hidden><button class="btn gray" type="button" id="lhInvNewCategory">＋ 新增分類</button> <button class="btn gray" type="button" id="lhInvCategoryOrder">☷ 調整分類順序</button> <button class="btn gray" type="button" id="lhInvInactiveToggle">已停用商品（<span id="lhInvInactiveCount">0</span>）</button></div></div>
@@ -10462,6 +10508,8 @@ K白.kg
     return out.sort((a,b)=>String(a.vehiclePlate||'').localeCompare(String(b.vehiclePlate||''),'zh-Hant'));
   }
   function qVehicleById(id){return qCompanyVehicles().find(v=>String(v.id)===String(id)||String(v.vehiclePlate||'')===String(id))||null}
+  // N501: 唯讀暴露正式車籍供六禾內帳選取，不寫入欣儒帳務。
+  window.liuhoOfficialVehiclesN501=()=>qCompanyVehicles().map(v=>({...v}));
   function qFundCategories(kind){
     const expense={
       '車輛費用':['車輛費用','油資','保養','維修','輪胎','驗車','保險','稅金','停車費','eTag','市場停車費','美容洗車','其他','改裝','罰單'],
@@ -10756,7 +10804,7 @@ K白.kg
   }
   function qRenderPettyCashExpense(work){
     qFundStageHeader('sub','零用金登記支出');
-    const balances=qPettyBalanceMap(),names=Object.keys(balances).filter(n=>n!=='未填員工'&&balances[n]>0),allCats=qFundCategories(),expenseCats=Object.fromEntries(Object.entries(allCats).filter(([k])=>k!=='其他收入'&&k!=='營業收入')),vehicles=qCompanyVehicles();
+    const balances=qPettyBalanceMap(),names=Object.keys(balances).filter(n=>n!=='未填員工'&&balances[n]>0),allCats=qFundCategories(),expenseCats=Object.fromEntries(Object.entries(allCats).filter(([k])=>k!=='其他收入'&&k!=='營業收入')),vehicles=qCompanyVehicles().filter(v=>v.accountingOwner!=='六禾');
     const catOpts=Object.keys(expenseCats).map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join(''),vehicleOpts=vehicles.map(v=>'<option value="'+qEsc(v.id)+'">'+qEsc([v.vehiclePlate,v.vehicleName].filter(Boolean).join('｜'))+'</option>').join('');
     work.innerHTML='<div class="quickV2"><b>＋ 登記零用金支出</b><div class="helper" style="display:block!important;margin:5px 0 10px">這裡記員工實際花掉的零用金：扣員工餘額並列入公司費用；發放時公司資金已扣過，所以此步不再扣公司帳戶／公司現金。</div>'+ 
       '<div class="quickV2Head"><div class="field"><label class="label">日期 *</label><input id="qPettyExpDate" class="input" type="date" value="'+qToday()+'"></div>'+ 
@@ -11009,7 +11057,7 @@ K白.kg
   function qRenderCompanyCashflow(work,editFundId=''){
     qFundStageHeader('sub','快速輸入');
     try{const host=work.closest('.acctStage,.quickV2,.card')||work.parentElement;if(host)host.querySelectorAll('.qArApSummary,.acctArApSummary,[data-q-arap-summary]').forEach(el=>el.style.display='none')}catch(_e){}
-    const vehicles=qCompanyVehicles();
+    const vehicles=qCompanyVehicles().filter(v=>v.accountingOwner!=='六禾');
     const expenseCats=qFundCategories('expense');
     const incomeCats=qFundCategories('income');
     const cats=()=>kind&&kind.value==='income'?incomeCats:expenseCats;
@@ -11209,9 +11257,9 @@ K白.kg
   function qVehBack(work){work.innerHTML='<div class="actions" style="margin-bottom:10px"><button class="btn gray" id="qVehBack">← 返回車輛管理</button></div>';work.querySelector('#qVehBack').onclick=()=>open('vehicle')}
   function qRenderVehicleMaster(work){
     const vs=qCompanyVehicles();
-    const blank=()=>({id:'veh_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),vehicleStatus:'使用中',vehicleClass:'機車'});
+    const blank=()=>({id:'veh_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),vehicleStatus:'使用中',vehicleClass:'機車',accountingOwner:'未設定'});
     const fields=[
-      ['vehiclePlate','車牌','text'],['vehicleStatus','狀態','select',['使用中','停用','註銷','報廢','出售']],
+      ['vehiclePlate','車牌','text'],['accountingOwner','帳務歸屬','select',['未設定','欣儒','六禾']],['vehicleStatus','狀態','select',['使用中','停用','註銷','報廢','出售']],
       ['vehicleOwnerName','車主／所有人','text'],['vehicleName','廠牌／型號','text'],
       ['vehicleYear','出廠年份／年月','text'],['vehicleClass','車輛類型','select',['機車','轎車','貨車']],
       ['vehicleCC','CC數／排氣量','text'],['truckSpec','貨車規格','text'],
@@ -11222,7 +11270,7 @@ K白.kg
       ['compulsoryInsuranceEnd','強制險到期','date'],['nextInspectionDate','下次驗車','date'],
       ['loanMonthly','車貸月繳','number'],['note','備註','text']
     ];
-    const formHtml=(v,isNew)=>'<div class="qVehInlineEditor"><div class="qVehEditorTitle">'+(isNew?'＋ 新增車輛':'✏️ 修改 '+qEsc(v.vehiclePlate||'車輛'))+'</div><div class="qVehEditGrid">'+fields.map(f=>{const val=v[f[0]]??'';if(f[2]==='select')return '<label><span>'+f[1]+'</span><select class="input" data-vfield="'+f[0]+'">'+f[3].map(x=>'<option '+(String(val)===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label>';return '<label><span>'+f[1]+'</span><input class="input" data-vfield="'+f[0]+'" type="'+f[2]+'" value="'+qEsc(String(val))+'"></label>'}).join('')+'</div><label class="qVehOpsCheck"><input type="checkbox" data-vfield="enableDeliveryOps" id="qVehOpsToggle" '+(v.enableDeliveryOps?'checked':'')+'> 配送客戶／營運統計</label><div class="qVehDeliveryCustomers" id="qVehDeliveryBox" style="'+(v.enableDeliveryOps?'':'display:none')+'"><span>配送客戶</span><div class="helper">輸入名稱或編號搜尋後加入；已選客戶會保留在下方。系統依固定 ID 自動抓正式帳務中的運費。</div><div class="qVehCustomerSearchRow"><input class="input" id="qVehCustomerSearch" placeholder="🔎 搜尋客戶：名稱／編號"><div id="qVehCustomerResults" class="qVehCustomerResults"></div></div><div class="qVehSelectedTitle">已選配送客戶</div><div id="qVehSelectedCustomers" class="qVehSelectedCustomers"></div><div class="qVehOpsRuleBox"><div class="qVehOpsRuleTitle">📊 營運統計規則</div><div class="qVehOpsRuleGrid"><div><span>配送收入</span><b>配送客戶正式帳務的運費自動加總</b></div><div><span>車輛成本</span><b>本車公司內帳消費自動加總</b></div><div><span>車趟毛利</span><b>配送收入 − 車輛成本</b></div></div><div class="helper">同一天可有多個客戶屬於同一車趟；客戶筆數不直接當作趟數。</div></div></div><div class="qVehEditActions"><button class="btn primary" id="qVehInlineSave">儲存</button><button class="btn gray" id="qVehInlineCancel">取消</button></div></div>';
+    const formHtml=(v,isNew)=>'<div class="qVehInlineEditor"><div class="qVehEditorTitle">'+(isNew?'＋ 新增車輛':'✏️ 修改 '+qEsc(v.vehiclePlate||'車輛'))+'</div><div class="qVehEditGrid">'+fields.map(f=>{const val=v[f[0]]??(f[0]==='accountingOwner'?'未設定':'');if(f[2]==='select')return '<label><span>'+f[1]+'</span><select class="input" data-vfield="'+f[0]+'">'+f[3].map(x=>'<option '+(String(val)===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label>';return '<label><span>'+f[1]+'</span><input class="input" data-vfield="'+f[0]+'" type="'+f[2]+'" value="'+qEsc(String(val))+'"></label>'}).join('')+'</div><label class="qVehOpsCheck"><input type="checkbox" data-vfield="enableDeliveryOps" id="qVehOpsToggle" '+(v.enableDeliveryOps?'checked':'')+'> 配送客戶／營運統計</label><div class="qVehDeliveryCustomers" id="qVehDeliveryBox" style="'+(v.enableDeliveryOps?'':'display:none')+'"><span>配送客戶</span><div class="helper">輸入名稱或編號搜尋後加入；已選客戶會保留在下方。系統依固定 ID 自動抓正式帳務中的運費。</div><div class="qVehCustomerSearchRow"><input class="input" id="qVehCustomerSearch" placeholder="🔎 搜尋客戶：名稱／編號"><div id="qVehCustomerResults" class="qVehCustomerResults"></div></div><div class="qVehSelectedTitle">已選配送客戶</div><div id="qVehSelectedCustomers" class="qVehSelectedCustomers"></div><div class="qVehOpsRuleBox"><div class="qVehOpsRuleTitle">📊 營運統計規則</div><div class="qVehOpsRuleGrid"><div><span>配送收入</span><b>配送客戶正式帳務的運費自動加總</b></div><div><span>車輛成本</span><b>本車公司內帳消費自動加總</b></div><div><span>車趟毛利</span><b>配送收入 − 車輛成本</b></div></div><div class="helper">同一天可有多個客戶屬於同一車趟；客戶筆數不直接當作趟數。</div></div></div><div class="qVehEditActions"><button class="btn primary" id="qVehInlineSave">儲存</button><button class="btn gray" id="qVehInlineCancel">取消</button></div></div>';
     const saveInline=async(v,isNew,selectedCustomers)=>{
       const box=work.querySelector('.qVehInlineEditor');if(!box)return;
       const data={...v};
@@ -11355,15 +11403,50 @@ K白.kg
       '<div class="qVehHero"><div><div class="qVehHeroPlate">'+qEsc(v.vehiclePlate)+'</div><div class="qVehHeroMeta">'+qEsc([v.vehicleName,v.vehicleClass,v.truckSpec,v.vehicleCC].filter(Boolean).join('｜'))+'</div></div><div class="qVehStatus">'+qEsc(status)+'</div></div>'+
       '<div class="qVehSection"><h3>📋 車籍資料</h3><div class="qVehInfoGrid">'+rowHtml+'</div></div>'+
       opsHtml+
-
-      '<div class="qVehSection"><div class="qVehSectionHead"><div><h3>🧾 本車消費紀錄</h3><div class="helper">全部由公司內帳正式車輛費用帶入，不在車輛頁重複記帳。</div></div></div>'+
+      '<div class="qVehSection"><div class="qVehSectionHead"><div><h3>🧾 本車消費紀錄</h3><div class="helper">依正式車籍顯示欣儒及六禾各自的費用紀錄；僅合併查詢，不合併帳務或重複記帳。</div></div></div>'+
       '<div class="qVehExpenseTools"><label>月份 <input id="qVehExpMonth" type="month" class="input" value="'+qEsc(ym)+'"></label><div id="qVehExpRange" class="helper"></div><div class="qVehExpFilters">'+['全部','油資','eTag','保養','維修','改裝','美容','稅單','罰單','其他'].map((x,i)=>'<button class="btn '+(i?'gray':'blue')+'" data-expfilter="'+x+'">'+x+'</button>').join('')+'</div><div class="qVehExpenseTotal">期間總額 <b id="qVehExpTotal">$0</b></div></div><div id="qVehExpenseBody"></div></div>'+
       '<style>.qVehDetailTop{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px}.qVehHero{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #d5e0e8;border-radius:18px;padding:18px 20px;background:#fff;margin-bottom:14px}.qVehHeroPlate{font-size:30px;font-weight:900}.qVehHeroMeta{margin-top:5px;color:#64748b;font-size:14px}.qVehStatus{background:#ecfdf3;color:#15803d;border-radius:999px;padding:8px 12px;font-weight:800}.qVehSection{border:1px solid #dbe3ec;border-radius:16px;background:#fff;padding:14px 16px;margin:12px 0}.qVehSection h3{font-size:18px;margin:0 0 10px}.qVehInfoGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.qVehInfoCell{background:#f7f9fb;border:1px solid #e0e7ee;border-radius:12px;padding:10px 12px;min-height:62px}.qVehInfoCell span{display:block;color:#64748b;font-size:12px;margin-bottom:5px}.qVehInfoCell b{font-size:16px;overflow-wrap:anywhere}.qVehExpenseTools{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:8px 0 12px}.qVehExpenseTools label{font-size:13px;color:#64748b}.qVehExpenseTools .input{margin-top:4px}.qVehExpFilters{display:flex;gap:6px;flex-wrap:wrap}.qVehExpenseTotal{margin-left:auto;background:#f6f8fa;border-radius:12px;padding:10px 12px}.qVehExpenseTotal b{font-size:20px}.qVehExpenseRow{display:grid;grid-template-columns:110px 120px 1fr 120px;gap:8px;align-items:center;padding:10px 6px;border-bottom:1px solid #edf1f4}.qVehExpenseRow strong{text-align:right}@media(max-width:900px){.qVehInfoGrid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.qVehInfoGrid{grid-template-columns:1fr 1fr}.qVehInfoCell{padding:9px;min-height:58px}.qVehInfoCell b{font-size:14px}.qVehStats{grid-template-columns:1fr 1fr!important}.qVehExpenseRow{grid-template-columns:82px 90px 1fr}.qVehExpenseRow strong{grid-column:3;text-align:right}.qVehExpenseTotal{margin-left:0;width:100%}.qVehDetailTop .btn{font-size:13px;padding:9px}}</style></div>';
     const monthEl=work.querySelector('#qVehExpMonth'),rangeEl=work.querySelector('#qVehExpRange'),totalEl=work.querySelector('#qVehExpTotal'),expenseBody=work.querySelector('#qVehExpenseBody');
     let activeFilter='全部';
     const mapFilter=sub=>{sub=String(sub||'');if(sub.includes('油'))return'油資';if(/eTag/i.test(sub))return'eTag';if(sub.includes('保養'))return'保養';if(sub.includes('維修')||sub.includes('輪胎'))return'維修';if(sub.includes('改裝'))return'改裝';if(sub.includes('美容')||sub.includes('洗車'))return'美容';if(sub.includes('稅'))return'稅單';if(sub.includes('罰'))return'罰單';return'其他'};
-    const renderExpenses=()=>{const m=monthEl.value||ym,ld=new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0).getDate(),a=m+'-01',b=m+'-'+String(ld).padStart(2,'0');rangeEl.textContent=a.replaceAll('-','/')+'～'+b.replaceAll('-','/');let rows=qFundRows().filter(r=>r.fundKind==='expense'&&r.fundCategory==='車輛費用'&&qVehExpenseBelongsTo(r,v)&&qVehDateInRange(r.date,a,b)).sort((x,y)=>String(y.date).localeCompare(String(x.date)));if(activeFilter!=='全部')rows=rows.filter(r=>mapFilter(r.fundSubcategory)===activeFilter);const total=rows.reduce((n,r)=>n+Math.abs(Number(r.fundDelta||r.fundAmount||0)),0);totalEl.textContent=qVehMoney(total);expenseBody.innerHTML=rows.length?rows.map(r=>'<div class="qVehExpenseRow"><span>'+qEsc(r.date||'')+'</span><b>'+qEsc(mapFilter(r.fundSubcategory))+'</b><div>'+qEsc(r.fundSubcategory||'車輛費用')+(r.note?'｜'+qEsc(r.note):'')+'</div><strong>'+qVehMoney(Math.abs(Number(r.fundDelta||r.fundAmount||0)))+'</strong></div>').join(''):'<div class="empty">這個期間沒有消費紀錄</div>'};
-    monthEl.onchange=renderExpenses;work.querySelectorAll('[data-expfilter]').forEach(b=>b.onclick=()=>{activeFilter=b.dataset.expfilter;work.querySelectorAll('[data-expfilter]').forEach(x=>x.className='btn '+(x===b?'blue':'gray'));renderExpenses()});renderExpenses();
+    // N505: 保留原本唯一的本車消費紀錄表格，僅在查詢層併列六禾獨立內帳。
+    // 每次變更月份/分類時以序號排除過期非同步結果，不更動任何交易或計算核心。
+    let n505ExpenseSeq=0;
+    const renderExpenses=async()=>{
+      const seq=++n505ExpenseSeq;
+      const m=monthEl.value||ym;
+      if(!/^\d{4}-\d{2}$/.test(m))return;
+      const ld=new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0).getDate();
+      const a=m+'-01',b=m+'-'+String(ld).padStart(2,'0');
+      rangeEl.textContent=a.replaceAll('-','/')+'～'+b.replaceAll('-','/');
+      const companyRows=qFundRows().filter(r=>r.fundKind==='expense'&&r.fundCategory==='車輛費用'&&qVehExpenseBelongsTo(r,v)&&qVehDateInRange(r.date,a,b)).map(r=>({
+        date:r.date||'',category:mapFilter(r.fundSubcategory),detail:r.fundSubcategory||'車輛費用',note:r.note||'',amount:qVehExpenseAmount(r),source:'欣儒內帳',key:'company:'+String(r.id||r.recordId||'')
+      }));
+      let liuhoRows=[],error='';
+      if(v.accountingOwner==='六禾'){
+        try{
+          const next=new Date(m+'-01T12:00:00');next.setMonth(next.getMonth()+1);
+          const upper=next.getFullYear()+'-'+String(next.getMonth()+1).padStart(2,'0')+'-01';
+          const result=await sb.from('liuho_finance_entries').select('id,entry_date,category,subcategory,amount,note,vehicle_id,status').eq('vehicle_id',v.id).eq('entry_type','expense').eq('status','active').gte('entry_date',a).lt('entry_date',upper).order('entry_date',{ascending:false}).limit(500);
+          if(result.error)throw result.error;
+          liuhoRows=(result.data||[]).map(r=>({date:r.entry_date||'',category:mapFilter(r.subcategory||r.category),detail:r.subcategory||r.category||'車輛費用',note:r.note||'',amount:Math.abs(Number(r.amount||0)),source:'六禾內帳',key:'liuho:'+String(r.id||'')}));
+        }catch(err){error='六禾費用讀取失敗：'+(err.message||String(err));}
+      }
+      if(seq!==n505ExpenseSeq||!expenseBody.isConnected)return;
+      let rows=companyRows.concat(liuhoRows);
+      if(activeFilter!=='全部')rows=rows.filter(r=>r.category===activeFilter);
+      rows.sort((x,y)=>String(y.date).localeCompare(String(x.date)));
+      totalEl.textContent=error?'—':qVehMoney(rows.reduce((n,r)=>n+r.amount,0));
+      expenseBody.innerHTML=(error?'<div class="helper" style="color:#b91c1c;padding:8px">'+qEsc(error)+'；合計暫不顯示，避免誤認為完整金額。</div>':'')+
+        (rows.length?rows.map(r=>'<div class="qVehExpenseRow"><span>'+qEsc(r.date)+'</span><b>'+qEsc(r.category)+'</b><div>'+qEsc(r.detail)+(r.note?'｜'+qEsc(r.note):'')+'<div class="helper">'+qEsc(r.source)+'</div></div><strong>'+qVehMoney(r.amount)+'</strong></div>').join(''):'<div class="empty">這個期間沒有消費紀錄</div>');
+    };
+    monthEl.onchange=renderExpenses;
+    work.querySelectorAll('[data-expfilter]').forEach(b=>b.onclick=()=>{
+      activeFilter=b.dataset.expfilter;
+      work.querySelectorAll('[data-expfilter]').forEach(x=>x.className='btn '+(x===b?'blue':'gray'));
+      renderExpenses();
+    });
+    renderExpenses();
     work.querySelector('#qVehDetailBack').onclick=()=>qRenderVehicleMaster(work);
     work.querySelector('#qVehDetailEdit').onclick=()=>{qRenderVehicleMaster(work);setTimeout(()=>{const b=work.querySelector('[data-vedit="'+CSS.escape(String(id))+'"]');if(b)b.click()},0)};
   }
@@ -13607,7 +13690,7 @@ let dayGroups=new Map();
 function home(){ $('liuhoLedgerPane').hidden=true; $('liuhoHomeTiles').hidden=false; dayGroups.clear(); }
 function list(){ $('liuhoLedgerDay').hidden=true; $('liuhoLedgerResults').hidden=false; $('liuhoLedgerBack').textContent='← 返回六禾首頁'; }
 function liuhoLedgerAllowed(){return !!(currentProfile?.role==='admin'||(v17Perm?.configured&&v17Perm.pages.includes('liuho')))}
-function open(){ if(!liuhoLedgerAllowed()){msg('尚未取得六禾進貨帳本查看權限。');return;} $('liuhoHomeTiles').hidden=true; $('liuhoLedgerPane').hidden=false; list(); if(!dayGroups.size) load(); }
+function open(){ if(!liuhoLedgerAllowed()){msg('尚未取得六禾進貨帳本查看權限。');return;} $('lhFinancePane').hidden=true; $('liuhoHomeTiles').hidden=true; $('liuhoLedgerPane').hidden=false; list(); if(!dayGroups.size) load(); }
 function back(){if(!$('liuhoLedgerDay').hidden)list();else home();}
 function date(r){return str(r.date||r.record_date).slice(0,10)}
 function cell(v){return '<td>'+esc(v)+'</td>'}
@@ -13761,7 +13844,7 @@ let date='',day=null,rows=[],categories=[],filter='全部',editing=false,opened=
 const who=()=>String(currentProfile?.display_name||currentProfile?.nickname||currentUser?.email||'員工');
 const allowed=()=>!!(currentUser&&(currentProfile?.role==='admin'||(v17Perm?.configured&&v17Perm.pages.includes('liuho'))));
 const status=s=>{el('lhInvSync').textContent=s};
-const setView=()=>{el('lhInvInactivePanel').hidden=true;el('liuhoHomeTiles').hidden=false;el('liuhoInventoryPane').hidden=true;el('liuhoLedgerPane').hidden=true;opened=false;editing=false;if(poll){clearInterval(poll);poll=null}};
+const setView=()=>{el('lhInvInactivePanel').hidden=true;el('lhFinancePane').hidden=true;el('liuhoHomeTiles').hidden=false;el('liuhoInventoryPane').hidden=true;el('liuhoLedgerPane').hidden=true;opened=false;editing=false;if(poll){clearInterval(poll);poll=null}};
 const num=s=>/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(String(s).trim());
 const total=r=>r.kind==='single'?String(r.qty??''):(String(r.total??'')!==''?String(r.total):num(r.f1)&&num(r.f2)?String(Number((Number(r.f1)+Number(r.f2)).toFixed(6))):'');
 const safeDate=d=>/^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -14054,7 +14137,7 @@ function init(){
  if(!el('liuhoOpenInventory'))return;
  el('liuhoOpenInventory').addEventListener('click',async()=>{
   if(!allowed()){alert('沒有六禾每日庫存權限');return}
-  el('liuhoHomeTiles').hidden=true;el('liuhoLedgerPane').hidden=true;el('liuhoInventoryPane').hidden=false;opened=true;
+  el('lhFinancePane').hidden=true;el('liuhoHomeTiles').hidden=true;el('liuhoLedgerPane').hidden=true;el('liuhoInventoryPane').hidden=false;opened=true;
   try{await refresh(today())}catch(e){status('讀取失敗：'+e.message)}
   if(poll)clearInterval(poll);poll=setInterval(async()=>{
    if(!opened||loading||writing||pending.size||document.activeElement?.matches('#liuhoInventoryPane input[data-item]'))return;
@@ -14154,6 +14237,135 @@ function init(){
    show();
  };
 }
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+<style id="lhFinanceN500Style">
+#lhFinancePane[hidden],#lhfLedgerView[hidden],#lhfReportView[hidden]{display:none!important}
+#lhFinancePane{padding:6px 0 15px}.lhf-head,.lhf-tabs,.lhf-filter,.lhf-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}.lhf-head strong{font-size:19px}.lhf-head span{font-size:12px;color:#607269}
+
+/* N506: 六禾內帳明細原生收合，預設收合；不變更資料或操作按鈕。 */
+#lhfLedgerDetails>.lhf-ledger-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;min-height:32px}
+#lhfLedgerDetails>.lhf-ledger-summary::-webkit-details-marker{display:none}
+#lhfLedgerDetails>.lhf-ledger-summary strong{font-size:18px}
+#lhfLedgerDetails .lhf-ledger-toggle{font-size:13px;color:#607269;white-space:nowrap}
+#lhfLedgerDetails .lhf-ledger-toggle::after{content:'展開 ▼'}
+#lhfLedgerDetails[open] .lhf-ledger-toggle::after{content:'收合 ▲'}
+#lhfLedgerDetails[open] #lhfList{margin-top:12px}
+.lhf-box{border:1px solid #d9e9df;background:#fff;border-radius:13px;padding:14px;margin:12px 0}.lhf-box h3{margin:0 0 12px}.lhf-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.lhf-form-grid label,.lhf-filter label{display:flex;flex-direction:column;gap:5px;font-size:14px}.lhf-form-grid .lhf-wide{grid-column:1/-1}.lhf-form-grid input,.lhf-form-grid select{width:100%;box-sizing:border-box;min-height:40px}.lhf-help{color:#64746a;font-size:12px;line-height:1.7}.lhf-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.lhf-stat{background:#f6faf7;border:1px solid #d9e9df;border-radius:12px;padding:13px}.lhf-stat small{display:block;color:#607269}.lhf-stat strong{font-size:21px}.lhf-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #e6ebe7;padding:11px 0}.lhf-row small{color:#607269}.lhf-row .lhf-tools{display:flex;gap:5px;flex-wrap:wrap}.lhf-row .btn{padding:6px 10px}.lhf-negative{color:#ad3535}.lhf-positive{color:#177442}
+@media(max-width:650px){.lhf-form-grid{grid-template-columns:1fr}.lhf-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.lhf-row{align-items:flex-start;flex-direction:column}.lhf-stat strong{font-size:18px}}
+</style>
+<script id="lhFinanceN500Script">
+(function(){
+'use strict';
+const el=id=>document.getElementById(id);
+const kinds={
+ revenue:['門市營收','其他營業收入'],
+ cogs:['蔬果進貨','其他進貨成本'],
+ expense:['租金','水電／能源','伙食／飲料','營業耗材','用品／文具','設備／維修','電話／網路／系統','宣傳／廣告','交際／送禮','祭祀／拜拜','公益／捐款','薪資／人事','運費','稅費','車輛費用','其他營業費用'],
+ investment:['開店裝潢','冰庫設備','輸送帶','貨架','收銀設備','其他設備投資'],
+ capital_in:['業主投入','股東投入','其他資金投入'],
+ capital_out:['業主取回','股東資金返還','其他資金取回']};
+const details={
+ '租金':['店舖／攤位租金','其他租金'],
+ '水電／能源':['水費','電費','瓦斯','其他能源'],
+ '伙食／飲料':['伙食費','飲料','員工餐費','其他'],
+ '營業耗材':['包裝袋','紙箱','膠帶','其他耗材'],
+ '用品／文具':['清潔用品','辦公用品','名片','其他用品'],
+ '設備／維修':['設備維修','工具維修','其他維修'],
+ '電話／網路／系統':['電話費','網路費','iCHEF','軟體訂閱','系統費','其他'],
+ '宣傳／廣告':['廣告費','傳單','印刷','宣傳品','其他'],
+ '交際／送禮':['招待','禮品','其他交際'],
+ '祭祀／拜拜':['拜拜用品','供品','香燭','其他'],
+ '公益／捐款':['捐款','贊助','其他'],
+ '薪資／人事':['薪資','獎金','勞健保','員工福利','其他'],
+ '運費':['貨運','物流','其他運費'],
+ '稅費':['稅金','規費','手續費','其他'],
+ '車輛費用':['油資','維修','保養','保險','牌照稅','燃料費','驗車','其他車輛費用'],
+ '其他營業費用':['其他營業費用']};
+// 舊分類僅用於編輯歷史紀錄，不再提供新帳選取。
+const legacyExpense=['水電','薪資','耗材','維修','83-2費用','530費用'];
+const labels={revenue:'營業收入',cogs:'進貨成本',expense:'營業費用',investment:'設備投資',capital_in:'資金投入',capital_out:'資金取回'};
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+const localDate=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const allowed=()=>!!(currentUser&&(currentProfile?.role==='admin'||(v17Perm?.configured&&v17Perm.pages.includes('liuho'))));
+const reportAllowed=()=>!!(allowed()&&(currentProfile?.role==='admin'||v17Has('liuho.report.view')));
+const admin=()=>currentProfile?.role==='admin';
+let rows=[],allRows=[],reportTotals=null,editId=null,view='ledger',busy=false;
+const status=t=>{el('lhfStatus').textContent=t};
+function home(){el('lhFinancePane').hidden=true;el('liuhoHomeTiles').hidden=false;el('liuhoLedgerPane').hidden=true;el('liuhoInventoryPane').hidden=true}
+function cat(){const k=el('lhfType').value;el('lhfCategory').innerHTML=(kinds[k]||[]).map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');categoryChanged();}
+function categoryChanged(){vehicleOptions();const c=el('lhfCategory').value,d=details[c]||[];el('lhfDetailWrap').hidden=!d.length;el('lhfDetail').innerHTML=d.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');el('lhfCapitalWrap').hidden=el('lhfType').value!=='capital_out';}
+
+function vehicleOptions(){
+ const k=el('lhfType').value,c=el('lhfCategory').value;
+ const needed=k==='expense'&&['車輛費用','83-2費用','530費用'].includes(c);
+ const wrap=el('lhfVehicleWrap'),sel=el('lhfVehicle');wrap.hidden=!needed;
+ if(!needed){sel.value='';return;}
+ const prev=sel.value;
+ // 僅引用正式車籍，不建立第二套車籍主檔；未歸屬者不自動認定為六禾。
+ const cars=(typeof window.liuhoOfficialVehiclesN501==='function'?window.liuhoOfficialVehiclesN501():[]).filter(v=>v.accountingOwner==='六禾');
+ sel.innerHTML='<option value="">請選擇六禾車籍</option>'+cars.map(v=>'<option value="'+esc(v.id)+'">'+esc(v.vehiclePlate||'')+'｜'+esc(v.vehicleName||'')+'</option>').join('');
+ if(cars.some(v=>String(v.id)===prev))sel.value=prev;
+}
+function reset(){editId=null;el('lhfForm').reset();el('lhfDate').value=localDate();cat();el('lhfVehicle').value='';el('lhfCancel').hidden=true;el('lhfFormTitle').textContent='新增六禾內帳';}
+function setView(v){if(v==='report'&&!reportAllowed()){alert('沒有營運與投資回收報表權限');return}view=v;el('lhfLedgerView').hidden=v!=='ledger';el('lhfReportView').hidden=v!=='report';el('lhfTabLedger').className='btn '+(v==='ledger'?'primary':'gray');el('lhfTabReport').className='btn '+(v==='report'?'primary':'gray');el('lhfTitle').textContent=v==='ledger'?'💰 六禾公司內帳':'📊 營運與投資回收';if(v==='report')load();else render();}
+function open(v){if(!allowed()){alert('沒有六禾分頁權限');return}if(v==='report'&&!reportAllowed())return alert('沒有報表權限');el('lhfTabReport').hidden=!reportAllowed();el('liuhoHomeTiles').hidden=true;el('liuhoLedgerPane').hidden=true;el('liuhoInventoryPane').hidden=true;el('lhFinancePane').hidden=false;el('lhfMonth').value=localDate().slice(0,7);reset();setView(v);if(v!=='report')load();}
+async function load(){if(busy)return;busy=true;status('載入六禾獨立帳務…');try{
+ const m=el('lhfMonth').value;if(!/^\d{4}-\d{2}$/.test(m))throw Error('請選擇月份');
+ const next=new Date(m+'-01T12:00:00');next.setMonth(next.getMonth()+1);const upper=next.getFullYear()+'-'+String(next.getMonth()+1).padStart(2,'0')+'-01';
+ const {data,error}=await sb.from('liuho_finance_entries').select('*').gte('entry_date',m+'-01').lt('entry_date',upper).order('entry_date',{ascending:false}).order('created_at',{ascending:false}).limit(1500);if(error)throw error;rows=data||[];
+ // 報表統計由資料庫函式執行權限檢查；一般內帳畫面不查詢全期間統計。
+ allRows=[];
+ if(view==='report'){if(!reportAllowed())throw Error('沒有報表權限');const {data:reportData,error:reportErr}=await sb.rpc('liuho_report_totals_n502',{p_month:m});if(reportErr)throw reportErr;reportTotals=reportData||null;}
+ status('已同步');render();
+ }catch(e){status('讀取失敗：'+e.message);el('lhfLedgerCount').textContent='—';el('lhfList').textContent='無法讀取六禾內帳。請先執行 N500 SQL 並確認權限。';}finally{busy=false}}
+function render(){if(view==='ledger')renderLedger();else renderReport()}
+function renderLedger(){const list=el('lhfList');el('lhfLedgerCount').textContent=String(rows.length);if(!rows.length){list.innerHTML='<div class="empty">本月尚無六禾內帳資料。</div>';return}const cars=typeof window.liuhoOfficialVehiclesN501==='function'?window.liuhoOfficialVehiclesN501():[];const carById=new Map(cars.map(v=>[String(v.id),String(v.vehiclePlate||'')]));list.innerHTML=rows.map(r=>{const voided=r.status==='void';const plate=r.vehicle_id?(carById.get(String(r.vehicle_id))||'車籍 ID：'+String(r.vehicle_id)):'';const detail=[r.subcategory,plate].filter(Boolean).join('｜');return '<div class="lhf-row" style="'+(voided?'opacity:.6;':'')+'"><div><strong>'+esc(r.entry_date)+'　'+esc(r.category)+'</strong>　'+esc(labels[r.entry_type]||r.entry_type)+'<div><small>'+esc(detail)+(detail&&r.note?'｜':'')+esc(r.note||'')+(voided?'（已作廢）':'')+'</small></div></div><div><strong>$'+money(r.amount)+'</strong> <span class="lhf-tools">'+(!voided?'<button class="btn gray" data-edit="'+esc(r.id)+'">修改</button><button class="btn gray" data-void="'+esc(r.id)+'">作廢</button>':'')+(admin()?'<button class="btn gray" data-delete="'+esc(r.id)+'">刪除</button>':'')+'</span></div></div>'}).join('')}
+function sums(data){const a={revenue:0,cogs:0,expense:0,investment:0,capital_in:0,capital_out:0};data.filter(x=>x.status==='active').forEach(x=>{if(Object.hasOwn(a,x.entry_type))a[x.entry_type]+=Number(x.amount)||0});return a}
+function renderReport(){
+ if(!reportAllowed()){el('lhfReportView').hidden=true;return;}
+ if(!reportTotals){el('lhfSummary').textContent='報表尚未載入';return;}
+ const a=reportTotals.month||{},t=reportTotals.total||{};
+ const val=(o,k)=>Number(o?.[k]||0);
+ const profit=val(a,'revenue')-val(a,'cogs')-val(a,'expense');
+ const allProfit=val(t,'revenue')-val(t,'cogs')-val(t,'expense');
+ const investment=val(t,'investment'),capital=val(t,'capital_in');
+ const returned=val(t,'principal_return'),distributed=val(t,'profit_distribution');
+ const recovered=Math.max(0,allProfit),remaining=Math.max(0,investment-recovered);
+ const capitalRemaining=Math.max(0,capital-returned);
+ const rate=(n,d)=>d>0?(Math.max(0,n)/d*100).toFixed(1)+'%':'未建立基準';
+ const card=(name,value,extra='')=>'<div class="lhf-report-metric"><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong>'+(extra?'<span>'+esc(extra)+'</span>':'')+'</div>';
+ const cash=n=>'$'+money(n);
+ const section=(title,description,cards)=>'<section class="lhf-report-group"><h3>'+esc(title)+'</h3><p>'+esc(description)+'</p><div class="lhf-report-grid">'+cards.join('')+'</div></section>';
+ const operating=[card('本月營業收入',cash(val(a,'revenue'))),card('本月進貨成本',cash(val(a,'cogs'))),card('本月營業費用',cash(val(a,'expense'))),card('本月營運損益',cash(profit))];
+ const basisText=investment>0?'以已登記的設備／裝潢投資作為目前投資基準；請確認開店初期投資已完整登記。':'尚未登記投資基準。請至「公司內帳 → 設備／裝潢投資」逐筆補登開店投入，已登記的費用不可重複補登。';
+ const payback=[card('已登記投資成本',cash(investment)),card('累計營運盈餘／虧損',cash(allProfit)),card('營運尚差回本',investment>0?cash(remaining):'待建立基準'),card('營運回本進度',rate(recovered,investment))];
+ const capitalCards=[card('累計出資本金',cash(capital)),card('已返還出資本金',cash(returned)),card('尚未返還本金',cash(capitalRemaining)),card('本金回收率',rate(returned,capital)),card('累計盈餘分配',cash(distributed)),card('待釐清舊取回紀錄',cash(val(t,'unclassified_capital_out')))];
+ el('lhfSummary').innerHTML=section('一、每月營運','查看選定月份的營收、成本與實際登記費用。',operating)+section('二、營運回本',basisText,payback)+section('三、實際資金回收','只將「返還出資本金」計入本金回收；盈餘分配獨立列示，不等同返還本金。',capitalCards);
+ // 只展開已獲報表授權者的當月明細，不額外取得其他月份的帳務資料。
+ const active=rows.filter(r=>r.status==='active');
+ el('lhfBreakdown').innerHTML=Object.keys(labels).map(k=>{
+  const group=active.filter(r=>r.entry_type===k);
+  const byCategory=new Map();group.forEach(r=>byCategory.set(r.category,(byCategory.get(r.category)||0)+Number(r.amount||0)));
+  const content=[...byCategory.entries()].sort((x,y)=>y[1]-x[1]).map(([cat,amt])=>'<div class="lhf-report-detail"><span>'+esc(cat)+'</span><strong>'+cash(amt)+'</strong></div>').join('')||'<div class="lhf-report-detail">本月尚無紀錄</div>';
+  return '<details class="lhf-report-breakdown"><summary><strong>'+esc(labels[k])+'</strong><strong>'+cash(val(a,k))+'</strong></summary><div>'+content+'</div></details>';
+ }).join('');
+}
+async function save(e){e.preventDefault();if(busy)return;if(!allowed())return alert('沒有六禾權限');const type=el('lhfType').value,category=el('lhfCategory').value,amount=Number(el('lhfAmount').value),date=el('lhfDate').value;if(!(kinds[type]?.includes(category)||(editId&&rows.some(x=>x.id===editId&&x.entry_type===type&&x.category===category)))||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(amount)||amount<=0)return alert('請確認日期、分類與正確金額');const note=el('lhfNote').value.trim();const vehicleId=el('lhfVehicleWrap').hidden?null:el('lhfVehicle').value;const subcategory=el('lhfDetailWrap').hidden?null:el('lhfDetail').value;const capitalOutKind=type==='capital_out'?el('lhfCapitalKind').value:null;
+ if(!el('lhfVehicleWrap').hidden){
+ const vehicle=(typeof window.liuhoOfficialVehiclesN501==='function'?window.liuhoOfficialVehiclesN501():[]).find(v=>String(v.id)===vehicleId&&v.accountingOwner==='六禾');
+ if(!vehicle)return alert('請先在車輛管理設定車輛歸屬為六禾，並選擇正式車籍');
+ if(category==='530費用'&&!/^530[-－]/i.test(vehicle.vehiclePlate||''))return alert('530費用請選擇530車籍');
+ if(category==='83-2費用'&&!/^832[-－]/i.test(vehicle.vehiclePlate||''))return alert('83-2費用請選擇832車籍');
+ }
+ const duplicate=type==='revenue'&&category==='門市營收'&&rows.some(x=>x.id!==editId&&x.status==='active'&&x.entry_date===date&&x.entry_type==='revenue'&&x.category==='門市營收');if(duplicate)return alert('這一天已有門市營收，請修改原紀錄，避免重複登記。');
+ busy=true;el('lhfSave').disabled=true;status('儲存中…');try{const payload={entry_date:date,entry_type:type,category,subcategory,capital_out_kind:capitalOutKind,amount,note,vehicle_id:vehicleId,updated_by:currentUser.id};let result;if(editId){result=await sb.from('liuho_finance_entries').update(payload).eq('id',editId).eq('status','active').select('id');if(!result.error&&!result.data?.length)throw Error('資料已變更，請重新整理')}else{result=await sb.from('liuho_finance_entries').insert({...payload,created_by:currentUser.id}).select('id')}if(result.error)throw result.error;reset();status('已儲存');}catch(err){alert('儲存失敗：'+err.message);status('儲存失敗')}finally{busy=false;el('lhfSave').disabled=false}await load();}
+async function action(e){const btn=e.target.closest('button[data-edit],button[data-void],button[data-delete]');if(!btn||busy)return;const id=btn.dataset.edit||btn.dataset.void||btn.dataset.delete;const r=rows.find(x=>x.id===id);if(!r)return;
+ if(btn.dataset.edit){if(r.status!=='active')return;editId=id;el('lhfDate').value=r.entry_date;el('lhfType').value=r.entry_type;cat();if(!kinds[r.entry_type]?.includes(r.category)){el('lhfCategory').add(new Option(r.category+'（歷史分類）',r.category));}el('lhfCategory').value=r.category;categoryChanged();if(r.subcategory&&details[r.category]?.includes(r.subcategory))el('lhfDetail').value=r.subcategory;if(r.capital_out_kind)el('lhfCapitalKind').value=r.capital_out_kind;el('lhfAmount').value=r.amount;el('lhfNote').value=r.note||'';vehicleOptions();el('lhfVehicle').value=r.vehicle_id||'';el('lhfCancel').hidden=false;el('lhfFormTitle').textContent='修改六禾內帳';el('lhfForm').scrollIntoView({behavior:'smooth',block:'start'});return}
+ const del=!!btn.dataset.delete;if(del&&!admin())return alert('僅管理員可永久刪除');if(!confirm(del?'確定永久刪除此筆六禾內帳？無法復原。':'確定作廢此筆六禾內帳？'))return;busy=true;try{const result=del?await sb.from('liuho_finance_entries').delete().eq('id',id):await sb.from('liuho_finance_entries').update({status:'void',updated_by:currentUser.id}).eq('id',id).eq('status','active');if(result.error)throw result.error;reset();}catch(err){alert('操作失敗：'+err.message)}finally{busy=false}await load();}
+function init(){if(!el('lhFinanceOpenLedger'))return;el('lhFinanceOpenLedger').addEventListener('click',()=>open('ledger'));el('lhfBack').addEventListener('click',home);el('lhfTabLedger').addEventListener('click',()=>setView('ledger'));el('lhfTabReport').addEventListener('click',()=>setView('report'));el('lhfRefresh').addEventListener('click',load);el('lhfMonth').addEventListener('change',load);el('lhfType').addEventListener('change',cat);el('lhfCategory').addEventListener('change',categoryChanged);el('lhfForm').addEventListener('submit',save);el('lhfCancel').addEventListener('click',reset);el('lhfList').addEventListener('click',action);reset();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
