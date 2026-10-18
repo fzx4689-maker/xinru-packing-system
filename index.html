@@ -2079,7 +2079,7 @@ function switchFieldReportPanel(kind){
 <style id="liuho-n2-nav-layout">
 /* N2: desktop single row, mobile horizontally scrollable; only top navigation */
 @media (min-width:761px){
- .tabs.mainTabs7.managementMainTabs{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;flex-wrap:nowrap!important;gap:6px!important}
+ .tabs.mainTabs7.managementMainTabs{display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important;flex-wrap:nowrap!important;gap:6px!important}
  .tabs.mainTabs7.managementMainTabs>.tab{min-width:0!important;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:3px;padding-right:3px}
 }
 @media (max-width:760px){
@@ -2238,6 +2238,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
       <button class="tab" data-tab="packing">📦 包裝部<span id="packingNoticeBadge" class="navNoticeBadge"></span><div class="th">เปาจวงปู้</div></button>
       <button class="tab" data-tab="delivery">🚚 貨運部<span id="deliveryNoticeBadge" class="navNoticeBadge"></span></button>
       <button class="tab" data-tab="wall">📺 電視牆<div class="th">เตี้ยนซื่อเฉียง</div></button>
+      <button class="tab" data-tab="temple">⛩️ 玄聖宮</button>
       
     </div>
   </div>
@@ -2477,6 +2478,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
     </section>
 
     <!-- 六禾獨立模組：第一階段僅建立入口與唯讀畫面，不操作正式帳務。 -->
+    <section id="temple" class="panel" aria-label="玄聖宮"><div class="card" id="templeApp"><h2>⛩️ 玄聖宮</h2><div class="helper">請先執行隨附的玄聖宮 SQL，資料將安全存放在現有 Supabase 專案。</div></div></section>
     <section id="liuho" class="panel" aria-label="六禾蔬果">
       <div class="card liuho-card">
         <h2><img src="data:image/jpeg;base64,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" alt="六禾 LOGO" style="width:26px;height:26px;object-fit:contain;vertical-align:middle;margin-right:5px;border-radius:3px">六禾蔬果</h2>
@@ -3104,12 +3106,12 @@ function canSeeTab(tab){
   if(currentProfile.role==='admin')return true;
   if(tab==='home'||tab==='wall')return true;
   // 六禾頁面可見性完全由 v17 page_permissions 決定。
-  if(tab==='liuho')return !!(v17Perm?.configured&&v17Perm.pages.includes('liuho'));
+  if(tab==='liuho'||tab==='temple')return !!(v17Perm?.configured&&v17Perm.pages.includes(tab));
   if(tab==='today')return false;
   if(!v17Perm?.configured)return false;
-  return ['accounting','stall','packing','delivery','liuho'].includes(tab) && v17Perm.pages.includes(tab);
+  return ['accounting','stall','packing','delivery','liuho','temple'].includes(tab) && v17Perm.pages.includes(tab);
 }
-function firstVisibleTab(){return ['home','accounting','liuho','stall','packing','delivery','wall'].find(canSeeTab)||'home'}
+function firstVisibleTab(){return ['home','accounting','liuho','stall','packing','delivery','wall','temple'].find(canSeeTab)||'home'}
 function applyRoleUI(){
   const admin=currentProfile?.role==='admin',stallWritable=canOperateStall();
   document.body.classList.remove('field-single-role');
@@ -3751,7 +3753,7 @@ window.openEdit=id=>{if(!requireStallWork())return;const o=orders.find(x=>x.id==
 $('#editUrgentSwitch').onclick=()=>{editUrgent=!editUrgent;$('#editUrgentSwitch').classList.toggle('on',editUrgent)};
 $('#cancelEdit').onclick=()=>$('#editModal').classList.remove('show');
 $('#saveEdit').onclick=async()=>{if(!requireStallWork())return;const id=Number($('#editOrderId').value),customer=$('#editCustomer').value.trim(),lines=$('#editItems').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!customer){alert('請輸入客戶／店家名稱');return}if(!lines.length){alert('請輸入需求內容');return}const oldOrder=orders.find(x=>x.id===id);if(!oldOrder)return;const oldLines=oldOrder.items.map(x=>x.item_name);const newData={customer,pickup_time:$('#editPickupTime').value||null,order_date:$('#editOrderDate').value,note:$('#editNote').value.trim()||null,is_urgent:editUrgent};const diffText=formatOrderChangeDiff(oldOrder,newData,oldLines,lines);if(!diffText){$('#editModal').classList.remove('show');alert('內容沒有變更');return;}const btn=$('#saveEdit');btn.disabled=true;btn.textContent='儲存中…';try{const {error}=await sb.from('orders').update({...newData,...actorFields('updated')}).eq('id',id);if(error)throw error;await syncEditedOrderItems(id,oldOrder.items,lines);const noticeSaved=await createPackingChangeNotice(id,diffText);$('#editModal').classList.remove('show');await loadOrders();if(noticeSaved){alert('訂單已修改，包裝部需確認新版內容');}}catch(e){console.error(e);alert('修改失敗：'+e.message)}finally{btn.disabled=false;btn.textContent='儲存修改'}};
-const VALID_TABS=['home','sales','accounting','procurement','stall','packing','delivery','wall','today','liuho'];
+const VALID_TABS=['home','sales','accounting','procurement','stall','packing','delivery','wall','today','liuho','temple'];
 function activateTab(tabName,{save=true}={}){
   if(!VALID_TABS.includes(tabName))tabName='home';
   // 訂單查詢每次進入都預設為台灣當天日期；使用者仍可手動改查歷史日期。
@@ -6152,6 +6154,7 @@ window.addEventListener('load',()=>setTimeout(()=>{freightDraft.packing=[{item:'
 const V17_PAGE_OPTIONS=[
  ['accounting','💰 帳務中心'],
  ['liuho','六禾'],
+ ['temple','⛩️ 玄聖宮'],
  ['stall','📋 派工'],
  ['packing','📦 包裝部'],
  ['delivery','🚚 貨運部']
@@ -6161,6 +6164,7 @@ const V17_FUNC_OPTIONS=[
  ['accounting.work','帳務｜帳務作業'],
  ['accounting.delete','帳務｜永久刪除'],
  ['liuho.report.view','六禾｜營運與投資回收報表'],
+ ['temple.work','玄聖宮｜可以操作'],
 
  ['order.work','派工｜作業'],
  ['packing.work','包裝｜作業'],
@@ -6203,7 +6207,7 @@ applyRoleUI=function(){v17BaseApplyRoleUI();v17ApplyFunctionUI();};
 function v17AddPermissionButtons(){
  // 170F：權限按鈕已固定在「權限設定」區，禁止再插入基本資料。
 }
-function v17FuncPage(key){return ({'order.work':'stall','packing.work':'packing','delivery.work':'delivery','delivery.manage':'delivery','freight.delete':'packing','accounting.work':'accounting','accounting.delete':'accounting','liuho.ledger.read':'liuho','liuho.report.view':'liuho','announcement.manage':'home'})[key]||'';}
+function v17FuncPage(key){return ({'order.work':'stall','packing.work':'packing','delivery.work':'delivery','delivery.manage':'delivery','freight.delete':'packing','accounting.work':'accounting','accounting.delete':'accounting','liuho.ledger.read':'liuho','liuho.report.view':'liuho','temple.work':'temple','announcement.manage':'home'})[key]||'';}
 function v17NotifyPage(key){return ({packing:'packing',delivery:'delivery',accounting:'accounting'})[key]||'';}
 async function v17PermissionRow(uid){
  const {data,error}=await sb.from('employee_permission_v17').select('page_permissions,function_permissions').eq('user_id',uid).maybeSingle();
@@ -14438,6 +14442,261 @@ document.querySelectorAll('.tab[data-tab="liuho"]').forEach(tab=>tab.addEventLis
 },true));
 $('liuhoOpenResearch')?.addEventListener('click',show);$('lhrBack')?.addEventListener('click',home);$('lhrRefresh')?.addEventListener('click',()=>load(true));$('lhrNew')?.addEventListener('click',()=>edit(null));$('lhrCancel')?.addEventListener('click',()=>{$('lhrEditor').hidden=true});$('lhrSearch')?.addEventListener('input',render);$('lhrCategory')?.addEventListener('change',render);for(const [fileId,urlId,previewId,clearId] of [['lhrImageFile','lhrImage','lhrImagePreview','lhrImageClear'],['lhrRecipeImageFile','lhrRecipeImage','lhrRecipeImagePreview','lhrRecipeImageClear']]){$(fileId).addEventListener('change',()=>{const file=$(fileId).files?.[0];if(file){const objectUrl=URL.createObjectURL(file);$(previewId).innerHTML='<img alt="待上傳照片" style="max-width:160px;max-height:125px;object-fit:contain;border-radius:8px" src="'+objectUrl+'"><small> 儲存商品時上傳</small>';}});$(clearId).addEventListener('click',()=>{$(fileId).value='';$(urlId).value='';updatePreviews()});}$('lhrForm')?.addEventListener('submit',save);$('lhrDelete')?.addEventListener('click',remove);
 })();
+</script>
+
+<style>
+/* Temple independent UI; all selectors scoped */
+#temple .tm-nav{display:flex;gap:6px;overflow-x:auto;padding:7px 0 13px;scrollbar-width:thin}
+#temple .tm-nav button{flex:0 0 auto;border:1px solid #e0d7c4;background:#fff8e9;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
+#temple .tm-nav button.on{background:#704e22;color:white}
+#temple .tm-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#temple .tm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+#temple .tm-stat{border:1px solid #e7dfd3;background:#fffaf4;border-radius:12px;padding:12px}
+#temple .tm-stat strong{display:block;font-size:20px;margin-top:4px}
+#temple .tm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#temple .tm-item{border:1px solid #e5e8ec;border-radius:12px;padding:11px;background:white;margin:7px 0}
+#temple .tm-item .meta{margin:5px 0;overflow-wrap:anywhere}
+#temple .tm-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+#temple .tm-actions button{padding:7px 10px;font-size:13px}
+#temple .tm-modal{position:fixed;inset:0;z-index:100020;background:#0008;display:flex;align-items:center;justify-content:center;padding:12px}
+#temple .tm-dialog{background:white;border-radius:17px;padding:16px;width:min(650px,100%);max-height:92vh;overflow:auto}
+#temple .tm-dialog label{font-size:13px;font-weight:800;display:block;margin:9px 0 4px}
+#temple .tm-dialog input,#temple .tm-dialog select,#temple .tm-dialog textarea{width:100%;font-size:16px;padding:10px;border:1px solid #d7dce2;border-radius:10px}
+#temple .tm-dialog textarea{min-height:65px}
+#temple .tm-muted{color:#6b7280;font-size:12px}
+#temple .tm-chip{background:#f3ede3;border-radius:8px;padding:5px 8px;font-size:12px;display:inline-block;margin:2px}
+#temple .tm-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:9px 0}
+#temple .tm-row input{min-width:130px;flex:1}
+#temple .tm-error{color:#b4232c;font-weight:800;margin:8px 0}
+@media(max-width:640px){#temple .tm-grid{grid-template-columns:1fr}#temple .tm-stats{grid-template-columns:repeat(2,minmax(0,1fr))}#temple .tm-stat strong{font-size:17px}#temple .tm-nav button{padding:9px 10px;font-size:13px}}
+
+#temple .tm-finance-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px;border-bottom:1px solid #e6e2dc;padding-bottom:12px}
+#temple .tm-finance-tabs button{border:1px solid #ddd4c6;border-radius:10px;background:#fffaf1;color:#3e3324;font-size:15px;font-weight:700;padding:12px 16px;cursor:pointer}
+#temple .tm-finance-tabs button.active{background:#75512b;border-color:#75512b;color:#fff}
+#temple .tm-finance-actions{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+#temple .tm-finance-actions .btn{padding:12px 22px;font-size:15px}
+#temple .tm-finance-cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+#temple .tm-finance-cat-grid>div{padding:12px;border:1px solid #e9dfd1;border-radius:12px}
+#temple .tm-date-filters{background:#faf8f5;border-radius:12px;padding:10px}
+@media(max-width:640px){#temple .tm-finance-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}#temple .tm-finance-tabs button{padding:12px 6px;font-size:14px}#temple .tm-finance-cat-grid{grid-template-columns:1fr}}
+</style>
+<script>
+/* 玄聖宮獨立測試模組；沿用欣儒登入與 v17 權限，不改既有帳務。 */
+(()=>{
+'use strict';
+const PAGES=[['overview','總覽'],['people','信眾名冊'],['calendar','行事曆'],['activity','活動管理'],['finance','帳務管理'],['goods','物品管理'],['reports','報表列印']];
+const TYPES={person:'信眾／人員',deity:'神明',schedule:'行事曆',activity:'活動',registration:'活動／補財庫報名',task:'準備事項',payment:'報名繳費／退款',finance:'收支帳務',vendor:'廠商',purchase:'採購',item:'物品主檔',stock:'庫存異動',issue:'物品發放',count:'現金盤點',bank:'銀行帳戶',category:'收支分類',role:'身分／職務'};
+const FIELDS={
+ bank:[['name','銀行／帳戶名稱','text',1],['opening','啟用時餘額','number'],['active','狀態','select:啟用|停用'],['note','備註','textarea']],
+ category:[['name','分類名稱','text',1],['direction','類型','select:收入|支出',1],['active','狀態','select:啟用|停用']],
+ role:[['name','職務名稱','text',1],['active','狀態','select:啟用|停用']],
+ person:[['name','姓名','text',1],['phone','電話'],['address','地址'],['family','家庭群組名稱'],['lunar','農曆生日（例如 1980-04-12）'],['solar','國曆生日','date'],['roles','身分／職務（可複選）','roles'],['active','狀態','select:啟用|停用'],['note','備註','textarea']],
+ deity:[['name','神明名稱','text',1],['place','供奉位置'],['quantity','供奉尊數','number',1],['dates','神明重要日期','deity_dates'],['note','備註','textarea']],
+ schedule:[['name','行程名稱','text',1],['date','國曆日期','date',1],['lunar','農曆日期（國曆自動換算）','lunar_auto'],['time','時間','time'],['place','地點'],['kind','類型','select:開會|拜訪友宮|接待友宮|進香|法會|補財庫|祭祀|其他'],['note','備註','textarea']],
+ activity:[['name','活動名稱','text',1],['date','國曆日期','date',1],['lunar','農曆日期（國曆自動換算）','lunar_auto'],['place','地點'],['kind','活動類型','select:進香|參香|宮廟旅遊|法會|補財庫|其他'],['fee','預設報名費','number'],['status','狀態','select:籌備中|報名中|進行中|已完成|取消'],['note','備註','textarea']],
+ registration:[['person_id','信眾','person',1],['activity_id','活動／補財庫','activity',1],['item','項目'],['amount','應繳金額','number',1],['status','辦理進度','select:已報名|待辦理|已完成|取消'],['note','備註','textarea']],
+ task:[['activity_id','活動','activity',1],['name','準備事項','text',1],['owner','負責人'],['due','預計日期','date'],['status','狀態','select:未完成|已完成'],['note','備註','textarea']],
+ payment:[['registration_id','報名紀錄','registration',1],['date','日期','date',1],['direction','款項類型','select:收款|退款'],['amount','實收／實退金額','number',1],['note','備註','textarea']],
+ finance:[['date','日期','date',1],['direction','收支類型','select:收入|支出|欣儒代墊|償還欣儒|現金轉銀行|銀行轉現金',1],['category','收入／支出分類','category'],['amount','金額','number',1],['person_id','關聯信眾','person'],['activity_id','關聯活動','activity'],['vendor_id','關聯廠商','vendor'],['account','資金帳戶','account'],['receipt','手寫收據號碼'],['note','備註','textarea']],
+ vendor:[['name','廠商名稱','text',1],['phone','電話'],['contact','聯絡人'],['address','地址'],['category','廠商類別'],['active','狀態','select:啟用|停用'],['note','備註','textarea']],
+ purchase:[['name','採購內容','text',1],['date','採購日期','date',1],['vendor_id','廠商','vendor'],['activity_id','關聯活動','activity'],['quantity','數量','number'],['unit','單位'],['unit_price','單價','number'],['amount','採購總額','number',1],['deposit','訂金','number'],['paid','累計付款','number'],['status','採購狀態','select:待到貨|部分到貨|已到貨|取消'],['note','備註／品項明細','textarea']],
+ item:[['name','物品名稱','text',1],['kind','類別','select:平安符|金紙|香|背心|外套|T恤|宮服|其他'],['size','尺寸／款式'],['unit','單位'],['note','備註','textarea']],
+ stock:[['item_id','物品','item',1],['date','日期','date',1],['direction','異動','select:入庫|領用|退貨|盤點調整增加|盤點調整減少'],['quantity','數量','number',1],['note','備註','textarea']],
+ issue:[['item_id','物品','item',1],['person_id','領用人','person',1],['date','發放日期','date',1],['quantity','發放數量','number',1],['note','備註','textarea']],
+ count:[['date','盤點日期','date',1],['name','盤點人員','text',1],['amount','實際現金','number',1],['note','備註','textarea']]
+};
+let page='overview',financeView='transactions',rows=[],busy=false,err='',filter='',editing=null;
+// 玄聖宮獨立同步：只在此分頁開啟時讀取；編輯中不重畫，避免輸入資料消失。
+let tmLastLoadedAt=0,tmSyncPending=false,tmSyncTimer=null,tmSyncChannel=null,tmReloadPromise=null;
+const tmIsActive=()=>!!document.getElementById('temple')?.classList.contains('active');
+const tmIsEditing=()=>!!document.querySelector('#templeApp .tm-modal');
+function tmScheduleSync(){
+  if(!tmIsActive()||!canView())return;
+  tmSyncPending=true;
+  if(tmIsEditing()||busy)return;
+  clearTimeout(tmSyncTimer);
+  tmSyncTimer=setTimeout(()=>{if(tmIsActive()&&!tmIsEditing())reload();},900);
+}
+function tmStartSync(){
+  // Realtime 有開啟時，其他裝置的新增／修改／刪除會立即觸發更新。
+  if(tmSyncChannel||typeof sb==='undefined'||!sb?.channel)return;
+  try{
+    tmSyncChannel=sb.channel('temple_records_live_v1')
+      .on('postgres_changes',{event:'*',schema:'public',table:'temple_records'},()=>tmScheduleSync())
+      .subscribe();
+  }catch(e){console.warn('玄聖宮即時通知不可用，改用定期同步',e);}
+}
+// 即使 Supabase 未啟用 Realtime publication，仍定期同步；不影響其他分頁。
+setInterval(()=>{
+  if(!tmIsActive()||document.visibilityState==='hidden'||!canView())return;
+  if(tmIsEditing()){tmSyncPending=true;return;}
+  if(!busy&&Date.now()-tmLastLoadedAt>45000)reload();
+},15000);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&tmIsActive()&&canView()&&Date.now()-tmLastLoadedAt>15000)tmScheduleSync();
+});
+
+const root=()=>document.getElementById('templeApp');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const canView=()=>!!(typeof currentProfile!=='undefined'&&currentProfile&&(currentProfile.role==='admin'||(typeof v17Perm!=='undefined'&&v17Perm.configured&&v17Perm.pages.includes('temple'))));
+const canWrite=()=>canView()&&(currentProfile.role==='admin'||(typeof v17Has==='function'&&v17Has('temple.work')));
+const userName=()=>currentProfile?.nickname||currentProfile?.display_name||'使用者';
+const get=(type)=>rows.filter(r=>r.kind===type&&!r.deleted_at);
+const money=n=>'NT$ '+Number(n||0).toLocaleString('zh-TW');
+const label=(type,id)=>get(type).find(x=>x.id===id)?.data?.name||'—';
+const time=t=>t?new Date(t).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}):'—';
+const today=()=>new Date(Date.now()+28800000).toISOString().slice(0,10);
+const TM_INCOME=['香油錢','信眾捐款','辦事紅包','補財庫','活動收入','欣儒捐款','其他收入'];
+const TM_EXPENSE=['水果','香','金紙','車資','飲食','制服','遊覽車','餐廳','神桌','神像','平安符','維護','雜支','其他支出'];
+const TM_ROLES=['信眾','宮主','副宮主','總務','財務','委員','志工','其他'];
+const tmBanks=()=>get('bank').filter(r=>r.data.active!=='停用');
+const tmCategories=dir=>[...new Set([...((dir==='收入')?TM_INCOME:TM_EXPENSE),...get('category').filter(r=>r.data.direction===dir&&r.data.active!=='停用').map(r=>r.data.name)])];
+const tmRoleNames=()=>[...new Set([...TM_ROLES,...get('role').filter(r=>r.data.active!=='停用').map(r=>r.data.name)])];
+const tmAccountName=a=>a&&a!=='現金'?(get('bank').find(r=>r.id===a)?.data.name||'已停用／未知銀行'):'現金';
+function tmAccountBalances(){
+  const result={'現金':0};
+  for(const b of get('bank'))result[b.id]=Number(b.data.opening)||0;
+  for(const r of get('finance')){
+    const d=r.data||{},v=Number(d.amount)||0,acct=d.account||'現金',dest=d.transfer_to||'';
+    if(d.direction==='收入')result[acct]=(result[acct]||0)+v;
+    if(d.direction==='支出'||d.direction==='償還欣儒')result[acct]=(result[acct]||0)-v;
+    if(d.direction==='現金轉銀行'&&dest){result['現金']-=v;result[dest]=(result[dest]||0)+v;}
+    if(d.direction==='銀行轉現金'&&acct!=='現金'){result[acct]=(result[acct]||0)-v;result['現金']+=v;}
+  }
+  for(const r of get('payment')){
+    const d=r.data||{},v=Number(d.amount)||0,acct=d.account||'現金';
+    result[acct]=(result[acct]||0)+(d.direction==='退款'?-v:v);
+  }
+  return result;
+}
+function tmAccountSummary(){
+ const b=tmAccountBalances();
+ return `<div class="tm-stats"><div class="tm-stat">現金餘額<strong>${money(b['現金'])}</strong></div>${get('bank').map(r=>`<div class="tm-stat">${esc(r.data.name)}${r.data.active==='停用'?'（停用）':''}<strong>${money(b[r.id])}</strong></div>`).join('')}</div>`;
+}
+
+function rowSummary(r){let d=r.data||{};let s=d.name||d.item||d.category||TYPES[r.kind];if(r.kind==='deity')s+='｜'+(Number(d.quantity)||0)+' 尊｜'+tmDeityDates(d).length+' 個紀念日';if(r.kind==='registration')s=label('person',d.person_id)+'｜'+label('activity',d.activity_id);if(r.kind==='payment')s=(d.direction||'收款')+'｜'+label('person',get('registration').find(x=>x.id===d.registration_id)?.data?.person_id);if(r.kind==='finance')s=(d.direction||'')+'｜'+(d.category||'其他');if(r.kind==='issue')s=label('item',d.item_id)+'｜'+label('person',d.person_id);if(r.kind==='stock')s=label('item',d.item_id)+'｜'+(d.direction||'');return s;}
+function sub(r){const d=r.data||{};return [d.date,d.phone,d.place,d.kind,(r.kind==='deity'?tmDeityDates(d).map(x=>x.kind+' 農曆'+x.lunar+(x.leap?'（閏月）':'')).join('；'):''),d.status,d.quantity?('數量 '+d.quantity):'',d.amount!==undefined?money(d.amount):'',d.note].filter(Boolean).map(esc).join('　·　');}
+function cards(type){const list=get(type).filter(r=>!filter||[rowSummary(r),JSON.stringify(r.data)].join(' ').toLowerCase().includes(filter.toLowerCase()));if(!list.length)return '<div class="empty">尚無資料</div>';return list.sort((a,b)=>String(b.data?.date||b.created_at).localeCompare(String(a.data?.date||a.created_at))).slice(0,300).map(r=>`<div class="tm-item"><b>${esc(rowSummary(r))}</b><div class="meta">${sub(r)}</div><div class="tm-muted">建立：${esc(r.created_by_name||'—')} ${time(r.created_at)}<br>最後修改：${esc(r.updated_by_name||'—')} ${time(r.updated_at)}</div><div class="tm-actions">${r.kind==='person'?'<button class="btn gray" data-person="'+r.id+'">個人歷年紀錄</button>':''}${canWrite()?'<button class="btn gray" data-edit="'+r.id+'">修改</button><button class="btn red" data-del="'+r.id+'">刪除</button>':''}</div></div>`).join('');}
+// 活動直接投影到行事曆，不另建 schedule 資料，避免重複和不同步。
+function tmCalendarItems({futureOnly=false,limit=100}={}){
+ const todayDate=today();
+ return [...get('schedule'),...get('activity')]
+  .filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.data?.date||''))
+  .filter(r=>!futureOnly||r.data.date>=todayDate)
+  .sort((a,b)=>a.data.date.localeCompare(b.data.date)||(a.kind==='activity'?-1:1))
+  .slice(0,limit);
+}
+function tmCalendarCard(r){
+ const d=r.data||{},activity=r.kind==='activity';
+ return `<div class="tm-item"><b>${activity?'🎪 活動':'📅 宮廟行程'}｜${esc(d.name||'未命名')}</b>
+ <div class="meta">${esc(d.date||'')}　${esc(d.lunar||tmSolarToLunar(d.date)||'')}　${esc(d.time||'')}　${esc(d.place||'')}　${esc(d.kind||'')}</div>
+ ${d.note?`<div class="tm-muted">${esc(d.note)}</div>`:''}
+ <div class="tm-actions">${activity?`<button class="btn gray" data-open-activity="${r.id}">前往活動管理</button>`:(canWrite()?`<button class="btn gray" data-edit="${r.id}">修改</button><button class="btn red" data-del="${r.id}">刪除</button>`:'')}</div></div>`;
+}
+function tmCalendarSection({futureOnly=false,limit=100}={}){
+ const items=tmCalendarItems({futureOnly,limit});
+ return `<div class="tm-head"><h3>${futureOnly?'近期行程與活動':'宮廟行事曆｜全部行程與活動'}</h3>${canWrite()?'<button class="btn blue" data-add="schedule">＋ 一般行程</button>':''}</div>
+ <div class="tm-muted">一般行程在這裡新增；進香、法會等正式活動請到「活動管理」建立，會自動出現在行事曆，無須重複輸入。</div>
+ ${items.length?items.map(tmCalendarCard).join(''):'<div class="empty">尚無行程或活動</div>'}`;
+}
+function section(title,type,desc=''){return `<div class="tm-head"><h3>${title}</h3>${canWrite()?`<button class="btn blue" data-add="${type}">＋ 新增</button>`:''}</div>${desc?`<div class="tm-muted">${desc}</div>`:''}<div>${cards(type)}</div>`;}
+function totals(){const f=get('finance'),p=get('payment');let income=0,expense=0,adv=0;for(const r of f){const d=r.data,a=Number(d.amount)||0;if(['收入'].includes(d.direction))income+=a;else if(d.direction==='支出')expense+=a;else if(d.direction==='欣儒代墊')adv+=a;else if(d.direction==='償還欣儒')adv-=a;}for(const r of p){const a=Number(r.data.amount)||0;if(r.data.direction==='退款')expense+=a;else income+=a;}return {income,expense,adv};}
+function stats(){const t=totals();return `<div class="tm-stats"><div class="tm-stat">收入合計<strong>${money(t.income)}</strong></div><div class="tm-stat">支出合計<strong>${money(t.expense)}</strong></div><div class="tm-stat">收支差額<strong>${money(t.income-t.expense)}</strong></div><div class="tm-stat">欣儒代墊未還<strong>${money(t.adv)}</strong></div><div class="tm-stat">信眾人數<strong>${get('person').filter(r=>r.data.active!=='停用').length}</strong></div><div class="tm-stat">活動數<strong>${get('activity').length}</strong></div></div>`;}
+function show(){const el=root();if(!el)return;if(!canView()){el.innerHTML='<div class="tm-error">沒有玄聖宮查看權限。</div>';return;}
+let body='';if(page==='overview')body=stats()+tmCalendarSection({futureOnly:true,limit:8})+`<p class="tm-muted">神明聖誕提醒尚未完成，本測試版不會自動發送提醒。</p>`;
+if(page==='people')body=section('信眾、宮廟人員與家庭','person','電話可共用、地址可不同；輸入姓名或電話搜尋。')+section('身分／職務選項管理','role','可新增、修改或停用職務；已建立的人員資料保留。');
+if(page==='calendar')body=tmCalendarSection()+section('神明名冊與重要日期','deity','全宮供奉尊數：'+get('deity').reduce((a,r)=>a+(Number(r.data.quantity)||0),0)+' 尊；每筆記錄神明名稱、尊數與重要日期。');
+if(page==='activity')body=section('進香、法會、補財庫與活動','activity')+section('報名名單','registration')+section('報名繳費／退款','payment')+section('準備事項','task');
+if(page==='finance'){
+ const subTabs=[['transactions','收支記錄'],['accounts','資金帳戶'],['categories','收支分類'],['count','現金盤點']];
+ const nav=`<div class="tm-finance-tabs">${subTabs.map(([k,v])=>`<button type="button" data-finance-view="${k}" class="${financeView===k?'active':''}">${v}</button>`).join('')}</div>`;
+ let content='';
+ if(financeView==='transactions')content=`
+ <div class="tm-finance-actions">${canWrite()?'<button class="btn blue" data-finance-add="收入">＋ 新增收入</button><button class="btn blue" data-finance-add="支出">＋ 新增支出</button>':''}</div>
+ <div class="tm-row tm-date-filters"><button class="btn gray" data-range="today">今天</button><button class="btn gray" data-range="month">本月</button><button class="btn gray" data-range="year">今年</button><button class="btn gray" data-range="all">全部</button><input type="date" id="tmFrom" aria-label="開始日期"><input type="date" id="tmTo" aria-label="結束日期"><button class="btn gray" data-range="custom">查詢</button></div>
+ <div id="tmFinanceRows"></div>`;
+ if(financeView==='accounts')content=tmAccountSummary()+section('銀行帳戶管理','bank','玄聖宮現金及銀行帳戶分開計算；尚未開立銀行帳戶時，只使用現金。');
+ if(financeView==='categories')content=`<p class="tm-muted">收入、支出分別管理；可以新增分類，歷史紀錄不會因停用而刪除。</p>
+ <div class="tm-finance-cat-grid"><div><h3>收入分類</h3>${tmCategories('收入').map(x=>`<span class="tm-chip">${esc(x)}</span>`).join('')}</div><div><h3>支出分類</h3>${tmCategories('支出').map(x=>`<span class="tm-chip">${esc(x)}</span>`).join('')}</div></div>`+section('自訂分類','category');
+ if(financeView==='count')content=tmAccountSummary()+section('現金盤點紀錄','count','盤點差異不會自動新增收支紀錄。');
+ body=nav+content;
+}
+if(page==='goods')body=section('物品庫存主檔','item')+get('item').map(r=>`<div class="tm-chip">${esc(r.data.name)}${r.data.size?' '+esc(r.data.size):''}：庫存 ${stockBalance(r.id)}</div>`).join('')+section('庫存異動','stock')+section('物品發放','issue')+section('廠商','vendor')+section('採購與應付','purchase');
+if(page==='reports')body=`<h3>玄聖宮報表列印</h3><div class="tm-row"><select id="tmReportType" class="input" style="max-width:230px">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><button class="btn blue" data-print="1">列印清單</button></div><div class="tm-muted">使用現有印表機設定；241 × 280 mm 連續報表紙、安全寬度 203.2 mm。請先檢查預覽。</div>`;
+el.innerHTML=`<div class="tm-head"><h2 style="margin:0">⛩️ 玄聖宮</h2><button class="btn gray" data-refresh="1">↻ 更新</button></div><div class="tm-nav">${PAGES.map(([k,v])=>`<button data-page="${k}" class="${page===k?'on':''}">${v}</button>`).join('')}</div>${err?`<div class="tm-error">${esc(err)}</div>`:''}${page!=='overview'&&page!=='finance'&&page!=='reports'?`<input id="tmSearch" class="input" placeholder="搜尋姓名、電話、內容…" value="${esc(filter)}" style="margin-bottom:10px">`:''}${body}<div id="tmModalHost"></div>`;
+if(page==='finance'&&financeView==='transactions')financeRows('all');}
+function financeRows(range){const el=document.getElementById('tmFinanceRows');if(!el)return;let from='',to=today();if(range==='today')from=to;if(range==='month')from=to.slice(0,7)+'-01';if(range==='year')from=to.slice(0,4)+'-01-01';if(range==='custom'){from=document.getElementById('tmFrom').value;to=document.getElementById('tmTo').value||to;}if(range==='all')to='9999-12-31';let f=get('finance').filter(r=>r.data.date>=from&&r.data.date<=to),p=get('payment').filter(r=>r.data.date>=from&&r.data.date<=to);let inc=0,out=0;for(const r of f){const d=r.data,a=+d.amount||0;if(d.direction==='收入')inc+=a;if(d.direction==='支出')out+=a;}for(const r of p){const a=+r.data.amount||0;if(r.data.direction==='退款')out+=a;else inc+=a;}el.innerHTML=`<div class="tm-stats"><div class="tm-stat">期間收入<strong>${money(inc)}</strong></div><div class="tm-stat">期間支出<strong>${money(out)}</strong></div><div class="tm-stat">期間差額<strong>${money(inc-out)}</strong></div></div><div class="tm-head"><h3>收入、支出與資金往來</h3></div>${f.map(r=>`<div class="tm-item"><b>${esc(rowSummary(r))}</b><div class="meta">${sub(r)}</div><div class="tm-muted">操作：${esc(r.updated_by_name)}</div>${canWrite()?`<div class="tm-actions"><button class="btn gray" data-edit="${r.id}">修改</button><button class="btn red" data-del="${r.id}">刪除</button></div>`:''}</div>`).join('')}<h3>報名收款／退款</h3>${p.map(r=>`<div class="tm-item">${esc(rowSummary(r))}　${sub(r)}</div>`).join('')}`;}
+function options(type,value){return `<option value="">請選擇</option>`+get(type).map(r=>`<option value="${r.id}" ${r.id===value?'selected':''}>${esc(rowSummary(r))}</option>`).join('');}
+// 一尊神明可設定多筆農曆紀念日；沿用原有 JSONB data，不需變更資料表。
+const tmDeityDateTypes=['神明聖誕','得道／成道紀念日','其他重要祭祀日'];
+function tmDeityDates(d){
+ const a=Array.isArray(d?.dates)?d.dates.filter(x=>x&&typeof x==='object'):[];
+ if(a.length)return a;
+ // 相容舊版單筆「紀念日類型＋農曆月日」，不遺失已建立的日期。
+ return d?.lunar?[{kind:d.kind||'神明聖誕',lunar:d.lunar,note:''}]:[];
+}
+function tmDateRow(d={}){
+ return `<div class="tm-deity-date-row" style="border:1px solid #e5e7eb;padding:10px;border-radius:12px;margin:7px 0;background:#fafbfc">
+ <label>紀念日類型</label><select data-deity-kind>${tmDeityDateTypes.map(k=>`<option value="${esc(k)}" ${k===d.kind?'selected':''}>${esc(k)}</option>`).join('')}</select>
+ <label>農曆月份</label><select data-deity-month><option value="">選月份</option>${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${Number(String(d.lunar||'').split('-')[0])===i+1?'selected':''}>${i+1}月</option>`).join('')}</select>
+ <label>農曆日期</label><select data-deity-day><option value="">選日期</option>${Array.from({length:30},(_,i)=>`<option value="${i+1}" ${Number(String(d.lunar||'').split('-')[1])===i+1?'selected':''}>${i+1}日</option>`).join('')}</select>
+ <label style="display:flex;gap:7px;align-items:center;margin:8px 0"><input type="checkbox" data-deity-leap style="width:auto" ${d.leap?'checked':''}>閏月</label>
+ <label>備註（選填）</label><input data-deity-note value="${esc(d.note||'')}" placeholder="例如：特殊祭典">
+ <button type="button" class="btn gray" data-deity-remove style="margin-top:8px">移除這個日期</button></div>`;
+}
+// 國曆行程日期自動換算農曆；使用瀏覽器內建農曆曆法，台灣時區。
+function tmSolarToLunar(dateString){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(dateString||''))return '';
+ try{
+  const date=new Date(dateString+'T12:00:00+08:00');
+  if(Number.isNaN(date.getTime()))return '';
+  const formatter=new Intl.DateTimeFormat('zh-TW-u-ca-chinese',{timeZone:'Asia/Taipei',year:'numeric',month:'long',day:'numeric'});
+  const parts=formatter.formatToParts(date);
+  const month=parts.find(x=>x.type==='month')?.value||'';
+  const day=parts.find(x=>x.type==='day')?.value||'';
+  const year=parts.find(x=>x.type==='relatedYear')?.value||'';
+  return '農曆'+(year?year+'年':'')+month+day+'日';
+ }catch(e){return '';}
+}
+function form(type,id){if(!canWrite())return;editing=id||null;let r=id?rows.find(x=>x.id===id):null,d=r?.data||{},fields=FIELDS[type]||[];const host=document.getElementById('tmModalHost');if(!host)return;host.innerHTML=`<div class="tm-modal"><div class="tm-dialog"><h3>${id?'修改':'新增'}｜${TYPES[type]}</h3><form id="tmForm" data-type="${type}">${fields.map(([k,l,t='text',required])=>{let val=d[k]??(k==='date'?today():'');let field=t==='lunar_auto'?`<input name="${k}" type="text" value="${esc(val)}" readonly placeholder="選擇國曆日期後自動顯示" style="background:#f3f5f7;color:#334155"/><div class="tm-muted">依國曆日期自動換算，無須手動輸入。</div>`:t==='deity_dates'?`<div id="tmDeityDates">${tmDeityDates(d).map(tmDateRow).join('')}</div><button type="button" class="btn blue" id="tmAddDeityDate" style="margin:8px 0">＋ 新增紀念日</button><div class="tm-muted">可同時建立聖誕、得道／成道日，以及多個其他祭祀日。</div>`:t==='roles'?`<div class="tm-role-choices">${tmRoleNames().map(v=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:4px 12px 4px 0"><input style="width:auto" type="checkbox" name="tmRoleChoice" value="${esc(v)}" ${(String(val).split(/[、,，]/).map(x=>x.trim()).includes(v))?'checked':''}>${esc(v)}</label>`).join('')}</div>`:t==='category'?`<select name="${k}" data-tm-category="1"></select>`:t==='account'?`<select name="${k}"><option value="現金" ${!val||val==='現金'?'selected':''}>現金</option>${tmBanks().map(b=>`<option value="${b.id}" ${val===b.id?'selected':''}>${esc(b.data.name)}</option>`).join('')}</select>`:t.startsWith('select:')?`<select name="${k}">${t.slice(7).split('|').map(v=>`<option value="${esc(v)}" ${val===v?'selected':''}>${esc(v)}</option>`).join('')}</select>`:['person','activity','vendor','registration','item'].includes(t)?`<select name="${k}" ${required?'required':''}>${options(t,val)}</select>`:t==='textarea'?`<textarea name="${k}">${esc(val)}</textarea>`:`<input name="${k}" type="${t}" value="${esc(val)}" ${required?'required':''} ${t==='number'?'step="any" min="0"':''}>`;return `<label>${l}${required?' *':''}</label>${field}`}).join('')}${type==='finance'?`<div id="tmTransferBox" style="display:none"><label>轉入銀行帳戶 *</label><select name="transfer_to">${tmBanks().map(b=>`<option value="${b.id}">${esc(b.data.name)}</option>`).join('')}</select></div>`:''}<div class="tm-actions"><button type="button"  class="btn gray" data-close="1">取消</button><button type="submit" class="btn primary">儲存</button></div><div class="tm-error" id="tmFormError"></div></form></div></div>`;if(type==='schedule'||type==='activity'){const f=host.querySelector('#tmForm');const solar=f.elements.namedItem('date');const lunar=f.elements.namedItem('lunar');const sync=()=>{lunar.value=tmSolarToLunar(solar.value);};solar.addEventListener('input',sync);solar.addEventListener('change',sync);sync();}if(type==='deity'){const list=host.querySelector('#tmDeityDates');host.querySelector('#tmAddDeityDate').onclick=()=>list.insertAdjacentHTML('beforeend',tmDateRow());list.addEventListener('click',e=>{if(e.target.closest('[data-deity-remove]'))e.target.closest('.tm-deity-date-row')?.remove();});}if(type==='finance'){const f=host.querySelector('#tmForm');const direction=f.elements.namedItem('direction');const category=f.elements.namedItem('category');const account=f.elements.namedItem('account');const dest=f.elements.namedItem('transfer_to');if(dest&&d.transfer_to)dest.value=d.transfer_to;const update=()=>{const dir=direction.value;const categories=tmCategories(dir==='收入'?'收入':'支出');category.innerHTML=categories.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(categories.includes(d.category))category.value=d.category;category.closest('select').parentElement.querySelector('label')?.setAttribute('data-finance-category','1');category.disabled=!['收入','支出'].includes(dir);const transfer=dir==='現金轉銀行'||dir==='銀行轉現金';host.querySelector('#tmTransferBox').style.display=dir==='現金轉銀行'?'block':'none';account.disabled=dir==='現金轉銀行';if(dir==='現金轉銀行')account.value='現金';if(dir==='銀行轉現金'&&account.value==='現金'&&tmBanks().length)account.value=tmBanks()[0].id;};direction.addEventListener('change',update);update();}}
+async function reload(force=false){
+  if(!canView())return;
+  if(tmReloadPromise)return tmReloadPromise;
+  if(!force&&tmIsEditing()){tmSyncPending=true;return;}
+  tmReloadPromise=(async()=>{
+    busy=true;err='';
+    try{
+      const {data,error:e}=await sb.from('temple_records').select('*').order('created_at',{ascending:false}).limit(5000);
+      if(e)throw e;
+      rows=data||[];
+      tmLastLoadedAt=Date.now();
+      tmSyncPending=false;
+    }catch(e){err='玄聖宮雲端讀取失敗：'+(e.message||e)+'。請確認 SQL 已執行及權限已設定。';}
+    finally{busy=false;if(!tmIsEditing())show();}
+  })();
+  try{return await tmReloadPromise;}finally{tmReloadPromise=null;}
+}
+async function save(form){if(!canWrite())return;const type=form.dataset.type;let data={};for(const [k,l,t='text'] of FIELDS[type]){const v=form.elements.namedItem(k)?.value??'';data[k]=t==='deity_dates'?Array.from(form.querySelectorAll('.tm-deity-date-row')).map(row=>({kind:row.querySelector('[data-deity-kind]').value,lunar:String(row.querySelector('[data-deity-month]').value).padStart(2,'0')+'-'+String(row.querySelector('[data-deity-day]').value).padStart(2,'0'),leap:row.querySelector('[data-deity-leap]').checked,note:row.querySelector('[data-deity-note]').value.trim()})):t==='number'?Number(v||0):t==='roles'?[...form.querySelectorAll('[name=tmRoleChoice]:checked')].map(x=>x.value).join('、'):v.trim();}if(type==='deity'){if(data.dates.some(x=>!/^\d{2}-\d{2}$/.test(x.lunar)||x.lunar.includes('00')))throw new Error('請完整選擇每筆紀念日的農曆月、日');delete data.kind;delete data.lunar;}
+if(type==='finance'){
+ data.transfer_to=form.elements.namedItem('transfer_to')?.value||'';
+ if(data.direction==='現金轉銀行'&&!data.transfer_to)throw new Error('請先建立銀行帳戶並選擇轉入銀行');
+ if(data.direction==='銀行轉現金'&&(!data.account||data.account==='現金'))throw new Error('請選擇轉出銀行');
+ if(data.account!=='現金'&&!tmBanks().some(b=>b.id===data.account))throw new Error('所選銀行帳戶不存在或已停用');
+ if(['收入','支出'].includes(data.direction)&&!data.category)throw new Error('請選擇收支分類');
+}
+if(type==='person'){const duplicate=get('person').find(r=>r.id!==editing&&((data.name&&r.data.name===data.name)||(data.phone&&r.data.phone===data.phone)));if(duplicate&&!confirm('發現姓名相同或電話重複的信眾：'+rowSummary(duplicate)+'。確定仍要新增／修改嗎？'))return;}
+if(type==='issue'){const qty=Number(data.quantity)||0,available=stockBalance(data.item_id,editing);if(qty>available){throw new Error('庫存不足，現有 '+available+'，無法發放 '+qty);}}
+const payload={kind:type,data,updated_by:currentUser.id,updated_by_name:userName()};let q;if(editing){q=sb.from('temple_records').update(payload).eq('id',editing);}else{q=sb.from('temple_records').insert({...payload,created_by:currentUser.id,created_by_name:userName()});}const {error:e}=await q;if(e)throw e;editing=null;document.getElementById('tmModalHost')?.replaceChildren();await reload(true);}
+function stockBalance(itemId,ignoreIssue){let total=0;for(const r of get('stock')){if(r.data.item_id!==itemId)continue;let qty=Number(r.data.quantity)||0;total+=['入庫','盤點調整增加'].includes(r.data.direction)?qty:-qty;}for(const r of get('issue')){if(r.id!==ignoreIssue&&r.data.item_id===itemId)total-=Number(r.data.quantity)||0;}return total;}
+async function del(id){if(!canWrite())return;const r=rows.find(x=>x.id===id);if(!r)return;const references={person:['registration','finance','issue'],activity:['registration','task','finance','purchase'],item:['stock','issue'],vendor:['purchase'],registration:['payment'],bank:['finance','payment']};const dependents=(references[r.kind]||[]).flatMap(k=>get(k).filter(x=>Object.values(x.data||{}).includes(id)));if(dependents.length){alert('這筆資料已有相關紀錄，不能直接刪除。請先處理關聯資料。');return;}if(!confirm('確定要刪除「'+rowSummary(r)+'」嗎？'))return;const {error:e}=await sb.from('temple_records').update({deleted_at:new Date().toISOString(),updated_by:currentUser.id,updated_by_name:userName()}).eq('id',id);if(e)alert('刪除失敗：'+e.message);else await reload();}
+function history(id){const p=rows.find(x=>x.id===id);if(!p)return;const family=get('person').filter(x=>x.data.family&&x.data.family===p.data.family&&x.id!==id);const regs=get('registration').filter(x=>x.data.person_id===id),ids=new Set(regs.map(x=>x.id)),pays=get('payment').filter(x=>ids.has(x.data.registration_id)),fin=get('finance').filter(x=>x.data.person_id===id);const host=document.getElementById('tmModalHost');host.innerHTML=`<div class="tm-modal"><div class="tm-dialog"><h3>${esc(p.data.name)}｜歷年紀錄</h3><div class="tm-muted">電話：${esc(p.data.phone)}　地址：${esc(p.data.address)}</div><h4>家庭成員</h4>${family.map(x=>`<span class="tm-chip">${esc(x.data.name)}</span>`).join('')||'無'}<h4>活動／補財庫</h4>${regs.map(x=>`<div class="tm-item">${esc(rowSummary(x))}　${money(x.data.amount)}</div>`).join('')||'無'}<h4>繳費／退款</h4>${pays.map(x=>`<div class="tm-item">${esc(x.data.date)}　${esc(x.data.direction)}　${money(x.data.amount)}</div>`).join('')||'無'}<h4>捐款／收支</h4>${fin.map(x=>`<div class="tm-item">${esc(x.data.date)}　${esc(x.data.category)}　${money(x.data.amount)}</div>`).join('')||'無'}<button class="btn gray" data-close="1">關閉</button></div></div>`;}
+function printReport(){const type=document.getElementById('tmReportType')?.value||'person',list=get(type);const html=`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>玄聖宮報表</title><style>@page{size:241mm 280mm;margin:9mm 18.9mm}@media print{body{width:203.2mm}}body{font:12px/1.6 sans-serif}h2{text-align:center}table{width:100%;border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #555;padding:5px;overflow-wrap:anywhere}tr{break-inside:avoid}</style></head><body><h2>玄聖宮｜${esc(TYPES[type])}清單</h2><p>列印日期：${today()}　共 ${list.length} 筆</p><table><thead><tr><th>名稱／內容</th><th>明細</th><th>操作人員</th></tr></thead><tbody>${list.map(r=>`<tr><td>${esc(rowSummary(r))}</td><td>${sub(r)}</td><td>${esc(r.updated_by_name||r.created_by_name)}</td></tr>`).join('')}</tbody></table></body></html>`;const w=window.open('','_blank');if(!w){alert('請允許瀏覽器開啟列印視窗');return;}w.document.write(html);w.document.close();w.focus();setTimeout(()=>w.print(),300);}
+function init(){const el=root();if(!el)return;el.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.page){page=b.dataset.page;filter='';show();}if(b.dataset.financeView){financeView=b.dataset.financeView;show();}if(b.dataset.financeAdd){form('finance');const f=document.querySelector('#tmForm');if(f){const d=f.elements.namedItem('direction');if(d){d.value=b.dataset.financeAdd;d.dispatchEvent(new Event('change',{bubbles:true}));}}}if(b.dataset.openActivity){page='activity';filter='';show();const r=rows.find(x=>x.id===b.dataset.openActivity);if(r){document.querySelector('#templeApp [data-edit="'+r.id+'"]')?.scrollIntoView({block:'center',behavior:'smooth'});}}if(b.dataset.refresh)await reload(true);if(b.dataset.add)form(b.dataset.add);if(b.dataset.edit){const r=rows.find(x=>x.id===b.dataset.edit);if(r)form(r.kind,r.id);}if(b.dataset.del)await del(b.dataset.del);if(b.dataset.close){document.getElementById('tmModalHost').innerHTML='';editing=null;if(tmSyncPending)tmScheduleSync();}if(b.dataset.person)history(b.dataset.person);if(b.dataset.range)financeRows(b.dataset.range);if(b.dataset.print)printReport();});el.addEventListener('submit',async e=>{if(e.target.id!=='tmForm')return;e.preventDefault();const btn=e.target.querySelector('[type="submit"]');btn.disabled=true;try{await save(e.target);}catch(x){const target=document.getElementById('tmFormError');if(target)target.textContent=x.message||'儲存失敗';}finally{btn.disabled=false;}});el.addEventListener('input',e=>{if(e.target.id==='tmSearch'){filter=e.target.value;const caret=e.target.selectionStart;show();const n=document.getElementById('tmSearch');n?.focus();n?.setSelectionRange(caret,caret);}});
+// Only load data when the temple tab becomes active. Existing application startup remains untouched.
+const observer=new MutationObserver(()=>{if(document.getElementById('temple')?.classList.contains('active')&&canView()){tmStartSync();if(!tmLastLoadedAt&&!busy)reload();else if(Date.now()-tmLastLoadedAt>15000)tmScheduleSync();else show();}});observer.observe(document.getElementById('temple'),{attributes:true,attributeFilter:['class']});if(document.getElementById('temple')?.classList.contains('active'))reload();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+
 </script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
