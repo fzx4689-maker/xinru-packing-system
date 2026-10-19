@@ -10671,7 +10671,7 @@ K白.kg
   function qLoanStats(loan){
     const ms=qLoanMovements(loan?.id),borrowed=ms.filter(x=>x.loanAction==='borrow').reduce((a,x)=>a+Math.abs(Number(x.fundDelta)||0),0),
       repaid=ms.filter(x=>x.loanAction==='repay').reduce((a,x)=>a+Math.abs(Number(x.fundDelta)||0),0),
-      paidCount=Math.max(0,Math.round(Number(loan?.openingPaidPeriods)||0))+ms.filter(x=>x.loanAction==='repay').length,
+      paidCount=Math.max(0,Math.round(Number(loan?.openingPaidPeriods)||0))+ms.filter(x=>x.loanAction==='repay').reduce((n,x)=>n+Math.max(1,Math.round(Number(x.loanPaidPeriods)||1)),0),
       totalPeriods=Math.max(0,Math.round(Number(loan?.totalPeriods)||0)),
       remainingPeriods=totalPeriods?Math.max(0,totalPeriods-paidCount):null,
       installment=Math.max(0,Math.round(Number(loan?.installmentAmount)||0)),
@@ -10753,11 +10753,13 @@ K白.kg
       '<div class="quickV2Head"><div class="field"><label class="label">日期 *</label><input id="qLoanMoveDate" class="input" type="date" value="'+qToday()+'"></div>'+
       '<div class="field"><label class="label">金額 *</label><input id="qLoanMoveAmount" class="input" inputmode="decimal" value="'+(suggested||'')+'" placeholder="實際'+(isBorrow?'入帳':'繳款')+'金額"></div>'+
       '<div class="field"><label class="label">'+(isBorrow?'入帳':'付款')+'帳戶 *</label><select id="qLoanMoveAccount" class="input">'+qFundAccountOptions('company_bank')+'</select></div>'+
+      (!isBorrow?'<div class="field"><label class="label">本次繳納期數</label><input id="qLoanMovePeriods" class="input" type="number" min="1" max="120" value="1"></div>':'')+
       '<div class="field"><label class="label">備註</label><input id="qLoanMoveNote" class="input" placeholder="可不填"></div></div>'+
       '<div class="actions" style="margin-top:10px"><button id="qLoanMoveSave" class="btn primary" type="button">完成</button></div></div>';
     work.querySelector('#qLoanMoveSave').onclick=async()=>{try{
       const amount=Math.round(Number(work.querySelector('#qLoanMoveAmount').value||0));if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確金額');
-      const now=new Date().toISOString(),account=work.querySelector('#qLoanMoveAccount').value,r={id:'loanmove_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qLoanMoveDate').value||qToday(),customer:l.loanName||'貸款',contactId:'',mode:'loan_movement',txnType:'fund_movement',txnTypeLabel:isBorrow?'借款入帳':'貸款還款',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',loanId:l.id,loanAction:action,loanType:l.loanType,fundKind:isBorrow?'loan_in':'loan_repay',fundCategory:'貸款管理',fundSubcategory:l.loanName||l.loanType,fundAccount:account,fundAmount:amount,fundDelta:(isBorrow?1:-1)*amount,note:work.querySelector('#qLoanMoveNote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
+      const periods=isBorrow?0:Number(work.querySelector('#qLoanMovePeriods')?.value||1),stats=qLoanStats(l);if(!isBorrow&&(!Number.isInteger(periods)||periods<1||periods>120||(stats.totalPeriods&&stats.paidCount+periods>stats.totalPeriods)))throw new Error('請確認本次繳納期數與剩餘期數');
+      const now=new Date().toISOString(),account=work.querySelector('#qLoanMoveAccount').value,r={id:'loanmove_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qLoanMoveDate').value||qToday(),customer:l.loanName||'貸款',contactId:'',mode:'loan_movement',txnType:'fund_movement',txnTypeLabel:isBorrow?'借款入帳':'貸款還款',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',loanId:l.id,loanAction:action,loanPaidPeriods:periods,vehicleId:l.vehicleId||'',loanType:l.loanType,fundKind:isBorrow?'loan_in':'loan_repay',fundCategory:'貸款管理',fundSubcategory:l.loanName||l.loanType,fundAccount:account,fundAmount:amount,fundDelta:(isBorrow?1:-1)*amount,note:work.querySelector('#qLoanMoveNote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
       await saveAccountingCloud(r);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderLoanDetail(document.getElementById('acctStageWork'),l.id);
     }catch(e){alert(e.message||String(e))}};
   }
@@ -11082,10 +11084,10 @@ K白.kg
     const vehicles=qCompanyVehicles().filter(v=>v.accountingOwner!=='六禾');
     const expenseCats=qFundCategories('expense');
     const incomeCats=qFundCategories('income');
-    const cats=()=>kind&&kind.value==='income'?incomeCats:expenseCats;
-    const catOpts=Object.keys(expenseCats).map(x=>'<option>'+qEsc(x)+'</option>').join('');
+    const cats=()=>kind&&kind.value==='income'?incomeCats:{...expenseCats,'貸款支出':['貸款繳款']};
+    const catOpts=Object.keys(expenseCats).concat(['貸款支出']).filter((x,i,a)=>a.indexOf(x)===i).map(x=>'<option>'+qEsc(x)+'</option>').join('');
     const vehicleOpts=vehicles.map(v=>'<option value="'+qEsc(v.id)+'">'+qEsc([v.vehiclePlate,v.vehicleName].filter(Boolean).join('｜'))+'</option>').join('');
-    work.innerHTML='<div class="quickV2"><b>💵 公司收支</b><div class="helper" style="display:block!important;margin:5px 0 10px">只登記非客戶／廠商帳款的公司收入支出。既有收款、付款不可在這裡重複輸入。</div>'+
+    work.innerHTML='<div class="quickV2"><b>💵 公司收支</b><div class="helper" style="display:block!important;margin:5px 0 10px">公司收入支出及貸款繳款統一在此登記。貸款繳款自動連動貸款管理，不另建一般支出。既有收款、付款不可重複輸入。</div>'+
       '<div id="qCompanyCashAccounts" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 8px">'+
         '<button type="button" class="quickV2ContactHint" data-company-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(qFundBalance('company_bank'))+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
         '<button type="button" class="quickV2ContactHint" data-company-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(qFundBalance('company_cash'))+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
@@ -11097,6 +11099,7 @@ K白.kg
       '<div class="field"><label class="label">細項 *</label><select id="qFundSub" class="input"></select></div></div>'+
       '<div class="quickV2Head qFundMainRow" style="margin-top:8px"><div class="field"><label class="label">收支歸屬 *</label><select id="qFundOwner" class="input"><option value="xinru">欣儒農產行</option>'+((typeof isAdmin==="function"&&isAdmin())?'<option value="xuansheng">玄聖宮（管理員）</option>':'')+'</select><select id="qFundRelation" style="display:none"><option value="own">欣儒本身</option></select><div id="qFundRelationHelp" style="display:none"></div></div><div class="field"><label class="label">金額 *</label><input id="qFundAmount" class="input" inputmode="decimal" placeholder="例如 3000"></div>'+
       '<div class="field"><label class="label">資金帳戶 *</label><select id="qFundAccount" class="input">'+qFundAccountOptions('company_bank')+'</select></div>'+
+      '<div class="field" id="qLoanQuickBox" style="display:none"><label class="label">選擇貸款 *</label><select id="qLoanQuickId" class="input"><option value="">請選擇貸款</option>'+qLoanMasters().map(l=>'<option value="'+qEsc(l.id)+'">'+qEsc((qVehicleById(l.vehicleId)?.vehiclePlate||l.loanName||l.loanType)+'｜已繳 '+qLoanStats(l).paidCount+' 期')+'</option>').join('')+'</select><div class="helper">直接記入貸款流水，資金只扣一次；不將未知本金／利息列為營業費用。</div></div><div class="field" id="qLoanQuickPeriodsBox" style="display:none"><label class="label">本次繳納期數</label><input id="qLoanQuickPeriods" class="input" type="number" min="1" max="120" value="1"></div>'+
       '<div class="field" id="qFundVehicleBox" style="display:none"><label class="label">車輛 *</label><select id="qFundVehicle" class="input"><option value="">請選擇車籍資料</option>'+vehicleOpts+'</select><div class="helper">'+(vehicles.length?'直接連結車籍資料 ID':'目前沒有車籍資料，請先到「車輛管理 → 車輛資料」建立')+'</div></div>'+
       '<div class="field"><label class="label">備註</label><input id="qFundNote" class="input" placeholder="可不填"></div></div>'+
       '<div id="qRecurringBox" style="margin-top:10px;padding:12px 14px;border:1px solid #d8e1ec;border-radius:12px"><label style="display:flex;align-items:center;gap:8px;font-weight:700"><input id="qFundRecurring" type="checkbox"> 設為每月固定支出</label><div id="qRecurringFields" style="display:none;margin-top:10px;max-width:220px"><label class="label">每月付款日 *</label><input id="qFundRecurringDay" class="input" type="number" min="1" max="31" value="1"><div class="helper">到期只列入待確認，不會先扣公司資金；按「確認已付款」才正式入帳。</div></div></div>'+
@@ -11109,7 +11112,7 @@ K白.kg
     const companyTransferBtn=work.querySelector('#qCompanyTransfer');if(companyTransferBtn)companyTransferBtn.onclick=()=>qRenderFundTransfer(work,'company_bank');
     const syncRelation=()=>{const o=owner.value,k=kind.value;if(o==='xuansheng'){if(k==='income'){relation.innerHTML='<option value="">玄聖宮收入請至玄聖宮帳務登記</option>';relationHelp.textContent='玄聖宮財務只供管理員處理；玄聖宮自己的收入留在玄聖宮帳務。'}else{relation.innerHTML='<option value="advance">代墊（玄聖宮欠欣儒）</option><option value="sponsor">贊助</option>';relationHelp.textContent='玄聖宮跨帳資料只供管理員查看。'}}else{relation.innerHTML='<option value="own">欣儒本身</option>';relationHelp.textContent='欣儒自己的收入／支出。'}};
     const isVehicleLinkedFund=()=>((kind.value==='expense'&&cat.value==='車輛費用')||(kind.value==='income'&&cat.value==='其他營業收入'&&sub.value==='運費／配送收入'));
-    const syncSpecialFields=()=>{vb.style.display=isVehicleLinkedFund()?'block':'none';const noteEl=work.querySelector('#qFundNote');if(noteEl){const invBuy=kind.value==='expense'&&cat.value==='營業耗材'&&['籃子','保麗龍'].includes(sub.value);noteEl.placeholder=invBuy?'請填採購數量，例如：1000個':'可不填';}};
+    const syncSpecialFields=()=>{const loanQuick=kind.value==='expense'&&cat.value==='貸款支出';const lb=work.querySelector('#qLoanQuickBox'),pb=work.querySelector('#qLoanQuickPeriodsBox'),rb=work.querySelector('#qRecurringBox');if(lb)lb.style.display=loanQuick?'block':'none';if(pb)pb.style.display=loanQuick?'block':'none';if(rb)rb.style.display=loanQuick?'none':'block';if(loanQuick){owner.value='xinru';owner.disabled=true;}else owner.disabled=false;vb.style.display=isVehicleLinkedFund()?'block':'none';const noteEl=work.querySelector('#qFundNote');if(noteEl){const invBuy=kind.value==='expense'&&cat.value==='營業耗材'&&['籃子','保麗龍'].includes(sub.value);noteEl.placeholder=invBuy?'請填採購數量，例如：1000個':'可不填';}};
     const syncSub=()=>{const set=cats(),prev=sub.value,opts=(set[cat.value]||['其他']);sub.innerHTML=opts.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');if(opts.includes(prev))sub.value=prev;syncSpecialFields()};
     const rebuildCats=()=>{const set=cats(),prev=cat.value;cat.innerHTML=Object.keys(set).map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');if(set[prev])cat.value=prev;syncSub()};
     cat.onchange=syncSub;sub.onchange=syncSpecialFields;owner.onchange=syncRelation;kind.onchange=()=>{rebuildCats();syncRelation()};rebuildCats();syncRelation();
@@ -11142,6 +11145,21 @@ K白.kg
       const qtyMatch=containerPurchaseType?fundNote.replace(/,/g,'').match(/(\d+(?:\.\d+)?)/):null;
       const containerPurchaseQty=qtyMatch?Math.round(Number(qtyMatch[1])):0;
       if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確金額');
+      if(isExpense&&category==='貸款支出'){
+        if(work.dataset.editFundId)throw new Error('貸款繳款不能覆蓋一般收支紀錄');
+        const loanId=work.querySelector('#qLoanQuickId')?.value||'',loan=qLoanById(loanId);
+        if(!loan)throw new Error('請選擇要繳款的貸款');
+        const paidPeriods=Number(work.querySelector('#qLoanQuickPeriods')?.value||1);
+        if(!Number.isInteger(paidPeriods)||paidPeriods<1||paidPeriods>120)throw new Error('請輸入正確繳款期數');
+        const st=qLoanStats(loan);if(st.totalPeriods&&st.paidCount+paidPeriods>st.totalPeriods)throw new Error('繳款期數超過貸款總期數，請先檢查貸款資料');
+        const now=new Date().toISOString(),account=work.querySelector('#qFundAccount').value;
+        if(!account)throw new Error('請選擇付款帳戶');
+        const record={id:'loanmove_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qFundDate').value||qToday(),customer:loan.loanName||'貸款',contactId:'',mode:'loan_movement',txnType:'fund_movement',txnTypeLabel:'貸款還款',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',loanId:loan.id,loanAction:'repay',loanPaidPeriods:paidPeriods,loanType:loan.loanType,vehicleId:loan.vehicleId||'',fundKind:'loan_repay',fundCategory:'貸款管理',fundSubcategory:loan.loanName||loan.loanType,fundAccount:account,fundAmount:Math.round(amount),fundDelta:-Math.round(amount),note:fundNote,createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
+        work.querySelector('#qFundSave').disabled=true;
+        try{await saveAccountingCloud(record);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'));alert('貸款繳款已記錄，已繳期數增加 '+paidPeriods+' 期，資金帳戶只扣款一次');}
+        catch(e){work.querySelector('#qFundSave')&&(work.querySelector('#qFundSave').disabled=false);throw e;}
+        return;
+      }
       if(owner.value==='xuansheng'&&!isExpense)throw new Error('玄聖宮自己的收入請到玄聖宮帳務登記；欣儒這裡只記代墊／贊助');
       if(isVehicleLinkedFund()&&!vehicleId)throw new Error('請先選擇車籍資料，外接車趟收入須指定車號');
       if(containerPurchaseType&&(!Number.isFinite(containerPurchaseQty)||containerPurchaseQty<=0))throw new Error('買'+containerPurchaseType+'請在備註填數量，例如：1000個');
