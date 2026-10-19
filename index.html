@@ -2198,41 +2198,7 @@ function switchFieldReportPanel(kind){
 #lhResearchPane[hidden]{display:none!important}#liuho:has(#lhResearchPane:not([hidden])) #liuhoHomeTiles{display:none!important}
 #lhResearchPane .lhr-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#lhResearchPane .lhr-fields label{display:flex;flex-direction:column;gap:5px}#lhResearchPane textarea{min-height:65px;resize:vertical}#lhResearchPane .lhr-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #e5ebe7}#lhResearchPane .lhr-item img{width:56px;height:56px;object-fit:cover;border-radius:8px}#lhResearchPane .lhr-item button{margin-left:auto}#lhResearchPane .lhr-meta{color:#65766d;font-size:12px}#lhResearchPane .lhr-unpublished{color:#a63a30}#lhResearchPane .lhf-filter{flex-wrap:wrap}@media(max-width:700px){#lhResearchPane .lhr-fields{grid-template-columns:1fr}}
 </style>
-<style id="tmN520CatStyles">#templeApp .tm-cat-details{border:1px solid #d8e0e9;border-radius:10px;padding:9px;margin:9px 0;background:#fff}#templeApp .tm-cat-details summary{cursor:pointer}#templeApp .tm-cat-details .tm-chip{display:inline-block;margin:5px;padding:5px 9px}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:145px;max-width:240px}#templeApp .tm-finance-cat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:700px){#templeApp .tm-finance-cat-grid{grid-template-columns:1fr}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:100%;max-width:100%}}</style><script>
-/* N527: Bind at window capture before the app's many click handlers.
-   A single authoritative route handles quick-record edit saves. */
-(function(){
-  if(window.__xrN527QuickSaveBound)return;
-  window.__xrN527QuickSaveBound=true;
-  window.addEventListener('click',function(event){
-    const button=event.target&&event.target.closest&&event.target.closest('#quickV2Save');
-    if(!button)return;
-    const work=button.closest('#acctStageWork');
-    if(!work)return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    if(button.disabled||work.dataset.qSaveBusy==='1')return;
-    const show=function(message){
-      let el=document.getElementById('xrN527SaveStatus');
-      if(!el){el=document.createElement('div');el.id='xrN527SaveStatus';
-        el.setAttribute('role','status');el.style.cssText='position:fixed;bottom:16px;left:16px;z-index:2147483647;background:#12324a;color:#fff;padding:12px 16px;border-radius:10px;max-width:90vw;font-size:15px;box-shadow:0 4px 20px #0004';document.body.appendChild(el);}
-      el.textContent=message;
-    };
-    show('已接收到儲存按鈕，正在檢查資料…');
-    const pending=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);
-    if(pending>0){show('有 '+pending+' 項待補價格，請使用黃色「待補價格」功能');return;}
-    if(typeof window.xrN527QuickSaveBridge!=='function'){
-      show('儲存程式尚未載入，請回報 N527 診斷訊息');
-      alert('N527：儲存程式未完成初始化，已阻止儲存。請回報此訊息。');return;
-    }
-    try{
-      const result=window.xrN527QuickSaveBridge(work);
-      Promise.resolve(result).catch(function(err){console.error('[N527 save]',err);show('儲存失敗：'+(err?.message||String(err)));alert('儲存失敗：'+(err?.message||String(err)));});
-    }catch(err){console.error('[N527 save start]',err);show('無法啟動儲存：'+(err?.message||String(err)));alert('無法啟動儲存：'+(err?.message||String(err)));}
-  },true);
-})();
-</script>
-</head>
+<style id="tmN520CatStyles">#templeApp .tm-cat-details{border:1px solid #d8e0e9;border-radius:10px;padding:9px;margin:9px 0;background:#fff}#templeApp .tm-cat-details summary{cursor:pointer}#templeApp .tm-cat-details .tm-chip{display:inline-block;margin:5px;padding:5px 9px}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:145px;max-width:240px}#templeApp .tm-finance-cat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:700px){#templeApp .tm-finance-cat-grid{grid-template-columns:1fr}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:100%;max-width:100%}}</style></head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
 body.auth-booting #authGate,
@@ -9171,36 +9137,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
   }
   document.addEventListener('click',e=>{if(e.target?.closest?.('.tab[data-tab="accounting"]'))setTimeout(qInitAccountingHomeUi,0)});
   async function qAmendHistoricalSettlement(c,settlementId,record,method){const direction=record?.txnType==='sale'?'receipt':'payment',noun=direction==='receipt'?'收款':'付款',src=(typeof acctRecords==='function'?acctRecords():[]),old=src.find(x=>String(x.id)===String(settlementId)&&x.mode==='money_settlement'&&x.txnType===direction);if(!old)throw new Error('找不到選擇的原'+noun+'紀錄');if(!qRecordBelongsToContact(old,c))throw new Error('原'+noun+'與這個往來對象不一致');const add=qRecordTotal(record);if(add<=0)throw new Error('補登交易金額必須大於 0');const r=JSON.parse(JSON.stringify(old));r.allocations=Array.isArray(r.allocations)?r.allocations.slice():[];if(r.allocations.some(a=>String(a.recordId)===String(record.id)))throw new Error('這筆補登已經關聯過'+noun);r.allocations.push({recordId:record.id,amount:add});r.methods=Array.isArray(r.methods)?r.methods.slice():[];let m=r.methods.find(x=>String(x.method)===String(method));if(m)m.amount=qMoney(m.amount)+add;else r.methods.push({method,amount:add});r.amount=qMoney(r.amount||r.total)+add;r.total=r.amount;r.paid=r.amount;r.updatedAt=new Date().toISOString();r.audit=Array.isArray(r.audit)?r.audit.slice():[];const action=direction==='receipt'?'historical_sale_added':'historical_purchase_added';r.audit.push({action,recordId:record.id,amount:add,at:r.updatedAt,by:qActor()});await qUpdateOriginal(r,old,action);return r}
-  async function qSave(work,status='active'){
-    const saveBtn=work.querySelector('#quickV2Save');
-    if(work.dataset.qSaveBusy==='1')return;
-    work.dataset.qSaveBusy='1';
-    const originalLabel=saveBtn?.textContent||'💾 儲存修改';
-    if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='⏳ 儲存中，請稍候…';}
-    let saveFinished=false;
-    const notice=()=>{if(!saveFinished&&saveBtn&&saveBtn.isConnected){saveBtn.textContent='⏳ 雲端確認中，請勿重複儲存';}};
-    const waitNotice=setTimeout(notice,8000);
-    try{if(status==='active'){const allowPending=true;let touched=0,rowNo=0;for(const r of work.querySelectorAll('[data-qrow]')){rowNo++;const name=r.querySelector('.qName')?.value.trim()||'',kg=r.querySelector('.qKg')?.value.trim()||'',qty=r.querySelector('.qQty')?.value.trim()||'',price=r.querySelector('.qPrice')?.value.trim()||'',pricing=r.querySelector('.qPricing')?.value||'',source=qSourceNormalize(r.querySelector('.qSource')?.value||'欣儒'),fm=r.querySelector('.qFreight')?.value||'none',fr=r.querySelector('.qFreightRate')?.value.trim()||'';const any=name||kg||price||fr||(qty!==''&&qty!=='1');if(!any)continue;touched++;if(!name)throw new Error('第 '+rowNo+' 列：請輸入品名');if(!qty||qMoney(qty)<=0)throw new Error('第 '+rowNo+' 列：請輸入正確數量');if((pricing==='kg'||pricing==='jin')&&(!kg||qMoney(kg)<=0))throw new Error('第 '+rowNo+' 列：計價為公斤／台斤，請輸入公斤數');if(qItemNeedsPrice({source})&&price===''&&!allowPending)throw new Error('第 '+rowNo+' 列「'+name+'」：尚未輸入單價。若價格尚未確定，請勾選「價格未定，先完成做帳」。');if(['kg','piece','fixed'].includes(fm)&&fr==='')throw new Error('第 '+rowNo+' 列「'+name+'」：已選運費方式，請輸入運費單價');}/* N197：是否可完成統一交由 qBuildRecord 的金額核心判斷，這裡不再建立第二套入口規則。 */}const record=qBuildRecord(work,status),editId=work.dataset.editDraftId;if(editId){const old=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(editId));if(old){record.createdAt=old.createdAt||record.createdAt;record.createdBy=old.createdBy||record.createdBy;record.audit=Array.isArray(old.audit)?old.audit.slice():[];record.audit.push({action:status==='draft'?'edit_draft':'edit',at:new Date().toISOString(),by:qActor()})}}await qPersist(record);if(status!=='draft'&&!editId&&record.pricingStatus!=='pending_price'){const autoC=qContact(record.contactId||record.customer);if(autoC&&record.txnType==='sale'&&String(autoC.paymentDefault||'')==='儲值')await qApplyStoredValueToRecord(autoC,record)}window.xrAccountingNav?.paintWorkBadges?.();if(status==='draft'){alert('💾 未完成資料已暫存，可跨裝置繼續。');renderQuickV2(work);return}renderQuickV2(work);qShowOutputs(work,record)}catch(e){console.error('[N525 quick-save]',e);alert('儲存未確認成功：'+(e?.message||String(e))+'\n請先查詢原始帳本，確認是否已寫入，再決定是否重試。');}
-    finally{saveFinished=true;clearTimeout(waitNotice);work.dataset.qSaveBusy='';if(saveBtn&&saveBtn.isConnected){saveBtn.disabled=false;saveBtn.textContent=originalLabel;}}
-  }
-  // N527: publish the real save routine for an early, independent window capture handler.
-  window.xrN527QuickSaveBridge=(work)=>qSave(work,'active');
-  // N526: bind the save action at capture phase, independently of the long renderQuickV2
-  // setup chain. A failure in a later UI binder must not leave the Save button inert.
-  document.addEventListener('click',function xrN526QuickSaveCapture(event){
-    const button=event.target?.closest?.('#quickV2Save');
-    if(!button)return;
-    const work=button.closest('#acctStageWork');
-    if(!work||!work.contains(button))return;
-    event.preventDefault();event.stopImmediatePropagation();
-    if(button.disabled||work.dataset.qSaveBusy==='1')return;
-    const pending=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);
-    if(pending>0){alert('目前有 '+pending+' 項尚未填價格。\n請按黃色「⚠️ 待補價格」完成做帳。');return;}
-    try{Promise.resolve(qSave(work,'active')).catch(err=>{
-      console.error('[N526 quick save rejected]',err);
-      alert('儲存失敗：'+(err?.message||String(err)));
-    });}catch(err){console.error('[N526 quick save error]',err);alert('儲存未啟動：'+(err?.message||String(err)));}
-  },true);
+  async function qSave(work,status='active'){try{if(status==='active'){const allowPending=true;let touched=0,rowNo=0;for(const r of work.querySelectorAll('[data-qrow]')){rowNo++;const name=r.querySelector('.qName')?.value.trim()||'',kg=r.querySelector('.qKg')?.value.trim()||'',qty=r.querySelector('.qQty')?.value.trim()||'',price=r.querySelector('.qPrice')?.value.trim()||'',pricing=r.querySelector('.qPricing')?.value||'',source=qSourceNormalize(r.querySelector('.qSource')?.value||'欣儒'),fm=r.querySelector('.qFreight')?.value||'none',fr=r.querySelector('.qFreightRate')?.value.trim()||'';const any=name||kg||price||fr||(qty!==''&&qty!=='1');if(!any)continue;touched++;if(!name)throw new Error('第 '+rowNo+' 列：請輸入品名');if(!qty||qMoney(qty)<=0)throw new Error('第 '+rowNo+' 列：請輸入正確數量');if((pricing==='kg'||pricing==='jin')&&(!kg||qMoney(kg)<=0))throw new Error('第 '+rowNo+' 列：計價為公斤／台斤，請輸入公斤數');if(qItemNeedsPrice({source})&&price===''&&!allowPending)throw new Error('第 '+rowNo+' 列「'+name+'」：尚未輸入單價。若價格尚未確定，請勾選「價格未定，先完成做帳」。');if(['kg','piece','fixed'].includes(fm)&&fr==='')throw new Error('第 '+rowNo+' 列「'+name+'」：已選運費方式，請輸入運費單價');}/* N197：是否可完成統一交由 qBuildRecord 的金額核心判斷，這裡不再建立第二套入口規則。 */}const record=qBuildRecord(work,status),editId=work.dataset.editDraftId;if(editId){const old=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(editId));if(old){record.createdAt=old.createdAt||record.createdAt;record.createdBy=old.createdBy||record.createdBy;record.audit=Array.isArray(old.audit)?old.audit.slice():[];record.audit.push({action:status==='draft'?'edit_draft':'edit',at:new Date().toISOString(),by:qActor()})}}await qPersist(record);if(status!=='draft'&&!editId&&record.pricingStatus!=='pending_price'){const autoC=qContact(record.contactId||record.customer);if(autoC&&record.txnType==='sale'&&String(autoC.paymentDefault||'')==='儲值')await qApplyStoredValueToRecord(autoC,record)}window.xrAccountingNav?.paintWorkBadges?.();if(status==='draft'){alert('💾 未完成資料已暫存，可跨裝置繼續。');renderQuickV2(work);return}renderQuickV2(work);qShowOutputs(work,record)}catch(e){alert(e.message||String(e))}}
   function qEditQuickRecord(work,id){const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}renderQuickV2(work);work.dataset.editDraftId=String(r.id);work.querySelector('#quickV2Date').value=r.date||qToday();work.querySelector('#quickV2Entity').value=r.customer||'';work.querySelector('#quickV2Txn').value=r.txnTypeLabel||(r.txnType==='purchase'?'進貨':'銷貨');work.querySelector('#quickV2Note').value=r.note||'';const body=work.querySelector('#quickV2Rows');body.innerHTML='';(r.items||[]).forEach((it,i)=>{body.insertAdjacentHTML('beforeend',qRowHtml(i));const row=body.lastElementChild;row.querySelector('.qName').value=it.name||'';row.querySelector('.qKg').value=it.kg??'';row.querySelector('.qQty').value=it.qty??1;row.querySelector('.qPricing').value=it.pricing||'piece';const pcu=row.querySelector('.qPricingCustom');if(pcu)pcu.value=it.pricingUnit||'';const st=row.querySelector('.qItemStatus'),stc=row.querySelector('.qItemStatusCustom');if(st){const known=['','未送','缺貨','取消','補送'];if(known.includes(it.itemStatus||''))st.value=it.itemStatus||'';else if(it.itemStatus){st.value='custom';if(stc)stc.value=it.itemStatus}}row.querySelector('.qSource').value=qSourceNormalize(it.source||'欣儒');row.querySelector('.qPrice').value=it.price??'';row.querySelector('.qCost').value=it.cost??'';if((r.freightMode||it.freightMode)==='piece')row.querySelector('.qFreightRate').value=it.freightRate??''});if(!body.children.length)body.innerHTML=qRowHtml(0);const op=work.querySelector('#qOrderPricing');if(op&&r.items?.length)op.value=r.items[0].pricing||'piece';const ofm=work.querySelector('#qOrderFreightMode'),ofr=work.querySelector('#qOrderFreightRate');if(r.items?.length){const savedMode=r.freightMode||(r.items[0].freightMode==='fixed'?'truck':r.items[0].freightMode)||'none';if(ofm)ofm.value=savedMode;if(ofr)ofr.value=savedMode==='truck'?(r.freightTotal??r.freight??r.items[0].freightRate??''):(savedMode==='kg'?(r.freightRate??r.items[0].freightRate??''):'')}qBindRows(work);qPaintContactInfo(work);{const savedTurns=qRecordTurnovers(r),host=work.querySelector('#qTurnRows'),template=host?.querySelector('[data-qturnrow]');if(host&&template&&savedTurns.length){host.innerHTML='';savedTurns.forEach((t,i)=>{const row=template.cloneNode(true);row.dataset.bound='';host.appendChild(row);qApplyQuickProfile(work);const tt=row.querySelector('.qTurnType'),ta=row.querySelector('.qTurnAction'),tq=row.querySelector('.qTurnQty'),tp=row.querySelector('.qTurnUnitPrice'),tn=row.querySelector('.qTurnNote');if(tt)tt.value=t.type||'';qApplyQuickProfile(work);const tr=row.querySelector('.qTurnRack');if(tr&&t.rackNameId)tr.value=t.rackNameId;if(ta){const savedType=String(t.type||'');ta.value=savedType==='籃子'?((t.action==='使用'&&qQuickProfile(work).farmer)?'使用':(['使用','計價'].includes(t.action)?'計籃':['歸還','退籃退費'].includes(t.action)?'回籃':t.action||'')):(t.action==='使用'?'領用':t.action||'')}if(tq)tq.value=t.qty??'';if(tp)tp.value=Number(t.unitPrice)>0?t.unitPrice:'';if(tn)tn.value=t.note||''})}const bindTurnRowsLocal=()=>{work.querySelectorAll('[data-qturnrow]').forEach(row=>{if(row.dataset.bound)return;row.dataset.bound='1';row.querySelectorAll('select,input').forEach(el=>{el.addEventListener('input',()=>qRecalc(work));el.addEventListener('change',()=>qRecalc(work))});row.querySelector('.qTurnRemove')?.addEventListener('click',()=>{if(work.querySelectorAll('[data-qturnrow]').length===1){row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');qRecalc(work)}else{row.remove();qRecalc(work)}})})};bindTurnRowsLocal()}qRecalc(work);work.querySelector('#quickV2Save').textContent='💾 儲存修改';work.scrollIntoView({behavior:'smooth',block:'start'})}
   async function qVoidQuickRecord(work,id,after){
     const src=(typeof acctRecords==='function'?acctRecords():[]),old=src.find(x=>String(x.id)===String(id));if(!old)return;
@@ -9266,7 +9203,7 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     qN495Paint();
     const orderPricing=work.querySelector('#qOrderPricing');
     orderPricing?.addEventListener('change',()=>{work.querySelectorAll('[data-qrow]').forEach(r=>{if(r.dataset.pricingOverride==='1')return;const x=r.querySelector('.qPricing');if(x)x.value=orderPricing.value;const lab=r.querySelector('.qPricingLabel');if(lab)lab.textContent=qPricingText(orderPricing.value)});qRecalc(work)});const orderFreightMode=work.querySelector('#qOrderFreightMode'),orderFreightRate=work.querySelector('#qOrderFreightRate');const syncOrderFreight=()=>{qRecalc(work)};orderFreightMode?.addEventListener('change',syncOrderFreight);orderFreightRate?.addEventListener('input',syncOrderFreight);
-    work.querySelector('#quickV2Add').onclick=()=>qAddRow(work,true);work.querySelector('#quickV2Preview').onclick=()=>{try{const r=qBuildRecord(work,'active');qPreviewBill(r,false)}catch(e){alert(e.message||String(e))}};work.querySelector('#quickV2Clear').onclick=()=>{if(confirm('確定清空目前尚未儲存的內容嗎？'))renderQuickV2(work)};work.querySelector('#quickV2Pending').onclick=()=>{const n=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);if(n<1){alert('目前沒有待補價格的品項');return}qSave(work,'active')};work.querySelector('#quickV2Save').onclick=()=>{console.info('[N525 quick-save] click', {editing:!!work.dataset.editDraftId});const n=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);if(n>0){alert('目前有 '+n+' 項尚未填價格。\n請按黃色「⚠️ 待補價格」完成做帳。');return}qSave(work,'active')};work.querySelectorAll('[data-qfilter]').forEach(b=>b.onclick=()=>qRenderQueue(work,b.dataset.qfilter))}
+    work.querySelector('#quickV2Add').onclick=()=>qAddRow(work,true);work.querySelector('#quickV2Preview').onclick=()=>{try{const r=qBuildRecord(work,'active');qPreviewBill(r,false)}catch(e){alert(e.message||String(e))}};work.querySelector('#quickV2Clear').onclick=()=>{if(confirm('確定清空目前尚未儲存的內容嗎？'))renderQuickV2(work)};work.querySelector('#quickV2Pending').onclick=()=>{const n=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);if(n<1){alert('目前沒有待補價格的品項');return}qSave(work,'active')};work.querySelector('#quickV2Save').onclick=()=>{const n=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);if(n>0){alert('目前有 '+n+' 項尚未填價格。\n請按黃色「⚠️ 待補價格」完成做帳。');return}qSave(work,'active')};work.querySelectorAll('[data-qfilter]').forEach(b=>b.onclick=()=>qRenderQueue(work,b.dataset.qfilter))}
   // N119：待補價格與正常做帳共用相同的商品計價語意；item.amount 永遠是貨款＋運費。
   function qN119ItemGoodsFromStored(item,price){
     if(!qItemChargesGoods(item))return 0;
@@ -10734,7 +10671,7 @@ K白.kg
   function qLoanStats(loan){
     const ms=qLoanMovements(loan?.id),borrowed=ms.filter(x=>x.loanAction==='borrow').reduce((a,x)=>a+Math.abs(Number(x.fundDelta)||0),0),
       repaid=ms.filter(x=>x.loanAction==='repay').reduce((a,x)=>a+Math.abs(Number(x.fundDelta)||0),0),
-      paidCount=Math.max(0,Math.round(Number(loan?.openingPaidPeriods)||0))+ms.filter(x=>x.loanAction==='repay').reduce((n,x)=>n+Math.max(1,Math.round(Number(x.loanPaidPeriods)||1)),0),
+      paidCount=Math.max(0,Math.round(Number(loan?.openingPaidPeriods)||0))+ms.filter(x=>x.loanAction==='repay').length,
       totalPeriods=Math.max(0,Math.round(Number(loan?.totalPeriods)||0)),
       remainingPeriods=totalPeriods?Math.max(0,totalPeriods-paidCount):null,
       installment=Math.max(0,Math.round(Number(loan?.installmentAmount)||0)),
@@ -10816,13 +10753,11 @@ K白.kg
       '<div class="quickV2Head"><div class="field"><label class="label">日期 *</label><input id="qLoanMoveDate" class="input" type="date" value="'+qToday()+'"></div>'+
       '<div class="field"><label class="label">金額 *</label><input id="qLoanMoveAmount" class="input" inputmode="decimal" value="'+(suggested||'')+'" placeholder="實際'+(isBorrow?'入帳':'繳款')+'金額"></div>'+
       '<div class="field"><label class="label">'+(isBorrow?'入帳':'付款')+'帳戶 *</label><select id="qLoanMoveAccount" class="input">'+qFundAccountOptions('company_bank')+'</select></div>'+
-      (!isBorrow?'<div class="field"><label class="label">本次繳納期數</label><input id="qLoanMovePeriods" class="input" type="number" min="1" max="120" value="1"></div>':'')+
       '<div class="field"><label class="label">備註</label><input id="qLoanMoveNote" class="input" placeholder="可不填"></div></div>'+
       '<div class="actions" style="margin-top:10px"><button id="qLoanMoveSave" class="btn primary" type="button">完成</button></div></div>';
     work.querySelector('#qLoanMoveSave').onclick=async()=>{try{
       const amount=Math.round(Number(work.querySelector('#qLoanMoveAmount').value||0));if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確金額');
-      const periods=isBorrow?0:Number(work.querySelector('#qLoanMovePeriods')?.value||1),stats=qLoanStats(l);if(!isBorrow&&(!Number.isInteger(periods)||periods<1||periods>120||(stats.totalPeriods&&stats.paidCount+periods>stats.totalPeriods)))throw new Error('請確認本次繳納期數與剩餘期數');
-      const now=new Date().toISOString(),account=work.querySelector('#qLoanMoveAccount').value,r={id:'loanmove_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qLoanMoveDate').value||qToday(),customer:l.loanName||'貸款',contactId:'',mode:'loan_movement',txnType:'fund_movement',txnTypeLabel:isBorrow?'借款入帳':'貸款還款',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',loanId:l.id,loanAction:action,loanPaidPeriods:periods,vehicleId:l.vehicleId||'',loanType:l.loanType,fundKind:isBorrow?'loan_in':'loan_repay',fundCategory:'貸款管理',fundSubcategory:l.loanName||l.loanType,fundAccount:account,fundAmount:amount,fundDelta:(isBorrow?1:-1)*amount,note:work.querySelector('#qLoanMoveNote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
+      const now=new Date().toISOString(),account=work.querySelector('#qLoanMoveAccount').value,r={id:'loanmove_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qLoanMoveDate').value||qToday(),customer:l.loanName||'貸款',contactId:'',mode:'loan_movement',txnType:'fund_movement',txnTypeLabel:isBorrow?'借款入帳':'貸款還款',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',loanId:l.id,loanAction:action,loanType:l.loanType,fundKind:isBorrow?'loan_in':'loan_repay',fundCategory:'貸款管理',fundSubcategory:l.loanName||l.loanType,fundAccount:account,fundAmount:amount,fundDelta:(isBorrow?1:-1)*amount,note:work.querySelector('#qLoanMoveNote').value.trim(),createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
       await saveAccountingCloud(r);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderLoanDetail(document.getElementById('acctStageWork'),l.id);
     }catch(e){alert(e.message||String(e))}};
   }
@@ -11147,10 +11082,10 @@ K白.kg
     const vehicles=qCompanyVehicles().filter(v=>v.accountingOwner!=='六禾');
     const expenseCats=qFundCategories('expense');
     const incomeCats=qFundCategories('income');
-    const cats=()=>kind&&kind.value==='income'?incomeCats:{...expenseCats,'貸款支出':['貸款繳款']};
-    const catOpts=Object.keys(expenseCats).concat(['貸款支出']).filter((x,i,a)=>a.indexOf(x)===i).map(x=>'<option>'+qEsc(x)+'</option>').join('');
+    const cats=()=>kind&&kind.value==='income'?incomeCats:expenseCats;
+    const catOpts=Object.keys(expenseCats).map(x=>'<option>'+qEsc(x)+'</option>').join('');
     const vehicleOpts=vehicles.map(v=>'<option value="'+qEsc(v.id)+'">'+qEsc([v.vehiclePlate,v.vehicleName].filter(Boolean).join('｜'))+'</option>').join('');
-    work.innerHTML='<div class="quickV2"><b>💵 公司收支</b><div class="helper" style="display:block!important;margin:5px 0 10px">公司收入支出及貸款繳款統一在此登記。貸款繳款自動連動貸款管理，不另建一般支出。既有收款、付款不可重複輸入。</div>'+
+    work.innerHTML='<div class="quickV2"><b>💵 公司收支</b><div class="helper" style="display:block!important;margin:5px 0 10px">只登記非客戶／廠商帳款的公司收入支出。既有收款、付款不可在這裡重複輸入。</div>'+
       '<div id="qCompanyCashAccounts" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 8px">'+
         '<button type="button" class="quickV2ContactHint" data-company-fund-account="company_bank" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>🏦 公司帳戶</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(qFundBalance('company_bank'))+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
         '<button type="button" class="quickV2ContactHint" data-company-fund-account="company_cash" style="text-align:left;border:1px solid #d8e2ef;background:#fff;cursor:pointer"><b>💵 公司現金</b><div style="font-size:26px;font-weight:900;margin-top:6px">'+qFundMoney(qFundBalance('company_cash'))+'</div><div class="helper">正式餘額｜點入查看流水</div></button>'+
@@ -11162,7 +11097,6 @@ K白.kg
       '<div class="field"><label class="label">細項 *</label><select id="qFundSub" class="input"></select></div></div>'+
       '<div class="quickV2Head qFundMainRow" style="margin-top:8px"><div class="field"><label class="label">收支歸屬 *</label><select id="qFundOwner" class="input"><option value="xinru">欣儒農產行</option>'+((typeof isAdmin==="function"&&isAdmin())?'<option value="xuansheng">玄聖宮（管理員）</option>':'')+'</select><select id="qFundRelation" style="display:none"><option value="own">欣儒本身</option></select><div id="qFundRelationHelp" style="display:none"></div></div><div class="field"><label class="label">金額 *</label><input id="qFundAmount" class="input" inputmode="decimal" placeholder="例如 3000"></div>'+
       '<div class="field"><label class="label">資金帳戶 *</label><select id="qFundAccount" class="input">'+qFundAccountOptions('company_bank')+'</select></div>'+
-      '<div class="field" id="qLoanQuickBox" style="display:none"><label class="label">選擇貸款 *</label><select id="qLoanQuickId" class="input"><option value="">請選擇貸款</option>'+qLoanMasters().map(l=>'<option value="'+qEsc(l.id)+'">'+qEsc((qVehicleById(l.vehicleId)?.vehiclePlate||l.loanName||l.loanType)+'｜已繳 '+qLoanStats(l).paidCount+' 期')+'</option>').join('')+'</select><div class="helper">直接記入貸款流水，資金只扣一次；不將未知本金／利息列為營業費用。</div></div><div class="field" id="qLoanQuickPeriodsBox" style="display:none"><label class="label">本次繳納期數</label><input id="qLoanQuickPeriods" class="input" type="number" min="1" max="120" value="1"></div>'+
       '<div class="field" id="qFundVehicleBox" style="display:none"><label class="label">車輛 *</label><select id="qFundVehicle" class="input"><option value="">請選擇車籍資料</option>'+vehicleOpts+'</select><div class="helper">'+(vehicles.length?'直接連結車籍資料 ID':'目前沒有車籍資料，請先到「車輛管理 → 車輛資料」建立')+'</div></div>'+
       '<div class="field"><label class="label">備註</label><input id="qFundNote" class="input" placeholder="可不填"></div></div>'+
       '<div id="qRecurringBox" style="margin-top:10px;padding:12px 14px;border:1px solid #d8e1ec;border-radius:12px"><label style="display:flex;align-items:center;gap:8px;font-weight:700"><input id="qFundRecurring" type="checkbox"> 設為每月固定支出</label><div id="qRecurringFields" style="display:none;margin-top:10px;max-width:220px"><label class="label">每月付款日 *</label><input id="qFundRecurringDay" class="input" type="number" min="1" max="31" value="1"><div class="helper">到期只列入待確認，不會先扣公司資金；按「確認已付款」才正式入帳。</div></div></div>'+
@@ -11175,7 +11109,7 @@ K白.kg
     const companyTransferBtn=work.querySelector('#qCompanyTransfer');if(companyTransferBtn)companyTransferBtn.onclick=()=>qRenderFundTransfer(work,'company_bank');
     const syncRelation=()=>{const o=owner.value,k=kind.value;if(o==='xuansheng'){if(k==='income'){relation.innerHTML='<option value="">玄聖宮收入請至玄聖宮帳務登記</option>';relationHelp.textContent='玄聖宮財務只供管理員處理；玄聖宮自己的收入留在玄聖宮帳務。'}else{relation.innerHTML='<option value="advance">代墊（玄聖宮欠欣儒）</option><option value="sponsor">贊助</option>';relationHelp.textContent='玄聖宮跨帳資料只供管理員查看。'}}else{relation.innerHTML='<option value="own">欣儒本身</option>';relationHelp.textContent='欣儒自己的收入／支出。'}};
     const isVehicleLinkedFund=()=>((kind.value==='expense'&&cat.value==='車輛費用')||(kind.value==='income'&&cat.value==='其他營業收入'&&sub.value==='運費／配送收入'));
-    const syncSpecialFields=()=>{const loanQuick=kind.value==='expense'&&cat.value==='貸款支出';const lb=work.querySelector('#qLoanQuickBox'),pb=work.querySelector('#qLoanQuickPeriodsBox'),rb=work.querySelector('#qRecurringBox');if(lb)lb.style.display=loanQuick?'block':'none';if(pb)pb.style.display=loanQuick?'block':'none';if(rb)rb.style.display=loanQuick?'none':'block';if(loanQuick){owner.value='xinru';owner.disabled=true;}else owner.disabled=false;vb.style.display=isVehicleLinkedFund()?'block':'none';const noteEl=work.querySelector('#qFundNote');if(noteEl){const invBuy=kind.value==='expense'&&cat.value==='營業耗材'&&['籃子','保麗龍'].includes(sub.value);noteEl.placeholder=invBuy?'請填採購數量，例如：1000個':'可不填';}};
+    const syncSpecialFields=()=>{vb.style.display=isVehicleLinkedFund()?'block':'none';const noteEl=work.querySelector('#qFundNote');if(noteEl){const invBuy=kind.value==='expense'&&cat.value==='營業耗材'&&['籃子','保麗龍'].includes(sub.value);noteEl.placeholder=invBuy?'請填採購數量，例如：1000個':'可不填';}};
     const syncSub=()=>{const set=cats(),prev=sub.value,opts=(set[cat.value]||['其他']);sub.innerHTML=opts.map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');if(opts.includes(prev))sub.value=prev;syncSpecialFields()};
     const rebuildCats=()=>{const set=cats(),prev=cat.value;cat.innerHTML=Object.keys(set).map(x=>'<option value="'+qEsc(x)+'">'+qEsc(x)+'</option>').join('');if(set[prev])cat.value=prev;syncSub()};
     cat.onchange=syncSub;sub.onchange=syncSpecialFields;owner.onchange=syncRelation;kind.onchange=()=>{rebuildCats();syncRelation()};rebuildCats();syncRelation();
@@ -11208,21 +11142,6 @@ K白.kg
       const qtyMatch=containerPurchaseType?fundNote.replace(/,/g,'').match(/(\d+(?:\.\d+)?)/):null;
       const containerPurchaseQty=qtyMatch?Math.round(Number(qtyMatch[1])):0;
       if(!Number.isFinite(amount)||amount<=0)throw new Error('請輸入正確金額');
-      if(isExpense&&category==='貸款支出'){
-        if(work.dataset.editFundId)throw new Error('貸款繳款不能覆蓋一般收支紀錄');
-        const loanId=work.querySelector('#qLoanQuickId')?.value||'',loan=qLoanById(loanId);
-        if(!loan)throw new Error('請選擇要繳款的貸款');
-        const paidPeriods=Number(work.querySelector('#qLoanQuickPeriods')?.value||1);
-        if(!Number.isInteger(paidPeriods)||paidPeriods<1||paidPeriods>120)throw new Error('請輸入正確繳款期數');
-        const st=qLoanStats(loan);if(st.totalPeriods&&st.paidCount+paidPeriods>st.totalPeriods)throw new Error('繳款期數超過貸款總期數，請先檢查貸款資料');
-        const now=new Date().toISOString(),account=work.querySelector('#qFundAccount').value;
-        if(!account)throw new Error('請選擇付款帳戶');
-        const record={id:'loanmove_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),schemaVersion:1,date:work.querySelector('#qFundDate').value||qToday(),customer:loan.loanName||'貸款',contactId:'',mode:'loan_movement',txnType:'fund_movement',txnTypeLabel:'貸款還款',accountDirection:'',items:[],total:0,paid:0,due:0,status:'active',loanId:loan.id,loanAction:'repay',loanPaidPeriods:paidPeriods,loanType:loan.loanType,vehicleId:loan.vehicleId||'',fundKind:'loan_repay',fundCategory:'貸款管理',fundSubcategory:loan.loanName||loan.loanType,fundAccount:account,fundAmount:Math.round(amount),fundDelta:-Math.round(amount),note:fundNote,createdAt:now,updatedAt:now,createdBy:(typeof qActor==='function'?qActor():'')};
-        work.querySelector('#qFundSave').disabled=true;
-        try{await saveAccountingCloud(record);if(typeof xrAccountingRefreshAfterWrite==='function')await xrAccountingRefreshAfterWrite();else if(typeof loadAccountingCloud==='function')await loadAccountingCloud();qRenderCompanyCashflow(document.getElementById('acctStageWork'));alert('貸款繳款已記錄，已繳期數增加 '+paidPeriods+' 期，資金帳戶只扣款一次');}
-        catch(e){work.querySelector('#qFundSave')&&(work.querySelector('#qFundSave').disabled=false);throw e;}
-        return;
-      }
       if(owner.value==='xuansheng'&&!isExpense)throw new Error('玄聖宮自己的收入請到玄聖宮帳務登記；欣儒這裡只記代墊／贊助');
       if(isVehicleLinkedFund()&&!vehicleId)throw new Error('請先選擇車籍資料，外接車趟收入須指定車號');
       if(containerPurchaseType&&(!Number.isFinite(containerPurchaseQty)||containerPurchaseQty<=0))throw new Error('買'+containerPurchaseType+'請在備註填數量，例如：1000個');
