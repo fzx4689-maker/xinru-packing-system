@@ -2198,7 +2198,41 @@ function switchFieldReportPanel(kind){
 #lhResearchPane[hidden]{display:none!important}#liuho:has(#lhResearchPane:not([hidden])) #liuhoHomeTiles{display:none!important}
 #lhResearchPane .lhr-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#lhResearchPane .lhr-fields label{display:flex;flex-direction:column;gap:5px}#lhResearchPane textarea{min-height:65px;resize:vertical}#lhResearchPane .lhr-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #e5ebe7}#lhResearchPane .lhr-item img{width:56px;height:56px;object-fit:cover;border-radius:8px}#lhResearchPane .lhr-item button{margin-left:auto}#lhResearchPane .lhr-meta{color:#65766d;font-size:12px}#lhResearchPane .lhr-unpublished{color:#a63a30}#lhResearchPane .lhf-filter{flex-wrap:wrap}@media(max-width:700px){#lhResearchPane .lhr-fields{grid-template-columns:1fr}}
 </style>
-<style id="tmN520CatStyles">#templeApp .tm-cat-details{border:1px solid #d8e0e9;border-radius:10px;padding:9px;margin:9px 0;background:#fff}#templeApp .tm-cat-details summary{cursor:pointer}#templeApp .tm-cat-details .tm-chip{display:inline-block;margin:5px;padding:5px 9px}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:145px;max-width:240px}#templeApp .tm-finance-cat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:700px){#templeApp .tm-finance-cat-grid{grid-template-columns:1fr}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:100%;max-width:100%}}</style></head>
+<style id="tmN520CatStyles">#templeApp .tm-cat-details{border:1px solid #d8e0e9;border-radius:10px;padding:9px;margin:9px 0;background:#fff}#templeApp .tm-cat-details summary{cursor:pointer}#templeApp .tm-cat-details .tm-chip{display:inline-block;margin:5px;padding:5px 9px}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:145px;max-width:240px}#templeApp .tm-finance-cat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:700px){#templeApp .tm-finance-cat-grid{grid-template-columns:1fr}#templeApp #tmReportDirection,#templeApp #tmReportMajor,#templeApp #tmReportSub{min-width:100%;max-width:100%}}</style><script>
+/* N527: Bind at window capture before the app's many click handlers.
+   A single authoritative route handles quick-record edit saves. */
+(function(){
+  if(window.__xrN527QuickSaveBound)return;
+  window.__xrN527QuickSaveBound=true;
+  window.addEventListener('click',function(event){
+    const button=event.target&&event.target.closest&&event.target.closest('#quickV2Save');
+    if(!button)return;
+    const work=button.closest('#acctStageWork');
+    if(!work)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if(button.disabled||work.dataset.qSaveBusy==='1')return;
+    const show=function(message){
+      let el=document.getElementById('xrN527SaveStatus');
+      if(!el){el=document.createElement('div');el.id='xrN527SaveStatus';
+        el.setAttribute('role','status');el.style.cssText='position:fixed;bottom:16px;left:16px;z-index:2147483647;background:#12324a;color:#fff;padding:12px 16px;border-radius:10px;max-width:90vw;font-size:15px;box-shadow:0 4px 20px #0004';document.body.appendChild(el);}
+      el.textContent=message;
+    };
+    show('已接收到儲存按鈕，正在檢查資料…');
+    const pending=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);
+    if(pending>0){show('有 '+pending+' 項待補價格，請使用黃色「待補價格」功能');return;}
+    if(typeof window.xrN527QuickSaveBridge!=='function'){
+      show('儲存程式尚未載入，請回報 N527 診斷訊息');
+      alert('N527：儲存程式未完成初始化，已阻止儲存。請回報此訊息。');return;
+    }
+    try{
+      const result=window.xrN527QuickSaveBridge(work);
+      Promise.resolve(result).catch(function(err){console.error('[N527 save]',err);show('儲存失敗：'+(err?.message||String(err)));alert('儲存失敗：'+(err?.message||String(err)));});
+    }catch(err){console.error('[N527 save start]',err);show('無法啟動儲存：'+(err?.message||String(err)));alert('無法啟動儲存：'+(err?.message||String(err)));}
+  },true);
+})();
+</script>
+</head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
 body.auth-booting #authGate,
@@ -9149,6 +9183,24 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     try{if(status==='active'){const allowPending=true;let touched=0,rowNo=0;for(const r of work.querySelectorAll('[data-qrow]')){rowNo++;const name=r.querySelector('.qName')?.value.trim()||'',kg=r.querySelector('.qKg')?.value.trim()||'',qty=r.querySelector('.qQty')?.value.trim()||'',price=r.querySelector('.qPrice')?.value.trim()||'',pricing=r.querySelector('.qPricing')?.value||'',source=qSourceNormalize(r.querySelector('.qSource')?.value||'欣儒'),fm=r.querySelector('.qFreight')?.value||'none',fr=r.querySelector('.qFreightRate')?.value.trim()||'';const any=name||kg||price||fr||(qty!==''&&qty!=='1');if(!any)continue;touched++;if(!name)throw new Error('第 '+rowNo+' 列：請輸入品名');if(!qty||qMoney(qty)<=0)throw new Error('第 '+rowNo+' 列：請輸入正確數量');if((pricing==='kg'||pricing==='jin')&&(!kg||qMoney(kg)<=0))throw new Error('第 '+rowNo+' 列：計價為公斤／台斤，請輸入公斤數');if(qItemNeedsPrice({source})&&price===''&&!allowPending)throw new Error('第 '+rowNo+' 列「'+name+'」：尚未輸入單價。若價格尚未確定，請勾選「價格未定，先完成做帳」。');if(['kg','piece','fixed'].includes(fm)&&fr==='')throw new Error('第 '+rowNo+' 列「'+name+'」：已選運費方式，請輸入運費單價');}/* N197：是否可完成統一交由 qBuildRecord 的金額核心判斷，這裡不再建立第二套入口規則。 */}const record=qBuildRecord(work,status),editId=work.dataset.editDraftId;if(editId){const old=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(editId));if(old){record.createdAt=old.createdAt||record.createdAt;record.createdBy=old.createdBy||record.createdBy;record.audit=Array.isArray(old.audit)?old.audit.slice():[];record.audit.push({action:status==='draft'?'edit_draft':'edit',at:new Date().toISOString(),by:qActor()})}}await qPersist(record);if(status!=='draft'&&!editId&&record.pricingStatus!=='pending_price'){const autoC=qContact(record.contactId||record.customer);if(autoC&&record.txnType==='sale'&&String(autoC.paymentDefault||'')==='儲值')await qApplyStoredValueToRecord(autoC,record)}window.xrAccountingNav?.paintWorkBadges?.();if(status==='draft'){alert('💾 未完成資料已暫存，可跨裝置繼續。');renderQuickV2(work);return}renderQuickV2(work);qShowOutputs(work,record)}catch(e){console.error('[N525 quick-save]',e);alert('儲存未確認成功：'+(e?.message||String(e))+'\n請先查詢原始帳本，確認是否已寫入，再決定是否重試。');}
     finally{saveFinished=true;clearTimeout(waitNotice);work.dataset.qSaveBusy='';if(saveBtn&&saveBtn.isConnected){saveBtn.disabled=false;saveBtn.textContent=originalLabel;}}
   }
+  // N527: publish the real save routine for an early, independent window capture handler.
+  window.xrN527QuickSaveBridge=(work)=>qSave(work,'active');
+  // N526: bind the save action at capture phase, independently of the long renderQuickV2
+  // setup chain. A failure in a later UI binder must not leave the Save button inert.
+  document.addEventListener('click',function xrN526QuickSaveCapture(event){
+    const button=event.target?.closest?.('#quickV2Save');
+    if(!button)return;
+    const work=button.closest('#acctStageWork');
+    if(!work||!work.contains(button))return;
+    event.preventDefault();event.stopImmediatePropagation();
+    if(button.disabled||work.dataset.qSaveBusy==='1')return;
+    const pending=Number(work.querySelector('#quickV2Pending')?.dataset.pendingCount||0);
+    if(pending>0){alert('目前有 '+pending+' 項尚未填價格。\n請按黃色「⚠️ 待補價格」完成做帳。');return;}
+    try{Promise.resolve(qSave(work,'active')).catch(err=>{
+      console.error('[N526 quick save rejected]',err);
+      alert('儲存失敗：'+(err?.message||String(err)));
+    });}catch(err){console.error('[N526 quick save error]',err);alert('儲存未啟動：'+(err?.message||String(err)));}
+  },true);
   function qEditQuickRecord(work,id){const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}renderQuickV2(work);work.dataset.editDraftId=String(r.id);work.querySelector('#quickV2Date').value=r.date||qToday();work.querySelector('#quickV2Entity').value=r.customer||'';work.querySelector('#quickV2Txn').value=r.txnTypeLabel||(r.txnType==='purchase'?'進貨':'銷貨');work.querySelector('#quickV2Note').value=r.note||'';const body=work.querySelector('#quickV2Rows');body.innerHTML='';(r.items||[]).forEach((it,i)=>{body.insertAdjacentHTML('beforeend',qRowHtml(i));const row=body.lastElementChild;row.querySelector('.qName').value=it.name||'';row.querySelector('.qKg').value=it.kg??'';row.querySelector('.qQty').value=it.qty??1;row.querySelector('.qPricing').value=it.pricing||'piece';const pcu=row.querySelector('.qPricingCustom');if(pcu)pcu.value=it.pricingUnit||'';const st=row.querySelector('.qItemStatus'),stc=row.querySelector('.qItemStatusCustom');if(st){const known=['','未送','缺貨','取消','補送'];if(known.includes(it.itemStatus||''))st.value=it.itemStatus||'';else if(it.itemStatus){st.value='custom';if(stc)stc.value=it.itemStatus}}row.querySelector('.qSource').value=qSourceNormalize(it.source||'欣儒');row.querySelector('.qPrice').value=it.price??'';row.querySelector('.qCost').value=it.cost??'';if((r.freightMode||it.freightMode)==='piece')row.querySelector('.qFreightRate').value=it.freightRate??''});if(!body.children.length)body.innerHTML=qRowHtml(0);const op=work.querySelector('#qOrderPricing');if(op&&r.items?.length)op.value=r.items[0].pricing||'piece';const ofm=work.querySelector('#qOrderFreightMode'),ofr=work.querySelector('#qOrderFreightRate');if(r.items?.length){const savedMode=r.freightMode||(r.items[0].freightMode==='fixed'?'truck':r.items[0].freightMode)||'none';if(ofm)ofm.value=savedMode;if(ofr)ofr.value=savedMode==='truck'?(r.freightTotal??r.freight??r.items[0].freightRate??''):(savedMode==='kg'?(r.freightRate??r.items[0].freightRate??''):'')}qBindRows(work);qPaintContactInfo(work);{const savedTurns=qRecordTurnovers(r),host=work.querySelector('#qTurnRows'),template=host?.querySelector('[data-qturnrow]');if(host&&template&&savedTurns.length){host.innerHTML='';savedTurns.forEach((t,i)=>{const row=template.cloneNode(true);row.dataset.bound='';host.appendChild(row);qApplyQuickProfile(work);const tt=row.querySelector('.qTurnType'),ta=row.querySelector('.qTurnAction'),tq=row.querySelector('.qTurnQty'),tp=row.querySelector('.qTurnUnitPrice'),tn=row.querySelector('.qTurnNote');if(tt)tt.value=t.type||'';qApplyQuickProfile(work);const tr=row.querySelector('.qTurnRack');if(tr&&t.rackNameId)tr.value=t.rackNameId;if(ta){const savedType=String(t.type||'');ta.value=savedType==='籃子'?((t.action==='使用'&&qQuickProfile(work).farmer)?'使用':(['使用','計價'].includes(t.action)?'計籃':['歸還','退籃退費'].includes(t.action)?'回籃':t.action||'')):(t.action==='使用'?'領用':t.action||'')}if(tq)tq.value=t.qty??'';if(tp)tp.value=Number(t.unitPrice)>0?t.unitPrice:'';if(tn)tn.value=t.note||''})}const bindTurnRowsLocal=()=>{work.querySelectorAll('[data-qturnrow]').forEach(row=>{if(row.dataset.bound)return;row.dataset.bound='1';row.querySelectorAll('select,input').forEach(el=>{el.addEventListener('input',()=>qRecalc(work));el.addEventListener('change',()=>qRecalc(work))});row.querySelector('.qTurnRemove')?.addEventListener('click',()=>{if(work.querySelectorAll('[data-qturnrow]').length===1){row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');qRecalc(work)}else{row.remove();qRecalc(work)}})})};bindTurnRowsLocal()}qRecalc(work);work.querySelector('#quickV2Save').textContent='💾 儲存修改';work.scrollIntoView({behavior:'smooth',block:'start'})}
   async function qVoidQuickRecord(work,id,after){
     const src=(typeof acctRecords==='function'?acctRecords():[]),old=src.find(x=>String(x.id)===String(id));if(!old)return;
