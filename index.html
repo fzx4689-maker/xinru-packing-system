@@ -15456,7 +15456,9 @@ if(type==='finance'){
  // 有對應報名名單的活動收款必須走同一個收款入口，避免再新增第二筆收入。
  if(!editing&&data.direction==='收入'&&data.category==='活動收入'&&['進香報名費','遊覽車車資','法會報名費','餐費','報名繳費'].includes(data.subcategory))throw new Error('活動報名費請切換到「活動報名收款」，由報名名單選人收款，避免重複記帳。');
  if(data.direction==='收入'&&data.activity_id&&data.person_id&&get('registration').some(r=>r.data.activity_id===data.activity_id&&r.data.person_id===data.person_id))throw new Error('此信眾已有該活動報名紀錄。報名費請使用「帳務管理 → 活動報名收款」，避免重複記帳。');
- data.transfer_to=form.elements.namedItem('transfer_to')?.value||'';
+ // 轉入帳戶只屬於「現金轉銀行」；其他交易絕不能繼承隱藏選單預設的銀行 ID。
+ if(data.direction==='現金轉銀行')data.transfer_to=form.elements.namedItem('transfer_to')?.value||'';
+ else delete data.transfer_to;
  if(data.direction==='現金轉銀行'&&!data.transfer_to)throw new Error('請先建立銀行帳戶並選擇轉入銀行');
  if(data.direction==='銀行轉現金'&&(!data.account||data.account==='現金'))throw new Error('請選擇轉出銀行');
  if(data.account!=='現金'&&!tmBanks().some(b=>b.id===data.account))throw new Error('所選銀行帳戶不存在或已停用');
@@ -15486,11 +15488,28 @@ if(r.kind==='bank'){
  // 重新向資料庫核對：包括停用帳戶、舊交易及轉帳目的帳戶，不依賴畫面暫存資料。
  const {data:latest,error:readError}=await sb.from('temple_records').select('id,kind,data,deleted_at').in('kind',['finance','payment']).is('deleted_at',null);
  if(readError){alert('無法確認帳戶是否有交易，已取消刪除：'+readError.message);return;}
- const used=(latest||[]).some(x=>{
+ // N376：只以玄聖宮未刪除的實際金流紀錄判斷；顯示阻擋刪除的具體明細。
+ // 帳戶餘額為 0 不代表沒有歷史交易，不能單憑餘額解除保護。
+ const related=(latest||[]).filter(x=>{
   const d=x.data||{};
-  return d.account===id||d.transfer_to===id||d.from_account===id||d.to_account===id||d.bank_id===id;
+  // 舊版曾把隱藏的 transfer_to 選單值誤存到代墊等非轉帳紀錄。
+  // 僅真實轉帳方向才使用轉入帳戶欄位；實際收付款帳戶仍須保護。
+  const relevant=[d.account,d.from_account,d.to_account,d.bank_id];
+  if(d.direction==='現金轉銀行')relevant.push(d.transfer_to);
+  return relevant.some(v=>String(v||'')===String(id));
  });
- if(used){alert('這個銀行帳戶已有收支、活動收款／退款或轉帳紀錄，不能永久刪除。請改用「停用」，保留原有帳務。');return;}
+ if(related.length){
+  const lines=related.slice(0,15).map((x,i)=>{
+   const d=x.data||{};
+   const category=x.kind==='payment'?'活動收款／退款':(d.category||d.direction||'收支／轉帳');
+   const amt=Number(d.amount);
+   const moneyText=Number.isFinite(amt)?'｜NT$ '+amt.toLocaleString('zh-TW'):'';
+   const fields=['account','from_account','to_account','bank_id',...(d.direction==='現金轉銀行'?['transfer_to']:[])].filter(k=>String(d[k]||'')===String(id));
+   return (i+1)+'. '+String(d.date||'未填日期')+'｜'+category+moneyText+'｜欄位：'+fields.join('、')+'｜紀錄ID：'+x.id;
+  });
+  alert('「'+String(r.data?.name||'未命名')+'」查到 '+related.length+' 筆仍有效的玄聖宮關聯交易，為避免破壞歷史帳務，暫時不能刪除。\n\n'+lines.join('\n')+(related.length>15?'\n…其餘 '+(related.length-15)+' 筆未列出':'')+'\n\n請先核對這些紀錄；如為錯誤交易，應從原交易修改或刪除。若要保留交易歷史，可將帳戶設為「停用」。');
+  return;
+ }
  if(!confirm('確定刪除銀行帳戶「'+String(r.data?.name||'未命名')+'」？\n此帳戶沒有交易紀錄，刪除後不會再出現在清單中。'))return;
  if(!confirm('再次確認：永久刪除此銀行帳戶？'))return;
  const {error:e}=await sb.from('temple_records').update({deleted_at:new Date().toISOString(),updated_by:currentUser.id,updated_by_name:userName()}).eq('id',id).eq('kind','bank').is('deleted_at',null);
@@ -15541,8 +15560,8 @@ function tmAdvanceOverview(){
  <div class="tm-stat">累計償還<strong>${money(repaid)}</strong></div>
  <div class="tm-stat">目前未還<strong>${money(balance)}</strong></div></div>
  <div class="tm-head"><h3>代墊及償還明細（${sorted.length} 筆）</h3></div>
- <div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>日期</th><th>類型</th><th>金額</th><th>備註</th></tr></thead><tbody>
- ${sorted.map(r=>`<tr><td>${esc(r.data.date||'')}</td><td>${esc(r.data.direction)}</td><td>${r.data.direction==='償還欣儒'?'−':'＋'}${money(Number(r.data.amount)||0)}</td><td>${esc(r.data.note||'')}</td></tr>`).join('')||'<tr><td colspan="4">尚無欣儒代墊或償還紀錄</td></tr>'}
+ <div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>日期</th><th>類型</th><th>金額</th><th>備註／作帳者</th><th>操作</th></tr></thead><tbody>
+ ${sorted.map(r=>`<tr><td>${esc(r.data.date||'')}</td><td>${esc(r.data.direction)}</td><td>${r.data.direction==='償還欣儒'?'−':'＋'}${money(Number(r.data.amount)||0)}</td><td>${esc(r.data.note||'')}<div class="tm-muted">作帳者：${esc(r.created_by_name||'未記錄')}</div>${r.updated_by_name?`<div class="tm-muted">最後修改：${esc(r.updated_by_name)}</div>`:''}</td><td>${canWrite()?`<div class="tm-actions" style="flex-wrap:nowrap"><button type="button" class="btn gray" data-edit="${r.id}">修改</button><button type="button" class="btn red" data-del="${r.id}">刪除</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="5">尚無欣儒代墊或償還紀錄</td></tr>'}
  </tbody></table></div>`;
 }
 function tmFinanceHub(){
