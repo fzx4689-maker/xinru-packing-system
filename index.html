@@ -2320,6 +2320,37 @@ function switchFieldReportPanel(kind){
   #temple #tmServiceDateSelect { font-size:14px; }
 }
 </style>
+
+<style id="tm-service-compact-mobile-20261020">
+/* 只針對玄聖宮帝爺公辦事日期工具列，避免影響其他模組。 */
+#temple #templeApp .tm-service-datebar{display:flex;flex-direction:row;align-items:center;flex-wrap:nowrap;gap:8px;padding:8px 10px;margin:7px 0 9px;min-width:0}
+#temple #templeApp .tm-service-datebar>label{width:auto;flex:0 0 auto;margin:0;font-size:14px;white-space:nowrap}
+#temple #templeApp .tm-service-date-controls{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:5px;width:auto;flex:1 1 auto;min-width:0}
+#temple #templeApp .tm-service-date-controls .btn{width:auto;min-width:0;min-height:36px;height:36px;padding:5px 8px;font-size:13px;border-radius:9px;white-space:nowrap}
+#temple #templeApp #tmServiceDateSelect{display:block;min-width:0;width:100%;max-width:100%;height:36px;padding:3px 5px;font-size:14px;text-align:center;border-radius:9px}
+#temple #templeApp .tm-service-history{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;align-items:end;gap:6px;padding:9px 10px;margin:7px 0 12px}
+#temple #templeApp .tm-service-history>strong{grid-column:1/-1;font-size:15px;margin:0}
+#temple #templeApp .tm-service-history>label{grid-column:auto;width:auto;min-width:0;display:flex;flex-direction:column;gap:3px;font-size:12px;margin:0}
+#temple #templeApp .tm-service-history input{width:100%;min-width:0;max-width:100%;height:36px;padding:4px 5px;font-size:13px;border-radius:9px}
+#temple #templeApp .tm-service-history>button{grid-column:auto;width:auto;min-width:0;min-height:36px;height:36px;padding:5px 9px;font-size:12px;white-space:nowrap;border-radius:9px}
+@media(max-width:700px){
+ #temple #templeApp .tm-service-datebar{gap:5px;padding:7px 8px}
+ #temple #templeApp .tm-service-datebar>label{font-size:12px}
+ #temple #templeApp .tm-service-date-controls{gap:3px}
+ #temple #templeApp .tm-service-date-controls .btn{min-height:34px;height:34px;padding:4px 6px;font-size:12px}
+ #temple #templeApp #tmServiceDateSelect{height:34px;padding:2px;font-size:13px}
+ #temple #templeApp .tm-service-history{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;gap:5px;padding:8px}
+ #temple #templeApp .tm-service-history>label{grid-column:auto;font-size:11px}
+ #temple #templeApp .tm-service-history input{height:34px;font-size:12px;padding:3px}
+ #temple #templeApp .tm-service-history>button{min-height:34px;height:34px;padding:4px 6px;font-size:11px}
+}
+@media(max-width:480px){
+ #temple #templeApp .tm-service-date-controls .tm-week-word{display:none}
+ #temple #templeApp .tm-service-date-controls .btn{width:30px;font-size:21px;line-height:1;padding:0}
+ #temple #templeApp .tm-service-history{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 48px 48px;gap:4px}
+ #temple #templeApp .tm-service-history>button{font-size:11px;padding:3px 1px}
+}
+</style>
 </head>
 <body class="auth-booting">
 <style id="auth-boot-no-flash">
@@ -14956,7 +14987,7 @@ function tmServiceDates(){
   now.setUTCDate(now.getUTCDate()-((now.getUTCDay()-6+7)%7));
   tmServiceDate=now.toISOString().slice(0,10);
  }
- return `<div class="tm-service-datebar"><label><b>辦事日期：</b></label><div class="tm-service-date-controls"><button type="button" class="btn gray" data-service-week="-1">← 上週</button><input type="date" id="tmServiceDateSelect" aria-label="選擇辦事日期（星期六）" value="${esc(tmServiceDate)}"><button type="button" class="btn gray" data-service-week="1">下週 →</button></div><span class="tm-muted">點月曆選過去或未來的週六</span></div><div class="tm-service-history"><strong>歷史紀錄查詢</strong><label>開始日期 <input type="date" id="tmServiceFrom" value="${esc(tmServiceFrom)}"></label><label>結束日期 <input type="date" id="tmServiceTo" value="${esc(tmServiceTo)}"></label><button type="button" class="btn gray" data-service-search="1">查詢</button><button type="button" class="btn gray" data-service-clear="1">清除條件</button></div><div id="tmServiceResults">${tmServiceDateRows()}</div>`;
+ return `<div class="tm-service-datebar"><label><b>辦事日期</b></label><div class="tm-service-date-controls"><button type="button" class="btn gray" data-service-week="-1" aria-label="上週">‹ <span class="tm-week-word">上週</span></button><input type="date" id="tmServiceDateSelect" aria-label="選擇辦事日期（星期六）" value="${esc(tmServiceDate)}"><button type="button" class="btn gray" data-service-week="1" aria-label="下週"><span class="tm-week-word">下週</span> ›</button></div></div><div class="tm-service-history"><strong>歷史紀錄查詢</strong><label>開始日期 <input type="date" id="tmServiceFrom" value="${esc(tmServiceFrom)}"></label><label>結束日期 <input type="date" id="tmServiceTo" value="${esc(tmServiceTo)}"></label><button type="button" class="btn gray" data-service-search="1">查詢</button><button type="button" class="btn gray" data-service-clear="1">清除條件</button></div><div id="tmServiceResults">${tmServiceDateRows()}</div>`;
 }
 let tmServiceFrom='',tmServiceTo='';
 function tmInquiryStatus(d){return d?.status==='已答覆'?'已回覆':d?.status==='待問事'?'待問':(d?.status||'待問');}
