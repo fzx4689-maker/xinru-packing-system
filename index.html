@@ -14941,6 +14941,14 @@ function tmAccountBalances(){
   }
   return result;
 }
+function tmBankAccountList(){
+ const balances=tmAccountBalances(),banks=get('bank').filter(r=>!filter||String(r.data.name||'').includes(filter));
+ return `<div class="tm-head"><h3>銀行帳戶管理</h3>${canWrite()?'<button class="btn blue" data-add="bank">＋ 新增</button>':''}</div>
+ <div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>帳戶名稱</th><th>狀態</th><th>目前餘額</th><th>操作</th></tr></thead><tbody>
+ <tr><td><b>現金</b></td><td>使用中</td><td>${money(balances['現金'])}</td><td>由收支紀錄自動計算</td></tr>
+ ${banks.map(r=>`<tr><td><b>${esc(r.data.name||'未命名')}</b></td><td>${esc(r.data.active||'啟用')}</td><td>${money(balances[r.id])}</td><td>${canWrite()?`<button class="btn gray" data-edit="${r.id}">修改</button>`:''}</td></tr>`).join('')}
+ </tbody></table></div><div class="tm-muted">帳戶餘額依原有資金紀錄計算；帳戶有交易時不提供直接刪除，避免影響既有帳務。</div>`;
+}
 function tmAccountSummary(){
  const b=tmAccountBalances();
  return `<div class="tm-stats"><div class="tm-stat">現金餘額<strong>${money(b['現金'])}</strong></div>${get('bank').map(r=>`<div class="tm-stat">${esc(r.data.name)}${r.data.active==='停用'?'（停用）':''}<strong>${money(b[r.id])}</strong></div>`).join('')}</div>`;
@@ -15212,7 +15220,7 @@ function show(){
  else if(page==='calendar'&&tmSection==='month')body=tmCalendarSearchResults();
  else if(page==='finance'&&tmSection==='transactions')body=`<div class="tm-head"><h3>收入／支出明細</h3></div><div class="tm-row tm-date-filters"><button class="btn gray" data-range="today">今天</button><button class="btn gray" data-range="month">本月</button><button class="btn gray" data-range="year">今年</button><button class="btn gray" data-range="all">全部</button><input type="date" id="tmFrom" aria-label="開始日期"><input type="date" id="tmTo" aria-label="結束日期"><button class="btn gray" data-range="custom">查詢</button></div><div id="tmFinanceRows"></div>`;
  else if(page==='finance'&&tmSection==='reports')body=tmReportView();
- else if(page==='finance'&&tmSection==='accounts')body=tmAccountSummary()+section('銀行帳戶管理','bank');
+ else if(page==='finance'&&tmSection==='accounts')body=tmAccountSummary()+tmBankAccountList();
  else if(page==='finance'&&tmSection==='categories')body=tmCategoryView();
  else if(tmSection==='activity'&&page==='activity')body=tmActivityUnified();
  else if(tmSection==='financeActivity')body=section('活動收支','finance');
@@ -15251,20 +15259,35 @@ function tmRenderReport(period){
  el.innerHTML=`<p class="tm-muted">查詢期間：${esc(from||'全部')} ～ ${esc(to)}；顯示 ${records.length} 筆。收入與支出不含資金轉帳、代墊及償還。</p><div class="tm-stats"><div class="tm-stat">期間收入<strong>${money(totalIncome)}</strong></div><div class="tm-stat">期間支出<strong>${money(totalExpense)}</strong></div><div class="tm-stat">期間收支差額<strong>${money(totalIncome-totalExpense)}</strong></div></div><h3>分類統計</h3><div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>收支</th><th>大分類</th><th>細項</th><th style="text-align:right">金額</th></tr></thead><tbody>${[...groups].map(([key,value])=>{const [dr,ma,su]=JSON.parse(key);return `<tr><td>${esc(dr)}</td><td>${esc(ma)}</td><td>${esc(su)}</td><td style="text-align:right">${money(value)}</td></tr>`;}).join('')}</tbody></table></div><h3>逐筆明細（${records.length} 筆）</h3><div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>日期</th><th>收支</th><th>大分類</th><th>細項</th><th style="text-align:right">金額</th><th>查看</th></tr></thead><tbody>${records.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.dir)}</td><td>${esc(x.major)}</td><td>${esc(x.sub)}</td><td style="text-align:right">${money(x.amount)}</td><td><button class="btn gray" data-detail="${x.r.id}">查看</button></td></tr>`).join('')}</tbody></table></div>`;
 }
 function tmPrintFinanceReport(){
- const html=document.getElementById('tmReportResult')?.innerHTML;if(!html)return;
+ // 列印必須以目前已套用的查詢條件重新取得完整交易，不能複製折疊中的畫面。
+ const from=tmReportFrom||'',to=tmReportTo||today();
+ const dir=document.getElementById('tmReportDirection')?.value||'全部';
+ const major=document.getElementById('tmReportMajor')?.value||'全部';
+ const sub=document.getElementById('tmReportSub')?.value||'全部';
+ const rows=tmReportRecords().filter(x=>x.date>=from&&x.date<=to&&
+   (dir==='全部'||x.dir===dir)&&(major==='全部'||x.major===major)&&(sub==='全部'||x.sub===sub))
+   .sort((a,b)=>b.date.localeCompare(a.date));
+ const sum=items=>items.reduce((n,x)=>n+(Number(x.amount)||0),0);
+ const income=sum(rows.filter(x=>x.dir==='收入')),expense=sum(rows.filter(x=>x.dir==='支出'));
+ const scope=[dir,major,sub].filter(x=>x!=='全部').join('／')||'全部收支';
+ const detail=rows.map(x=>{
+   const d=x.r.data||{};
+   const reg=x.r.kind==='payment'?get('registration').find(v=>v.id===d.registration_id):null;
+   const act=reg?get('activity').find(v=>v.id===reg.data.activity_id):null;
+   const person=d.person_id?label('person',d.person_id):reg?.data?.person_id?label('person',reg.data.person_id):'';
+   return `<tr><td>${esc(x.date)}</td><td>${esc(x.dir)}</td><td>${esc(x.major)}／${esc(x.sub)}${person?`<small>${esc(person)}</small>`:''}${act?`<small>${esc(act.data.name||'活動')}</small>`:''}${d.note?`<small>備註：${esc(d.note)}</small>`:''}</td><td class="amount">${x.dir==='收入'?'+':'−'}${money(x.amount)}</td></tr>`;
+ }).join('');
  const w=window.open('','_blank');if(!w){alert('請允許開啟列印視窗');return;}
- const safeHtml=html.replace(/<button\b[^>]*>[\s\S]*?<\/button>/gi,'');
- w.document.write(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>玄聖宮內帳報表</title><style>
+ w.document.write(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>玄聖宮內帳收支報表</title><style>
  @page{size:A4;margin:12mm}*{box-sizing:border-box}body{font:14px/1.55 -apple-system,BlinkMacSystemFont,"Microsoft JhengHei",sans-serif;margin:0;color:#17212b;background:#f3f5f7}
- .tm-print-toolbar{position:sticky;top:0;background:white;padding:10px 14px;display:flex;gap:10px;z-index:2;border-bottom:1px solid #ddd}
- .tm-print-toolbar button{border:0;background:#e9eef4;border-radius:9px;padding:10px 16px;font-size:15px;font-weight:bold;cursor:pointer}
- .tm-print-toolbar button:last-child{background:#2563eb;color:white}
- main{max-width:900px;margin:16px auto;background:white;padding:20px}h2{margin:0 0 12px;font-size:22px}
- .tm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.tm-stat{border:1px solid #ddd;border-radius:8px;padding:10px;min-width:0}.tm-stat strong{display:block;font-size:17px}
- .tm-report-group{border:1px solid #ddd;border-radius:8px;margin:8px 0;break-inside:avoid}.tm-report-group-head{width:100%;border:0;background:#f8fafc;text-align:left;padding:10px;display:flex;justify-content:space-between}.tm-report-group-head span{display:grid}.tm-report-group-head small,.tm-report-entry small{display:block;color:#64748b}.tm-report-group-body{padding:0 10px}.tm-report-entry{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #eee;padding:8px 0}.tm-report-entry span{display:grid}.tm-report-entry strong{white-space:nowrap}
- @media(max-width:600px){main{margin:0;padding:12px}.tm-stat{padding:7px 5px;font-size:12px}.tm-stat strong{font-size:13px}}
- @media print{body{background:white;font-size:12px}.tm-print-toolbar{display:none!important}main{max-width:none;margin:0;padding:0}.tm-stat strong{font-size:14px}.tm-report-group{break-inside:avoid}}
- </style></head><body><div class="tm-print-toolbar"><button type="button" onclick="window.close();if(!window.closed)history.back()">← 返回報表</button><button type="button" onclick="window.print()">🖨️ 列印／另存 PDF</button></div><main><h2>玄聖宮｜內帳收支報表</h2>${safeHtml}</main></body></html>`);
+ .toolbar{position:sticky;top:0;background:white;padding:10px 14px;display:flex;gap:10px;border-bottom:1px solid #ddd}
+ button{border:0;background:#e9eef4;border-radius:9px;padding:10px 16px;font-size:15px;font-weight:bold;cursor:pointer}.toolbar button:last-child{background:#2563eb;color:white}
+ main{max-width:920px;margin:16px auto;background:white;padding:20px}h2{margin:0 0 12px;font-size:22px}.muted{color:#64748b;margin:4px 0 12px}
+ .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.stat{border:1px solid #ddd;border-radius:8px;padding:10px;min-width:0}.stat strong{display:block;font-size:18px}
+ table{width:100%;border-collapse:collapse;margin-top:16px}th,td{padding:10px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f4f5f7}td small{display:block;color:#64748b}.amount{text-align:right;white-space:nowrap}
+ @media(max-width:600px){main{margin:0;padding:12px}.stat{padding:7px 5px;font-size:12px}.stat strong{font-size:14px}th,td{padding:8px 4px;font-size:12px}}
+ @media print{body{background:white;font-size:12px}.toolbar{display:none!important}main{max-width:none;margin:0;padding:0}thead{display:table-header-group}tr{break-inside:avoid}}
+ </style></head><body><div class="toolbar"><button type="button" onclick="window.close();if(!window.closed)history.back()">← 返回報表</button><button type="button" onclick="window.print()">🖨️ 列印／另存 PDF</button></div><main><h2>玄聖宮｜內帳收支報表</h2><p class="muted">${esc(from)} ～ ${esc(to)}｜${esc(scope)}｜共 ${rows.length} 筆</p><div class="stats"><div class="stat">收入<strong>${money(income)}</strong></div><div class="stat">支出<strong>${money(expense)}</strong></div><div class="stat">收支差額<strong>${money(income-expense)}</strong></div></div><table><thead><tr><th>日期</th><th>收支</th><th>分類／關聯資料</th><th class="amount">金額</th></tr></thead><tbody>${detail||'<tr><td colspan="4">此條件沒有紀錄</td></tr>'}</tbody></table></main></body></html>`);
  w.document.close();w.focus();
 }
 
