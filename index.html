@@ -15221,6 +15221,7 @@ function show(){
  else if(page==='finance'&&tmSection==='transactions')body=`<div class="tm-head"><h3>收入／支出明細</h3></div><div class="tm-row tm-date-filters"><button class="btn gray" data-range="today">今天</button><button class="btn gray" data-range="month">本月</button><button class="btn gray" data-range="year">今年</button><button class="btn gray" data-range="all">全部</button><input type="date" id="tmFrom" aria-label="開始日期"><input type="date" id="tmTo" aria-label="結束日期"><button class="btn gray" data-range="custom">查詢</button></div><div id="tmFinanceRows"></div>`;
  else if(page==='finance'&&tmSection==='reports')body=tmReportView();
  else if(page==='finance'&&tmSection==='accounts')body=tmAccountSummary()+tmBankAccountList();
+ else if(page==='finance'&&tmSection==='advances')body=tmAdvanceOverview();
  else if(page==='finance'&&tmSection==='categories')body=tmCategoryView();
  else if(page==='finance'&&tmSection==='count')body=tmCashCountView();
  else if(tmSection==='activity'&&page==='activity')body=tmActivityUnified();
@@ -15510,10 +15511,27 @@ function tmCashCountView(){
  ${records.map(r=>{const posted=r.kind==='finance';return `<tr><td>${esc(r.data.date||String(r.created_at||'').slice(0,10))}</td><td>${esc((posted?r.data.count_person:r.data.name)||'')}</td><td>${money(Number(r.data.amount)||0)}</td><td>${posted?'已入帳（現金）':'舊盤點紀錄（未自動入帳）'}</td><td>${esc(r.data.note||'')}</td><td>${canWrite()?`<button class="btn gray" data-edit="${r.id}">${posted?'修改原帳':'修改舊紀錄'}</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="6">尚無盤點紀錄</td></tr>'}
  </tbody></table></div>${legacy.length?'<p class="tm-muted">舊版盤點紀錄不會自動補入收入，避免與先前手動記帳重複；請先核對，只有確實未入帳的香油錢才新增盤點入帳。</p>':''}`;
 }
+function tmAdvanceOverview(){
+ const rows=get('finance').filter(r=>r&&r.data&&['欣儒代墊','償還欣儒'].includes(r.data.direction));
+ const advanced=rows.filter(r=>r.data.direction==='欣儒代墊').reduce((n,r)=>n+(Number(r.data.amount)||0),0);
+ const repaid=rows.filter(r=>r.data.direction==='償還欣儒').reduce((n,r)=>n+(Number(r.data.amount)||0),0);
+ const balance=advanced-repaid;
+ const sorted=[...rows].sort((a,b)=>String(b.data.date||b.created_at||'').localeCompare(String(a.data.date||a.created_at||'')));
+ return `<div class="tm-head"><h3>欣儒代墊總覽</h3></div>
+ <p class="tm-muted">以下只統計「玄聖宮」已登記的欣儒代墊及償還紀錄；尚未核實與欣儒公司內帳自動連動。請勿將兩邊金額直接相加或再輸入一次。</p>
+ <div class="tm-stats" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+ <div class="tm-stat">累計代墊<strong>${money(advanced)}</strong></div>
+ <div class="tm-stat">累計償還<strong>${money(repaid)}</strong></div>
+ <div class="tm-stat">目前未還<strong>${money(balance)}</strong></div></div>
+ <div class="tm-head"><h3>代墊及償還明細（${sorted.length} 筆）</h3></div>
+ <div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>日期</th><th>類型</th><th>金額</th><th>備註</th></tr></thead><tbody>
+ ${sorted.map(r=>`<tr><td>${esc(r.data.date||'')}</td><td>${esc(r.data.direction)}</td><td>${r.data.direction==='償還欣儒'?'−':'＋'}${money(Number(r.data.amount)||0)}</td><td>${esc(r.data.note||'')}</td></tr>`).join('')||'<tr><td colspan="4">尚無欣儒代墊或償還紀錄</td></tr>'}
+ </tbody></table></div>`;
+}
 function tmFinanceHub(){
  const balances=tmAccountBalances();const accounts=[['現金',balances['現金']||0],...get('bank').filter(r=>r.data.active!=='停用').map(r=>[r.data.name||'銀行',balances[r.id]||0])];
  return `<div class="tm-stats">${accounts.map(([name,value])=>`<div class="tm-stat">🏦 ${esc(name)}<strong>${money(value)}</strong></div>`).join('')}</div>
- <div class="tm-menu tm-finance-simple tm-finance-four"><button class="tm-menu-item" data-finance-add="收入"><b>✎ 快速輸入</b><span>收入、支出、活動收款及退款</span></button><button class="tm-menu-item" data-section="transactions"><b>☷ 收支查詢</b><span>查看、修改及管理每筆交易</span></button><button class="tm-menu-item" data-section="reports"><b>▥ 內帳報表</b><span>收入、支出與分類統計</span></button><button class="tm-menu-item" data-section="accounts"><b>▣ 資金帳戶</b><span>現金、銀行與餘額</span></button><button class="tm-menu-item" data-section="count"><b>💰 現金盤點</b><span>香油錢現金盤點紀錄</span></button></div>`;
+ <div class="tm-menu tm-finance-simple tm-finance-four"><button class="tm-menu-item" data-finance-add="收入"><b>✎ 快速輸入</b><span>收入、支出、活動收款及退款</span></button><button class="tm-menu-item" data-section="transactions"><b>☷ 收支查詢</b><span>查看、修改及管理每筆交易</span></button><button class="tm-menu-item" data-section="reports"><b>▥ 內帳報表</b><span>收入、支出與分類統計</span></button><button class="tm-menu-item" data-section="accounts"><b>▣ 資金帳戶</b><span>現金、銀行與餘額</span></button><button class="tm-menu-item" data-section="advances"><b>💵 欣儒代墊總覽</b><span>代墊總額、已還及未還</span></button><button class="tm-menu-item" data-section="count"><b>💰 現金盤點</b><span>香油錢現金盤點紀錄</span></button></div>`;
 }
 function tmOpenQuick(mode){
  if(!canWrite())return;
