@@ -8294,7 +8294,7 @@ window.goBackAcct=function(){if(window.parent&&window.parent!==window&&window.pa
           COLHEAD_H=doubleLayout?(large?7.4:(largeRowCount<=6?9:(largeRowCount<=12?8:7))):7,
           TABLE_FONT=doubleLayout?(large?10.6:(largeRowCount<=6?12.5:(largeRowCount<=12?11:9.5))):9.5;
     const FOOT_H=doubleLayout?20:(farmer?24:26);
-    const capacity=Math.max(1,Math.floor((PRINT_H-HEAD_H-COLHEAD_H-FOOT_H)/ROW_H)),perPage=doubleLayout?capacity*2:capacity;
+    const capacity=Math.max(1,Math.min(doubleLayout?31:Infinity,Math.floor((PRINT_H-HEAD_H-COLHEAD_H-FOOT_H)/ROW_H))),perPage=doubleLayout?capacity*2:capacity;
     const groups=farmer?model.groups:[{contact:model.contact,rows:model.rows,summary:model.summary}],pages=[];
     groups.forEach((g,gi)=>{const rows=g.rows||[],count=Math.max(1,Math.ceil(rows.length/perPage));for(let p=0;p<count;p++)pages.push({group:g,rows:rows.slice(p*perPage,(p+1)*perPage),isLast:p===count-1,page:p+1,count,gi})});
     // N436：LQ-310 儲值入金列不再把金額塞進「運費」小格；日期保留，其餘欄位整列合併顯示「時間 儲值 $金額」。
