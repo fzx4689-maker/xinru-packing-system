@@ -8525,7 +8525,8 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     let net=0;
     for(const r of source){
       if(r.mode==='money_settlement'){
-        if(r.txnType===(isReceipt?'receipt':'payment'))net-=(!isReceipt&&r.unifiedPayment?qN71AllocatedForContact(r,c):qMoney(r.amount??r.total));
+        if(!isReceipt&&r.accountDirection==='farmer_negative_recovery')net+=qMoney(r.amount??r.total);
+        else if(r.accountDirection!=='farmer_negative_recovery'&&r.txnType===(isReceipt?'receipt':'payment'))net-=(!isReceipt&&r.unifiedPayment?qN71AllocatedForContact(r,c):qMoney(r.amount??r.total));
       }else if(r.mode==='money_refund'){
         if(r.accountDirection===(isReceipt?'refund_customer':'refund_from_supplier'))net+=qMoney(r.amount??r.total);
       }else if(qAccountingIsAdjustment(r)){
@@ -10034,12 +10035,63 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     date?.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&date.value){ev.preventDefault();renderFarmerWeekly(work,date.value)}});
     work.querySelectorAll('[data-fw-out]').forEach(b=>b.onclick=()=>{const entity=qN121FarmerWeeklyEntity(anchor);if(!entity){alert('目前沒有啟用中的產農往來資料');return}qN105RunOutput(b.dataset.fwOut,entity)});
   }
+  // N530: isolated farmer negative-period recovery. Does not change normal receipt/payment paths.
+  function qFarmerRecoveryPeriods(c){
+    if(String(c?.identity||c?.type||'')!=='產農'||c?.payableEnabled!==true)return [];
+    const records=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&r.status!=='deleted'&&qRecordBelongsToContact(r,c));
+    const groups=new Map();
+    for(const r of records){
+      if(r.mode==='money_settlement'||r.mode==='money_refund'||qAccountingIsAdjustment(r))continue;
+      if(!(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'))continue;
+      const p=qN292PeriodMeta(c,r),key=String(p?.key||r.id||'');
+      if(!groups.has(key))groups.set(key,{key,period:p,net:0,records:[]});
+      const g=groups.get(key);g.net+=qMoney(qN124ProjectedTotal(r,c))-qAccountingAdjustmentTotal(r.id)-qAccountingPaidTotal(r);g.records.push(r);
+    }
+    for(const r of records){
+      if(r.mode!=='money_settlement'||r.accountDirection!=='farmer_negative_recovery')continue;
+      const g=groups.get(String(r.recoveryPeriodKey||''));
+      if(g)g.net+=qMoney(r.amount??r.total);
+    }
+    return [...groups.values()].filter(g=>g.net<-.001).sort((a,b)=>String(a.period?.start||'').localeCompare(String(b.period?.start||'')));
+  }
+  function qRenderFarmerRecovery(work,contactKey,periodKey){
+    const c=qContact(contactKey),g=c&&qFarmerRecoveryPeriods(c).find(x=>x.key===periodKey);
+    if(!c||!g){alert('這筆產農待收回帳期已變動，請重新查看。');renderFarmerPayables(work);return}
+    const methods=qMoneyMethods(c).filter(m=>m==='現金'||m==='匯款');
+    if(!methods.length){alert('請先在往來資料啟用現金或匯款。');return}
+    const preferred=methods.includes(c.paymentDefault)?c.paymentDefault:methods[0];
+    const accounts=typeof qFundAccountMasters==='function'?qFundAccountMasters():[];
+    const choices=m=>accounts.filter(a=>{const key=qFundAccountKey(a);return m==='現金'?(/cash|現金/i.test(key+' '+qFundAccountName(key))):(/bank|銀行|帳戶/i.test(key+' '+qFundAccountName(key)))});
+    work.innerHTML='<div class="quickV2"><button class="btn gray" id="n530Back">← 返回產農結算</button><h3>🧑‍🌾 '+qEsc(c.name)+'｜收回欠款</h3><div class="quickV2ContactHint">帳期：'+qEsc(g.period?.label||g.key)+'　待收回：<b>'+qLedgerMoney(-g.net)+'</b></div><div class="field"><label class="label">實際收回金額</label><input class="input" id="n530Amount" type="number" min="1" max="'+Math.floor(-g.net)+'" step="1" value="'+Math.floor(-g.net)+'"></div><div class="field"><label class="label">收款方式</label><select class="input" id="n530Method">'+methods.map(m=>'<option value="'+qEsc(m)+'" '+(m===preferred?'selected':'')+'>'+qEsc(m)+'</option>').join('')+'</select></div><div class="field"><label class="label">入帳資金帳戶</label><select class="input" id="n530Account"></select></div><div class="field"><label class="label">收款日期</label><input class="input" type="date" id="n530Date" value="'+qToday()+'"></div><div class="field"><label class="label">備註</label><input class="input" id="n530Note" placeholder="選填"></div><button class="btn primary" id="n530Save">確認收回並沖帳</button><div class="helper" style="display:block!important;margin-top:8px">僅沖銷這一個負數帳期，不會開啟銷貨帳或更改原進貨紀錄。</div></div>';
+    const methodEl=work.querySelector('#n530Method'),accountEl=work.querySelector('#n530Account');
+    const fill=()=>{const arr=choices(methodEl.value);accountEl.innerHTML=arr.map(a=>'<option value="'+qEsc(qFundAccountKey(a))+'">'+qEsc(qFundAccountName(qFundAccountKey(a)))+'</option>').join('');if(!arr.length)accountEl.innerHTML='<option value="">沒有可用的對應資金帳戶</option>'};
+    methodEl.onchange=fill;fill();work.querySelector('#n530Back').onclick=()=>renderFarmerPayables(work);
+    work.querySelector('#n530Save').onclick=async e=>{
+      const btn=e.currentTarget,amount=Number(work.querySelector('#n530Amount').value),method=methodEl.value,account=accountEl.value,date=work.querySelector('#n530Date').value;
+      if(!Number.isSafeInteger(amount)||amount<=0){alert('請輸入正整數金額');return}
+      if(!methods.includes(method)||!account||!choices(method).some(a=>qFundAccountKey(a)===account)){alert('請選擇有效的收款方式及資金帳戶');return}
+      if(!date){alert('請選擇收款日期');return}
+      if(!confirm('確認收到 '+qLedgerMoney(amount)+' 並沖銷 '+c.name+' 的負數帳期？'))return;
+      btn.disabled=true;
+      try{
+        // Refresh cloud before verifying outstanding to avoid stale multi-device balances.
+        if(typeof loadAccountingCloud==='function')await loadAccountingCloud();
+        const fresh=qFarmerRecoveryPeriods(c).find(x=>x.key===periodKey);
+        if(!fresh||amount>-fresh.net+.001)throw new Error('帳期餘額已變動，請重新開啟確認；本次未入帳。');
+        const now=new Date().toISOString();
+        await qPersist({id:qMoneyId(),schemaVersion:7,date,customer:c.name,contactId:c.id||null,type:c.identity||'產農',mode:'money_settlement',txnType:'receipt',txnTypeLabel:'產農欠款收回',accountDirection:'farmer_negative_recovery',recoveryPeriodKey:periodKey,amount,total:amount,paid:amount,due:0,methods:[{method,amount,fundAccount:account}],allocations:[],allocatedAmount:amount,note:String(work.querySelector('#n530Note').value||'').trim(),status:'active',pricingStatus:'priced',settlementStatus:'settled',createdAt:now,updatedAt:now,createdBy:(currentProfile?.display_name||currentUser?.email||''),audit:[{action:'farmer_negative_recovery',at:now,by:(currentProfile?.display_name||currentUser?.email||'')}]});
+        renderFarmerPayables(work);
+      }catch(err){alert('收回入帳失敗：'+(err?.message||err));btn.disabled=false}
+    };
+  }
   function renderFarmerPayables(work){
     const farmers=qN121ActiveFarmers();
     const groups=farmers.map(c=>{const opens=qOpenMoneyRows(c,'payment'),due=opens.reduce((a,x)=>a+x.due,0);return {c,opens,due}}).filter(x=>x.due>0.000001).sort((a,b)=>b.due-a.due||String(a.c.name||'').localeCompare(String(b.c.name||''),'zh-Hant'));
     const grand=groups.reduce((a,x)=>a+x.due,0);
     const html=groups.map(g=>'<div class="quickV2Record"><div class="quickV2RecordTop"><div><b>🧑‍🌾 '+qEsc(g.c.name||'')+'</b><div class="helper" style="display:block!important">未結清 '+g.opens.length+' 筆</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end"><b style="font-size:20px">待領 '+qLedgerMoney(g.due)+'</b><button type="button" class="btn green" data-farmer-pay="'+qEsc(g.c.id||g.c.code||g.c.name)+'">💸 查看／付款</button></div></div><div style="overflow:auto;margin-top:8px"><table class="quickV2Table" style="min-width:650px"><thead><tr><th>日期</th><th>進貨內容</th><th>原金額</th><th>目前未付</th></tr></thead><tbody>'+g.opens.map(x=>'<tr><td>'+qEsc(x.record.date||'')+'</td><td>'+qEsc((x.record.items||[]).map(v=>v.name).filter(Boolean).join('、'))+'</td><td>'+qLedgerMoney(qN295OpenOriginal(x))+'</td><td><b>'+qLedgerMoney(x.due)+'</b></td></tr>').join('')+'</tbody></table></div></div>').join('');
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>💵 產農待領款</b><div class="helper" style="display:block!important;margin-top:5px">只顯示目前身分為產農的真實應付未結清。已付款由 money_settlement 自動沖減；待補價格不列入。</div></div><div style="text-align:right"><b>'+groups.length+' 位產農</b><div style="font-size:20px;font-weight:900">合計 '+qLedgerMoney(grand)+'</div></div></div>'+(html||'<div class="empty" style="padding:18px">目前沒有產農待領款</div>')+'</div>';
+    const recoveries=farmers.flatMap(c=>qFarmerRecoveryPeriods(c).map(g=>({c,g}))); 
+    if(recoveries.length){const section=document.createElement('div');section.className='quickV2';section.innerHTML='<h3>💰 產農待收回</h3>'+recoveries.map(({c,g})=>'<div class="quickV2Record"><b>'+qEsc(c.name)+'</b>　'+qEsc(g.period?.label||g.key)+'　<b>待收回 '+qLedgerMoney(-g.net)+'</b> <button type="button" class="btn blue" data-n530-contact="'+qEsc(c.id||c.name)+'" data-n530-period="'+qEsc(g.key)+'">收回欠款</button></div>').join('');work.appendChild(section);section.querySelectorAll('[data-n530-contact]').forEach(b=>b.onclick=()=>qRenderFarmerRecovery(work,b.dataset.n530Contact,b.dataset.n530Period));}
     work.querySelectorAll('[data-farmer-pay]').forEach(b=>b.onclick=()=>qRenderMoneyCenter(work,b.dataset.farmerPay,'payment'));
   }
 
@@ -10809,6 +10861,7 @@ K白.kg
         if(amount<=0)return;
         const method=String(m?.method||'').trim()||'未指定';
         let account=qFundMethodAccount(method);
+        if(r.accountDirection==='farmer_negative_recovery'&&['現金','匯款'].includes(method)&&m?.fundAccount)account=String(m.fundAccount);
         let pendingReason='';
         // 車趟結司機代收：司機尚未交回公司前，不可提前算入公司現金。
         if(method==='司機代收'){
