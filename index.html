@@ -15015,7 +15015,7 @@ const FIELDS={
  payment:[['registration_id','報名紀錄','registration',1],['date','收款日期','date',1],['amount','收款金額','number',1],['note','備註','textarea']],
  finance:[['date','日期','date',1],['direction','收支類型','select:收入|支出|欣儒代墊|償還欣儒|現金轉銀行|銀行轉現金',1],['category','大分類','category'],['subcategory','細項分類','subcategory'],['amount','金額','number',1],['person_id','關聯信眾','person'],['activity_id','關聯活動','activity'],['vendor_id','關聯廠商','vendor'],['account','資金帳戶','account'],['receipt','手寫收據號碼'],['note','備註','textarea']],
  vendor:[['name','廠商名稱','text',1],['phone','電話'],['contact','聯絡人'],['address','地址'],['category','廠商類別'],['active','狀態','select:啟用|停用'],['note','備註','textarea']],
- purchase:[['name','採購內容','text',1],['date','採購日期','date',1],['vendor_id','廠商','vendor'],['activity_id','關聯活動','activity'],['quantity','數量','number'],['unit','單位'],['unit_price','單價','number'],['amount','採購總額','number',1],['deposit','訂金','number'],['paid','累計付款','number'],['status','採購狀態','select:待到貨|部分到貨|已到貨|取消'],['note','備註／品項明細','textarea']],
+ purchase:[['name','採購內容','text',1],['date','採購日期','date',1],['vendor_id','廠商','vendor'],['activity_id','用途／關聯活動','activity'],['quantity','數量','number'],['unit','單位'],['unit_price','單價','number'],['amount','採購總額','number',1],['deposit','訂金','number'],['paid','累計付款','number'],['status','採購狀態','select:待到貨|部分到貨|已到貨|取消'],['note','備註／品項明細','textarea']],
  item:[['name','物品名稱','text',1],['kind','物品分類','item_kind',1],['unit','單位','item_unit'],['note','備註','textarea']],
  stock:[['item_id','物品','item',1],['clothing_size','衣服尺寸','clothing_size'],['date','日期','date',1],['direction','異動','select:入庫|領用|退貨|盤點調整增加|盤點調整減少'],['quantity','數量','number',1],['note','備註','textarea']],
  issue:[['item_id','物品','item',1],['clothing_size','衣服尺寸','clothing_size'],['person_id','領用人','person',1],['date','發放日期','date',1],['quantity','發放數量','number',1],['note','備註','textarea']],
@@ -15272,6 +15272,7 @@ function cards(type){
  if(type==='vendor')return tmVendorCards();
  const list=get(type).filter(r=>!filter||[rowSummary(r),JSON.stringify(r.data)].join(' ').toLowerCase().includes(filter.toLowerCase())).sort((a,b)=>String(b.data?.date||b.created_at).localeCompare(String(a.data?.date||a.created_at))).slice(0,300);
  if(!list.length)return '<div class="empty">尚無資料</div>';
+ if(type==='purchase')return `<div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>日期</th><th>廠商／採購項目</th><th>採購與付款</th><th>操作</th></tr></thead><tbody>${list.map(r=>{const d=r.data||{},vendor=get('vendor').find(v=>v.id===d.vendor_id)?.data?.name||'未指定廠商',amount=Number(d.amount)||0,paid=Number(d.paid)||0;return `<tr><td>${esc(d.date||'')}</td><td><b>${esc(vendor)}</b><div>${esc(d.name||'')}</div><div style="color:#64748b;font-size:12px;margin-top:3px">用途：${esc(get('activity').find(a=>a.id===d.activity_id)?.data?.name||'一般採購')}</div></td><td>總額 ${money(amount)}<div>已付 ${money(paid)}｜未付 ${money(Math.max(0,amount-paid))}</div>${tmAudit(r)}</td><td>${canWrite()?`<button class="btn gray" data-edit="${r.id}">修改</button> <button class="btn red" data-del="${r.id}">刪除</button>`:'—'}</td></tr>`}).join('')}</tbody></table></div><div class="tm-muted">顯示最近 ${list.length} 筆；直接修改，不需先點查看。</div>`;
  if(type==='stock'||type==='issue')return `<div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>日期</th><th>${type==='issue'?'發放物品／領用人':'物品／異動'}</th><th>數量／紀錄</th><th>操作</th></tr></thead><tbody>${list.map(r=>`<tr><td>${esc(r.data.date||'')}</td><td><b>${esc(rowSummary(r))}</b></td><td>${sub(r)}${tmAudit(r)}</td><td>${canWrite()?`<button class="btn gray" data-edit="${r.id}">修改</button> <button class="btn red" data-del="${r.id}">刪除</button>`:'—'}</td></tr>`).join('')}</tbody></table></div><div class="tm-muted">顯示最近 ${list.length} 筆；直接修改，不需先點查看。</div>`;
  return `<div class="tm-table-wrap"><table class="tm-data-table"><thead><tr><th>日期</th><th>名稱／分類</th><th>摘要</th><th>操作</th></tr></thead><tbody>${list.map(r=>`<tr><td>${esc(r.data.date||String(r.created_at||'').slice(0,10))}</td><td><b>${esc(rowSummary(r))}</b></td><td>${sub(r)}${tmAudit(r)}</td><td><button class="btn gray" data-detail="${r.id}">查看</button></td></tr>`).join('')}</tbody></table></div><div class="tm-muted">顯示最近 ${list.length} 筆，可用搜尋縮小範圍。</div>`;
 }
@@ -15345,7 +15346,7 @@ const tmMenuItems={
  calendar:[['month','月曆','國曆、農曆與活動']],
  activity:[['activity','活動清單','進香、法會、補財庫'],['registration','報名名單','各活動參加人員'],['payment','報名繳費／退款','依報名紀錄查詢'],['task','準備事項','負責人與完成狀態']],
  finance:[['transactions','收支帳務','收入支出統一管理'],['reports','收支報表','期間、分類、細項與明細'],['accounts','資金帳戶','現金及銀行餘額'],['categories','收支分類','大類與細類設定'],['count','現金盤點','盤點紀錄']],
- goods:[['item','物品庫存管理','新增物品、目前庫存與庫存異動'],['issue','物品發放','領用人、尺寸、發放數量'],['vendor','廠商資料','聯絡方式與往來'],['purchase','採購／應付','採購及付款狀態']]
+ goods:[['item','物品庫存管理','新增物品、目前庫存與庫存異動'],['issue','物品發放','領用人、尺寸、發放數量'],['vendor','廠商資料','聯絡方式與往來']]
 };
 function tmSaturday(date){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return false;
@@ -15456,7 +15457,7 @@ function show(){
  else if(tmSection==='stock')body=tmGoodsUnified();
  else if(tmSection==='issue')body=section('物品發放','issue');
  else if(tmSection==='item')body=tmGoodsUnified();
- else if(page==='goods'&&tmSection==='purchase')body=section('採購／應付紀錄','purchase');
+ else if(page==='goods'&&tmSection==='purchase'){tmSection='vendor';body=section('廠商資料','vendor');}
  else body=section((tmMenuItems[page]||[]).find(x=>x[0]===tmSection)?.[1]||TYPES[tmSection]||'紀錄',tmSection);
 
  el.innerHTML=`<div class="tm-head"><h2 style="margin:0"><button class="tm-home-link" data-home="1">⛩️ 玄聖宮</button></h2><button class="btn gray" data-refresh="1">↻ 更新</button></div>${page!=='home'?`<button class="btn gray" data-back="1">← 返回上一層</button>`:''}${err?`<div class="tm-error">${esc(err)}</div>`:''}${tmSection&&page!=='finance'?`<input id="tmSearch" class="input" placeholder="搜尋名稱、電話、內容…" value="${esc(filter)}" style="margin:12px 0">`:''}<div id="tmModalHost"></div><div id="tmMainContent">${body}</div>`;
@@ -15644,7 +15645,54 @@ if(type.startsWith('service_')){const f=host.querySelector('#tmForm');if(!id&&f?
  const sync=()=>{const v=lunar.value.trim();if(!v){solar.value='';rocDisplay.value='';return;}const converted=tmLunarToSolar(v);solar.value=converted||'';rocDisplay.value=converted?tmRocSolar(converted):'';const hint=document.getElementById('tmLunarHint');if(hint)hint.textContent=converted?'已換算國曆：'+tmRocSolar(converted):'請輸入民國年/月/日（例如 75/8/15）';};
  solar.insertAdjacentHTML('afterend','<div class="tm-muted" id="tmLunarHint">農曆輸入民國年／月／日，自動換算國曆。</div>');lunar.addEventListener('input',sync);lunar.addEventListener('change',sync);if(lunar.value)sync();}
  }
- if(type==='stock'||type==='issue'){
+ if(type==='purchase'){
+ const f=host.querySelector('#tmForm');
+ const el=k=>f?.elements.namedItem(k),wrap=k=>el(k)?.closest('.tm-form-field');
+ const qty=el('quantity'),unitPrice=el('unit_price'),amount=el('amount'),paid=el('paid');
+ const totalWrap=wrap('amount'),paidWrap=wrap('paid');
+ const box=document.createElement('div');
+ box.className='tm-purchase-payment';
+ box.style.cssText='padding:12px;border:1px solid #d5dee9;border-radius:10px;background:#f8fafc;margin:10px 0';
+ box.innerHTML='<label style="display:block;font-weight:700;margin-bottom:7px">付款情況</label><select id="tmPurchasePaymentStatus" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px"><option value="unpaid">尚未付款</option><option value="partial">部分付款</option><option value="paid">已付清</option></select><div id="tmPurchaseSummary" style="margin-top:9px;font-weight:700"></div><div class="tm-muted">此處登記採購的累計付款金額，不會另外產生資金流水。</div>';
+ paidWrap?.insertAdjacentElement('beforebegin',box);
+ const status=box.querySelector('#tmPurchasePaymentStatus'),summary=box.querySelector('#tmPurchaseSummary');
+ const update=()=>{
+  const total=Number(amount?.value)||0,paidAmount=Number(paid?.value)||0;
+  if(status.value==='unpaid'){paid.value='0';}
+  if(status.value==='paid'){paid.value=String(total);}
+  if(paidWrap)paidWrap.style.display=status.value==='partial'?'':'none';
+  const current=Number(paid?.value)||0;
+  summary.textContent=`採購總額：${money(total)}｜已付：${money(current)}｜尚欠：${money(Math.max(0,total-current))}`;
+  summary.style.color=current>total?'#b91c1c':'#334155';
+ };
+ const originalTotal=Number(amount?.value)||0,originalPaid=Number(paid?.value)||0;
+ status.value=originalPaid<=0?'unpaid':originalPaid>=originalTotal&&originalTotal>0?'paid':'partial';
+ status.addEventListener('change',update);
+ paid?.addEventListener('input',update);
+ const calculate=()=>{
+  const q=Number(qty?.value),price=Number(unitPrice?.value);
+  if(q>0&&price>=0&&Number.isFinite(q*price))amount.value=String(Math.round(q*price*100)/100);
+  update();
+ };
+ qty?.addEventListener('input',calculate);unitPrice?.addEventListener('input',calculate);
+ amount?.addEventListener('input',update);
+ for(const k of ['unit','deposit','status']){
+  const w=wrap(k);if(w)w.style.display='none';
+ }
+ const activityWrap=wrap('activity_id');
+ if(activityWrap){const help=document.createElement('div');help.className='tm-muted';help.textContent='不屬於特定活動可留空，清單會顯示「一般採購」。';activityWrap.appendChild(help);const nameWrap=wrap('name');nameWrap?.insertAdjacentElement('afterend',activityWrap);}
+ const advanced=document.createElement('details');advanced.style.cssText='margin:12px 0;padding:10px;border:1px solid #e2e8f0;border-radius:8px';
+ advanced.innerHTML='<summary style="cursor:pointer;font-weight:700">其他資料（單位、到貨狀態、歷史訂金）</summary>';
+ const noteWrap=wrap('note');
+ if(noteWrap)noteWrap.parentNode.insertBefore(advanced,noteWrap);
+ for(const k of ['unit','status']){
+  const w=wrap(k);if(w){w.style.display='';advanced.appendChild(w);}
+ }
+ const depositWrap=wrap('deposit');
+ if(depositWrap){depositWrap.style.display='none';advanced.appendChild(depositWrap);const depositValue=Number(el('deposit')?.value)||0;if(depositValue){const legacy=document.createElement('div');legacy.className='tm-muted';legacy.textContent=`歷史訂金紀錄：${money(depositValue)}（保留原始資料，不另加計或重複輸入）`;advanced.appendChild(legacy);}}
+ update();
+}
+if(type==='stock'||type==='issue'){
  const f=host.querySelector('#tmForm'),item=f?.elements.namedItem('item_id'),size=f?.elements.namedItem('clothing_size');
  if(item&&size){
   const wrapper=size.closest('.tm-form-field');
@@ -15755,6 +15803,7 @@ if(type==='finance'){
 }
 if(type==='schedule'){if(editing){const old=rows.find(r=>r.id===editing);if(old?.data?.kind)data.kind=old.data.kind;}if(data.time){const digits=data.time.replace(/\D/g,'');if(digits.length===4)data.time=digits.slice(0,2)+':'+digits.slice(2);if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(data.time))throw new Error('時間請輸入四位數字，例如 1500（15:00）');}if(data.date){tmCalendarSelectedDate=data.date;tmCalendarMonth=data.date.slice(0,7);}}
 if(type==='person'){if(data.lunar&&!data.solar)throw new Error('農曆生日格式不正確，請輸入民國年/月/日，例如 75/8/15');if(editing){const old=rows.find(r=>r.id===editing);if(old?.data)data={...old.data,...data};}const duplicate=get('person').find(r=>r.id!==editing&&(data.name&&r.data.name===data.name));if(duplicate&&!confirm('發現姓名相同的信眾：'+rowSummary(duplicate)+'。確定仍要新增／修改嗎？'))return;}
+if(type==='purchase'){if(Number(data.amount)<0||Number(data.paid)<0||Number(data.paid)>Number(data.amount))throw new Error('付款金額不能小於零或超過採購總額');}
 if(type==='item'){data.kind=String(data.kind||'').trim();if(!data.kind)throw new Error('請選擇或輸入物品分類');if(editing){const old=rows.find(r=>r.id===editing);if(old?.data?.size)data.size=old.data.size;}}
 if(type==='stock'||type==='issue'){
  const clothing=tmIsClothing(data.item_id)&&!tmNoClothingSize(data.item_id);if(clothing&&!data.clothing_size)throw new Error('衣服必須選擇尺寸，例如 L、2L');if(!clothing)data.clothing_size='';
@@ -15941,7 +15990,7 @@ function tmApplySearch(input){
  if(page==='service'&&tmSection==='dates'){const result=document.getElementById('tmServiceResults');if(result)result.innerHTML=tmServiceDateRows();}
  else if(page==='calendar'&&tmSection==='month')main.innerHTML=tmCalendarSearchResults();
  else if(page==='deities'&&tmSection==='deity')main.innerHTML=tmDeityList();
- else if(page==='goods'&&tmSection==='purchase')main.innerHTML=section('採購／應付紀錄','purchase')+section('廠商資料','vendor');
+ else if(page==='goods'&&tmSection==='purchase'){tmSection='vendor';main.innerHTML=section('廠商資料','vendor');}
  else if(tmSection&&page!=='finance')main.innerHTML=section((tmMenuItems[page]||[]).find(x=>x[0]===tmSection)?.[1]||TYPES[tmSection]||'紀錄',tmSection);
 }
 el.addEventListener('change',e=>{if(e.target.id==='tmServiceDateSelect'){const date=e.target.value;if(!tmSaturday(date)){alert('帝爺公固定星期六辦事，請選擇星期六日期');e.target.value=tmServiceDate;return;}tmServiceDate=date;const main=document.getElementById('tmMainContent');if(main)main.innerHTML=tmServiceDates();}});
