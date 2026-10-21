@@ -2736,7 +2736,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
             <div class="lhf-box"><h3 id="lhfFormTitle">新增六禾內帳</h3>
               <form id="lhfForm"><div class="lhf-form-grid">
                 <label>日期 <input required type="date" class="input" id="lhfDate"></label>
-                <label>帳務類型 <select class="input" id="lhfType"><option value="revenue">營業收入</option><option value="cogs">進貨成本</option><option value="expense">營業費用</option><option value="investment">設備／裝潢投資</option><option value="capital_in">資金投入</option><option value="capital_out">資金取回</option></select></label>
+                <label>帳務類型 <select class="input" id="lhfType"><option value="revenue">營業收入</option><option value="cogs">進貨成本</option><option value="expense">營業費用</option><option value="private_expense">私人／家庭支出</option><option value="investment">設備／裝潢投資</option><option value="capital_in">資金投入</option><option value="capital_out">資金取回</option></select></label>
                 <label>分類 <select class="input" id="lhfCategory"></select></label>
                 <label id="lhfDetailWrap" hidden>細項 <select class="input" id="lhfDetail"></select></label>
                 <label id="lhfInvestorWrap" hidden><span id="lhfInvestorLabel">出資人</span> <input id="lhfInvestor" class="input" maxlength="80" value="欣儒" placeholder="出資人名稱" autocomplete="off"></label>
@@ -2745,7 +2745,7 @@ body.auth-booting #mainApp{visibility:hidden!important}
                 <label>金額（元） <input required min="0.01" step="0.01" type="number" class="input" id="lhfAmount" inputmode="decimal"></label>
                 <label class="lhf-wide">摘要／對象 <input maxlength="200" class="input" id="lhfNote" placeholder="例如：iCHEF 10/18 營業額、房租、冰庫"></label>
               </div><div class="lhf-actions"><button type="submit" class="btn primary" id="lhfSave">儲存六禾內帳</button><button type="button" class="btn gray" id="lhfCancel" hidden>取消修改</button></div></form>
-              <p class="lhf-help">門市每日營業額從 iCHEF 手動輸入總額；同日重複登記會阻擋。這裡不會同步欣儒帳務中心。</p>
+              <p class="lhf-help">門市每日營業額從 iCHEF 手動輸入總額；同日重複登記會阻擋。私人／家庭支出獨立分類，不計入六禾營業損益；若使用六禾資金支付，仍須依實際資金往來處理。這裡不會同步欣儒帳務中心。</p>
             </div>
             <details class="lhf-box" id="lhfLedgerDetails"><summary class="lhf-ledger-summary"><strong>本月六禾內帳（<span id="lhfLedgerCount">0</span> 筆）</strong><span class="lhf-ledger-toggle" aria-hidden="true"></span></summary><div id="lhfList"></div></details>
           </div>
@@ -14564,11 +14564,18 @@ const el=id=>document.getElementById(id);
 const kinds={
  revenue:['門市營收','其他營業收入'],
  cogs:['蔬果進貨','其他進貨成本'],
+ private_expense:['寵物費用','外傭／看護','家庭生活','保健／營養品','個人支出','其他私人支出'],
  expense:['租金','管理費','水電／能源','伙食／飲料','營業耗材','用品／文具','設備／維修','電話／網路／系統','宣傳／廣告','交際／送禮','祭祀／拜拜','公益／捐款','薪資／人事','運費','稅費','車輛費用','其他營業費用'],
  investment:['開店裝潢','冰庫設備','輸送帶','貨架','收銀設備','其他設備投資'],
  capital_in:['業主投入','股東投入','其他資金投入'],
  capital_out:['業主取回','股東資金返還','其他資金取回']};
 const details={
+ '寵物費用':['看診','藥品','飼料','用品','其他'],
+ '外傭／看護':['仲介費','薪資','保險','規費','其他'],
+ '家庭生活':['生活用品','家庭雜支','其他'],
+ '保健／營養品':['營養品','保健食品','其他'],
+ '個人支出':['個人用品','個人雜支','其他'],
+ '其他私人支出':['零星費用','其他'],
  '租金':['店舖／攤位租金','其他租金'],
  '水電／能源':['水費','電費','瓦斯','其他能源'],
  '伙食／飲料':['員工餐（午餐／晚餐）','點心','飲料','其他'],
@@ -14587,7 +14594,7 @@ const details={
  '其他營業費用':['其他營業費用']};
 // 舊分類僅用於編輯歷史紀錄，不再提供新帳選取。
 const legacyExpense=['水電','薪資','耗材','維修','83-2費用','530費用'];
-const labels={revenue:'營業收入',cogs:'進貨成本',expense:'營業費用',investment:'設備投資',capital_in:'資金投入',capital_out:'資金取回'};
+const labels={revenue:'營業收入',cogs:'進貨成本',expense:'營業費用',private_expense:'私人／家庭支出',investment:'設備投資',capital_in:'資金投入',capital_out:'資金取回'};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n||0).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
 const localDate=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -14625,7 +14632,7 @@ async function load(){if(busy)return;busy=true;status('載入六禾獨立帳務�
  }catch(e){status('讀取失敗：'+e.message);el('lhfLedgerCount').textContent='—';el('lhfList').textContent='無法讀取六禾內帳。請先執行 N500 SQL 並確認權限。';}finally{busy=false}}
 function render(){if(view==='ledger')renderLedger();else renderReport()}
 function renderLedger(){const list=el('lhfList');el('lhfLedgerCount').textContent=String(rows.length);if(!rows.length){list.innerHTML='<div class="empty">本月尚無六禾內帳資料。</div>';return}const cars=typeof window.liuhoOfficialVehiclesN501==='function'?window.liuhoOfficialVehiclesN501():[];const carById=new Map(cars.map(v=>[String(v.id),String(v.vehiclePlate||'')]));list.innerHTML=rows.map(r=>{const voided=r.status==='void';const plate=r.vehicle_id?(carById.get(String(r.vehicle_id))||'車籍 ID：'+String(r.vehicle_id)):'';const detail=[r.subcategory,plate,(['capital_in','capital_out'].includes(r.entry_type)?((r.entry_type==='capital_out'?'領回人：':'出資人：')+(r.investor_name||'未指定（歷史資料）')):'')].filter(Boolean).join('｜');return '<div class="lhf-row" style="'+(voided?'opacity:.6;':'')+'"><div><strong>'+esc(r.entry_date)+'　'+esc(r.category)+'</strong>　'+esc(labels[r.entry_type]||r.entry_type)+'<div><small>'+esc(detail)+(detail&&r.note?'｜':'')+esc(r.note||'')+(voided?'（已作廢）':'')+'</small></div></div><div><strong>$'+money(r.amount)+'</strong> <span class="lhf-tools">'+(!voided?'<button class="btn gray" data-edit="'+esc(r.id)+'">修改</button><button class="btn gray" data-void="'+esc(r.id)+'">作廢</button>':'')+(admin()?'<button class="btn gray" data-delete="'+esc(r.id)+'">刪除</button>':'')+'</span></div></div>'}).join('')}
-function sums(data){const a={revenue:0,cogs:0,expense:0,investment:0,capital_in:0,capital_out:0};data.filter(x=>x.status==='active').forEach(x=>{if(Object.hasOwn(a,x.entry_type))a[x.entry_type]+=Number(x.amount)||0});return a}
+function sums(data){const a={revenue:0,cogs:0,expense:0,private_expense:0,investment:0,capital_in:0,capital_out:0};data.filter(x=>x.status==='active').forEach(x=>{if(Object.hasOwn(a,x.entry_type))a[x.entry_type]+=Number(x.amount)||0});return a}
 function renderReport(){
  if(!reportAllowed()){el('lhfReportView').hidden=true;return;}
  if(!reportTotals){el('lhfSummary').textContent='報表尚未載入';return;}
@@ -14641,11 +14648,12 @@ function renderReport(){
  const card=(name,value,extra='')=>'<div class="lhf-report-metric"><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong>'+(extra?'<span>'+esc(extra)+'</span>':'')+'</div>';
  const cash=n=>'$'+money(n);
  const section=(title,description,cards)=>'<section class="lhf-report-group"><h3>'+esc(title)+'</h3><p>'+esc(description)+'</p><div class="lhf-report-grid">'+cards.join('')+'</div></section>';
+ const privateMonth=rows.filter(r=>r.status==='active'&&r.entry_type==='private_expense').reduce((sum,r)=>sum+Number(r.amount||0),0);
  const operating=[card('本月營業收入',cash(val(a,'revenue'))),card('本月進貨成本',cash(val(a,'cogs'))),card('本月營業費用',cash(val(a,'expense'))),card('本月營運損益',cash(profit))];
  const basisText=investment>0?'以已登記的設備／裝潢投資作為目前投資基準；請確認開店初期投資已完整登記。':'尚未登記投資基準。請至「公司內帳 → 設備／裝潢投資」逐筆補登開店投入，已登記的費用不可重複補登。';
  const payback=[card('已登記投資成本',cash(investment)),card('累計營運盈餘／虧損',cash(allProfit)),card('營運尚差回本',investment>0?cash(remaining):'待建立基準'),card('營運回本進度',rate(recovered,investment))];
  const capitalCards=[card('累計出資本金',cash(capital)),card('已返還出資本金',cash(returned)),card('尚未返還本金',cash(capitalRemaining)),card('本金回收率',rate(returned,capital)),card('累計盈餘分配',cash(distributed)),card('待釐清舊取回紀錄',cash(val(t,'unclassified_capital_out')))];
- el('lhfSummary').innerHTML=section('一、每月營運','查看選定月份的營收、成本與實際登記費用。',operating)+section('二、營運回本',basisText,payback)+section('三、實際資金回收','只將「返還出資本金」計入本金回收；盈餘分配獨立列示，不等同返還本金。',capitalCards);
+ el('lhfSummary').innerHTML=section('一、每月營運','查看選定月份的營收、成本與實際登記費用。',operating)+section('私人／家庭支出（不計入營運損益）','此類支出單獨統計，不屬於營業費用，也不影響營運損益。',[card('本月私人／家庭支出',cash(privateMonth))])+section('二、營運回本',basisText,payback)+section('三、實際資金回收','只將「返還出資本金」計入本金回收；盈餘分配獨立列示，不等同返還本金。',capitalCards);
  // 只展開已獲報表授權者的當月明細，不額外取得其他月份的帳務資料。
  const active=rows.filter(r=>r.status==='active');
  el('lhfBreakdown').innerHTML=Object.keys(labels).map(k=>{
