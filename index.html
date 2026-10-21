@@ -15147,7 +15147,7 @@ const tmMenuItems={
  calendar:[['month','月曆','國曆、農曆與活動']],
  activity:[['activity','活動清單','進香、法會、補財庫'],['registration','報名名單','各活動參加人員'],['payment','報名繳費／退款','依報名紀錄查詢'],['task','準備事項','負責人與完成狀態']],
  finance:[['transactions','收支帳務','收入支出統一管理'],['reports','收支報表','期間、分類、細項與明細'],['accounts','資金帳戶','現金及銀行餘額'],['categories','收支分類','大類與細類設定'],['count','現金盤點','盤點紀錄']],
- goods:[['item','物品主檔','規格、尺寸及庫存'],['stock','庫存異動','收貨、領用與調整'],['issue','物品發放','平安符、服裝等'],['vendor','廠商資料','聯絡方式與往來'],['purchase','採購／應付','採購及付款狀態']]
+ goods:[['item','物品與庫存','物品建檔、尺寸、庫存總覽'],['stock','庫存異動','入庫、調整、庫存紀錄'],['issue','物品發放','領用人、尺寸、發放數量'],['purchase','採購與廠商','廠商資料、採購及應付']]
 };
 function tmSaturday(date){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return false;
@@ -15256,6 +15256,7 @@ function show(){
  else if(tmSection==='financeActivity')body=section('活動收支','finance');
  else if(tmSection==='deity')body=tmDeityList();
  else if(tmSection==='stock'||tmSection==='issue')body=tmItemStockOverview()+section((tmMenuItems[page]||[]).find(x=>x[0]===tmSection)?.[1]||TYPES[tmSection],tmSection);
+ else if(page==='goods'&&tmSection==='purchase')body=`<div class="tm-muted" style="margin:8px 0">採購與廠商集中在同一入口；廠商資料與採購紀錄仍各自保存，既有資料不變。物品發放只記數量，收入另外做帳。</div>`+section('採購／應付紀錄','purchase')+section('廠商資料','vendor');
  else if(tmSection==='item')body=`<div class="tm-muted" style="margin:8px 0">物品名稱填具體品名（例如平安符、背心），分類填用途大類（例如平安護身用品、服裝用品）。可在新增／修改物品時直接輸入自訂分類；舊資料不變。物品發放只記數量，收入另至帳務管理登帳。</div>`+section('物品庫存主檔','item')+tmItemStockOverview();
  else body=section((tmMenuItems[page]||[]).find(x=>x[0]===tmSection)?.[1]||TYPES[tmSection]||'紀錄',tmSection);
 
@@ -15706,6 +15707,7 @@ function tmApplySearch(input){
  if(page==='service'&&tmSection==='dates'){const result=document.getElementById('tmServiceResults');if(result)result.innerHTML=tmServiceDateRows();}
  else if(page==='calendar'&&tmSection==='month')main.innerHTML=tmCalendarSearchResults();
  else if(page==='deities'&&tmSection==='deity')main.innerHTML=tmDeityList();
+ else if(page==='goods'&&tmSection==='purchase')main.innerHTML=section('採購／應付紀錄','purchase')+section('廠商資料','vendor');
  else if(tmSection&&page!=='finance')main.innerHTML=section((tmMenuItems[page]||[]).find(x=>x[0]===tmSection)?.[1]||TYPES[tmSection]||'紀錄',tmSection);
 }
 el.addEventListener('change',e=>{if(e.target.id==='tmServiceDateSelect'){const date=e.target.value;if(!tmSaturday(date)){alert('帝爺公固定星期六辦事，請選擇星期六日期');e.target.value=tmServiceDate;return;}tmServiceDate=date;const main=document.getElementById('tmMainContent');if(main)main.innerHTML=tmServiceDates();}});
