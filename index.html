@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- N377：做帳紀錄與作廢紀錄排除公司內帳／資金管理類型，保留雲端原資料及資金核心。 -->
 <!-- N375：公司內帳永久刪除改為真正刪除 accounting_records；資金流水核心排除 deleted 舊資料。 -->
 <!-- N303 UNIQUE BILLING PERIOD CORE: qN292PeriodMeta is the only billing-period authority; layout cannot redefine period. -->
 <html lang="zh-Hant">
@@ -9842,13 +9843,19 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     work.querySelector('[data-detail-manage="delete"]')?.addEventListener('click',()=>qDeleteQuickRecord(work,id,()=>qReturnFromRecordDetail(work,backMode)));
   }
   function renderQuickVoids(work){
-    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.status==='void'&&Array.isArray(x.items)).sort((a,b)=>String(b.voidedAt||b.updatedAt||'').localeCompare(String(a.voidedAt||a.updatedAt||'')));
+    // N377: 公司內帳及資金管理的作廢紀錄，不屬於快速做帳作廢清單。
+    const rows=(typeof acctRecords==='function'?acctRecords():[]).filter(x=>x&&x.status==='void'&&Array.isArray(x.items)&&!qN377IsInternalFundRecord(x)).sort((a,b)=>String(b.voidedAt||b.updatedAt||'').localeCompare(String(a.voidedAt||a.updatedAt||'')));
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>🚫 作廢紀錄</b><div class="helper" style="display:block!important;margin-top:5px">作廢資料保留歷史，但不列入正常今日做帳。</div></div><button type="button" class="btn gray" id="qVoidBack">← 返回今日做帳</button></div>'+(rows.length?rows.map(r=>'<div class="quickV2Record" data-qvoid="'+qEsc(r.id)+'" style="cursor:pointer"><div class="quickV2RecordTop"><div><b>'+qEsc(r.date||'')+'｜'+qEsc(r.customer||'')+'</b><div class="helper" style="display:block!important">原因：'+qEsc(r.voidReason||'未填')+'｜作廢人：'+qEsc(r.voidedBy||'')+'</div></div><b>$'+Math.round(qRecordTotal(r)).toLocaleString('zh-TW')+'</b></div></div>').join(''):'<div class="empty" style="padding:18px">目前沒有作廢紀錄</div>')+'</div>';work.querySelector('#qVoidBack').onclick=()=>renderQuickToday(work);work.querySelectorAll('[data-qvoid]').forEach(card=>card.onclick=()=>qShowRecordDetail(work,card.dataset.qvoid,'void'))
+  }
+  // N377: 同一 accounting_records 表內的公司資金交易不等於進銷貨做帳。
+  // 僅用正式交易類型辨識，不用 $0 或 items=[] 判斷，避免誤排除合法的零元交易。
+  function qN377IsInternalFundRecord(r){
+    return !!r&&(['company_cashflow','fund_transfer','loan_movement','loan_master','fund_special','fund_account_master','fund_recurring_template','fund_account_resolution'].includes(String(r.mode||'')));
   }
   function renderQuickToday(work){
     const day=qToday(),dateState=qAcctDateState(),hasDate=!!(dateState.dateFrom||dateState.dateTo),source=(typeof acctRecords==='function'?acctRecords():[]),
       scoped=hasDate?qAcctFilterRecords(source):source.filter(x=>qAcctRecordDate(x)===day),
-      rows=scoped.filter(x=>x&&x.status!=='draft'&&x.status!=='void'&&Array.isArray(x.items)),
+      rows=scoped.filter(x=>x&&x.status!=='draft'&&x.status!=='void'&&Array.isArray(x.items)&&!qN377IsInternalFundRecord(x)),
       isAdmin=currentProfile?.role==='admin',dateLabel=hasDate?qAcctDateLabel(dateState):day;
     const pendingMark=r=>r?.pricingStatus==='pending_price'&&qRecordPartyIdentity(r)!=='產農'?'<span style="display:inline-flex;align-items:center;gap:5px;margin-left:7px;color:#b45309;font-weight:900"><span aria-hidden="true" style="color:#f5b400;font-size:18px;line-height:1">▲</span>待補價格</span>':'';
     work.innerHTML='<div class="quickV2"><div class="quickV2RecordTop"><div><b>📋 做帳紀錄｜'+qEsc(dateLabel)+'</b><div class="helper" style="display:block!important;margin-top:5px">已完成做帳紀錄；價格未定的非產農交易會直接標示待補價格。</div></div><button type="button" class="btn gray" id="qVoidHistory">🚫 作廢紀錄</button></div>'+ 
