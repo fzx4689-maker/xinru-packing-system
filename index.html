@@ -9414,13 +9414,21 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       }
       window.xrAccountingNav?.paintWorkBadges?.();
       if(status==='draft'){alert('💾 未完成資料已暫存，可跨裝置繼續。');renderQuickV2(work);return}
+      const originAfterEdit=editId?(work.dataset.qN529EditOrigin||qN529Origins.get(work)?.backMode||'today'):'';
+      delete work.dataset.qN529EditOrigin;
+      if(editId){
+        alert('✅ 帳本原交易已儲存修改（沒有新增第二筆帳）。');
+        qReturnFromRecordDetail(work,originAfterEdit);
+        return;
+      }
       renderQuickV2(work);
-      if(editId){alert('✅ 帳本原交易已儲存修改（沒有新增第二筆帳）。');return}
       qShowOutputs(work,record)
     }catch(e){console.error('[N528 帳本儲存]',e);alert('儲存未完成：'+(e?.message||String(e)))}
     finally{if(saveBtn&&saveBtn.isConnected){saveBtn.disabled=false;saveBtn.textContent=originalSaveText}if(pendingBtn&&pendingBtn.isConnected)pendingBtn.disabled=false}
   }
-  function qEditQuickRecord(work,id){const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}renderQuickV2(work);work.dataset.editDraftId=String(r.id);work.querySelector('#quickV2Date').value=r.date||qToday();work.querySelector('#quickV2Entity').value=r.customer||'';work.querySelector('#quickV2Entity').dispatchEvent(new Event('change',{bubbles:true}));work.querySelector('#quickV2Txn').value=r.txnTypeLabel||(r.txnType==='purchase'?'進貨':'銷貨');work.querySelector('#quickV2Note').value=r.note||'';const body=work.querySelector('#quickV2Rows');body.innerHTML='';(r.items||[]).forEach((it,i)=>{body.insertAdjacentHTML('beforeend',qRowHtml(i));const row=body.lastElementChild;row.querySelector('.qName').value=it.name||'';row.querySelector('.qKg').value=it.kg??'';row.querySelector('.qQty').value=it.qty??1;row.querySelector('.qPricing').value=it.pricing||'piece';const pcu=row.querySelector('.qPricingCustom');if(pcu)pcu.value=it.pricingUnit||'';const st=row.querySelector('.qItemStatus'),stc=row.querySelector('.qItemStatusCustom');if(st){const known=['','未送','缺貨','取消','補送'];if(known.includes(it.itemStatus||''))st.value=it.itemStatus||'';else if(it.itemStatus){st.value='custom';if(stc)stc.value=it.itemStatus}}row.querySelector('.qSource').value=qSourceNormalize(it.source||'欣儒');row.querySelector('.qPrice').value=it.price??'';row.querySelector('.qCost').value=it.cost??'';if((r.freightMode||it.freightMode)==='piece')row.querySelector('.qFreightRate').value=it.freightRate??''});if(!body.children.length)body.innerHTML=qRowHtml(0);const op=work.querySelector('#qOrderPricing');if(op&&r.items?.length)op.value=r.items[0].pricing||'piece';const ofm=work.querySelector('#qOrderFreightMode'),ofr=work.querySelector('#qOrderFreightRate');if(r.items?.length){const savedMode=r.freightMode||(r.items[0].freightMode==='fixed'?'truck':r.items[0].freightMode)||'none';if(ofm)ofm.value=savedMode;if(ofr)ofr.value=savedMode==='truck'?(r.freightTotal??r.freight??r.items[0].freightRate??''):(savedMode==='kg'?(r.freightRate??r.items[0].freightRate??''):'')}qBindRows(work);qPaintContactInfo(work);{const savedTurns=qRecordTurnovers(r),host=work.querySelector('#qTurnRows'),template=host?.querySelector('[data-qturnrow]');if(host&&template&&savedTurns.length){host.innerHTML='';savedTurns.forEach((t,i)=>{const row=template.cloneNode(true);row.dataset.bound='';host.appendChild(row);qApplyQuickProfile(work);const tt=row.querySelector('.qTurnType'),ta=row.querySelector('.qTurnAction'),tq=row.querySelector('.qTurnQty'),tp=row.querySelector('.qTurnUnitPrice'),tn=row.querySelector('.qTurnNote');if(tt)tt.value=t.type||'';qApplyQuickProfile(work);const tr=row.querySelector('.qTurnRack');if(tr&&t.rackNameId)tr.value=t.rackNameId;if(ta){const savedType=String(t.type||'');ta.value=savedType==='籃子'?((t.action==='使用'&&qQuickProfile(work).farmer)?'使用':(['使用','計價'].includes(t.action)?'計籃':['歸還','退籃退費'].includes(t.action)?'回籃':t.action||'')):(t.action==='使用'?'領用':t.action||'')}if(tq)tq.value=t.qty??'';if(tp)tp.value=Number(t.unitPrice)>0?t.unitPrice:'';if(tn)tn.value=t.note||''})}const bindTurnRowsLocal=()=>{work.querySelectorAll('[data-qturnrow]').forEach(row=>{if(row.dataset.bound)return;row.dataset.bound='1';row.querySelectorAll('select,input').forEach(el=>{el.addEventListener('input',()=>qRecalc(work));el.addEventListener('change',()=>qRecalc(work))});row.querySelector('.qTurnRemove')?.addEventListener('click',()=>{if(work.querySelectorAll('[data-qturnrow]').length===1){row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');qRecalc(work)}else{row.remove();qRecalc(work)}})})};bindTurnRowsLocal()}qRecalc(work);work.querySelector('#quickV2Save').textContent='💾 儲存修改';work.scrollIntoView({behavior:'smooth',block:'start'})}
+  function qEditQuickRecord(work,id,backMode){if(backMode)work.dataset.qN529EditOrigin=String(backMode);const r=(typeof acctRecords==='function'?acctRecords():[]).find(x=>String(x.id)===String(id));if(!r){alert('找不到原交易');return}renderQuickV2(work);work.dataset.editDraftId=String(r.id);work.querySelector('#quickV2Date').value=r.date||qToday();work.querySelector('#quickV2Entity').value=r.customer||'';work.querySelector('#quickV2Entity').dispatchEvent(new Event('change',{bubbles:true}));work.querySelector('#quickV2Txn').value=r.txnTypeLabel||(r.txnType==='purchase'?'進貨':'銷貨');work.querySelector('#quickV2Note').value=r.note||'';const body=work.querySelector('#quickV2Rows');body.innerHTML='';(r.items||[]).forEach((it,i)=>{body.insertAdjacentHTML('beforeend',qRowHtml(i));const row=body.lastElementChild;row.querySelector('.qName').value=it.name||'';row.querySelector('.qKg').value=it.kg??'';row.querySelector('.qQty').value=it.qty??1;row.querySelector('.qPricing').value=it.pricing||'piece';const pcu=row.querySelector('.qPricingCustom');if(pcu)pcu.value=it.pricingUnit||'';const st=row.querySelector('.qItemStatus'),stc=row.querySelector('.qItemStatusCustom');if(st){const known=['','未送','缺貨','取消','補送'];if(known.includes(it.itemStatus||''))st.value=it.itemStatus||'';else if(it.itemStatus){st.value='custom';if(stc)stc.value=it.itemStatus}}row.querySelector('.qSource').value=qSourceNormalize(it.source||'欣儒');row.querySelector('.qPrice').value=it.price??'';row.querySelector('.qCost').value=it.cost??'';if((r.freightMode||it.freightMode)==='piece')row.querySelector('.qFreightRate').value=it.freightRate??''});if(!body.children.length)body.innerHTML=qRowHtml(0);const op=work.querySelector('#qOrderPricing');if(op&&r.items?.length)op.value=r.items[0].pricing||'piece';const ofm=work.querySelector('#qOrderFreightMode'),ofr=work.querySelector('#qOrderFreightRate');if(r.items?.length){const savedMode=r.freightMode||(r.items[0].freightMode==='fixed'?'truck':r.items[0].freightMode)||'none';if(ofm)ofm.value=savedMode;if(ofr)ofr.value=savedMode==='truck'?(r.freightTotal??r.freight??r.items[0].freightRate??''):(savedMode==='kg'?(r.freightRate??r.items[0].freightRate??''):'')}qBindRows(work);qPaintContactInfo(work);{const savedTurns=qRecordTurnovers(r),host=work.querySelector('#qTurnRows'),template=host?.querySelector('[data-qturnrow]');if(host&&template&&savedTurns.length){host.innerHTML='';savedTurns.forEach((t,i)=>{const row=template.cloneNode(true);row.dataset.bound='';host.appendChild(row);qApplyQuickProfile(work);const tt=row.querySelector('.qTurnType'),ta=row.querySelector('.qTurnAction'),tq=row.querySelector('.qTurnQty'),tp=row.querySelector('.qTurnUnitPrice'),tn=row.querySelector('.qTurnNote');if(tt)tt.value=t.type||'';qApplyQuickProfile(work);const tr=row.querySelector('.qTurnRack');if(tr&&t.rackNameId)tr.value=t.rackNameId;if(ta){const savedType=String(t.type||'');ta.value=savedType==='籃子'?((t.action==='使用'&&qQuickProfile(work).farmer)?'使用':(['使用','計價'].includes(t.action)?'計籃':['歸還','退籃退費'].includes(t.action)?'回籃':t.action||'')):(t.action==='使用'?'領用':t.action||'')}if(tq)tq.value=t.qty??'';if(tp)tp.value=Number(t.unitPrice)>0?t.unitPrice:'';if(tn)tn.value=t.note||''})}const bindTurnRowsLocal=()=>{work.querySelectorAll('[data-qturnrow]').forEach(row=>{if(row.dataset.bound)return;row.dataset.bound='1';row.querySelectorAll('select,input').forEach(el=>{el.addEventListener('input',()=>qRecalc(work));el.addEventListener('change',()=>qRecalc(work))});row.querySelector('.qTurnRemove')?.addEventListener('click',()=>{if(work.querySelectorAll('[data-qturnrow]').length===1){row.querySelectorAll('input').forEach(x=>x.value='');row.querySelectorAll('select').forEach(x=>x.value='');qRecalc(work)}else{row.remove();qRecalc(work)}})})};bindTurnRowsLocal()}qRecalc(work);work.querySelector('#quickV2Save').textContent='💾 儲存修改';
+    if(backMode){const foot=work.querySelector('.quickV2Foot');if(foot){const cancel=document.createElement('button');cancel.type='button';cancel.className='btn gray';cancel.textContent='← 取消修改，返回原位置';cancel.onclick=()=>{delete work.dataset.qN529EditOrigin;qReturnFromRecordDetail(work,backMode)};foot.insertBefore(cancel,foot.firstChild)}}
+    work.scrollIntoView({behavior:'smooth',block:'start'})}
   async function qVoidQuickRecord(work,id,after){
     const src=(typeof acctRecords==='function'?acctRecords():[]),old=src.find(x=>String(x.id)===String(id));if(!old)return;
     const reason=prompt('請輸入作廢原因：');if(reason===null)return;if(!reason.trim()){alert('作廢原因不能空白');return}
@@ -9747,13 +9755,49 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       (r.status==='void'?'':(()=>{const m=qOutputMethods(r);return '<div class="quickV2OutputBtns" style="margin-top:12px">'+(m.billImage!==false?'<button type="button" class="btn gray" data-detail-out="bill">📱 圖片／LINE</button>':'')+(m.excel!==false?'<button type="button" class="btn gray" data-detail-out="excel">📊 Excel</button>':'')+(m.pdf!==false?'<button type="button" class="btn gray" data-detail-out="pdf">📄 PDF</button>':'')+(m.paper80!==false?'<button type="button" class="btn gray" data-detail-out="paper">🖨️ 報表紙</button>':'')+'</div>'})())+
       (adjusted>0?'<div class="quickV2ContactHint" style="margin-top:10px"><b>原交易 $'+Math.round(qAccountingBaseTotal(r,contact)).toLocaleString('zh-TW')+'</b>｜已調整 -$'+Math.round(adjusted).toLocaleString('zh-TW')+'｜<b>有效金額 $'+Math.round(effective).toLocaleString('zh-TW')+'</b>'+(overpaid>0?'｜可退款 $'+Math.round(overpaid).toLocaleString('zh-TW'):'')+'</div>':'')+qAccountingEventsHtml(r)+'<div class="quickV2OutputBtns" style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px"><b style="margin-right:4px">交易管理</b>'+(r.status==='void'?'':'<button type="button" class="btn gray" data-detail-manage="edit">✏️ 修改</button><button type="button" class="btn gray" data-detail-manage="deduction">➖ 扣款</button><button type="button" class="btn gray" data-detail-manage="allowance">🏷️ 折讓</button><button type="button" class="btn gray" data-detail-manage="return">↩️ 退貨</button>'+(overpaid>0?'<button type="button" class="btn gray" data-detail-manage="refund">💸 退款</button>':'')+'<button type="button" class="btn gray" data-detail-manage="void">🚫 作廢</button>')+((qN6ICanDeleteAccounting())?'<button type="button" class="btn red" data-detail-manage="delete">🗑️ 永久刪除</button>':'')+'</div></div>'
   }
+  // N529: one shared origin contract for every contact and transaction type.
+  // Navigation state is UI-only: never persisted as a financial record.
+  const qN529Origins=new WeakMap();
+  function qN529Capture(work,backMode){
+    const ledger=work.querySelector('#qLedgerEntity');
+    const filter=work.querySelector('#qLedgerFilters .blue[data-ledger-filter]');
+    const state={backMode:String(backMode||'today'),scrollY:window.scrollY||0,
+      ledgerTerm:ledger?.value||'',ledgerFilter:filter?.dataset.ledgerFilter||'全部',
+      includeVoid:!!work.querySelector('#qLedgerIncludeVoid')?.checked};
+    qN529Origins.set(work,state);return state;
+  }
+  function qN529BackLabel(mode){
+    mode=String(mode||'today');
+    if(mode.startsWith('ledger:'))return '← 返回原帳本';
+    if(mode.startsWith('moneycenter:'))return '← 返回收／付款';
+    if(mode.startsWith('searchall:'))return '← 返回交易查詢';
+    if(mode.startsWith('queue:'))return '← 返回原紀錄清單';
+    if(mode==='daterange')return '← 返回日期查詢';
+    if(mode==='void')return '← 返回作廢紀錄';
+    if(mode==='transaction_history')return '← 返回交易紀錄';
+    return '← 返回今日做帳';
+  }
+  function qN529RestoreLedger(work,backMode){
+    const saved=qN529Origins.get(work);
+    const key=String(backMode).slice(7);
+    qRenderLedgerSearch(work,key,{byId:true});
+    if(saved&&saved.backMode===backMode){
+      const filter=work.querySelector('[data-ledger-filter="'+saved.ledgerFilter+'"]');
+      if(filter&&saved.ledgerFilter!=='全部')filter.click();
+      const inp=work.querySelector('#qLedgerEntity');
+      if(inp){inp.value=saved.ledgerTerm||key;inp.dispatchEvent(new Event('change',{bubbles:true}));}
+      if(saved.includeVoid){const ck=work.querySelector('#qLedgerIncludeVoid');if(ck&&!ck.checked){ck.checked=true;ck.dispatchEvent(new Event('change',{bubbles:true}));}}
+      requestAnimationFrame(()=>window.scrollTo(0,saved.scrollY||0));
+    }
+  }
   function qReturnFromRecordDetail(work,backMode){
     if(backMode==='void')return renderQuickVoids(work);
     if(backMode==='global')return home();
     if(String(backMode).startsWith('moneycenter:')){const p=String(backMode).slice(12).split('|');return qRenderMoneyCenter(work,p[0]||'',p[1]||'receipt')}
     if(backMode==='daterange'){home();return qPaintDateRangeResults()}
+    if(backMode==='transaction_history')return qRenderMoneyHistory(work)
     if(String(backMode).startsWith('searchall:')){const p=String(backMode).slice(10).split('|');return qShowAllSearchTransactions(p[0]||'',p.slice(1).join('|')||p[0]||'')}
-    if(String(backMode).startsWith('ledger:'))return qRenderLedgerSearch(work,String(backMode).slice(7),{byId:true});
+    if(String(backMode).startsWith('ledger:'))return qN529RestoreLedger(work,backMode);
     if(String(backMode).startsWith('queue:'))return qRenderQueue(work,String(backMode).slice(6));
     return renderQuickToday(work);
   }
@@ -9847,10 +9891,13 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
         backMode:String(backMode||'today')
       });
     }
-    work.innerHTML=qRecordDetailHtml(r);work.querySelector('#qDetailBack').onclick=()=>qReturnFromRecordDetail(work,backMode);
+    if(!skipNavSave)qN529Capture(work,backMode);
+    work.innerHTML=qRecordDetailHtml(r);
+    const detailBack=work.querySelector('#qDetailBack');
+    if(detailBack){detailBack.textContent=qN529BackLabel(backMode);detailBack.onclick=()=>qReturnFromRecordDetail(work,backMode);}
     work.querySelectorAll('.qMarkVehicleReturn').forEach(b=>b.onclick=async e=>{e.stopPropagation();try{const kind=b.dataset.returnKind,date=await qN236AskVehicleReturn(kind);if(!date)return;await qN234MarkVehicleReturn(b.dataset.recordId,kind,date);qShowRecordDetail(work,id,backMode,true)}catch(err){alert(err.message||String(err))}});
     if(r.status!=='void'){work.querySelector('[data-detail-out="bill"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('bill',r)});work.querySelector('[data-detail-out="excel"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('excel',r)});work.querySelector('[data-detail-out="pdf"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('pdf',r)});work.querySelector('[data-detail-out="paper"]')?.addEventListener('click',e=>{e.stopPropagation();qN100RunOutput('paper',r)})}
-    work.querySelector('[data-detail-manage="edit"]')?.addEventListener('click',()=>{if(r.mode==='money_settlement')return qH10EditSettlement(work,id,backMode);if(qAccountingIsAdjustment(r))return qN235EditAdjustment(work,id,backMode);if(r.mode==='money_refund')return qN235EditRefund(work,id,backMode);return qEditQuickRecord(work,id)});
+    work.querySelector('[data-detail-manage="edit"]')?.addEventListener('click',()=>{if(r.mode==='money_settlement')return qH10EditSettlement(work,id,backMode);if(qAccountingIsAdjustment(r))return qN235EditAdjustment(work,id,backMode);if(r.mode==='money_refund')return qN235EditRefund(work,id,backMode);return qEditQuickRecord(work,id,backMode)});
     work.querySelector('[data-detail-manage="deduction"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'account_deduction'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
     work.querySelector('[data-detail-manage="allowance"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'account_allowance'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
     work.querySelector('[data-detail-manage="return"]')?.addEventListener('click',async()=>{try{if(await qCreateAccountingAdjustment(r,'goods_return'))qShowRecordDetail(work,id,backMode,true)}catch(e){alert(e.message||String(e))}});
