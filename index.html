@@ -93,6 +93,12 @@ html.xr-pwa-starting::after{content:"欣儒系統\A 載入中…";white-space:pr
 #temple .tm-deity-audit{margin-top:auto;padding-top:7px;border-top:1px solid #eee5d8;font-size:11px;line-height:1.55;color:#697586}
 @media(max-width:700px){#temple .tm-deity-cards{grid-template-columns:1fr}#temple .tm-deity-business-card{padding:10px}#temple .tm-deity-card-head{align-items:center}#temple .tm-deity-name{font-size:17px}}
 #temple .tm-stock-overview{display:grid;gap:9px;margin:12px 0 20px}#temple .tm-stock-card{padding:12px;border:1px solid #e3d5c3;border-radius:12px;background:#fffaf4}#temple .tm-stock-card>div:first-child{display:flex;justify-content:space-between;flex-wrap:wrap;gap:7px}#temple .tm-size-grid{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}#temple .tm-size-chip{display:flex;gap:9px;align-items:center;border:1px solid #d8e1eb;border-radius:9px;padding:7px 10px;background:white}#temple .tm-size-chip strong{color:#17613c}
+
+/* N556：手機快速做帳單價可切換負數；桌機不顯示按鈕。 */
+#acctStageWork .qMobileSignedPrice{display:flex;min-width:0;align-items:center;gap:3px}
+#acctStageWork .qMobileSignedPrice .qPrice{min-width:0;width:100%;flex:1 1 auto}
+#acctStageWork .qMobileMinus{display:none;flex:0 0 27px;min-width:27px;height:34px;padding:0;border:1px solid #94a3b8;border-radius:7px;background:#eff6ff;color:#1d4ed8;font-weight:800;font-size:17px;cursor:pointer}
+@media(max-width:850px){#acctStageWork .qMobileMinus{display:inline-flex;align-items:center;justify-content:center}}
 </style>
 <script>document.documentElement.classList.add('xr-pwa-starting');performance.mark&&performance.mark('xr-pwa-head-start');</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -7302,7 +7308,7 @@ let qN217IdentityCache = new WeakMap();
   function qFreightDecisionAtCheckout(c){const raw=String(c?.freightDefault||'').trim();return /做帳時決定|結帳時決定|自訂/.test(raw)}
   function qDefaultFreight(c){const raw=String(c?.freightDefault||'').trim(),rate=qMoney(c?.freightDefaultRate||0);const mode=raw==='公斤'?'kg':raw==='件'?'piece':(/整車固定運費|固定運費|固定金額/.test(raw)?'truck':raw==='不計'?'none':'none');return {mode,rate,decision:qFreightDecisionAtCheckout(c)}}
   function qOrderFreight(work){const p=qQuickProfile(work),mode=p.supplier?'none':(work.querySelector('#qOrderFreightMode')?.value||'none'),rate=p.supplier?0:qMoney(work.querySelector('#qOrderFreightRate')?.value||0);return {mode,rate}}
-  function qRowHtml(i){return '<div class="quickV2Row" data-qrow="'+i+'"><b class="quickV2No">'+(i+1)+'</b><input class="input qName" placeholder="品名"><input class="input qKg" inputmode="decimal" placeholder="公斤"><input class="input qQty" inputmode="decimal" value="1" placeholder="數量"><div class="qPricingCell"><select class="input qPricing"><option value="piece">件</option><option value="box">盒</option><option value="each">顆</option><option value="pack">包</option><option value="bundle">束</option><option value="root">根</option><option value="basket">籃</option><option value="carton">箱</option><option value="strip">條</option><option value="custom">自訂</option><option value="kg" hidden>公斤（舊資料）</option><option value="jin" hidden>台斤（舊資料）</option><option value="fixed" hidden>固定金額（舊資料）</option></select><input class="input qPricingCustom" placeholder="自訂單位" style="display:none"></div><div class="qStatusCell"><select class="input qItemStatus"><option value="">正常</option><option value="未送">未送</option><option value="缺貨">缺貨</option><option value="取消">取消</option><option value="補送">補送</option><option value="custom">自訂</option></select><input class="input qItemStatusCustom" placeholder="自訂狀態" style="display:none"></div><select class="input qSource"><option>欣儒</option><option>代購</option><option>代送</option></select><input class="input qPrice" inputmode="decimal" placeholder="單價可空白"><input class="input quickV2Cost qCost" inputmode="decimal" placeholder="成本"><span class="qFreightWrap" data-qcol="freight"><span class="qFreightAmount">0</span><input class="input qFreightRate" inputmode="decimal" placeholder="每件運費" style="display:none"></span><div class="quickV2Num qAmount">—</div><button type="button" class="btn gray qRemove" title="移除此列">×</button></div>'}
+  function qRowHtml(i){return '<div class="quickV2Row" data-qrow="'+i+'"><b class="quickV2No">'+(i+1)+'</b><input class="input qName" placeholder="品名"><input class="input qKg" inputmode="decimal" placeholder="公斤"><input class="input qQty" inputmode="decimal" value="1" placeholder="數量"><div class="qPricingCell"><select class="input qPricing"><option value="piece">件</option><option value="box">盒</option><option value="each">顆</option><option value="pack">包</option><option value="bundle">束</option><option value="root">根</option><option value="basket">籃</option><option value="carton">箱</option><option value="strip">條</option><option value="custom">自訂</option><option value="kg" hidden>公斤（舊資料）</option><option value="jin" hidden>台斤（舊資料）</option><option value="fixed" hidden>固定金額（舊資料）</option></select><input class="input qPricingCustom" placeholder="自訂單位" style="display:none"></div><div class="qStatusCell"><select class="input qItemStatus"><option value="">正常</option><option value="未送">未送</option><option value="缺貨">缺貨</option><option value="取消">取消</option><option value="補送">補送</option><option value="custom">自訂</option></select><input class="input qItemStatusCustom" placeholder="自訂狀態" style="display:none"></div><select class="input qSource"><option>欣儒</option><option>代購</option><option>代送</option></select><span class="qMobileSignedPrice"><input class="input qPrice" inputmode="decimal" placeholder="單價可空白"><button type="button" class="qMobileMinus" aria-label="單價切換正負號" title="切換單價正負號">±</button></span><input class="input quickV2Cost qCost" inputmode="decimal" placeholder="成本"><span class="qFreightWrap" data-qcol="freight"><span class="qFreightAmount">0</span><input class="input qFreightRate" inputmode="decimal" placeholder="每件運費" style="display:none"></span><div class="quickV2Num qAmount">—</div><button type="button" class="btn gray qRemove" title="移除此列">×</button></div>'}
   function qItemStatusValue(row){const v=row?.querySelector('.qItemStatus')?.value||'';return v==='custom'?(row?.querySelector('.qItemStatusCustom')?.value.trim()||''):v}
   function qItemNoChargeStatus(v){return ['未送','缺貨','取消'].includes(String(v||'').trim())}
   function qDisplayNumber(v,max=3){const n=Number(v);if(!Number.isFinite(n))return v??'';return n.toLocaleString('zh-TW',{maximumFractionDigits:max,useGrouping:false})}
@@ -16062,6 +16068,19 @@ setInterval(async()=>{
 },1500);
 })();
 
+
+/* N556：負號按鈕只處理手機快速做帳的單價輸入，不更動帳務計算／存檔規則。 */
+document.addEventListener('click',function(e){
+ const btn=e.target.closest?.('#acctStageWork .qMobileMinus');
+ if(!btn)return;
+ const field=btn.closest('.qMobileSignedPrice')?.querySelector('.qPrice');
+ if(!field)return;
+ const raw=field.value.trim();
+ field.value=raw.startsWith('-')?raw.slice(1):('-'+raw.replace(/^\+/,''));
+ field.dispatchEvent(new Event('input',{bubbles:true}));
+ field.dispatchEvent(new Event('change',{bubbles:true}));
+ field.focus();
+});
 </script>
 </body></html>
 <!-- N233A8: 儲值中央核心：結帳方式移除儲值；舊儲值結帳相容為現結；實收與沖帳拆分；多收儲值保留 credit；預設儲值客戶新銷貨自動扣可用儲值。 -->
