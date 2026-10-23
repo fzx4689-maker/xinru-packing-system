@@ -7817,6 +7817,25 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const closing=qMoney(opening+inflow-consumption);
     return {openingBalance:opening,periodInflow:inflow,periodConsumption:consumption,closingBalance:closing};
   }
+  // N562：僅 0299 舊儲值轉一般客戶的正式週帳，按實際收款日期結轉。
+  // 僅供帳單顯示，不寫回雲端，不改 allocations、資金流水或其他客戶。
+  function qN562PeriodCash0299(c,direction,period){
+    if(!qN561Is0299(c)||direction!=='receipt'||!period?.start||!period?.end)return null;
+    const all=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.status!=='void'&&r.status!=='draft'&&qRecordBelongsToContact(r,c));
+    const sales=all.filter(r=>r.mode!=='money_settlement'&&r.mode!=='money_refund'&&!qAccountingIsAdjustment(r)&&(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'));
+    const payments=all.filter(r=>r.mode==='money_settlement'&&r.txnType==='receipt'&&r.storedValueUse!==true);
+    const start=String(period.start),end=String(period.end);
+    const saleTo=to=>qMoney(sales.filter(r=>String(r.date||'')<=to).reduce((v,r)=>v+qAccountingEffectiveTotal(r,c),0));
+    const cashTo=to=>qMoney(payments.filter(r=>String(r.date||'')<=to).reduce((v,r)=>v+qMoney(r.amount??r.total??r.paid),0));
+    const prev=qBillingParseDate(start);
+    if(!prev)return null;
+    const prevDate=qBillingDateText(qBillingAddDays(prev,-1));
+    const opening=qMoney(saleTo(prevDate)-cashTo(prevDate));
+    const paid=qMoney(cashTo(end)-cashTo(prevDate));
+    const periodSales=qMoney(saleTo(end)-saleTo(prevDate));
+    const closing=qMoney(opening+periodSales-paid);
+    return {opening,paid,periodSales,closing,payments:payments.filter(r=>String(r.date||'')>=start&&String(r.date||'')<=end).sort(qN96Cmp)};
+  }
   function qN297BillingPeriodSummary(c,direction,period,activities){
     const members=(activities||[]).filter(Boolean),ids=new Set(members.map(r=>String(r.id||'')));
     // 退貨／扣款／折讓是原交易的調整事件，不另建立進貨或付款。
@@ -7839,12 +7858,22 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
       g?.period?.ok && String(g.period.key)!==String(period?.key||'') &&
       String(g.period.end||g.record?.date||'')<String(period?.start||'')
     ).reduce((n,g)=>n+Math.max(0,qMoney(g.due)),0));
-    return {periodKey:period?.key||'',periodType:period?.type||'',periodStart:period?.start||'',periodEnd:period?.end||'',periodLabel:period?.label||'',originalRecordCount:members.length,originalAmount,paidAmount:paid,outstanding,settled,settledDate:settled?lastPaymentDate:'',lastPaymentDate,priorOutstanding,settlements,storedValue};
+    const n562Cash=qN562PeriodCash0299(c,direction,period);
+    return {periodKey:period?.key||'',periodType:period?.type||'',periodStart:period?.start||'',periodEnd:period?.end||'',periodLabel:period?.label||'',originalRecordCount:members.length,originalAmount,paidAmount:paid,outstanding,settled,settledDate:settled?lastPaymentDate:'',lastPaymentDate,priorOutstanding,settlements,storedValue,n562Cash};
   }
   function qN297PeriodStatusLines(model){
     const x=model?.periodSummary;if(!x)return null;
     const lines=[],isPay=model.direction==='payment';
 
+    // N562：0299 歷史收款不依舊 allocations 計算，顯示真正的跨期結轉。
+    if(x.n562Cash){
+      const v=x.n562Cash;
+      if(Math.abs(v.opening)>0.000001)lines.push({label:v.opening<0?'前期預收':'前期應收',value:Math.abs(v.opening)});
+      lines.push({label:'本期',value:v.periodSales});
+      if(v.paid>0)lines.push({label:'已收',value:v.paid});
+      lines.push({label:v.closing<0?'預收結餘':'應收',value:Math.abs(v.closing)});
+      return lines;
+    }
     // 車趟結／現結：只保留最短且一致的「已收/應收」或「已付/應付」。
     if(x.periodType==='車趟結'||x.periodType==='現結'){
       if(x.paidAmount>0)lines.push({label:isPay?'已付':'已收',value:x.paidAmount});
@@ -7888,7 +7917,16 @@ function qN107SortRows(rows){return (rows||[]).slice().sort((a,b)=>String(a.date
     const activityIds=new Set(activities.map(r=>String(r.id||'')));
     const periodAdjustments=formal.filter(r=>qAccountingIsAdjustment(r)&&activityIds.has(String(r.sourceRecordId||''))&&qN225ActivityDirectionMatch(r,direction));
     periodAdjustments.forEach(r=>rows.push(...qN222RowsFromAdjustment(r,c)));
-    if(qStoredValueEnabled(c))rows.push(...qN306StoredValueDetailRows(c,{from:selected.start||record.date||'',to:selected.end||record.date||''}));
+    // N562：0299 只列本週真正入金，不列舊 allocations 分配片段。
+    const n562Cash=qN562PeriodCash0299(c,direction,selected);
+    if(n562Cash){
+      rows.push(...n562Cash.payments.map(x=>({
+        kind:'settlement',date:String(x.date||''),createdAt:String(x.createdAt||x.created_at||''),
+        name:'收款｜'+((Array.isArray(x.methods)?x.methods:[]).map(m=>String(m?.method||'')).filter(Boolean).join('＋')||'現金')+'（歷史）',
+        summary:'收款',amount:-qMoney(x.amount??x.total??x.paid),
+        goods:0,freight:0,turnoverAmount:0,moneySettlement:true,recordId:String(x.id||'')
+      })));
+    }else if(qStoredValueEnabled(c))rows.push(...qN306StoredValueDetailRows(c,{from:selected.start||record.date||'',to:selected.end||record.date||''}));
     else rows.push(...qN307PeriodSettlementRows(c,direction,selected,activities));
     rows.push(...qBillingPeriodFeeRows(c,direction,activities));
     rows.push(...qN107ContainerRows(c,{from:selected.start||record.date||'',to:selected.end||record.date||''},direction));
@@ -8523,6 +8561,24 @@ window.goBackAcct=function(){if(window.parent&&window.parent!==window&&window.pa
   function qN215Original_qMoneyActivityRecords(){return (typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&(r.mode==='money_settlement'||r.mode==='money_refund')&&r.status!=='void')}
   function qSettlementAllocated(recordId){const id=String(recordId||'');return qMoneySettlements().reduce((sum,s)=>sum+(Array.isArray(s.allocations)?s.allocations:[]).filter(a=>String(a?.recordId||'')===id).reduce((x,a)=>x+qMoney(a?.amount),0),0)}
   function qRecordOutstanding(r){const c=qContact(r?.contactId||r?.customer||'');return qAccountingOutstanding(r,c)}
+  // N561：僅 0299 的舊儲值轉一般客戶過渡顯示；不修改任何雲端交易或 allocations。
+  function qN561Is0299(c){return !!c&&[c.name,c.code].some(v=>String(v??'').trim()==='0299')&&String(c.paymentDefault||'').trim()!=='儲值';}
+  function qN561Reconcile0299(c,direction,groups){
+    if(!qN561Is0299(c)||direction!=='receipt')return groups;
+    const raw=groups.reduce((sum,g)=>sum+Math.max(0,qMoney(g.due)),0);
+    const net=Math.max(0,qN6HSignedDirectionNet(c,'receipt'));
+    // 舊入金已計入淨額、卻未分配的部分，只在顯示/本次可沖額中扣除一次。
+    // 僅當 raw > net 時處理；不得將差額建立成新的收款或寫回舊交易。
+    let credit=Math.max(0,raw-net);
+    if(credit<0.001)return groups;
+    return groups.map(g=>{
+      const members=(g.memberRows||[]).map(m=>({...m}));
+      let groupCredit=Math.min(Math.max(0,qMoney(g.due)),credit);
+      credit-=groupCredit;
+      for(const m of members){if(groupCredit<=0.000001)break;const used=Math.min(Math.max(0,qMoney(m.due)),groupCredit);m.due=Math.max(0,qMoney(m.due)-used);groupCredit-=used;}
+      return {...g,due:members.reduce((sum,m)=>sum+Math.max(0,qMoney(m.due)),0),memberRows:members.filter(m=>m.due>0.000001)};
+    }).filter(g=>g.due>0.000001);
+  }
   function qOpenMoneyRows(c,direction){
     // N333: one contact/direction scan per call; preserve original order and predicates.
     const allPeriodSource=(typeof acctRecords==='function'?acctRecords():[]).filter(r=>r&&r.mode!=='money_settlement'&&!qAccountingIsAdjustment(r)&&r.mode!=='money_refund'&&qRecordBelongsToContact(r,c)&&r.status!=='void'&&r.status!=='draft').filter(r=>direction==='receipt'?(r.txnType==='sale'||r.accountDirection==='receivable'||r.txnTypeLabel==='銷貨'):(r.txnType==='purchase'||r.accountDirection==='payable'||r.txnTypeLabel==='進貨'));
@@ -8546,7 +8602,7 @@ window.goBackAcct=function(){if(window.parent&&window.parent!==window&&window.pa
       members.push(r);
     });
     groups.forEach((g,key)=>{const members=membersByPeriod.get(String(key))||[];g.periodMembers=members;g.originalRecordCount=members.length;g.originalAmount=members.reduce((sum,r)=>sum+qMoney(qRecordTotal(r)),0);g.itemCount=members.reduce((sum,r)=>sum+(r?.items||[]).filter(v=>v&&v.name).length,0)});
-    return [...groups.values()].filter(g=>qMoney(g.due)>0.000001).sort((a,b)=>String(a.period?.start||a.record?.date||'').localeCompare(String(b.period?.start||b.record?.date||''))||String(a.record?.createdAt||'').localeCompare(String(b.record?.createdAt||'')));
+    return qN561Reconcile0299(c,direction,[...groups.values()].filter(g=>qMoney(g.due)>0.000001).sort((a,b)=>String(a.period?.start||a.record?.date||'').localeCompare(String(b.period?.start||b.record?.date||''))||String(a.record?.createdAt||'').localeCompare(String(b.record?.createdAt||''))));
   }
   function qN295OpenOriginal(x){return qMoney(x?.originalAmount!=null?x.originalAmount:qRecordTotal(x?.record))}
   function qN295OpenItemCount(x){return Number(x?.itemCount!=null?x.itemCount:((x?.record?.items||[]).filter(v=>v&&v.name).length))}
