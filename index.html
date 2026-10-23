@@ -6906,7 +6906,18 @@ document.addEventListener('DOMContentLoaded',initProcurementV30);
     };
     setTimeout(next,0);
   }
+  // N563：往來身分變更後，收款分類不能沿用上個版本的 localStorage 快取。
+  // 僅刷新分類摘要，不修改交易、沖帳、帳單或列印。
+  let qN563PaymentSummaryChecked=false;
+  window.addEventListener('xinru:contacts-cloud-loaded',()=>{
+    qN563PaymentSummaryChecked=false;
+    qN332Invalidate();
+  });
   function qN332OverviewHtml(){
+    if(!qN563PaymentSummaryChecked){
+      qN563PaymentSummaryChecked=true;
+      qN332Invalidate();
+    }
     const s=qN332LoadCache();
     if(s)return qN332OverviewFromSnapshot(s);
     qN332ScheduleBuild();
